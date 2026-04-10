@@ -195,3 +195,28 @@
 - Risks / notes:
   - `linkDecoration.ts` still relies on regex extraction for image syntax, so image destinations with titles or nested parentheses remain the main future regression surface
   - `MF-029` is still untouched and should remain separate from preview verification because Typora treats image insertion/upload as a different capability
+
+### 2026-04-10 - MF-014 + MF-023 math and Mermaid rendering
+
+- Author: Copilot
+- Focus: implement KaTeX math rendering and Mermaid diagram rendering in WYSIWYG mode
+- What changed:
+  - added `katex` and `mermaid` as dependencies in `@markflow/editor`; added `@types/katex` as dev dependency
+  - created `packages/editor/src/editor/decorations/mathDecoration.ts` — handles inline `$...$`, single-line `$$expr$$`, and multi-line `$$\n...\n$$` blocks via KaTeX; uses line-by-line `Decoration.replace` to stay within the CM6 ViewPlugin constraint (no replace decorations that span line breaks); cursor inside range reveals raw source
+  - created `packages/editor/src/editor/decorations/mermaidDecoration.ts` — detects `FencedCode` nodes with `CodeInfo` = "mermaid" via the lezer syntax tree; renders SVG asynchronously via a lazy-loaded Mermaid instance; SVG cache prevents redundant re-renders; loading and error states handled gracefully; cursor inside block reveals raw fenced source
+  - registered both decorations in `MarkFlowEditor.tsx` `getWysiwygExtensions()` alongside existing WYSIWYG decorations
+  - imported `katex/dist/katex.min.css` in `main.tsx` for proper KaTeX font rendering
+  - added CSS classes `.mf-math-inline`, `.mf-math-block`, `.mf-mermaid`, `.mf-mermaid-loading`, `.mf-mermaid-error` to `global.css`
+  - added 13 tests in `mathDecoration.test.ts` and 10 tests in `mermaidDecoration.test.ts`; all 68 editor tests pass
+- Verification:
+  - `pnpm --filter @markflow/editor exec vitest run src/editor/__tests__/mathDecoration.test.ts src/editor/__tests__/mermaidDecoration.test.ts`
+  - `pnpm --filter @markflow/editor test:run`
+- Newly verified features:
+  - `MF-014` — math blocks via KaTeX
+  - `MF-023` — Mermaid diagram fences
+- Next recommended feature:
+  - `MF-010` — rendered links, internal anchors, reference links, auto URLs
+- Risks / notes:
+  - Mermaid SVG rendering is async: the widget shows a loading placeholder on first render; subsequent renders with the same source hit the in-memory cache
+  - Block math multi-line detection requires `$$` on its own line (trimmed); `$$expr$$` inline is also supported as display math on a single line
+  - KaTeX CSS is bundled via Vite; if the app is loaded without Vite (e.g., plain HTML), the CSS link must be added manually

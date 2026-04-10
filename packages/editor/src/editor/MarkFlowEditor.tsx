@@ -18,6 +18,8 @@ import { codeBlockDecorations } from './decorations/codeBlockDecoration'
 import { blockquoteDecorations } from './decorations/blockquoteDecoration'
 import { linkDecorations } from './decorations/linkDecoration'
 import { listDecorations } from './decorations/listDecoration'
+import { mathDecorations } from './decorations/mathDecoration'
+import { mermaidDecorations } from './decorations/mermaidDecoration'
 import { smartInput } from './extensions/smartInput'
 import { FloatingToolbar } from '../components/FloatingToolbar'
 
@@ -45,6 +47,8 @@ function getWysiwygExtensions(filePath?: string) {
     blockquoteDecorations(),
     linkDecorations(filePath),
     listDecorations(),
+    mathDecorations(),
+    mermaidDecorations(),
   ]
 }
 

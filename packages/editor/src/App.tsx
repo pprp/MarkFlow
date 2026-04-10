@@ -146,7 +146,7 @@ export function App() {
         <div className="mf-titlebar-center">
           <span className="mf-titlebar-document">
             {activeDocumentName}
-            {documentState.isDirty ? ' ●' : ''}
+            {documentState.isDirty ? ' • Unsaved' : ''}
           </span>
         </div>
         <div className="mf-titlebar-right">

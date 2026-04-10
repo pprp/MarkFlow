@@ -1,50 +1,85 @@
+/* ============================================================
+   MarkFlow — Typora-inspired design system
+   Light-mode first, neutral palette, clean typography
+   ============================================================ */
+
 :root {
-  --mf-bg: #ffffff;
-  --mf-fg: #1a1a2e;
-  --mf-bg-secondary: #f8f9fa;
-  --mf-border: #e2e8f0;
-  --mf-accent: #3b82f6;
-  --mf-accent-hover: #2563eb;
-  --mf-heading-color: #0f172a;
-  --mf-code-bg: #f1f5f9;
-  --mf-code-fg: #e11d48;
-  --mf-blockquote-border: #3b82f6;
-  --mf-blockquote-bg: #eff6ff;
-  --mf-link-color: #2563eb;
-  --mf-hr-color: #cbd5e1;
-  --mf-selection: #bfdbfe;
-  --mf-font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  --mf-font-mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
-  --mf-font-size: 16px;
-  --mf-line-height: 1.75;
+  /* Backgrounds */
+  --mf-bg:              #ffffff;
+  --mf-bg-secondary:    #f8f8f8;
+  --mf-bg-code:         #f5f5f5;
+
+  /* Typography */
+  --mf-fg:              #333333;
+  --mf-fg-muted:        #6e6e6e;
+  --mf-heading-color:   #1a1a1a;
+
+  /* Borders & dividers */
+  --mf-border:          #e4e4e4;
+  --mf-border-light:    #efefef;
+  --mf-hr-color:        #e0e0e0;
+
+  /* Accent — calm blue, not saturated */
+  --mf-accent:          #4a90d9;
+  --mf-accent-hover:    #2f7ac4;
+
+  /* Semantic */
+  --mf-link-color:      #4a90d9;
+  --mf-code-fg:         #c7254e;
+  --mf-blockquote-border: #dde0e3;
+  --mf-blockquote-fg:   #888888;
+  --mf-selection:       #d0e8ff;
+
+  /* Fonts */
+  --mf-font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'PingFang SC',
+                  'Hiragino Sans GB', 'Microsoft YaHei', 'Segoe UI', sans-serif;
+  --mf-font-mono: 'JetBrains Mono', 'SF Mono', Menlo, Consolas, 'Courier New', monospace;
+  --mf-font-size:       15px;
+  --mf-line-height:     1.8;
+
+  /* Layout */
+  --mf-content-width:   740px;
+  --mf-content-padding: 2.5rem;
 }
 
+/* ── Dark mode ─────────────────────────────────────────────── */
 @media (prefers-color-scheme: dark) {
   :root {
-    --mf-bg: #1a1a2e;
-    --mf-fg: #e2e8f0;
-    --mf-bg-secondary: #16213e;
-    --mf-border: #334155;
-    --mf-accent: #60a5fa;
-    --mf-accent-hover: #93bbfd;
-    --mf-heading-color: #f1f5f9;
-    --mf-code-bg: #1e293b;
-    --mf-code-fg: #fb7185;
-    --mf-blockquote-border: #60a5fa;
-    --mf-blockquote-bg: #1e293b;
-    --mf-link-color: #60a5fa;
-    --mf-hr-color: #475569;
-    --mf-selection: #1e3a5f;
+    --mf-bg:              #1e1e1e;
+    --mf-bg-secondary:    #262626;
+    --mf-bg-code:         #2a2a2a;
+
+    --mf-fg:              #cccccc;
+    --mf-fg-muted:        #888888;
+    --mf-heading-color:   #e8e8e8;
+
+    --mf-border:          #383838;
+    --mf-border-light:    #2e2e2e;
+    --mf-hr-color:        #404040;
+
+    --mf-accent:          #569cd6;
+    --mf-accent-hover:    #79b8f3;
+
+    --mf-link-color:      #6cafea;
+    --mf-code-fg:         #f48771;
+    --mf-blockquote-border: #444444;
+    --mf-blockquote-fg:   #888888;
+    --mf-selection:       #264f78;
   }
 }
 
-* {
+/* ── Reset ──────────────────────────────────────────────────── */
+*,
+*::before,
+*::after {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
 }
 
-html, body, #root {
+html,
+body,
+#root {
   height: 100%;
 }
 
@@ -55,28 +90,34 @@ body {
   color: var(--mf-fg);
   background: var(--mf-bg);
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }
 
+/* ── App shell ──────────────────────────────────────────────── */
 .mf-app {
   display: flex;
   flex-direction: column;
   height: 100%;
+  background: var(--mf-bg);
 }
 
+/* ── Titlebar ───────────────────────────────────────────────── */
 .mf-titlebar {
   display: grid;
   grid-template-columns: 80px 1fr 1fr 1fr;
   align-items: center;
-  height: 44px;
-  padding: 0 16px 0 0;
-  background: var(--mf-bg-secondary);
-  border-bottom: 1px solid var(--mf-border);
+  height: 40px;
+  padding: 0 14px 0 0;
+  /* blends into editor background — no separate chrome */
+  background: var(--mf-bg);
+  border-bottom: 1px solid var(--mf-border-light);
   user-select: none;
   -webkit-app-region: drag;
   position: relative;
+  flex-shrink: 0;
 }
 
-/* Spacer reserves room for macOS hiddenInset traffic lights (~78px) */
 .mf-titlebar-traffic-spacer {
   width: 80px;
   flex-shrink: 0;
@@ -85,7 +126,7 @@ body {
 .mf-titlebar-left {
   display: flex;
   align-items: center;
-  gap: 7px;
+  gap: 6px;
   min-width: 0;
 }
 
@@ -93,14 +134,14 @@ body {
   color: var(--mf-accent);
   flex-shrink: 0;
   display: block;
+  opacity: 0.85;
 }
 
 .mf-titlebar-appname {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--mf-fg);
-  opacity: 0.75;
-  letter-spacing: -0.01em;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--mf-fg-muted);
+  letter-spacing: 0.01em;
   white-space: nowrap;
 }
 
@@ -116,11 +157,10 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--mf-fg);
-  opacity: 0.6;
-  letter-spacing: -0.01em;
+  font-size: 12.5px;
+  font-weight: 400;
+  color: var(--mf-fg-muted);
+  letter-spacing: 0.005em;
 }
 
 .mf-titlebar-right {
@@ -130,170 +170,282 @@ body {
   gap: 8px;
 }
 
+/* ── Mode toggle button ─────────────────────────────────────── */
 .mf-mode-toggle {
   -webkit-app-region: no-drag;
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  padding: 4px 10px;
-  font-size: 11.5px;
+  gap: 4px;
+  padding: 3px 9px;
+  font-size: 11px;
   font-weight: 500;
-  color: var(--mf-accent);
+  font-family: var(--mf-font-sans);
+  color: var(--mf-fg-muted);
   background: transparent;
-  border: 1px solid color-mix(in srgb, var(--mf-accent) 40%, transparent);
-  border-radius: 5px;
+  border: 1px solid var(--mf-border);
+  border-radius: 4px;
   cursor: pointer;
-  transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease;
-  letter-spacing: 0.01em;
+  transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+  letter-spacing: 0.02em;
 }
 
 .mf-mode-toggle:hover {
-  background: color-mix(in srgb, var(--mf-accent) 10%, transparent);
+  color: var(--mf-accent);
   border-color: var(--mf-accent);
+  background: color-mix(in srgb, var(--mf-accent) 6%, transparent);
 }
 
 .mf-mode-toggle:active {
-  background: color-mix(in srgb, var(--mf-accent) 18%, transparent);
+  background: color-mix(in srgb, var(--mf-accent) 12%, transparent);
 }
 
+/* ── Main editor area ───────────────────────────────────────── */
 .mf-main {
   flex: 1;
   overflow: hidden;
+  background: var(--mf-bg);
 }
 
-/* CodeMirror overrides */
+/* ── CodeMirror base ────────────────────────────────────────── */
 .cm-editor {
   height: 100%;
   font-family: var(--mf-font-sans);
   font-size: var(--mf-font-size);
   line-height: var(--mf-line-height);
+  color: var(--mf-fg);
+  background: var(--mf-bg) !important;
 }
 
 .cm-editor .cm-scroller {
-  padding: 2rem 0;
+  padding: 3rem 0 6rem;
+  background: var(--mf-bg);
 }
 
 .cm-editor .cm-content {
-  max-width: 48rem;
+  max-width: var(--mf-content-width);
   margin: 0 auto;
-  padding: 0 2rem;
+  padding: 0 var(--mf-content-padding);
+  caret-color: var(--mf-fg);
 }
 
 .cm-editor .cm-line {
   padding: 0;
 }
 
+.cm-editor.cm-focused {
+  outline: none;
+}
+
 .cm-editor .cm-focused {
   outline: none;
 }
 
-.cm-editor .cm-selectionBackground {
+.cm-editor .cm-selectionBackground,
+.cm-editor .cm-selectionBackground * {
   background: var(--mf-selection) !important;
 }
 
 .cm-editor .cm-cursor {
-  border-left-color: var(--mf-accent);
-  border-left-width: 2px;
+  border-left-color: var(--mf-fg);
+  border-left-width: 1.5px;
 }
 
-/* WYSIWYG decoration styles */
-.cm-editor .mf-h1 { font-size: 2em; font-weight: 700; color: var(--mf-heading-color); margin: 0.5em 0 0.25em; }
-.cm-editor .mf-h2 { font-size: 1.5em; font-weight: 700; color: var(--mf-heading-color); margin: 0.4em 0 0.2em; }
-.cm-editor .mf-h3 { font-size: 1.25em; font-weight: 600; color: var(--mf-heading-color); margin: 0.3em 0 0.15em; }
-.cm-editor .mf-h4 { font-size: 1.1em; font-weight: 600; color: var(--mf-heading-color); }
-.cm-editor .mf-h5 { font-size: 1em; font-weight: 600; color: var(--mf-heading-color); }
-.cm-editor .mf-h6 { font-size: 0.9em; font-weight: 600; color: var(--mf-heading-color); opacity: 0.8; }
+/* hide the inner gutters and line numbers if any */
+.cm-editor .cm-gutters {
+  display: none;
+}
 
-.cm-editor .mf-bold { font-weight: 700; }
-.cm-editor .mf-italic { font-style: italic; }
-.cm-editor .mf-strikethrough { text-decoration: line-through; opacity: 0.6; }
+/* ── WYSIWYG heading styles ─────────────────────────────────── */
+/* Headings get a slight bottom border (like GitHub/Typora default) */
+.cm-editor .mf-h1 {
+  font-size: 1.875em;
+  font-weight: 700;
+  color: var(--mf-heading-color);
+  padding-bottom: 0.25em;
+  border-bottom: 1px solid var(--mf-border-light);
+  line-height: 1.3;
+  letter-spacing: -0.02em;
+}
 
+.cm-editor .mf-h2 {
+  font-size: 1.4em;
+  font-weight: 600;
+  color: var(--mf-heading-color);
+  padding-bottom: 0.2em;
+  border-bottom: 1px solid var(--mf-border-light);
+  line-height: 1.35;
+  letter-spacing: -0.01em;
+}
+
+.cm-editor .mf-h3 {
+  font-size: 1.175em;
+  font-weight: 600;
+  color: var(--mf-heading-color);
+  line-height: 1.4;
+}
+
+.cm-editor .mf-h4 {
+  font-size: 1.05em;
+  font-weight: 600;
+  color: var(--mf-heading-color);
+  line-height: 1.4;
+}
+
+.cm-editor .mf-h5 {
+  font-size: 1em;
+  font-weight: 600;
+  color: var(--mf-fg-muted);
+  line-height: 1.4;
+}
+
+.cm-editor .mf-h6 {
+  font-size: 0.9em;
+  font-weight: 600;
+  color: var(--mf-fg-muted);
+  line-height: 1.4;
+}
+
+/* ── Inline styles ──────────────────────────────────────────── */
+.cm-editor .mf-bold {
+  font-weight: 700;
+  color: var(--mf-heading-color);
+}
+
+.cm-editor .mf-italic {
+  font-style: italic;
+}
+
+.cm-editor .mf-strikethrough {
+  text-decoration: line-through;
+  color: var(--mf-fg-muted);
+}
+
+/* ── Inline code ────────────────────────────────────────────── */
 .cm-editor .mf-inline-code {
   font-family: var(--mf-font-mono);
-  font-size: 0.9em;
+  font-size: 0.88em;
   color: var(--mf-code-fg);
-  background: var(--mf-code-bg);
-  padding: 2px 6px;
-  border-radius: 4px;
+  background: var(--mf-bg-code);
+  padding: 1px 5px;
+  border-radius: 3px;
+  border: 1px solid var(--mf-border);
 }
 
+/* ── Links ──────────────────────────────────────────────────── */
 .cm-editor .mf-link {
   color: var(--mf-link-color);
-  text-decoration: underline;
-  text-decoration-color: var(--mf-link-color);
-  text-underline-offset: 2px;
+  text-decoration: none;
+  border-bottom: 1px solid color-mix(in srgb, var(--mf-link-color) 50%, transparent);
   cursor: pointer;
+  transition: border-color 0.15s ease;
 }
 
+.cm-editor .mf-link:hover {
+  border-bottom-color: var(--mf-link-color);
+}
+
+/* ── Blockquote ─────────────────────────────────────────────── */
 .cm-editor .mf-blockquote {
   border-left: 3px solid var(--mf-blockquote-border);
   padding-left: 1em;
-  background: var(--mf-blockquote-bg);
-  margin: 0.25em 0;
+  color: var(--mf-blockquote-fg);
+  font-style: normal;
+  margin: 0;
 }
 
+/* ── Horizontal rule ────────────────────────────────────────── */
 .cm-editor .mf-hr-widget {
   display: block;
   width: 100%;
   height: 1px;
   background: var(--mf-hr-color);
-  margin: 1.5em 0;
+  margin: 1.25em 0;
   border: none;
 }
 
+/* ── Code blocks ────────────────────────────────────────────── */
 .cm-editor .mf-code-block-line {
   font-family: var(--mf-font-mono);
-  font-size: 0.9em;
-  background: var(--mf-code-bg);
-  padding: 0 1em;
+  font-size: 0.875em;
+  background: var(--mf-bg-code);
+  padding: 0 1.25em;
+  line-height: 1.65;
 }
 
 .cm-editor .mf-code-block-first {
-  border-radius: 6px 6px 0 0;
+  border-radius: 5px 5px 0 0;
   padding-top: 0.75em;
+  border: 1px solid var(--mf-border);
+  border-bottom: none;
 }
 
 .cm-editor .mf-code-block-last {
-  border-radius: 0 0 6px 6px;
+  border-radius: 0 0 5px 5px;
   padding-bottom: 0.75em;
+  border: 1px solid var(--mf-border);
+  border-top: none;
 }
 
+/* single-line code block */
+.cm-editor .mf-code-block-first.mf-code-block-last {
+  border-radius: 5px;
+  border: 1px solid var(--mf-border);
+}
+
+/* ── Task list ──────────────────────────────────────────────── */
 .cm-editor .mf-task-checkbox {
   cursor: pointer;
   margin-right: 6px;
   accent-color: var(--mf-accent);
+  width: 14px;
+  height: 14px;
+  vertical-align: middle;
+  position: relative;
+  top: -1px;
 }
 
+/* ── List markers ───────────────────────────────────────────── */
 .cm-editor .mf-list-bullet {
-  color: var(--mf-accent);
-  font-weight: 700;
+  color: var(--mf-fg-muted);
+  font-weight: 400;
   margin-right: 4px;
 }
 
 .cm-editor .mf-list-order-marker {
-  color: var(--mf-accent);
-  font-weight: 600;
+  color: var(--mf-fg-muted);
+  font-weight: 400;
   margin-right: 4px;
 }
 
+/* ── Images ─────────────────────────────────────────────────── */
 .cm-editor .mf-image-widget {
   max-width: 100%;
-  border-radius: 6px;
-  margin: 0.5em 0;
+  border-radius: 4px;
+  margin: 0.25em 0;
+  display: block;
 }
 
 .cm-editor .mf-image-error {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  color: #ef4444;
-  font-size: 0.85em;
-  padding: 4px 8px;
-  background: #fef2f2;
+  gap: 5px;
+  color: #c0392b;
+  font-size: 0.83em;
+  padding: 3px 8px;
+  background: #fdf2f0;
+  border: 1px solid #f5c6c0;
   border-radius: 4px;
 }
 
-/* Hidden markdown syntax markers */
+@media (prefers-color-scheme: dark) {
+  .cm-editor .mf-image-error {
+    color: #e17055;
+    background: #2b1a18;
+    border-color: #5c2e28;
+  }
+}
+
+/* ── Hidden markdown syntax markers ────────────────────────── */
 .cm-editor .mf-hidden {
   font-size: 0;
   width: 0;
@@ -301,3 +453,61 @@ body {
   overflow: hidden;
   color: transparent;
 }
+
+/* ── Math widgets (KaTeX) ───────────────────────────────────── */
+.cm-editor .mf-math-inline {
+  display: inline-block;
+  vertical-align: middle;
+  cursor: text;
+  line-height: 1;
+}
+
+.cm-editor .mf-math-block {
+  display: block;
+  text-align: center;
+  padding: 0.75em 0;
+  cursor: text;
+  overflow-x: auto;
+}
+
+/* KaTeX error color override */
+.cm-editor .mf-math-inline .katex-error,
+.cm-editor .mf-math-block .katex-error {
+  color: var(--mf-code-fg);
+}
+
+/* ── Mermaid diagram widgets ────────────────────────────────── */
+.cm-editor .mf-mermaid {
+  display: block;
+  text-align: center;
+  padding: 1em 0;
+  cursor: text;
+  overflow-x: auto;
+}
+
+.cm-editor .mf-mermaid svg {
+  max-width: 100%;
+  height: auto;
+}
+
+.cm-editor .mf-mermaid-loading {
+  font-size: 13px;
+  color: var(--mf-fg-muted);
+  font-style: italic;
+}
+
+.cm-editor .mf-mermaid-error {
+  font-size: 13px;
+  color: var(--mf-code-fg);
+  padding: 0.5em 0.75em;
+  background: color-mix(in srgb, var(--mf-code-fg) 8%, transparent);
+  border-radius: 4px;
+  border: 1px solid color-mix(in srgb, var(--mf-code-fg) 20%, transparent);
+}
+
+@media (prefers-color-scheme: dark) {
+  .cm-editor .mf-mermaid-error {
+    background: color-mix(in srgb, var(--mf-code-fg) 12%, #1e1e1e);
+  }
+}
+

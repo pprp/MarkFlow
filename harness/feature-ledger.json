@@ -343,9 +343,9 @@
       "category": "phase-2-functional",
       "area": "@markflow/editor",
       "priority": 3,
-      "status": "planned",
-      "passes": false,
-      "lastVerifiedAt": null,
+      "status": "verified",
+      "passes": true,
+      "lastVerifiedAt": "2026-04-10",
       "dependsOn": [],
       "steps": [
         "Open inline and block math syntax.",
@@ -354,13 +354,14 @@
       ],
       "verification": {
         "automated": [
-          "Add math rendering tests and sanitization checks."
+          "pnpm --filter @markflow/editor exec vitest run src/editor/__tests__/mathDecoration.test.ts",
+          "pnpm --filter @markflow/editor test:run"
         ],
         "manual": [
           "Verify invalid expressions fail gracefully."
         ]
       },
-      "notes": "Planned for Phase 2."
+      "notes": "Inline $...$ and block $$...$$ render via KaTeX. Cursor-aware source reveal. Skips code ranges. CSS: .mf-math-inline, .mf-math-block."
     },
     {
       "id": "MF-015",
@@ -571,9 +572,9 @@
       "category": "phase-3-functional",
       "area": "@markflow/editor",
       "priority": 3,
-      "status": "planned",
-      "passes": false,
-      "lastVerifiedAt": null,
+      "status": "verified",
+      "passes": true,
+      "lastVerifiedAt": "2026-04-10",
       "dependsOn": [],
       "steps": [
         "Open fenced diagram blocks such as Mermaid flowcharts or sequence diagrams.",
@@ -582,13 +583,14 @@
       ],
       "verification": {
         "automated": [
-          "Add diagram renderer tests for fenced block detection, preview updates, and fallback behavior on invalid syntax."
+          "pnpm --filter @markflow/editor exec vitest run src/editor/__tests__/mermaidDecoration.test.ts",
+          "pnpm --filter @markflow/editor test:run"
         ],
         "manual": [
           "Verify large diagrams and invalid Mermaid syntax degrade gracefully without breaking adjacent content."
         ]
       },
-      "notes": "Aligned with the Phase 3 block-renderer direction and especially useful for engineers. Sources: https://support.typora.io/Draw-Diagrams-With-Markdown/ and https://typora.io/."
+      "notes": "Fenced mermaid blocks render live SVG via Mermaid.js (lazy-loaded). Cursor-aware source reveal. SVG cache. CSS: .mf-mermaid."
     },
     {
       "id": "MF-024",
