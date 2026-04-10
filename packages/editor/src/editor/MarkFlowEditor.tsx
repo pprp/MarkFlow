@@ -23,6 +23,7 @@ import { mathDecorations } from './decorations/mathDecoration'
 import { mermaidDecorations } from './decorations/mermaidDecoration'
 import { smartInput } from './extensions/smartInput'
 import { focusModeExtension, typewriterModeExtension } from './extensions/focusMode'
+import { smartTypographyExtension } from './extensions/smartTypography'
 import { FloatingToolbar } from '../components/FloatingToolbar'
 
 export interface MarkFlowEditorProps {
@@ -219,6 +220,7 @@ export function MarkFlowEditor({
           ...closeBracketsKeymap,
           indentWithTab,
         ]),
+        smartTypographyExtension(),
         smartInput(),
         EditorView.lineWrapping,
         EditorView.updateListener.of((update) => {
