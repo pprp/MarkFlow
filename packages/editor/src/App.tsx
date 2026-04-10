@@ -1,4 +1,4 @@
-import { type ChangeEvent, useEffect, useMemo, useRef, useState } from 'react'
+import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { MarkFlowEditor } from './editor/MarkFlowEditor'
 import { computeStats } from './editor/wordCount'
 import type {
@@ -10,6 +10,7 @@ import type {
 } from '@markflow/shared'
 
 const THEME_STYLE_ELEMENT_ID = 'mf-theme-overrides'
+const AUTO_SAVE_DELAY_MS = 30_000
 
 const INITIAL_CONTENT = `# Welcome to MarkFlow
 
@@ -157,6 +158,22 @@ export function App() {
   function toggleTypewriterMode() {
     setTypewriterMode((v) => !v)
   }
+
+  const triggerAutoSave = useCallback(async () => {
+    const api = window.markflow
+    if (!api) return
+    const { filePath, isDirty } = documentState
+    if (!filePath || !isDirty) return
+    await api.saveFile(latestContentRef.current)
+  }, [documentState])
+
+  useEffect(() => {
+    if (!documentState.filePath || !documentState.isDirty) return
+    const timer = setTimeout(() => {
+      void triggerAutoSave()
+    }, AUTO_SAVE_DELAY_MS)
+    return () => clearTimeout(timer)
+  }, [documentState.filePath, documentState.isDirty, documentState.content, triggerAutoSave])
 
   function handleContentChange(content: string) {
     latestContentRef.current = content
