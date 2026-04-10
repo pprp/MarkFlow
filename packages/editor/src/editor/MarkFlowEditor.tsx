@@ -21,6 +21,7 @@ import { listDecorations } from './decorations/listDecoration'
 import { mathDecorations } from './decorations/mathDecoration'
 import { mermaidDecorations } from './decorations/mermaidDecoration'
 import { smartInput } from './extensions/smartInput'
+import { focusModeExtension, typewriterModeExtension } from './extensions/focusMode'
 import { FloatingToolbar } from '../components/FloatingToolbar'
 
 export interface MarkFlowEditorProps {
@@ -30,6 +31,10 @@ export interface MarkFlowEditorProps {
   onOpenPath?: (filePath: string) => void | Promise<unknown>
   onToggleMode?: () => void
   onSelectionChange?: (selectedText: string) => void
+  onToggleFocusMode?: () => void
+  onToggleTypewriterMode?: () => void
+  focusMode?: boolean
+  typewriterMode?: boolean
   filePath?: string
 }
 
@@ -117,6 +122,10 @@ export function MarkFlowEditor({
   onOpenPath,
   onToggleMode,
   onSelectionChange,
+  onToggleFocusMode,
+  onToggleTypewriterMode,
+  focusMode = false,
+  typewriterMode = false,
   filePath,
 }: MarkFlowEditorProps) {
   const containerRef = useRef<HTMLDivElement>(null)
@@ -125,8 +134,12 @@ export function MarkFlowEditor({
   const onOpenPathRef = useRef(onOpenPath)
   const onToggleModeRef = useRef(onToggleMode)
   const onSelectionChangeRef = useRef(onSelectionChange)
+  const onToggleFocusModeRef = useRef(onToggleFocusMode)
+  const onToggleTypewriterModeRef = useRef(onToggleTypewriterMode)
   const filePathRef = useRef(filePath)
   const viewModeCompartmentRef = useRef(new Compartment())
+  const focusModeCompartmentRef = useRef(new Compartment())
+  const typewriterModeCompartmentRef = useRef(new Compartment())
   const [editorView, setEditorView] = useState<EditorView | null>(null)
 
   useEffect(() => {
@@ -144,6 +157,14 @@ export function MarkFlowEditor({
   useEffect(() => {
     onSelectionChangeRef.current = onSelectionChange
   }, [onSelectionChange])
+
+  useEffect(() => {
+    onToggleFocusModeRef.current = onToggleFocusMode
+  }, [onToggleFocusMode])
+
+  useEffect(() => {
+    onToggleTypewriterModeRef.current = onToggleTypewriterMode
+  }, [onToggleTypewriterMode])
 
   useEffect(() => {
     filePathRef.current = filePath
@@ -170,11 +191,23 @@ export function MarkFlowEditor({
             key: 'Mod-/',
             preventDefault: true,
             run: () => {
-              if (!onToggleModeRef.current) {
-                return false
-              }
-
-              onToggleModeRef.current()
+              onToggleModeRef.current?.()
+              return true
+            },
+          },
+          {
+            key: 'Mod-Shift-f',
+            preventDefault: true,
+            run: () => {
+              onToggleFocusModeRef.current?.()
+              return true
+            },
+          },
+          {
+            key: 'Mod-Shift-t',
+            preventDefault: true,
+            run: () => {
+              onToggleTypewriterModeRef.current?.()
               return true
             },
           },
@@ -197,6 +230,8 @@ export function MarkFlowEditor({
           }
         }),
         viewModeCompartmentRef.current.of(viewMode === 'wysiwyg' ? getWysiwygExtensions(filePath) : []),
+        focusModeCompartmentRef.current.of(focusMode ? focusModeExtension() : []),
+        typewriterModeCompartmentRef.current.of(typewriterMode ? typewriterModeExtension() : []),
       ],
     })
 
@@ -264,6 +299,26 @@ export function MarkFlowEditor({
       ),
     })
   }, [filePath, viewMode])
+
+  useEffect(() => {
+    const view = viewRef.current
+    if (!view) return
+    view.dispatch({
+      effects: focusModeCompartmentRef.current.reconfigure(
+        focusMode ? focusModeExtension() : [],
+      ),
+    })
+  }, [focusMode])
+
+  useEffect(() => {
+    const view = viewRef.current
+    if (!view) return
+    view.dispatch({
+      effects: typewriterModeCompartmentRef.current.reconfigure(
+        typewriterMode ? typewriterModeExtension() : [],
+      ),
+    })
+  }, [typewriterMode])
 
   useEffect(() => {
     const view = viewRef.current

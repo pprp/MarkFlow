@@ -9,6 +9,8 @@ import type {
   MarkFlowMenuAction,
   MarkFlowMenuActionPayload,
   MarkFlowSavePayload,
+  MarkFlowThemePayload,
+  MarkFlowThemeSummary,
 } from '@markflow/shared'
 
 function getEditorView(container: HTMLElement) {
@@ -22,16 +24,51 @@ function getEditorView(container: HTMLElement) {
 }
 
 class MockMarkFlowAPI implements MarkFlowDesktopAPI {
+  private themes: MarkFlowThemeSummary[] = [
+    { id: 'paper', name: 'Paper' },
+    { id: 'midnight', name: 'Midnight' },
+  ]
   openFile: MarkFlowDesktopAPI['openFile'] = vi.fn(async () => null)
+  openPath: MarkFlowDesktopAPI['openPath'] = vi.fn(async () => null)
   saveFile: MarkFlowDesktopAPI['saveFile'] = vi.fn(async () => ({ success: true }))
   saveFileAs: MarkFlowDesktopAPI['saveFileAs'] = vi.fn(async () => ({ success: true }))
   newFile: MarkFlowDesktopAPI['newFile'] = vi.fn(async () => {})
   getCurrentPath: MarkFlowDesktopAPI['getCurrentPath'] = vi.fn(async () => null)
   getCurrentDocument: MarkFlowDesktopAPI['getCurrentDocument'] = vi.fn(async () => null)
+  getThemes: MarkFlowDesktopAPI['getThemes'] = vi.fn(async () => this.themes)
+  getCurrentTheme: MarkFlowDesktopAPI['getCurrentTheme'] = vi.fn(async () => this.buildThemePayload('paper'))
+  setTheme: MarkFlowDesktopAPI['setTheme'] = vi.fn(async (themeId: string) => {
+    const theme = this.buildThemePayload(themeId)
+    if (theme) {
+      this.emitThemeUpdated(theme)
+    }
+    return theme
+  })
 
   private fileOpenedListeners = new Set<(data: MarkFlowFilePayload) => void>()
   private fileSavedListeners = new Set<(data: MarkFlowSavePayload) => void>()
   private menuActionListeners = new Set<(data: MarkFlowMenuActionPayload) => void>()
+  private themeUpdatedListeners = new Set<(data: MarkFlowThemePayload) => void>()
+
+  private buildThemePayload(themeId: string): MarkFlowThemePayload | null {
+    if (themeId === 'paper') {
+      return {
+        id: 'paper',
+        name: 'Paper',
+        cssText: ':root { --mf-accent: #9c5f2f; }',
+      }
+    }
+
+    if (themeId === 'midnight') {
+      return {
+        id: 'midnight',
+        name: 'Midnight',
+        cssText: ':root { --mf-bg: #111827; }',
+      }
+    }
+
+    return null
+  }
 
   onFileOpened(cb: (data: MarkFlowFilePayload) => void) {
     this.fileOpenedListeners.add(cb)
@@ -48,6 +85,11 @@ class MockMarkFlowAPI implements MarkFlowDesktopAPI {
     return () => this.menuActionListeners.delete(cb)
   }
 
+  onThemeUpdated(cb: (data: MarkFlowThemePayload) => void) {
+    this.themeUpdatedListeners.add(cb)
+    return () => this.themeUpdatedListeners.delete(cb)
+  }
+
   emitFileOpened(data: MarkFlowFilePayload) {
     for (const listener of this.fileOpenedListeners) listener(data)
   }
@@ -58,6 +100,10 @@ class MockMarkFlowAPI implements MarkFlowDesktopAPI {
 
   emitMenuAction(action: MarkFlowMenuAction) {
     for (const listener of this.menuActionListeners) listener({ action })
+  }
+
+  emitThemeUpdated(data: MarkFlowThemePayload) {
+    for (const listener of this.themeUpdatedListeners) listener(data)
   }
 }
 
@@ -183,7 +229,53 @@ describe('App desktop integration', () => {
     fireEvent.keyDown(view.contentDOM, { key: '/', ctrlKey: true })
 
     await waitFor(() => {
-      expect(container.querySelector('.mf-mode-toggle')).toHaveTextContent('Source')
+      expect(container.querySelector('.mf-viewmode-toggle')).toHaveTextContent('Source')
+    })
+  })
+
+  it('routes local markdown link clicks through the desktop bridge', async () => {
+    const api = new MockMarkFlowAPI()
+    window.markflow = api
+
+    const { container } = render(<App />)
+
+    await act(async () => {
+      api.emitFileOpened({
+        filePath: '/Users/pprp/docs/note.md',
+        content: 'Intro [Other](./other.md)',
+      })
+    })
+
+    await waitFor(() => {
+      expect(container.querySelector('a.mf-link')).toHaveAttribute('href', 'file:///Users/pprp/docs/other.md')
+    })
+
+    fireEvent.click(container.querySelector('a.mf-link') as Element, { ctrlKey: true })
+
+    await waitFor(() => {
+      expect(api.openPath).toHaveBeenCalledWith('/Users/pprp/docs/other.md')
+    })
+  })
+
+  it('loads desktop themes, applies the current theme CSS, and switches themes through the bridge', async () => {
+    const api = new MockMarkFlowAPI()
+    window.markflow = api
+
+    render(<App />)
+
+    const select = (await screen.findByLabelText('Theme')) as HTMLSelectElement
+    expect(select.value).toBe('paper')
+    expect(document.getElementById('mf-theme-overrides')).toHaveTextContent('--mf-accent: #9c5f2f')
+
+    fireEvent.change(select, { target: { value: 'midnight' } })
+
+    await waitFor(() => {
+      expect(api.setTheme).toHaveBeenCalledWith('midnight')
+    })
+
+    await waitFor(() => {
+      expect(document.getElementById('mf-theme-overrides')).toHaveTextContent('--mf-bg: #111827')
+      expect(select.value).toBe('midnight')
     })
   })
 })

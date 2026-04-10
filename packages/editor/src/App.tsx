@@ -52,6 +52,8 @@ Happy writing!
 
 export function App() {
   const [viewMode, setViewMode] = useState<ViewMode>('wysiwyg')
+  const [focusMode, setFocusMode] = useState(false)
+  const [typewriterMode, setTypewriterMode] = useState(false)
   const [themes, setThemes] = useState<MarkFlowThemeSummary[]>([])
   const [activeThemeId, setActiveThemeId] = useState<string>('')
   const [selectionText, setSelectionText] = useState('')
@@ -148,6 +150,14 @@ export function App() {
     setViewMode((m) => (m === 'wysiwyg' ? 'source' : 'wysiwyg'))
   }
 
+  function toggleFocusMode() {
+    setFocusMode((v) => !v)
+  }
+
+  function toggleTypewriterMode() {
+    setTypewriterMode((v) => !v)
+  }
+
   function handleContentChange(content: string) {
     latestContentRef.current = content
     setDocumentState((currentDocument) => ({
@@ -207,7 +217,23 @@ export function App() {
               ))}
             </select>
           ) : null}
-          <button className="mf-mode-toggle" onClick={toggleViewMode} title="Toggle view mode (Ctrl+/)">
+          <button
+            className={`mf-mode-toggle${typewriterMode ? ' mf-mode-active' : ''}`}
+            onClick={toggleTypewriterMode}
+            title="Typewriter mode (Ctrl+Shift+T)"
+            aria-pressed={typewriterMode}
+          >
+            TW
+          </button>
+          <button
+            className={`mf-mode-toggle${focusMode ? ' mf-mode-active' : ''}`}
+            onClick={toggleFocusMode}
+            title="Focus mode (Ctrl+Shift+F)"
+            aria-pressed={focusMode}
+          >
+            Focus
+          </button>
+          <button className="mf-mode-toggle mf-viewmode-toggle" onClick={toggleViewMode} title="Toggle view mode (Ctrl+/)">
             <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
               {viewMode === 'wysiwyg' ? (
                 <>
@@ -234,6 +260,10 @@ export function App() {
           onOpenPath={handleOpenPath}
           onToggleMode={toggleViewMode}
           onSelectionChange={setSelectionText}
+          onToggleFocusMode={toggleFocusMode}
+          onToggleTypewriterMode={toggleTypewriterMode}
+          focusMode={focusMode}
+          typewriterMode={typewriterMode}
           filePath={documentState.filePath ?? undefined}
         />
       </main>

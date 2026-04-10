@@ -218,6 +218,22 @@ body {
   background: color-mix(in srgb, var(--mf-accent) 12%, transparent);
 }
 
+.mf-mode-active {
+  color: var(--mf-accent);
+  border-color: var(--mf-accent);
+  background: color-mix(in srgb, var(--mf-accent) 8%, transparent);
+}
+
+/* ── Focus mode ─────────────────────────────────────────────── */
+.cm-editor.mf-focus-mode .cm-line {
+  opacity: 0.28;
+  transition: opacity 0.18s ease;
+}
+
+.cm-editor.mf-focus-mode .cm-line.mf-focus-active {
+  opacity: 1;
+}
+
 /* ── Main editor area ───────────────────────────────────────── */
 .mf-main {
   flex: 1;
