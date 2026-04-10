@@ -1,6 +1,15 @@
-import { useEffect, useRef, useState } from 'react'
+import { type ChangeEvent, useEffect, useMemo, useRef, useState } from 'react'
 import { MarkFlowEditor } from './editor/MarkFlowEditor'
-import type { MarkFlowDocument, MarkFlowMenuAction, ViewMode } from '@markflow/shared'
+import { computeStats } from './editor/wordCount'
+import type {
+  MarkFlowDocument,
+  MarkFlowMenuAction,
+  MarkFlowThemePayload,
+  MarkFlowThemeSummary,
+  ViewMode,
+} from '@markflow/shared'
+
+const THEME_STYLE_ELEMENT_ID = 'mf-theme-overrides'
 
 const INITIAL_CONTENT = `# Welcome to MarkFlow
 
@@ -43,6 +52,9 @@ Happy writing!
 
 export function App() {
   const [viewMode, setViewMode] = useState<ViewMode>('wysiwyg')
+  const [themes, setThemes] = useState<MarkFlowThemeSummary[]>([])
+  const [activeThemeId, setActiveThemeId] = useState<string>('')
+  const [selectionText, setSelectionText] = useState('')
   const [documentState, setDocumentState] = useState<MarkFlowDocument>({
     filePath: null,
     content: INITIAL_CONTENT,
@@ -54,6 +66,19 @@ export function App() {
   useEffect(() => {
     latestContentRef.current = documentState.content
   }, [documentState.content])
+
+  function applyTheme(theme: MarkFlowThemePayload | null) {
+    const existing = document.getElementById(THEME_STYLE_ELEMENT_ID) as HTMLStyleElement | null
+    const style = existing ?? document.createElement('style')
+
+    if (!existing) {
+      style.id = THEME_STYLE_ELEMENT_ID
+      document.head.appendChild(style)
+    }
+
+    style.textContent = theme?.cssText ?? ''
+    setActiveThemeId(theme?.id ?? '')
+  }
 
   useEffect(() => {
     const api = window.markflow
@@ -98,17 +123,24 @@ export function App() {
     const unsubscribeMenuAction = api.onMenuAction((payload) => {
       void handleMenuAction(payload)
     })
+    const unsubscribeThemeUpdated = api.onThemeUpdated(applyTheme)
 
     void api.getCurrentDocument().then((currentDocument) => {
       if (currentDocument) {
         applyOpenedDocument(currentDocument)
       }
     })
+    void api.getThemes().then(setThemes)
+    void api.getCurrentTheme().then((theme) => {
+      applyTheme(theme)
+    })
 
     return () => {
       unsubscribeFileOpened()
       unsubscribeFileSaved()
       unsubscribeMenuAction()
+      unsubscribeThemeUpdated()
+      document.getElementById(THEME_STYLE_ELEMENT_ID)?.remove()
     }
   }, [])
 
@@ -124,6 +156,22 @@ export function App() {
       isDirty: content !== persistedContentRef.current,
     }))
   }
+
+  async function handleOpenPath(filePath: string) {
+    await window.markflow?.openPath(filePath)
+  }
+
+  async function handleThemeChange(event: ChangeEvent<HTMLSelectElement>) {
+    const nextTheme = await window.markflow?.setTheme(event.target.value)
+    if (nextTheme) {
+      applyTheme(nextTheme)
+    }
+  }
+
+  const docStats = useMemo(
+    () => computeStats(documentState.content, selectionText),
+    [documentState.content, selectionText],
+  )
 
   const activeDocumentName = documentState.filePath
     ? documentState.filePath.split(/[\\/]/).at(-1) ?? documentState.filePath
@@ -150,6 +198,15 @@ export function App() {
           </span>
         </div>
         <div className="mf-titlebar-right">
+          {themes.length > 0 ? (
+            <select className="mf-theme-select" value={activeThemeId} onChange={handleThemeChange} aria-label="Theme">
+              {themes.map((theme) => (
+                <option key={theme.id} value={theme.id}>
+                  {theme.name}
+                </option>
+              ))}
+            </select>
+          ) : null}
           <button className="mf-mode-toggle" onClick={toggleViewMode} title="Toggle view mode (Ctrl+/)">
             <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
               {viewMode === 'wysiwyg' ? (
@@ -174,10 +231,29 @@ export function App() {
           content={documentState.content}
           viewMode={viewMode}
           onChange={handleContentChange}
+          onOpenPath={handleOpenPath}
           onToggleMode={toggleViewMode}
+          onSelectionChange={setSelectionText}
           filePath={documentState.filePath ?? undefined}
         />
       </main>
+      <footer className="mf-statusbar" aria-label="Document statistics">
+        <span className="mf-statusbar-stat">{docStats.words.toLocaleString()} words</span>
+        <span className="mf-statusbar-sep" aria-hidden="true">·</span>
+        <span className="mf-statusbar-stat">{docStats.lines.toLocaleString()} lines</span>
+        <span className="mf-statusbar-sep" aria-hidden="true">·</span>
+        <span className="mf-statusbar-stat">{docStats.chars.toLocaleString()} chars</span>
+        <span className="mf-statusbar-sep" aria-hidden="true">·</span>
+        <span className="mf-statusbar-stat">{docStats.readingMinutes} min read</span>
+        {docStats.selectionChars > 0 && (
+          <>
+            <span className="mf-statusbar-sep" aria-hidden="true">|</span>
+            <span className="mf-statusbar-stat mf-statusbar-selection">
+              sel: {docStats.selectionWords}w / {docStats.selectionChars}c
+            </span>
+          </>
+        )}
+      </footer>
     </div>
   )
 }

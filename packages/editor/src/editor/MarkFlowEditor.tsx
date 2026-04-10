@@ -16,18 +16,20 @@ import type { ViewMode } from '@markflow/shared'
 import { wysiwygDecorations } from './decorations/inlineDecorations'
 import { codeBlockDecorations } from './decorations/codeBlockDecoration'
 import { blockquoteDecorations } from './decorations/blockquoteDecoration'
-import { linkDecorations } from './decorations/linkDecoration'
+import { fileUrlToPath, isMarkdownFilePath, linkDecorations, resolveLinkHref } from './decorations/linkDecoration'
 import { listDecorations } from './decorations/listDecoration'
 import { mathDecorations } from './decorations/mathDecoration'
 import { mermaidDecorations } from './decorations/mermaidDecoration'
 import { smartInput } from './extensions/smartInput'
 import { FloatingToolbar } from '../components/FloatingToolbar'
 
-interface MarkFlowEditorProps {
+export interface MarkFlowEditorProps {
   content: string
   viewMode: ViewMode
   onChange?: (content: string) => void
+  onOpenPath?: (filePath: string) => void | Promise<unknown>
   onToggleMode?: () => void
+  onSelectionChange?: (selectedText: string) => void
   filePath?: string
 }
 
@@ -61,17 +63,69 @@ function findRenderedLink(target: EventTarget | null) {
   return link instanceof HTMLAnchorElement ? link : null
 }
 
+function normalizeHeadingAnchor(value: string) {
+  return value
+    .trim()
+    .toLowerCase()
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^\p{Letter}\p{Number}\s-]/gu, '')
+    .trim()
+    .replace(/\s+/g, '-')
+}
+
+function findHeadingAnchorPosition(view: EditorView, href: string) {
+  if (!href.startsWith('#')) {
+    return null
+  }
+
+  const targetAnchor = normalizeHeadingAnchor(decodeURIComponent(href.slice(1)))
+  if (!targetAnchor) {
+    return null
+  }
+
+  const seenAnchors = new Map<string, number>()
+
+  for (let lineNumber = 1; lineNumber <= view.state.doc.lines; lineNumber += 1) {
+    const line = view.state.doc.line(lineNumber)
+    const match = line.text.match(/^#{1,6}\s+(.+?)\s*#*\s*$/)
+    if (!match) {
+      continue
+    }
+
+    const baseAnchor = normalizeHeadingAnchor(match[1])
+    if (!baseAnchor) {
+      continue
+    }
+
+    const nextIndex = seenAnchors.get(baseAnchor) ?? 0
+    seenAnchors.set(baseAnchor, nextIndex + 1)
+
+    const anchor = nextIndex === 0 ? baseAnchor : `${baseAnchor}-${nextIndex}`
+    if (anchor === targetAnchor) {
+      return line.from
+    }
+  }
+
+  return null
+}
+
 export function MarkFlowEditor({
   content,
   viewMode,
   onChange,
+  onOpenPath,
   onToggleMode,
+  onSelectionChange,
   filePath,
 }: MarkFlowEditorProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const viewRef = useRef<EditorView | null>(null)
   const onChangeRef = useRef(onChange)
+  const onOpenPathRef = useRef(onOpenPath)
   const onToggleModeRef = useRef(onToggleMode)
+  const onSelectionChangeRef = useRef(onSelectionChange)
+  const filePathRef = useRef(filePath)
   const viewModeCompartmentRef = useRef(new Compartment())
   const [editorView, setEditorView] = useState<EditorView | null>(null)
 
@@ -80,8 +134,20 @@ export function MarkFlowEditor({
   }, [onChange])
 
   useEffect(() => {
+    onOpenPathRef.current = onOpenPath
+  }, [onOpenPath])
+
+  useEffect(() => {
     onToggleModeRef.current = onToggleMode
   }, [onToggleMode])
+
+  useEffect(() => {
+    onSelectionChangeRef.current = onSelectionChange
+  }, [onSelectionChange])
+
+  useEffect(() => {
+    filePathRef.current = filePath
+  }, [filePath])
 
   useEffect(() => {
     if (!containerRef.current || viewRef.current) return
@@ -124,6 +190,11 @@ export function MarkFlowEditor({
           if (update.docChanged) {
             onChangeRef.current?.(update.state.doc.toString())
           }
+          if (update.selectionSet || update.docChanged) {
+            const sel = update.state.selection.main
+            const selectedText = sel.empty ? '' : update.state.doc.sliceString(sel.from, sel.to)
+            onSelectionChangeRef.current?.(selectedText)
+          }
         }),
         viewModeCompartmentRef.current.of(viewMode === 'wysiwyg' ? getWysiwygExtensions(filePath) : []),
       ],
@@ -140,13 +211,31 @@ export function MarkFlowEditor({
       }
 
       const link = findRenderedLink(event.target)
-      const href = link?.getAttribute('href')
-      if (!href) {
+      const rawHref = link?.getAttribute('href')
+      if (!rawHref) {
         return
       }
 
       event.preventDefault()
       event.stopPropagation()
+
+      const href = resolveLinkHref(rawHref, filePathRef.current)
+      const headingPosition = findHeadingAnchorPosition(view, href)
+      if (headingPosition !== null) {
+        view.dispatch({
+          selection: EditorSelection.cursor(headingPosition),
+          effects: EditorView.scrollIntoView(headingPosition, { y: 'start' }),
+        })
+        view.focus()
+        return
+      }
+
+      const localPath = fileUrlToPath(href)
+      if (localPath && isMarkdownFilePath(localPath) && onOpenPathRef.current) {
+        void onOpenPathRef.current(localPath)
+        return
+      }
+
       window.open(href, '_blank', 'noopener,noreferrer')
     }
 

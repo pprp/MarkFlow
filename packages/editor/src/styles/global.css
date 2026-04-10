@@ -225,6 +225,29 @@ body {
   background: var(--mf-bg);
 }
 
+/* ── Status bar ─────────────────────────────────────────────── */
+.mf-statusbar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 24px;
+  padding: 0 14px;
+  background: var(--mf-bg-secondary);
+  border-top: 1px solid var(--mf-border-light);
+  font-size: 11px;
+  color: var(--mf-fg-muted);
+  user-select: none;
+  flex-shrink: 0;
+}
+
+.mf-statusbar-sep {
+  opacity: 0.4;
+}
+
+.mf-statusbar-selection {
+  color: var(--mf-accent);
+}
+
 /* ── CodeMirror base ────────────────────────────────────────── */
 .cm-editor {
   height: 100%;
