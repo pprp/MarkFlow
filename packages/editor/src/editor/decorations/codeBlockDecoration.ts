@@ -1,8 +1,28 @@
-import { EditorView, Decoration, ViewPlugin, ViewUpdate, DecorationSet } from '@codemirror/view'
+import { EditorView, Decoration, ViewPlugin, ViewUpdate, DecorationSet, WidgetType } from '@codemirror/view'
 import { syntaxTree } from '@codemirror/language'
 import { RangeSetBuilder } from '@codemirror/state'
 
-function buildDecorations(view: EditorView): DecorationSet {
+export class LanguageBadgeWidget extends WidgetType {
+  constructor(readonly lang: string) {
+    super()
+  }
+
+  toDOM() {
+    const div = document.createElement('div')
+    div.className = 'mf-code-block-header'
+    const badge = document.createElement('span')
+    badge.className = 'mf-code-lang-badge'
+    badge.textContent = this.lang
+    div.appendChild(badge)
+    return div
+  }
+
+  eq(other: LanguageBadgeWidget) {
+    return this.lang === other.lang
+  }
+}
+
+export function buildCodeBlockDecorations(view: EditorView): DecorationSet {
   const builder = new RangeSetBuilder<Decoration>()
   const cursorHead = view.state.selection.main.head
   const doc = view.state.doc
@@ -12,11 +32,10 @@ function buildDecorations(view: EditorView): DecorationSet {
       if (node.name !== 'FencedCode') return
 
       // Skip fenced blocks that have dedicated renderers (e.g. mermaid diagrams).
-      // Applying generic code-block decorations on the same range would conflict
-      // with the specialised widget replace decoration.
       const infoNode = node.node.getChild('CodeInfo')
+      let lang = ''
       if (infoNode) {
-        const lang = doc.sliceString(infoNode.from, infoNode.to).trim().toLowerCase()
+        lang = doc.sliceString(infoNode.from, infoNode.to).trim().toLowerCase()
         if (lang === 'mermaid') return
       }
 
@@ -26,20 +45,33 @@ function buildDecorations(view: EditorView): DecorationSet {
       const firstLine = doc.lineAt(from)
       const lastLine = doc.lineAt(to)
 
-      // When cursor is outside, hide only the fence line text itself.
-      // CodeMirror view plugins cannot create replace decorations that span
-      // line breaks, so we keep the line boundaries intact here.
       if (!cursorInside) {
-        builder.add(firstLine.from, firstLine.to, Decoration.replace({}))
+        if (lang) {
+          builder.add(
+            firstLine.from,
+            firstLine.to,
+            Decoration.replace({ widget: new LanguageBadgeWidget(lang) }),
+          )
+        } else {
+          builder.add(firstLine.from, firstLine.to, Decoration.replace({}))
+        }
       }
 
       // Style content lines (always skip the fence lines themselves)
       for (let lineNum = firstLine.number + 1; lineNum <= lastLine.number - 1; lineNum++) {
         const line = doc.line(lineNum)
         const classes = ['mf-code-block-line']
-        if (lineNum === firstLine.number + 1) classes.push('mf-code-block-first')
+        if (lineNum === firstLine.number + 1) {
+          classes.push('mf-code-block-first')
+          if (lang) classes.push('mf-code-block-with-lang')
+        }
         if (lineNum === lastLine.number - 1) classes.push('mf-code-block-last')
-        builder.add(line.from, line.from, Decoration.line({ class: classes.join(' ') }))
+        const attrs: Record<string, string> | undefined = lang ? { 'data-lang': lang } : undefined
+        builder.add(
+          line.from,
+          line.from,
+          Decoration.line({ class: classes.join(' '), attributes: attrs }),
+        )
       }
 
       if (!cursorInside && lastLine.from !== firstLine.from) {
@@ -57,12 +89,12 @@ export function codeBlockDecorations() {
       decorations: DecorationSet
 
       constructor(view: EditorView) {
-        this.decorations = buildDecorations(view)
+        this.decorations = buildCodeBlockDecorations(view)
       }
 
       update(update: ViewUpdate) {
         if (update.docChanged || update.selectionSet || update.viewportChanged) {
-          this.decorations = buildDecorations(update.view)
+          this.decorations = buildCodeBlockDecorations(update.view)
         }
       }
     },
