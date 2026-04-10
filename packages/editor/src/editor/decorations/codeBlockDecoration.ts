@@ -11,6 +11,15 @@ function buildDecorations(view: EditorView): DecorationSet {
     enter(node) {
       if (node.name !== 'FencedCode') return
 
+      // Skip fenced blocks that have dedicated renderers (e.g. mermaid diagrams).
+      // Applying generic code-block decorations on the same range would conflict
+      // with the specialised widget replace decoration.
+      const infoNode = node.node.getChild('CodeInfo')
+      if (infoNode) {
+        const lang = doc.sliceString(infoNode.from, infoNode.to).trim().toLowerCase()
+        if (lang === 'mermaid') return
+      }
+
       const { from, to } = node
       const cursorInside = cursorHead >= from && cursorHead <= to
 

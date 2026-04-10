@@ -105,20 +105,22 @@ describe('buildMermaidDecorations — unit', () => {
 })
 
 describe('MermaidWidget', () => {
+  const mockView = { requestMeasure: vi.fn() } as unknown as import('@codemirror/view').EditorView
+
   it('eq returns true for identical source', () => {
-    const a = new MermaidWidget('graph LR\n  A-->B')
-    const b = new MermaidWidget('graph LR\n  A-->B')
+    const a = new MermaidWidget('graph LR\n  A-->B', mockView)
+    const b = new MermaidWidget('graph LR\n  A-->B', mockView)
     expect(a.eq(b)).toBe(true)
   })
 
   it('eq returns false for different source', () => {
-    const a = new MermaidWidget('graph LR\n  A-->B')
-    const b = new MermaidWidget('graph TD\n  A-->B')
+    const a = new MermaidWidget('graph LR\n  A-->B', mockView)
+    const b = new MermaidWidget('graph TD\n  A-->B', mockView)
     expect(a.eq(b)).toBe(false)
   })
 
   it('toDOM returns a container div with mf-mermaid class', () => {
-    const widget = new MermaidWidget('graph LR\n  A-->B')
+    const widget = new MermaidWidget('graph LR\n  A-->B', mockView)
     const el = widget.toDOM()
     expect(el.tagName.toLowerCase()).toBe('div')
     expect(el.classList.contains('mf-mermaid')).toBe(true)

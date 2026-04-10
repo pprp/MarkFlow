@@ -34,11 +34,15 @@ let renderSerial = 0
 // ── Widget ────────────────────────────────────────────────────────────────────
 
 export class MermaidWidget extends WidgetType {
-  constructor(readonly source: string) {
+  constructor(
+    readonly source: string,
+    private readonly view: EditorView,
+  ) {
     super()
   }
 
   eq(other: MermaidWidget) {
+    // View reference is intentionally excluded from equality check.
     return other.source === this.source
   }
 
@@ -55,15 +59,19 @@ export class MermaidWidget extends WidgetType {
     container.innerHTML = '<div class="mf-mermaid-loading">⟳ Rendering diagram…</div>'
 
     const id = `mf-mermaid-${renderSerial++}`
+    const view = this.view
     getMermaid()
       .then((m) => m.render(id, this.source))
       .then(({ svg }) => {
         svgCache.set(this.source, svg)
         container.innerHTML = svg
+        // Tell CodeMirror the widget height changed so it can re-measure layout.
+        view.requestMeasure()
       })
       .catch(() => {
         container.innerHTML =
           '<div class="mf-mermaid-error">⚠ Invalid diagram syntax</div>'
+        view.requestMeasure()
       })
 
     return container
@@ -110,7 +118,7 @@ export function buildMermaidDecorations(view: EditorView): DecorationSet {
       builder.add(
         firstLine.from,
         firstLine.to,
-        Decoration.replace({ widget: new MermaidWidget(source) }),
+        Decoration.replace({ widget: new MermaidWidget(source, view) }),
       )
 
       // Hide content lines (preserve line nodes to keep CM6 layout intact).

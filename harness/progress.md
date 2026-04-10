@@ -188,6 +188,7 @@
   - `pnpm --filter @markflow/editor exec vitest run src/editor/__tests__/linkDecoration.test.tsx src/__tests__/App.test.tsx`
   - `pnpm --filter @markflow/editor test:run`
   - `node scripts/harness/verify.mjs`
+  - `./harness/init.sh --smoke`
 - Newly verified features:
   - `MF-011`
 - Next recommended feature:
@@ -195,6 +196,7 @@
 - Risks / notes:
   - `linkDecoration.ts` still relies on regex extraction for image syntax, so image destinations with titles or nested parentheses remain the main future regression surface
   - `MF-029` is still untouched and should remain separate from preview verification because Typora treats image insertion/upload as a different capability
+  - stale `.omx/state/ralph-state.json` state from the hook layer was cleared after verification so the next automation run starts cleanly
 
 ### 2026-04-10 - MF-014 + MF-023 math and Mermaid rendering
 
