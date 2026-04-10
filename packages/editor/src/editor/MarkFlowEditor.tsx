@@ -17,6 +17,7 @@ import { wysiwygDecorations } from './decorations/inlineDecorations'
 import { codeBlockDecorations } from './decorations/codeBlockDecoration'
 import { blockquoteDecorations } from './decorations/blockquoteDecoration'
 import { fileUrlToPath, isMarkdownFilePath, linkDecorations, resolveLinkHref } from './decorations/linkDecoration'
+import { yamlFrontMatterDecorations } from './decorations/yamlFrontMatter'
 import { listDecorations } from './decorations/listDecoration'
 import { mathDecorations } from './decorations/mathDecoration'
 import { mermaidDecorations } from './decorations/mermaidDecoration'
@@ -56,6 +57,7 @@ function getWysiwygExtensions(filePath?: string) {
     listDecorations(),
     mathDecorations(),
     mermaidDecorations(),
+    yamlFrontMatterDecorations(),
   ]
 }
 

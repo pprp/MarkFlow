@@ -529,6 +529,23 @@ body {
   }
 }
 
+/* ── YAML front matter ──────────────────────────────────────── */
+.cm-editor .mf-yaml-fence {
+  font-family: var(--mf-font-mono);
+  font-size: 0.82em;
+  color: var(--mf-fg-muted);
+  opacity: 0.6;
+}
+
+.cm-editor .mf-yaml-frontmatter {
+  font-family: var(--mf-font-mono);
+  font-size: 0.82em;
+  color: var(--mf-fg-muted);
+  background: color-mix(in srgb, var(--mf-accent) 4%, var(--mf-bg));
+  padding-left: 0.5em;
+  border-left: 2px solid color-mix(in srgb, var(--mf-accent) 30%, transparent);
+}
+
 /* ── Find / Replace panel ───────────────────────────────────── */
 .cm-editor .cm-panels {
   background: var(--mf-bg-secondary);
