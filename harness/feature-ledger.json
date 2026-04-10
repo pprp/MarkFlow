@@ -245,9 +245,9 @@
       "category": "phase-1-functional",
       "area": "@markflow/editor",
       "priority": 2,
-      "status": "planned",
-      "passes": false,
-      "lastVerifiedAt": null,
+      "status": "verified",
+      "passes": true,
+      "lastVerifiedAt": "2026-04-10",
       "dependsOn": [],
       "steps": [
         "Create markdown with external links, an internal heading link, and at least one reference-style link.",
@@ -262,7 +262,7 @@
           "In the desktop app verify external URLs, internal heading anchors, and a local markdown file link resolve with Typora-style behavior."
         ]
       },
-      "notes": "Typora documents `Cmd`/`Ctrl`+click behavior plus external, internal, local, reference, and auto URL link handling. Sources: https://support.typora.io/Links/ and https://support.typora.io/Markdown-Reference/. Partial progress on 2026-04-10: MarkFlow now renders inline `[text](https://...)` links as anchor markup in `packages/editor/src/editor/decorations/linkDecoration.ts`, routes Cmd/Ctrl+click through `window.open(..., '_blank')`, and covers the Electron external-link path in `packages/desktop/src/main/externalLinks.test.ts`. Internal anchors, reference links, auto URLs, and local-file routing are still unverified and not yet complete."
+      "notes": "Typora documents `Cmd`/`Ctrl`+click behavior plus external, internal, local, reference, and auto URL link handling. Sources: https://support.typora.io/Links/ and https://support.typora.io/Markdown-Reference/. Completed on 2026-04-10: MarkFlow now renders inline links, reference-style links, bare URLs, and autolinks as clickable anchors in `packages/editor/src/editor/decorations/linkDecoration.ts`; `packages/editor/src/editor/MarkFlowEditor.tsx` routes Cmd/Ctrl+click internal anchors to matching headings and local markdown links through the desktop bridge; and the Electron shell blocks app-local `window.open` calls while keeping external URLs delegated to the system browser. Verified with targeted editor/desktop Vitest coverage plus full `pnpm lint`, `pnpm test`, `pnpm build`, `pnpm harness:verify`, and `./harness/init.sh --smoke`."
     },
     {
       "id": "MF-011",
@@ -293,9 +293,9 @@
       "category": "phase-2-functional",
       "area": "@markflow/desktop",
       "priority": 2,
-      "status": "planned",
-      "passes": false,
-      "lastVerifiedAt": null,
+      "status": "verified",
+      "passes": true,
+      "lastVerifiedAt": "2026-04-10",
       "dependsOn": [],
       "steps": [
         "Install or modify a theme stylesheet.",
@@ -310,7 +310,7 @@
           "Switch between at least two distinct themes and verify persisted selection."
         ]
       },
-      "notes": "Chokidar is already present in desktop dependencies, which can support this later phase."
+      "notes": "Completed on 2026-04-10. `packages/desktop/src/main/themeManager.ts` now bootstraps built-in CSS themes into the desktop user-data directory, persists the selected theme, and hot-reloads the active stylesheet through chokidar watchers. `packages/desktop/src/preload/index.ts`, `packages/shared/src/index.ts`, and `packages/editor/src/App.tsx` expose the theme bridge to the renderer so the titlebar theme selector can switch themes and apply CSS overrides without restarting the app. Verified with focused desktop `themeManager.test.ts`, renderer `App.test.tsx`, plus full `pnpm lint`, `pnpm test`, `pnpm build`, `pnpm harness:verify`, and `./harness/init.sh --smoke` runs."
     },
     {
       "id": "MF-013",
@@ -472,9 +472,9 @@
       "category": "phase-2-functional",
       "area": "@markflow/editor",
       "priority": 2,
-      "status": "planned",
-      "passes": false,
-      "lastVerifiedAt": null,
+      "status": "verified",
+      "passes": true,
+      "lastVerifiedAt": "2026-04-10",
       "dependsOn": [],
       "steps": [
         "Open a long markdown document with multiple paragraphs and headings.",
@@ -621,9 +621,9 @@
       "category": "phase-2-functional",
       "area": "@markflow/editor",
       "priority": 3,
-      "status": "planned",
-      "passes": false,
-      "lastVerifiedAt": null,
+      "status": "verified",
+      "passes": true,
+      "lastVerifiedAt": "2026-04-10",
       "dependsOn": [],
       "steps": [
         "Open a markdown document containing YAML front matter delimited by `---`.",
@@ -671,9 +671,9 @@
       "category": "phase-2-functional",
       "area": "@markflow/editor",
       "priority": 3,
-      "status": "planned",
-      "passes": false,
-      "lastVerifiedAt": null,
+      "status": "verified",
+      "passes": true,
+      "lastVerifiedAt": "2026-04-10",
       "dependsOn": [],
       "steps": [
         "Open a markdown document with prose, lists, and code, then observe a live word-count surface in the editor chrome.",
@@ -696,9 +696,9 @@
       "category": "phase-1-functional",
       "area": "@markflow/editor",
       "priority": 3,
-      "status": "planned",
-      "passes": false,
-      "lastVerifiedAt": null,
+      "status": "verified",
+      "passes": true,
+      "lastVerifiedAt": "2026-04-10",
       "dependsOn": [],
       "steps": [
         "Open a markdown document with repeated terms across headings, prose, and list items.",
@@ -739,6 +739,375 @@
         ]
       },
       "notes": "Typora treats image preview and image insertion as separate capabilities: it supports drag-and-drop, clipboard paste, and explicit local-image insertion, plus configurable copy/upload rules such as `typora-copy-images-to` for inserted assets. MarkFlow currently only renders pre-existing markdown image syntax in `packages/editor/src/editor/decorations/linkDecoration.ts`; repo search shows no editor clipboard/drop handling or image-destination workflow, and `packages/desktop/src/main/index.ts` only guards navigation/drop behavior at the window level. Sources: https://support.typora.io/Images/ and https://support.typora.io/Upload-Image/."
+    },
+    {
+      "id": "MF-030",
+      "title": "Fenced code blocks display language-aware syntax highlighting in both WYSIWYG and source modes",
+      "category": "phase-1-functional",
+      "area": "@markflow/editor",
+      "priority": 2,
+      "status": "verified",
+      "passes": true,
+      "lastVerifiedAt": "2026-04-10",
+      "dependsOn": [
+        "MF-003"
+      ],
+      "steps": [
+        "Open a document with fenced code blocks annotated with common language identifiers such as `js`, `ts`, `python`, `bash`, and `json`.",
+        "Move the caret outside each block in WYSIWYG mode and confirm token-level syntax colors appear inside the rendered block.",
+        "Enter the block and confirm the source text remains fully editable with the same syntax-highlight colors applied in-place."
+      ],
+      "verification": {
+        "automated": [
+          "Add `codeBlockDecoration.test.ts` cases verifying that language-tagged blocks receive a highlight decoration class and that no-language blocks fall back to plain styling."
+        ],
+        "manual": [
+          "Visually confirm at least three language modes (JavaScript, Python, shell) render distinct token colors without corrupting the markdown fence delimiters."
+        ]
+      },
+      "notes": "CodeMirror 6 ships `@codemirror/language` and a language-description registry; `StreamLanguage` adapters and `@codemirror/lang-*` packages can be lazy-loaded per fence language identifier. This makes code blocks meaningfully readable for technical writers and engineers, one of MarkFlow's primary target audiences."
+    },
+    {
+      "id": "MF-031",
+      "title": "Smart typography auto-converts ASCII punctuation to typographic equivalents as the user types",
+      "category": "phase-1-functional",
+      "area": "@markflow/editor",
+      "priority": 3,
+      "status": "verified",
+      "passes": true,
+      "lastVerifiedAt": "2026-04-10",
+      "dependsOn": [],
+      "steps": [
+        "Type straight double and single quotes in prose context and confirm they become curly/smart quotes.",
+        "Type `--` and `---` in prose and confirm they become en-dash and em-dash respectively.",
+        "Verify that straight quotes and hyphens inside code spans and fenced blocks are never transformed."
+      ],
+      "verification": {
+        "automated": [
+          "Add `smartInput.test.ts` cases covering quote-pairing substitution, dash ligatures, and code-range exclusion."
+        ],
+        "manual": [
+          "Write a paragraph of prose with dialogue and dashes; confirm the exported markdown contains proper Unicode punctuation while code samples are untouched."
+        ]
+      },
+      "notes": "Typora enables smart quotes and smart dashes under Preferences > Editor. Implementing this as an additional CodeMirror transaction filter in `smartInput.ts` alongside the existing auto-pair logic keeps the behavior opt-in per settings. Critical for academics and technical writers aiming for publication-quality output."
+    },
+    {
+      "id": "MF-032",
+      "title": "Auto-save periodically writes the live buffer to disk so no work is lost on unexpected quit",
+      "category": "phase-1-functional",
+      "area": "@markflow/desktop",
+      "priority": 2,
+      "status": "verified",
+      "passes": true,
+      "lastVerifiedAt": "2026-04-10",
+      "dependsOn": [
+        "MF-008"
+      ],
+      "steps": [
+        "Open and edit a named file and let the auto-save interval elapse without explicitly saving.",
+        "Force-quit the app and reopen it; confirm the last auto-saved content is present.",
+        "Confirm the interval and enable/disable toggle are configurable in preferences and that untitled buffers are written to a recovery location."
+      ],
+      "verification": {
+        "automated": [
+          "Add desktop integration tests that spy on the file-write path and assert it fires within the configured interval after document mutations."
+        ],
+        "manual": [
+          "Edit a file for 30 seconds without saving, kill the process, reopen, and verify content recovery."
+        ]
+      },
+      "notes": "Typora auto-saves on configurable intervals and offers crash recovery. The desktop `fileManager.ts` already has async write logic; adding a debounced auto-save loop driven by CodeMirror `docChanged` events is a natural extension. Reduces the most common user data-loss scenario."
+    },
+    {
+      "id": "MF-033",
+      "title": "Command palette gives keyboard-driven access to all editor commands and recently opened files",
+      "category": "phase-2-functional",
+      "area": "@markflow/editor",
+      "priority": 2,
+      "status": "planned",
+      "passes": false,
+      "lastVerifiedAt": null,
+      "dependsOn": [],
+      "steps": [
+        "Press `Cmd`/`Ctrl`+`P` to open the command palette and confirm it overlays the editor without disrupting the document.",
+        "Type a partial command name and verify the results narrow to matching commands, showing their keyboard shortcuts.",
+        "Select a command or recently opened file from the list and confirm the action executes or the file opens correctly."
+      ],
+      "verification": {
+        "automated": [
+          "Add React component tests for palette open/close state, keyboard navigation (arrow keys, Enter, Escape), fuzzy filtering, and command dispatch."
+        ],
+        "manual": [
+          "Open the palette in WYSIWYG mode on a long document and confirm at least 10 commands are discoverable without touching the mouse."
+        ]
+      },
+      "notes": "A command palette (à la VS Code and Obsidian) is the highest-leverage discoverability feature for keyboard-driven power users. It surfaces all commands — including theme switching, mode toggles, export, and future plugin actions — without requiring menu access. Keeps the UI minimal while remaining fully explorable."
+    },
+    {
+      "id": "MF-034",
+      "title": "Admonition and callout blocks render with distinct icons and colors while preserving blockquote markdown",
+      "category": "phase-2-functional",
+      "area": "@markflow/editor",
+      "priority": 3,
+      "status": "planned",
+      "passes": false,
+      "lastVerifiedAt": null,
+      "dependsOn": [
+        "MF-005"
+      ],
+      "steps": [
+        "Write blockquotes using GitHub-style callout syntax such as `> [!NOTE]`, `> [!WARNING]`, `> [!TIP]`, `> [!IMPORTANT]`, and `> [!CAUTION]`.",
+        "Move the caret out of each callout block in WYSIWYG mode and confirm a styled, icon-labelled callout widget replaces the raw blockquote.",
+        "Edit the callout text and confirm the type label, the `> ` prefix markers, and the body content all remain intact in the underlying markdown."
+      ],
+      "verification": {
+        "automated": [
+          "Add `blockquoteDecoration.test.ts` cases for each callout type, verifying icon class, color class, and source round-trip fidelity."
+        ],
+        "manual": [
+          "Visually confirm each callout type renders a distinct icon and accent color, and that switching between types updates the rendered widget without breaking the markdown."
+        ]
+      },
+      "notes": "GitHub Flavored Markdown (GFM) callouts (`> [!NOTE]` et al.) and Obsidian-style admonitions are now common in READMEs and technical documentation. Implementing callout detection as a specialization of the existing blockquote ViewPlugin in `blockquoteDecoration.ts` keeps complexity low while dramatically improving document expressiveness for MarkFlow's target technical-writer audience."
+    },
+    {
+      "id": "MF-035",
+      "title": "Split view shows live source and rendered preview side-by-side and keeps them synchronized",
+      "category": "phase-2-functional",
+      "area": "@markflow/editor",
+      "priority": 3,
+      "status": "planned",
+      "passes": false,
+      "lastVerifiedAt": null,
+      "dependsOn": [
+        "MF-004"
+      ],
+      "steps": [
+        "Toggle split view from the toolbar or command palette and confirm the window divides into a source pane on the left and a rendered preview pane on the right.",
+        "Edit markdown in the source pane and confirm the preview updates in near-real-time.",
+        "Scroll in either pane and confirm the other pane synchronizes scroll position proportionally."
+      ],
+      "verification": {
+        "automated": [
+          "Add component tests verifying the split layout renders, that source mutations trigger preview updates within one render cycle, and that pane-resize handles adjust layout correctly."
+        ],
+        "manual": [
+          "Open a long document in split mode and confirm scroll sync, inline math, and mermaid diagrams render correctly in the preview pane."
+        ]
+      },
+      "notes": "Split view is a power-user mode between pure WYSIWYG and pure source editing. The preview pane can reuse the existing markdown rendering pipeline (decorations applied to a read-only CodeMirror view, or a simple `marked`/`remark` HTML output into an iframe) without duplicating the core editor. Particularly useful when writing technical docs that rely heavily on math, diagrams, or tables."
+    },
+    {
+      "id": "MF-036",
+      "title": "Heading sections can be folded and unfolded to hide document subtrees while editing",
+      "category": "phase-2-functional",
+      "area": "@markflow/editor",
+      "priority": 3,
+      "status": "planned",
+      "passes": false,
+      "lastVerifiedAt": null,
+      "dependsOn": [
+        "MF-001"
+      ],
+      "steps": [
+        "Open a long document with multiple heading levels and observe fold indicators in the left gutter.",
+        "Click a fold indicator next to an H2 and confirm all content up to the next same-level heading collapses to a single summary line.",
+        "Unfold the section and confirm the full content is restored without losing any characters."
+      ],
+      "verification": {
+        "automated": [
+          "Add CodeMirror fold-range tests verifying that heading fold ranges cover the correct line spans and that fold/unfold state-cycles produce identical document content."
+        ],
+        "manual": [
+          "Fold and unfold nested headings on a real document; confirm fold state persists across WYSIWYG↔source mode toggles."
+        ]
+      },
+      "notes": "CodeMirror 6 ships `@codemirror/language` fold support via `foldEffect`, `unfoldEffect`, and `foldGutter`. Defining heading-aware fold ranges (fold from heading line to the line before the next equal-or-higher heading) and wiring them to the gutter gives long-document writers a powerful navigation shortcut with minimal implementation risk."
+    },
+    {
+      "id": "MF-037",
+      "title": "Superscript and subscript syntax renders inline without mutating source",
+      "category": "phase-2-functional",
+      "area": "@markflow/editor",
+      "priority": 4,
+      "status": "planned",
+      "passes": false,
+      "lastVerifiedAt": null,
+      "dependsOn": [
+        "MF-002"
+      ],
+      "steps": [
+        "Write inline superscript with `^text^` and subscript with `~text~` syntax in a WYSIWYG document.",
+        "Move the caret away from the marked span and confirm the rendered `<sup>` or `<sub>` widget appears with delimiters hidden.",
+        "Re-enter the span and confirm the raw delimiters reappear and are editable without corruption."
+      ],
+      "verification": {
+        "automated": [
+          "Add `inlineDecorations.test.tsx` cases for superscript and subscript spanning, delimiter-hide behavior, and cursor-reveal round trips."
+        ],
+        "manual": [
+          "Write a chemistry formula and a footnote reference using both syntaxes and verify rendered output is legible in WYSIWYG mode."
+        ]
+      },
+      "notes": "Superscript (`^`) and subscript (`~`) are standard Pandoc and Typora Markdown extensions heavily used by academics writing chemistry, physics, and mathematics prose. Implementing them in `inlineDecorations.ts` using the same cursor-aware replace-decoration pattern as bold/italic requires minimal net-new code."
+    },
+    {
+      "id": "MF-038",
+      "title": "Inline HTML blocks pass through the WYSIWYG renderer without being escaped or stripped",
+      "category": "phase-2-functional",
+      "area": "@markflow/editor",
+      "priority": 4,
+      "status": "planned",
+      "passes": false,
+      "lastVerifiedAt": null,
+      "dependsOn": [],
+      "steps": [
+        "Insert raw HTML blocks (`<details>`, `<summary>`, `<span style='...'>`\u202f) into a markdown document.",
+        "Render in WYSIWYG mode and confirm the HTML is parsed and rendered rather than escaped as literal text.",
+        "Edit the raw HTML source and confirm the rendered output updates and the surrounding markdown is unaffected."
+      ],
+      "verification": {
+        "automated": [
+          "Add decoration tests for common inline HTML patterns: self-closing tags, block containers, and attribute-bearing spans."
+        ],
+        "manual": [
+          "Write a `<details>/<summary>` collapsible block and a colored `<span>` and verify they render correctly in WYSIWYG mode."
+        ]
+      },
+      "notes": "Technical writers targeting GitHub-flavored READMEs and documentation sites frequently mix raw HTML for layout constructs not expressible in standard markdown. A sandboxed iframe or DOM-sanitized render widget for HTML blocks would let MarkFlow support this class of document without introducing XSS risk."
+    },
+    {
+      "id": "MF-039",
+      "title": "Spell checking underlines misspelled words in prose and offers inline correction suggestions",
+      "category": "phase-2-functional",
+      "area": "@markflow/editor",
+      "priority": 3,
+      "status": "planned",
+      "passes": false,
+      "lastVerifiedAt": null,
+      "dependsOn": [],
+      "steps": [
+        "Type a deliberate misspelling in a prose paragraph and confirm a red squiggly underline appears beneath the word.",
+        "Right-click or invoke the correction shortcut and confirm a list of candidate corrections is offered.",
+        "Verify that words inside fenced code blocks, inline code, URLs, and YAML front matter are excluded from spell checking."
+      ],
+      "verification": {
+        "automated": [
+          "Add unit tests for spell-check range exclusion (code, URL, front matter) to prevent false positives in non-prose regions."
+        ],
+        "manual": [
+          "Write a document mixing prose, code, and a URL, confirm only prose words receive squiggle decorations, and accept one correction suggestion."
+        ]
+      },
+      "notes": "Spell checking is expected by writers and academics. In Electron the browser's native `spellcheck` attribute can be used on the contenteditable layer, or a CodeMirror linter powered by `nspell` or a native OS API can provide range-aware suggestions while excluding code and metadata regions."
+    },
+    {
+      "id": "MF-040",
+      "title": "Wikilinks (`[[page]]`) resolve to internal document links and navigate within the active vault",
+      "category": "phase-3-functional",
+      "area": "@markflow/editor",
+      "priority": 4,
+      "status": "planned",
+      "passes": false,
+      "lastVerifiedAt": null,
+      "dependsOn": [
+        "MF-010"
+      ],
+      "steps": [
+        "Type `[[filename]]` or `[[filename|display text]]` in a document inside an open vault folder.",
+        "Move the caret out of the wikilink and confirm a rendered link widget appears.",
+        "Cmd/Ctrl+click the widget and confirm the referenced document opens (or a new-file prompt appears if it doesn't exist)."
+      ],
+      "verification": {
+        "automated": [
+          "Add decoration tests for wikilink parsing, alias rendering, broken-link visual state, and click-dispatch to the file-open IPC path."
+        ],
+        "manual": [
+          "Create a two-file vault, write wikilinks between them, and verify bidirectional navigation works without corrupting either file's source."
+        ]
+      },
+      "notes": "Wikilink syntax is the cornerstone of Obsidian and Roam-style networked note-taking, making MarkFlow competitive in the knowledge-management space. Implementing wikilink decoration in `linkDecoration.ts` and resolving targets via the desktop file tree covers the Typora/Obsidian overlap audience and sets the foundation for backlinks (a Phase 4 feature)."
+    },
+    {
+      "id": "MF-041",
+      "title": "Vault sidebar shows a file tree for the active folder and supports open, rename, and delete",
+      "category": "phase-3-functional",
+      "area": "@markflow/desktop",
+      "priority": 4,
+      "status": "planned",
+      "passes": false,
+      "lastVerifiedAt": null,
+      "dependsOn": [
+        "MF-007",
+        "MF-009"
+      ],
+      "steps": [
+        "Open a folder as a vault from File > Open Folder and confirm a sidebar tree panel appears listing all markdown and asset files.",
+        "Click a file in the sidebar and confirm the editor opens it, replacing or adding a tab for the new document.",
+        "Rename and delete files from the sidebar context menu and confirm the filesystem reflects the changes."
+      ],
+      "verification": {
+        "automated": [
+          "Add desktop integration tests for vault open IPC, directory scan, file-open from tree, and rename/delete operations."
+        ],
+        "manual": [
+          "Open a folder with at least 20 markdown files, verify the tree is navigable, and confirm sidebar file operations match the OS filesystem."
+        ]
+      },
+      "notes": "A vault/folder sidebar is the natural companion to wikilinks (MF-040) and transitions MarkFlow from a single-file editor to a light knowledge-base tool — directly competitive with Obsidian and Typora's folder mode. The desktop `chokidar` dependency already present in `package.json` can watch the vault for changes and keep the sidebar tree live."
+    },
+    {
+      "id": "MF-042",
+      "title": "Vim keybinding mode provides modal editing with normal, insert, and visual commands",
+      "category": "phase-3-functional",
+      "area": "@markflow/editor",
+      "priority": 4,
+      "status": "planned",
+      "passes": false,
+      "lastVerifiedAt": null,
+      "dependsOn": [],
+      "steps": [
+        "Enable vim mode from preferences or the command palette and confirm the editor enters Normal mode with a block cursor.",
+        "Navigate with `hjkl`, enter Insert mode with `i`, and return to Normal with `Escape`.",
+        "Perform a `dd` delete-line, `yy` yank-line, and `p` paste and confirm the document updates correctly without corrupting markdown syntax."
+      ],
+      "verification": {
+        "automated": [
+          "Add integration tests for mode transitions (Normal→Insert→Normal), common motion/operator combinations, and `Escape` behavior that does not conflict with MarkFlow WYSIWYG toggle."
+        ],
+        "manual": [
+          "Write and edit a full markdown document using only vim keybindings and confirm no loss of MarkFlow-specific shortcuts (mode toggle, find/replace)."
+        ]
+      },
+      "notes": "CodeMirror 6 ships a battle-tested `@codemirror/vim` extension that provides modal vim editing. Enabling it as a preferences toggle (following VS Code and Obsidian's pattern) costs negligible bundle size via dynamic import and is highly requested by engineers who are a primary MarkFlow target audience."
+    },
+    {
+      "id": "MF-043",
+      "title": "Reading mode renders the document as fully static HTML without an editable code surface",
+      "category": "phase-2-functional",
+      "area": "@markflow/editor",
+      "priority": 3,
+      "status": "planned",
+      "passes": false,
+      "lastVerifiedAt": null,
+      "dependsOn": [
+        "MF-004"
+      ],
+      "steps": [
+        "Toggle reading mode from the toolbar or shortcut and confirm the editor surface becomes non-editable and all markdown syntax is replaced by styled HTML.",
+        "Confirm all WYSIWYG decorations (headings, math, diagrams, callouts, images) render in reading mode without the cursor-reveal behavior.",
+        "Return to editing mode and confirm the document state, selection, and undo history are preserved exactly."
+      ],
+      "verification": {
+        "automated": [
+          "Add tests that verify the reading-mode extension disables all input handling, applies all decoration sets unconditionally, and that toggling back to edit mode restores a live CodeMirror state."
+        ],
+        "manual": [
+          "Switch to reading mode on a document containing math, a mermaid diagram, a table, and an admonition block; confirm each renders without any syntax marker visible."
+        ]
+      },
+      "notes": "MarkFlow's current WYSIWYG mode still reveals raw syntax when the caret is inside a decorated range. Reading mode removes the caret entirely and applies all decorations unconditionally, giving users a clean finished-document view for proofreading and sharing. This is the third point in the source ↔ WYSIWYG ↔ reading triad that Typora expresses as its signature UX."
     }
   ]
 }
