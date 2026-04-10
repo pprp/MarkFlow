@@ -1,0 +1,69 @@
+{
+  "project": "MarkFlow",
+  "branchName": "ralph/bug-fixes-and-missing-features",
+  "description": "Fix identified bugs and implement missing features: keyboard shortcut wiring, task checkbox interactivity, relative image path resolution, and async file I/O",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Wire Ctrl+/ keyboard shortcut for view mode toggle",
+      "description": "As a user, I want to press Ctrl+/ (or Cmd+/ on macOS) to toggle between WYSIWYG and source modes, so I don't need to click the toolbar button.",
+      "acceptanceCriteria": [
+        "Add a keymap extension to MarkFlowEditor.tsx that binds Ctrl+/ and Mod+/ to trigger view mode toggle",
+        "MarkFlowEditor.tsx accepts an optional onToggleMode callback prop",
+        "App.tsx passes the toggleMode handler to MarkFlowEditor via the new prop",
+        "Pressing Ctrl+/ in the editor calls onToggleMode",
+        "Typecheck passes"
+      ],
+      "priority": 1,
+      "passes": true,
+      "notes": "Completed on 2026-04-10. `MarkFlowEditor` now accepts `onToggleMode`, binds `Mod-/`, and `App` passes the toggle handler. Verified by `packages/editor/src/editor/__tests__/MarkFlowEditor.test.tsx`, `packages/editor/src/__tests__/App.test.tsx`, plus full lint/test/build and harness smoke runs."
+    },
+    {
+      "id": "US-002",
+      "title": "Implement task checkbox click-to-toggle in markdown source",
+      "description": "As a user, I want to click a rendered checkbox in WYSIWYG mode to toggle it between checked and unchecked, so I can manage task lists without switching to source mode.",
+      "acceptanceCriteria": [
+        "CheckboxWidget in packages/editor/src/editor/decorations/listDecoration.ts handles click events",
+        "Clicking an unchecked checkbox dispatches a CodeMirror transaction replacing '[ ]' with '[x]' at the widget's source position",
+        "Clicking a checked checkbox dispatches a transaction replacing '[x]' with '[ ]' at the widget's source position",
+        "The markdown source updates immediately after click",
+        "Checkbox toggle only works in WYSIWYG mode (decorations are only active in WYSIWYG mode, so this is naturally enforced)",
+        "Typecheck passes"
+      ],
+      "priority": 2,
+      "passes": true,
+      "notes": "Completed on 2026-04-10. Rendered task-list checkboxes now toggle `[ ]` and `[x]` directly in the markdown source via CodeMirror transactions in WYSIWYG mode. Verified by `packages/editor/src/editor/__tests__/listAndBlockquoteDecoration.test.tsx` and full repo verification."
+    },
+    {
+      "id": "US-003",
+      "title": "Resolve relative image paths against document file path",
+      "description": "As a user, I want images with relative paths (e.g., ./assets/diagram.png) to display correctly when a file is open in the desktop app, so my local images render in WYSIWYG mode.",
+      "acceptanceCriteria": [
+        "MarkFlowEditor.tsx accepts an optional filePath prop (string | undefined)",
+        "App.tsx passes currentDoc.filePath to MarkFlowEditor",
+        "buildLinkDecorations in linkDecoration.ts accepts an optional filePath parameter",
+        "When filePath is set and an image src is relative (starts with ./ or ../ or lacks a protocol), the src is resolved to an absolute file:// URL using the document directory and the relative image path",
+        "Images with absolute URLs (http://, https://, file://) are unaffected",
+        "Typecheck passes"
+      ],
+      "priority": 3,
+      "passes": true,
+      "notes": "Completed on 2026-04-10. `filePath` now flows from `App` into image decorations so relative image sources resolve to `file://` URLs while protocol URLs stay unchanged. Verified by `packages/editor/src/editor/__tests__/linkDecoration.test.tsx`, `packages/editor/src/__tests__/App.test.tsx`, and full repo verification."
+    },
+    {
+      "id": "US-004",
+      "title": "Convert desktop file write operations to async",
+      "description": "As a developer, I want file save operations to use async I/O so the Electron main process event loop is not blocked during file writes.",
+      "acceptanceCriteria": [
+        "packages/desktop/src/main/fileManager.ts replaces fs.writeFileSync calls with await fs.promises.writeFile",
+        "IPC handlers that call writeFile are updated to async and return the resolved result to the renderer",
+        "The save and saveAs IPC handlers still return { success: true } or { success: false, error: string } to the renderer",
+        "Existing desktop tests in externalLinks.test.ts still pass",
+        "Typecheck passes"
+      ],
+      "priority": 4,
+      "passes": true,
+      "notes": "Completed on 2026-04-10. Desktop save and save-as now use `fs.promises.writeFile`, return `MarkFlowSaveResult`, and keep failure handling structured without corrupting the active file path on failed save-as writes. Verified by `packages/desktop/src/main/fileManager.test.ts`, `packages/desktop/src/main/externalLinks.test.ts`, and full lint/test/build/harness smoke runs."
+    }
+  ]
+}

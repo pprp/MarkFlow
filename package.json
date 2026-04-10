@@ -1,0 +1,29 @@
+{
+  "name": "markflow",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Write in flow, publish anywhere — a WYSIWYG markdown editor",
+  "scripts": {
+    "dev": "pnpm --filter @markflow/editor dev",
+    "build": "pnpm -r run build",
+    "test": "pnpm -r run test:run",
+    "test:watch": "pnpm -r run test",
+    "lint": "pnpm -r run lint",
+    "desktop": "pnpm --filter @markflow/desktop dev",
+    "harness:start": "node ./scripts/harness/start-session.mjs",
+    "harness:next": "node ./scripts/harness/next-feature.mjs",
+    "harness:verify": "node ./scripts/harness/verify.mjs",
+    "harness:init": "./harness/init.sh --smoke"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.1",
+    "@typescript-eslint/eslint-plugin": "^8.46.1",
+    "@typescript-eslint/parser": "^8.46.1",
+    "eslint": "^9.39.1",
+    "globals": "^16.5.0",
+    "typescript": "^5.9.3"
+  },
+  "keywords": ["markdown", "editor", "wysiwyg"],
+  "author": "",
+  "license": "MIT"
+}

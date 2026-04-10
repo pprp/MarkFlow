@@ -1,0 +1,742 @@
+{
+  "version": 1,
+  "project": "MarkFlow",
+  "generatedAt": "2026-04-09",
+  "instructions": [
+    "Do not remove feature entries from this file unless the product scope has genuinely changed.",
+    "Treat `passes` as the source of truth for completion.",
+    "Only mark `passes` as true after the listed automated and/or manual verification succeeds.",
+    "Prefer updating `status`, `notes`, and `lastVerifiedAt` over rewriting titles or steps."
+  ],
+  "features": [
+    {
+      "id": "MF-001",
+      "title": "Headings render in WYSIWYG mode without mutating the markdown source",
+      "category": "phase-1-functional",
+      "area": "@markflow/editor",
+      "priority": 1,
+      "status": "verified",
+      "passes": true,
+      "lastVerifiedAt": "2026-04-09",
+      "dependsOn": [],
+      "steps": [
+        "Load a markdown document that starts with `#` or `##` headings.",
+        "Move the caret away from the heading line in WYSIWYG mode.",
+        "Confirm the rendered heading is visible while the underlying source text remains unchanged."
+      ],
+      "verification": {
+        "automated": [
+          "pnpm --filter @markflow/editor test:run"
+        ],
+        "manual": [
+          "Open the editor and move the caret in and out of heading lines."
+        ]
+      },
+      "notes": "Covered by `packages/editor/src/editor/__tests__/inlineDecorations.test.tsx`."
+    },
+    {
+      "id": "MF-002",
+      "title": "Inline emphasis, inline code, and strikethrough hide syntax away from the caret",
+      "category": "phase-1-functional",
+      "area": "@markflow/editor",
+      "priority": 1,
+      "status": "verified",
+      "passes": true,
+      "lastVerifiedAt": "2026-04-09",
+      "dependsOn": [],
+      "steps": [
+        "Type markdown with bold, italic, inline code, and strikethrough markers.",
+        "Move the caret out of each formatted span.",
+        "Confirm the rendered text appears without changing the underlying source string."
+      ],
+      "verification": {
+        "automated": [
+          "pnpm --filter @markflow/editor test:run"
+        ],
+        "manual": [
+          "Check that formatted inline spans still reveal raw markdown when edited directly."
+        ]
+      },
+      "notes": "Covered by `packages/editor/src/editor/__tests__/inlineDecorations.test.tsx`."
+    },
+    {
+      "id": "MF-003",
+      "title": "Fenced code blocks render safely and preserve fenced markdown source",
+      "category": "phase-1-functional",
+      "area": "@markflow/editor",
+      "priority": 1,
+      "status": "verified",
+      "passes": true,
+      "lastVerifiedAt": "2026-04-09",
+      "dependsOn": [],
+      "steps": [
+        "Open a document containing fenced code blocks.",
+        "Move the caret inside and outside the fenced region.",
+        "Confirm the code content and fence markers remain intact in the underlying document."
+      ],
+      "verification": {
+        "automated": [
+          "pnpm --filter @markflow/editor test:run"
+        ],
+        "manual": [
+          "Visually verify that code blocks remain readable in both source and WYSIWYG modes."
+        ]
+      },
+      "notes": "Covered by `packages/editor/src/editor/__tests__/codeBlockDecoration.test.ts`; smoke verification on 2026-04-09 also fixed an invalid cross-line replace decoration."
+    },
+    {
+      "id": "MF-004",
+      "title": "Switching between WYSIWYG and source modes preserves document text, selection, and undo history",
+      "category": "phase-1-functional",
+      "area": "@markflow/editor",
+      "priority": 1,
+      "status": "verified",
+      "passes": true,
+      "lastVerifiedAt": "2026-04-09",
+      "dependsOn": [],
+      "steps": [
+        "Type into the editor and create unsaved changes.",
+        "Toggle from WYSIWYG to source and back.",
+        "Confirm document content, selection, and history still reflect the live editing session."
+      ],
+      "verification": {
+        "automated": [
+          "pnpm --filter @markflow/editor test:run"
+        ],
+        "manual": [
+          "Type into the starter document, toggle modes repeatedly, and confirm no edits disappear."
+        ]
+      },
+      "notes": "Fixed by preserving a single EditorView and reconfiguring WYSIWYG extensions through a CodeMirror compartment; covered by `packages/editor/src/editor/__tests__/MarkFlowEditor.test.tsx`."
+    },
+    {
+      "id": "MF-005",
+      "title": "List markers and blockquotes render contextually in WYSIWYG mode",
+      "category": "phase-1-functional",
+      "area": "@markflow/editor",
+      "priority": 1,
+      "status": "verified",
+      "passes": true,
+      "lastVerifiedAt": "2026-04-10",
+      "dependsOn": [],
+      "steps": [
+        "Open markdown with unordered lists, ordered lists, task lists, nested lists, and nested blockquotes.",
+        "Move the caret between those blocks and adjacent plain text.",
+        "Confirm syntax markers or checkbox widgets hide when appropriate and remain editable when the caret is inside the block."
+      ],
+      "verification": {
+        "automated": [
+          "pnpm --filter @markflow/editor test:run"
+        ],
+        "manual": [
+          "Optional visual smoke-check in the app that nested list indentation and blockquote styling match the rendered widgets."
+        ]
+      },
+      "notes": "Covered by `packages/editor/src/editor/__tests__/listAndBlockquoteDecoration.test.tsx`, including unordered lists, ordered lists, task lists, blockquotes, nested lists, nested blockquotes, and direct task-checkbox toggling back into markdown source. Nested blockquote rendering was fixed to avoid duplicate line decorations and to hide stacked `>` prefixes when the caret is outside the quote tree."
+    },
+    {
+      "id": "MF-006",
+      "title": "Smart list continuation and exit behavior work on Enter",
+      "category": "phase-1-functional",
+      "area": "@markflow/editor",
+      "priority": 1,
+      "status": "verified",
+      "passes": true,
+      "lastVerifiedAt": "2026-04-09",
+      "dependsOn": [],
+      "steps": [
+        "Start an unordered or ordered list in the editor.",
+        "Press Enter at the end of a non-empty list item.",
+        "Press Enter on an empty list item and confirm the list exits cleanly."
+      ],
+      "verification": {
+        "automated": [
+          "pnpm --filter @markflow/editor test:run"
+        ],
+        "manual": [
+          "Verify numbering increments correctly for ordered lists."
+        ]
+      },
+      "notes": "Covered by `packages/editor/src/editor/__tests__/smartInput.test.ts`."
+    },
+    {
+      "id": "MF-007",
+      "title": "Opening a markdown file from the desktop shell hydrates the editor state and active file path",
+      "category": "phase-1-functional",
+      "area": "@markflow/desktop",
+      "priority": 1,
+      "status": "verified",
+      "passes": true,
+      "lastVerifiedAt": "2026-04-09",
+      "dependsOn": [],
+      "steps": [
+        "Launch the Electron app with a markdown file path or use File > Open.",
+        "Confirm the renderer receives the file content and path.",
+        "Verify the editor shows the opened content instead of the starter document."
+      ],
+      "verification": {
+        "automated": [
+          "pnpm --filter @markflow/editor test:run"
+        ],
+        "manual": [
+          "Open a real `.md` file from Finder or the File menu and verify the buffer updates."
+        ]
+      },
+      "notes": "Renderer now hydrates from both `file-opened` events and `getCurrentDocument()` for startup recovery; covered by `packages/editor/src/__tests__/App.test.tsx`."
+    },
+    {
+      "id": "MF-008",
+      "title": "Save and Save As write the live editor buffer rather than the starter template",
+      "category": "phase-1-functional",
+      "area": "@markflow/desktop",
+      "priority": 1,
+      "status": "verified",
+      "passes": true,
+      "lastVerifiedAt": "2026-04-09",
+      "dependsOn": [
+        "MF-007"
+      ],
+      "steps": [
+        "Open or create a document and make edits in the editor.",
+        "Use Save and Save As from the menu or renderer commands.",
+        "Confirm the written file contents match the current CodeMirror document."
+      ],
+      "verification": {
+        "automated": [
+          "pnpm --filter @markflow/editor test:run"
+        ],
+        "manual": [
+          "Save a file, reopen it, and confirm the latest edits persist."
+        ]
+      },
+      "notes": "Desktop menu actions now route through the renderer so save operations always use the live CodeMirror buffer; covered by `packages/editor/src/__tests__/App.test.tsx`."
+    },
+    {
+      "id": "MF-009",
+      "title": "New file flow clears document state, dirty state, and represented filename cleanly",
+      "category": "phase-1-functional",
+      "area": "@markflow/desktop",
+      "priority": 2,
+      "status": "verified",
+      "passes": true,
+      "lastVerifiedAt": "2026-04-09",
+      "dependsOn": [
+        "MF-007",
+        "MF-008"
+      ],
+      "steps": [
+        "Open an existing file in the desktop app.",
+        "Trigger File > New.",
+        "Confirm the editor resets intentionally, window title changes to `Untitled`, and no stale content remains."
+      ],
+      "verification": {
+        "automated": [
+          "pnpm --filter @markflow/editor test:run"
+        ],
+        "manual": [
+          "Confirm creating a new file does not overwrite the previously opened file path."
+        ]
+      },
+      "notes": "Renderer now resets to an empty untitled document on `new-file`, and the Electron main process clears the represented filename; covered by `packages/editor/src/__tests__/App.test.tsx`."
+    },
+    {
+      "id": "MF-010",
+      "title": "Rendered links are clickable and open externally from the desktop shell",
+      "category": "phase-1-functional",
+      "area": "@markflow/editor",
+      "priority": 2,
+      "status": "planned",
+      "passes": false,
+      "lastVerifiedAt": null,
+      "dependsOn": [],
+      "steps": [
+        "Create markdown with external links, an internal heading link, and at least one reference-style link.",
+        "Render the document in WYSIWYG mode and move the caret away from each link.",
+        "Confirm `Cmd`/`Ctrl`+click opens external URLs in the system browser, internal links jump within the document, and the Electron window never navigates away."
+      ],
+      "verification": {
+        "automated": [
+          "Add focused coverage for `linkDecoration.ts` link parsing/rendering plus the Electron external-link and internal-anchor routing path."
+        ],
+        "manual": [
+          "In the desktop app verify external URLs, internal heading anchors, and a local markdown file link resolve with Typora-style behavior."
+        ]
+      },
+      "notes": "Typora documents `Cmd`/`Ctrl`+click behavior plus external, internal, local, reference, and auto URL link handling. Sources: https://support.typora.io/Links/ and https://support.typora.io/Markdown-Reference/. Partial progress on 2026-04-10: MarkFlow now renders inline `[text](https://...)` links as anchor markup in `packages/editor/src/editor/decorations/linkDecoration.ts`, routes Cmd/Ctrl+click through `window.open(..., '_blank')`, and covers the Electron external-link path in `packages/desktop/src/main/externalLinks.test.ts`. Internal anchors, reference links, auto URLs, and local-file routing are still unverified and not yet complete."
+    },
+    {
+      "id": "MF-011",
+      "title": "Images render as inline previews while preserving markdown source",
+      "category": "phase-1-functional",
+      "area": "@markflow/editor",
+      "priority": 2,
+      "status": "verified",
+      "passes": true,
+      "lastVerifiedAt": "2026-04-10",
+      "dependsOn": [],
+      "steps": [
+        "Open markdown containing image syntax that uses both remote URLs and relative/local file paths.",
+        "Render the document in WYSIWYG mode.",
+        "Confirm the preview is visible and the raw markdown remains editable when focused."
+      ],
+      "verification": {
+        "automated": [
+          "pnpm --filter @markflow/editor exec vitest run src/editor/__tests__/linkDecoration.test.tsx src/__tests__/App.test.tsx"
+        ],
+        "manual": []
+      },
+      "notes": "Automated coverage now verifies remote URLs, relative local paths resolved against the active markdown document path, absolute filesystem paths preserved, caret-driven editability, broken-image fallback, and App-level file-path plumbing via `packages/editor/src/editor/__tests__/linkDecoration.test.tsx` and `packages/editor/src/__tests__/App.test.tsx`. Typora's broader image workflow still includes drag/drop, paste-from-clipboard, and file copy/upload operations, which remain separate under `MF-029`. Sources: https://support.typora.io/Images/ and https://support.typora.io/Markdown-Reference/."
+    },
+    {
+      "id": "MF-012",
+      "title": "Theme engine hot-reloads CSS themes and lets the user switch themes",
+      "category": "phase-2-functional",
+      "area": "@markflow/desktop",
+      "priority": 2,
+      "status": "planned",
+      "passes": false,
+      "lastVerifiedAt": null,
+      "dependsOn": [],
+      "steps": [
+        "Install or modify a theme stylesheet.",
+        "Trigger the theme watcher.",
+        "Confirm the editor updates its appearance without a full restart."
+      ],
+      "verification": {
+        "automated": [
+          "Add theme watcher integration tests in the desktop package."
+        ],
+        "manual": [
+          "Switch between at least two distinct themes and verify persisted selection."
+        ]
+      },
+      "notes": "Chokidar is already present in desktop dependencies, which can support this later phase."
+    },
+    {
+      "id": "MF-013",
+      "title": "Tables render in WYSIWYG mode and stay editable as markdown",
+      "category": "phase-2-functional",
+      "area": "@markflow/editor",
+      "priority": 3,
+      "status": "planned",
+      "passes": false,
+      "lastVerifiedAt": null,
+      "dependsOn": [],
+      "steps": [
+        "Open a markdown table.",
+        "Render it in WYSIWYG mode.",
+        "Edit cells and confirm the markdown source remains valid."
+      ],
+      "verification": {
+        "automated": [
+          "Add table parsing and editing tests."
+        ],
+        "manual": [
+          "Verify column alignment and multiline content behavior."
+        ]
+      },
+      "notes": "This should wait until core view-state preservation is stable."
+    },
+    {
+      "id": "MF-014",
+      "title": "Math blocks render through KaTeX or MathJax without corrupting source markup",
+      "category": "phase-2-functional",
+      "area": "@markflow/editor",
+      "priority": 3,
+      "status": "planned",
+      "passes": false,
+      "lastVerifiedAt": null,
+      "dependsOn": [],
+      "steps": [
+        "Open inline and block math syntax.",
+        "Render math in WYSIWYG mode.",
+        "Confirm the original markdown or fenced math text remains intact when editing."
+      ],
+      "verification": {
+        "automated": [
+          "Add math rendering tests and sanitization checks."
+        ],
+        "manual": [
+          "Verify invalid expressions fail gracefully."
+        ]
+      },
+      "notes": "Planned for Phase 2."
+    },
+    {
+      "id": "MF-015",
+      "title": "Export pipeline can generate HTML and PDF from the active document",
+      "category": "phase-2-functional",
+      "area": "@markflow/desktop",
+      "priority": 3,
+      "status": "planned",
+      "passes": false,
+      "lastVerifiedAt": null,
+      "dependsOn": [
+        "MF-007",
+        "MF-008"
+      ],
+      "steps": [
+        "Open a markdown document with headings, lists, code, and links.",
+        "Export to HTML and PDF.",
+        "Confirm the exported artifacts preserve document structure and styling."
+      ],
+      "verification": {
+        "automated": [
+          "Add snapshot or golden tests for export output."
+        ],
+        "manual": [
+          "Open exported artifacts in external viewers and confirm fidelity."
+        ]
+      },
+      "notes": "Phase 2 feature with strong dependency on stable file IO and rendering."
+    },
+    {
+      "id": "MF-016",
+      "title": "Plugins can register markdown post-processors for custom render transforms",
+      "category": "phase-3-functional",
+      "area": "@markflow/shared",
+      "priority": 4,
+      "status": "planned",
+      "passes": false,
+      "lastVerifiedAt": null,
+      "dependsOn": [],
+      "steps": [
+        "Define a plugin registration API.",
+        "Load a sample plugin that transforms markdown output.",
+        "Confirm the plugin can add a render behavior without breaking core editing."
+      ],
+      "verification": {
+        "automated": [
+          "Add contract tests for plugin registration and execution."
+        ],
+        "manual": [
+          "Install a sample plugin and verify its lifecycle events."
+        ]
+      },
+      "notes": "Inspired by Obsidian's `registerMarkdownPostProcessor` model."
+    },
+    {
+      "id": "MF-017",
+      "title": "Opt-in Yjs collaboration can bootstrap a shared document session",
+      "category": "phase-3-functional",
+      "area": "@markflow/shared",
+      "priority": 4,
+      "status": "planned",
+      "passes": false,
+      "lastVerifiedAt": null,
+      "dependsOn": [],
+      "steps": [
+        "Create a shared document provider.",
+        "Join two editor clients to the same document.",
+        "Confirm edits converge without source corruption."
+      ],
+      "verification": {
+        "automated": [
+          "Add CRDT convergence tests."
+        ],
+        "manual": [
+          "Verify presence and reconnect scenarios."
+        ]
+      },
+      "notes": "This should remain opt-in and only begin after the single-user editor is stable."
+    },
+    {
+      "id": "MF-018",
+      "title": "Main branch merges produce installable desktop beta builds automatically",
+      "category": "phase-4-infrastructure",
+      "area": "release",
+      "priority": 4,
+      "status": "planned",
+      "passes": false,
+      "lastVerifiedAt": null,
+      "dependsOn": [],
+      "steps": [
+        "Configure CI to build editor and desktop packages on `main`.",
+        "Publish beta artifacts for supported platforms.",
+        "Confirm the release notes and update channel match the published build."
+      ],
+      "verification": {
+        "automated": [
+          "Add CI workflow validation and artifact smoke checks."
+        ],
+        "manual": [
+          "Install a beta build and confirm auto-update metadata resolves."
+        ]
+      },
+      "notes": "Phase 4 governance and sustainability milestone."
+    },
+    {
+      "id": "MF-019",
+      "title": "Focus mode and typewriter mode keep attention on the active writing block",
+      "category": "phase-2-functional",
+      "area": "@markflow/editor",
+      "priority": 2,
+      "status": "planned",
+      "passes": false,
+      "lastVerifiedAt": null,
+      "dependsOn": [],
+      "steps": [
+        "Open a long markdown document with multiple paragraphs and headings.",
+        "Enable focus mode and confirm non-active blocks fade while the active block stays readable.",
+        "Enable typewriter mode and confirm the caret remains anchored in a stable viewport position while typing."
+      ],
+      "verification": {
+        "automated": [
+          "Add editor view-state tests for focus styling and stable caret scrolling behavior."
+        ],
+        "manual": [
+          "Toggle both modes on a long document and verify they remain usable in both source and WYSIWYG views."
+        ]
+      },
+      "notes": "Missing from the current ledger despite Phase 2 mentioning focus mode. Typora sources: https://support.typora.io/Focus-and-Typewriter-Mode/ and https://support.typora.io/Shortcut-Keys/."
+    },
+    {
+      "id": "MF-020",
+      "title": "Outline panel shows heading hierarchy and supports quick navigation in long documents",
+      "category": "phase-2-functional",
+      "area": "@markflow/editor",
+      "priority": 2,
+      "status": "planned",
+      "passes": false,
+      "lastVerifiedAt": null,
+      "dependsOn": [],
+      "steps": [
+        "Open a document with nested headings from multiple levels.",
+        "Show the outline panel and confirm it mirrors the heading hierarchy.",
+        "Click outline entries and verify the editor scrolls to the target section and highlights the active heading."
+      ],
+      "verification": {
+        "automated": [
+          "Add heading-outline derivation tests and renderer interaction coverage for outline navigation."
+        ],
+        "manual": [
+          "Verify long documents remain navigable when headings are added, renamed, or reordered."
+        ]
+      },
+      "notes": "Typora positions outline as a long-document navigation aid for writers. Sources: https://support.typora.io/Outline/ and https://support.typora.io/Quick-Start/."
+    },
+    {
+      "id": "MF-021",
+      "title": "A `[toc]` block expands into a live table of contents that stays in sync with headings",
+      "category": "phase-2-functional",
+      "area": "@markflow/editor",
+      "priority": 3,
+      "status": "planned",
+      "passes": false,
+      "lastVerifiedAt": null,
+      "dependsOn": [],
+      "steps": [
+        "Insert `[toc]` into a markdown document and confirm it becomes a rendered table of contents block.",
+        "Add, remove, and rename headings across the document.",
+        "Confirm the TOC updates automatically and its entries navigate to the correct sections."
+      ],
+      "verification": {
+        "automated": [
+          "Add parser and decoration tests for TOC block rendering and heading-sync updates."
+        ],
+        "manual": [
+          "Verify heading depth and repeated heading names do not break TOC anchors or ordering."
+        ]
+      },
+      "notes": "High-signal for technical docs and books; distinct from an outline sidebar because it lives in-document. Sources: https://support.typora.io/TOC/ and https://support.typora.io/Outline/."
+    },
+    {
+      "id": "MF-022",
+      "title": "Footnote references render cleanly and reveal editable note content without corrupting markdown",
+      "category": "phase-2-functional",
+      "area": "@markflow/editor",
+      "priority": 2,
+      "status": "planned",
+      "passes": false,
+      "lastVerifiedAt": null,
+      "dependsOn": [],
+      "steps": [
+        "Open markdown containing inline footnote references and matching footnote definitions.",
+        "Render the document in WYSIWYG mode and confirm references appear as superscripts or equivalent footnote markers.",
+        "Reveal and edit the footnote content, then confirm the underlying markdown references and definitions stay intact."
+      ],
+      "verification": {
+        "automated": [
+          "Add footnote parsing and editor interaction tests covering reference-definition round trips."
+        ],
+        "manual": [
+          "Verify multiple footnotes, repeated references, and missing definitions fail gracefully."
+        ]
+      },
+      "notes": "Useful for academics and long-form technical writing. Typora sources: https://support.typora.io/Markdown-Reference/ and https://typora.io/."
+    },
+    {
+      "id": "MF-023",
+      "title": "Mermaid and other diagram fences render live previews while preserving fenced source",
+      "category": "phase-3-functional",
+      "area": "@markflow/editor",
+      "priority": 3,
+      "status": "planned",
+      "passes": false,
+      "lastVerifiedAt": null,
+      "dependsOn": [],
+      "steps": [
+        "Open fenced diagram blocks such as Mermaid flowcharts or sequence diagrams.",
+        "Render the document in WYSIWYG mode and confirm a live diagram preview appears outside the active edit state.",
+        "Edit the fenced source and verify the preview refreshes without mutating or losing the original markdown block."
+      ],
+      "verification": {
+        "automated": [
+          "Add diagram renderer tests for fenced block detection, preview updates, and fallback behavior on invalid syntax."
+        ],
+        "manual": [
+          "Verify large diagrams and invalid Mermaid syntax degrade gracefully without breaking adjacent content."
+        ]
+      },
+      "notes": "Aligned with the Phase 3 block-renderer direction and especially useful for engineers. Sources: https://support.typora.io/Draw-Diagrams-With-Markdown/ and https://typora.io/."
+    },
+    {
+      "id": "MF-024",
+      "title": "Horizontal rules render as separators in WYSIWYG mode without losing the underlying markdown",
+      "category": "phase-1-functional",
+      "area": "@markflow/editor",
+      "priority": 2,
+      "status": "verified",
+      "passes": true,
+      "lastVerifiedAt": "2026-04-10",
+      "dependsOn": [],
+      "steps": [
+        "Open markdown containing horizontal rules such as `---` or `***`.",
+        "Move the caret onto and away from the rule line in WYSIWYG mode.",
+        "Confirm a rendered separator appears when unfocused and the original markdown stays editable when focused."
+      ],
+      "verification": {
+        "automated": [
+          "Run `pnpm --filter @markflow/editor test:run -- listAndBlockquoteDecoration.test.tsx` to cover `---` and `***` horizontal rule rendering, caret focus behavior, and adjacent paragraph integrity."
+        ],
+        "manual": []
+      },
+      "notes": "Typora documents horizontal rules as core Markdown syntax, and MarkFlow's existing `HorizontalRule` decoration path in `packages/editor/src/editor/decorations/blockquoteDecoration.ts` now has direct automated coverage for both `---` and `***`, including the focus/editability transition and adjacent paragraph preservation. Sources: https://support.typora.io/Markdown-Reference/ and https://support.typora.io/Quick-Start/."
+    },
+    {
+      "id": "MF-025",
+      "title": "YAML front matter remains intact and editable as document metadata",
+      "category": "phase-2-functional",
+      "area": "@markflow/editor",
+      "priority": 3,
+      "status": "planned",
+      "passes": false,
+      "lastVerifiedAt": null,
+      "dependsOn": [],
+      "steps": [
+        "Open a markdown document containing YAML front matter delimited by `---`.",
+        "Edit both metadata fields and normal body content while switching between source and WYSIWYG mode.",
+        "Confirm the front matter block remains intact and no keys, delimiters, or body content are corrupted."
+      ],
+      "verification": {
+        "automated": [
+          "Add parser and view-mode tests covering YAML front matter round trips."
+        ],
+        "manual": [
+          "Verify metadata keys commonly used by writers, including image-related keys, remain unchanged after editing."
+        ]
+      },
+      "notes": "Typora documents YAML front matter and uses metadata keys such as image root/copy settings in writer workflows, but MarkFlow has no implementation or ledger coverage for metadata-aware editing yet. Sources: https://support.typora.io/Markdown-Reference/ and https://support.typora.io/Images/."
+    },
+    {
+      "id": "MF-026",
+      "title": "Smart paste converts rich clipboard content into markdown while preserving plain-text paste",
+      "category": "phase-1-functional",
+      "area": "@markflow/editor",
+      "priority": 3,
+      "status": "planned",
+      "passes": false,
+      "lastVerifiedAt": null,
+      "dependsOn": [],
+      "steps": [
+        "Copy rich content from a browser or rich-text editor that includes headings, lists, links, and inline emphasis.",
+        "Paste into MarkFlow in WYSIWYG mode and confirm markdown source is synthesized instead of raw HTML or flattened plain text.",
+        "Use the plain-text paste path and confirm literal text or markdown source is inserted without rich-format conversion."
+      ],
+      "verification": {
+        "automated": [
+          "Add clipboard transformation tests covering HTML-to-markdown conversion and plain-text paste fallback."
+        ],
+        "manual": [
+          "Paste from a browser page and a rich editor, then inspect both the rendered result and the underlying markdown."
+        ]
+      },
+      "notes": "Typora pastes HTML by converting it to Markdown by default and supports an explicit plain-text or Markdown-source paste path, while MarkFlow currently relies on default browser/CodeMirror paste behavior with no clipboard normalization layer. Sources: https://support.typora.io/Copy-and-Paste/ and https://support.typora.io/Quick-Start/."
+    },
+    {
+      "id": "MF-027",
+      "title": "Word count surfaces live document and selection stats without treating markdown syntax as words",
+      "category": "phase-2-functional",
+      "area": "@markflow/editor",
+      "priority": 3,
+      "status": "planned",
+      "passes": false,
+      "lastVerifiedAt": null,
+      "dependsOn": [],
+      "steps": [
+        "Open a markdown document with prose, lists, and code, then observe a live word-count surface in the editor chrome.",
+        "Edit the document and confirm word, line, character, and reading-time stats update continuously.",
+        "Select a range and confirm the selection count is shown separately while markdown formatting syntax is excluded from word totals."
+      ],
+      "verification": {
+        "automated": [
+          "Add derived-metric tests for document and selection counts, excluding formatting-only markdown syntax from word totals."
+        ],
+        "manual": [
+          "Verify counts on mixed prose and markdown syntax match the detailed count surface for both whole-document and selected text."
+        ]
+      },
+      "notes": "Typora exposes live word count plus lines, characters, reading time, and selection counts, and explicitly excludes formatting-only markdown syntax from word totals. MarkFlow currently has no count surface or metric derivation in the editor UI. Sources: https://support.typora.io/Word-Count/ and https://support.typora.io/Quick-Start/."
+    },
+    {
+      "id": "MF-028",
+      "title": "Find and replace can search the active document without leaving the editing flow",
+      "category": "phase-1-functional",
+      "area": "@markflow/editor",
+      "priority": 3,
+      "status": "planned",
+      "passes": false,
+      "lastVerifiedAt": null,
+      "dependsOn": [],
+      "steps": [
+        "Open a markdown document with repeated terms across headings, prose, and list items.",
+        "Trigger find and replace from the editor and navigate between matches in both source and WYSIWYG mode.",
+        "Replace the current match and all matches, then confirm the underlying markdown updates without losing selection or corrupting surrounding syntax."
+      ],
+      "verification": {
+        "automated": [
+          "Add focused editor tests for search panel open state, match navigation, and replace/replace-all behavior against the live CodeMirror document."
+        ],
+        "manual": [
+          "Verify case-sensitive, whole-word, and regex search options behave as expected on a mixed markdown document."
+        ]
+      },
+      "notes": "Typora documents in-document search and replace, including case-sensitive, whole-word, and regex options. MarkFlow currently imports `searchKeymap` and `highlightSelectionMatches()` in `packages/editor/src/editor/MarkFlowEditor.tsx`, but it does not expose a verified search/replace workflow in the app or ledger. Sources: https://support.typora.io/Search/ and https://support.typora.io/What's-New-1.3/."
+    },
+    {
+      "id": "MF-029",
+      "title": "Dragging, pasting, or inserting local images creates markdown image references without breaking asset paths",
+      "category": "phase-1-functional",
+      "area": "@markflow/editor",
+      "priority": 3,
+      "status": "planned",
+      "passes": false,
+      "lastVerifiedAt": null,
+      "dependsOn": [],
+      "steps": [
+        "Open a saved markdown document and insert one or more local images via drag and drop, clipboard paste, or an explicit insert-image action.",
+        "Confirm MarkFlow inserts markdown image references at the caret and shows the existing inline preview when the caret leaves the image syntax.",
+        "If a destination rule for inserted images is configured, confirm the image file is copied and the `src` is rewritten predictably; otherwise confirm the original local path is referenced consistently."
+      ],
+      "verification": {
+        "automated": [
+          "Add focused editor and desktop tests for drag/drop or clipboard image insertion, markdown `![alt](src)` generation, and destination-path rewriting for inserted local assets."
+        ],
+        "manual": [
+          "Drag image files from the OS into the desktop app and paste an image from the clipboard, then verify the written markdown path and rendered preview both stay valid after save and reopen."
+        ]
+      },
+      "notes": "Typora treats image preview and image insertion as separate capabilities: it supports drag-and-drop, clipboard paste, and explicit local-image insertion, plus configurable copy/upload rules such as `typora-copy-images-to` for inserted assets. MarkFlow currently only renders pre-existing markdown image syntax in `packages/editor/src/editor/decorations/linkDecoration.ts`; repo search shows no editor clipboard/drop handling or image-destination workflow, and `packages/desktop/src/main/index.ts` only guards navigation/drop behavior at the window level. Sources: https://support.typora.io/Images/ and https://support.typora.io/Upload-Image/."
+    }
+  ]
+}
