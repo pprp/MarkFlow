@@ -44,7 +44,7 @@ class TocWidget extends WidgetType {
     super()
   }
 
-  toDOM(_view: EditorView): HTMLElement {
+  toDOM(): HTMLElement {
     const headings = parseHeadings(this.docContent)
     const container = document.createElement('div')
     container.className = 'mf-toc'
@@ -63,7 +63,7 @@ class TocWidget extends WidgetType {
     return container
   }
 
-  eq(_other: TocWidget): boolean {
+  eq(): boolean {
     return false
   }
 

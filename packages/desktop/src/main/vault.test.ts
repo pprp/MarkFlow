@@ -79,7 +79,7 @@ describe('FileManager vault integration', () => {
   it('retrieves vault markdown files via recursive walk', async () => {
     const manager = new FileManager(createWindowStub() as never)
     
-    vi.mocked(fs.readdirSync).mockImplementation((dir: fs.PathLike) => {
+    vi.mocked(fs.readdirSync).mockImplementation(((dir: fs.PathLike) => {
       const dirStr = String(dir)
       if (dirStr === '/tmp/vault') {
         return [
@@ -95,7 +95,7 @@ describe('FileManager vault integration', () => {
         ] as unknown as fs.Dirent[]
       }
       return [] as unknown as fs.Dirent[]
-    })
+    }) as never)
 
     const files = manager.getVaultFiles('/tmp/vault')
     

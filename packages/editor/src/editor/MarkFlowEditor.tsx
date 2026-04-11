@@ -12,7 +12,11 @@ import {
 } from '@codemirror/language'
 import { searchKeymap, highlightSelectionMatches } from '@codemirror/search'
 import { closeBrackets, closeBracketsKeymap } from '@codemirror/autocomplete'
-import type { ViewMode } from '@markflow/shared'
+import {
+  type MarkFlowPluginHost,
+  type MarkFlowRenderedViewMode,
+  type ViewMode,
+} from '@markflow/shared'
 import { wysiwygDecorations } from './decorations/inlineDecorations'
 import { codeBlockDecorations } from './decorations/codeBlockDecoration'
 import { blockquoteDecorations } from './decorations/blockquoteDecoration'
@@ -30,6 +34,7 @@ import { smartTypographyExtension } from './extensions/smartTypography'
 import { headingFoldExtension } from './extensions/headingFold'
 import { smartPasteExtension } from './extensions/smartPaste'
 import { spellCheckExtension } from './extensions/spellCheck'
+import { markdownPostProcessorExtension } from './extensions/markdownPostProcessor'
 import { readingModeExtension } from './extensions/readingMode'
 import { vimModeExtension } from './extensions/vimMode'
 import { tocDecorations } from './decorations/tocDecoration'
@@ -50,6 +55,7 @@ export interface MarkFlowEditorProps {
   focusMode?: boolean
   typewriterMode?: boolean
   vimMode?: boolean
+  pluginHost?: MarkFlowPluginHost
   filePath?: string
   navigationRequest?: { key: number; position: number } | null
 }
@@ -63,8 +69,12 @@ const baseTheme = EditorView.theme({
   },
 })
 
-function getWysiwygExtensions(filePath?: string) {
-  return [
+function getRenderedExtensions(
+  renderedViewMode: MarkFlowRenderedViewMode,
+  filePath?: string,
+  pluginHost?: MarkFlowPluginHost,
+) {
+  const extensions = [
     wysiwygDecorations(),
     codeBlockDecorations(),
     blockquoteDecorations(),
@@ -78,6 +88,18 @@ function getWysiwygExtensions(filePath?: string) {
     inlineHtmlDecorations(),
     tocDecorations(),
   ]
+
+  if (pluginHost) {
+    extensions.push(
+      markdownPostProcessorExtension({
+        pluginHost,
+        filePath,
+        viewMode: renderedViewMode,
+      }),
+    )
+  }
+
+  return extensions
 }
 
 function findRenderedLink(target: EventTarget | null) {
@@ -89,9 +111,15 @@ function findRenderedLink(target: EventTarget | null) {
   return link instanceof HTMLAnchorElement ? link : null
 }
 
-function getViewModeExtensions(viewMode: ViewMode, filePath?: string) {
-  if (viewMode === 'wysiwyg') return getWysiwygExtensions(filePath)
-  if (viewMode === 'reading') return [...getWysiwygExtensions(filePath), ...readingModeExtension()]
+function getViewModeExtensions(viewMode: ViewMode, filePath?: string, pluginHost?: MarkFlowPluginHost) {
+  if (viewMode === 'wysiwyg') {
+    return getRenderedExtensions('wysiwyg', filePath, pluginHost)
+  }
+
+  if (viewMode === 'reading') {
+    return [...getRenderedExtensions('reading', filePath, pluginHost), ...readingModeExtension()]
+  }
+
   return []
 }
 
@@ -109,6 +137,7 @@ export function MarkFlowEditor({
   focusMode = false,
   typewriterMode = false,
   vimMode = false,
+  pluginHost,
   filePath,
   navigationRequest,
 }: MarkFlowEditorProps) {
@@ -233,7 +262,7 @@ export function MarkFlowEditor({
             onCursorPositionChangeRef.current?.(selection.head)
           }
         }),
-        viewModeCompartmentRef.current.of(getViewModeExtensions(viewMode, filePath)),
+        viewModeCompartmentRef.current.of(getViewModeExtensions(viewMode, filePath, pluginHost)),
         focusModeCompartmentRef.current.of(focusMode ? focusModeExtension() : []),
         typewriterModeCompartmentRef.current.of(typewriterMode ? typewriterModeExtension() : []),
         vimModeCompartmentRef.current.of(vimMode ? vimModeExtension() : []),
@@ -357,10 +386,10 @@ export function MarkFlowEditor({
 
     view.dispatch({
       effects: viewModeCompartmentRef.current.reconfigure(
-        getViewModeExtensions(viewMode, filePath),
+        getViewModeExtensions(viewMode, filePath, pluginHost),
       ),
     })
-  }, [filePath, viewMode])
+  }, [filePath, pluginHost, viewMode])
 
   useEffect(() => {
     const view = viewRef.current
@@ -413,7 +442,7 @@ export function MarkFlowEditor({
         markdown({ base: markdownLanguage, codeLanguages: languages }),
         EditorView.editable.of(false),
         EditorView.lineWrapping,
-        ...getWysiwygExtensions(filePath),
+        ...getRenderedExtensions('split-preview', filePath, pluginHost),
       ],
     })
 
@@ -489,8 +518,7 @@ export function MarkFlowEditor({
       previewView.destroy()
       previewViewRef.current = null
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [viewMode])
+  }, [filePath, pluginHost, viewMode])
 
   // Keep split preview in sync with content changes
   useEffect(() => {

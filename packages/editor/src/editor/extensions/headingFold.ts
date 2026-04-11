@@ -6,7 +6,7 @@ const HEADING_RE = /^(#{1,6})\s/
 export function headingFoldExtension() {
   return [
     foldGutter(),
-    foldService.of((state, lineStart, _lineEnd) => {
+    foldService.of((state, lineStart) => {
       const line = state.doc.lineAt(lineStart)
       const match = HEADING_RE.exec(line.text)
       if (!match) return null

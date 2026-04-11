@@ -5,13 +5,16 @@ import { computeStats } from './editor/wordCount'
 import { QuickOpen } from './components/QuickOpen'
 import { VaultSidebar } from './components/VaultSidebar'
 import { GlobalSearch } from './components/GlobalSearch'
-import type { MarkFlowQuickOpenItem,
-  MarkFlowDocument,
-  MarkFlowMenuAction,
-  MarkFlowThemePayload,
-  MarkFlowThemeSummary,
-  ViewMode,
-  SearchResult,
+import { createExternalLinkBadgePlugin } from './plugins/externalLinkBadgePlugin'
+import {
+  MarkFlowPluginHost,
+  type MarkFlowQuickOpenItem,
+  type MarkFlowDocument,
+  type MarkFlowMenuAction,
+  type MarkFlowThemePayload,
+  type MarkFlowThemeSummary,
+  type ViewMode,
+  type SearchResult,
 } from '@markflow/shared'
 
 const THEME_STYLE_ELEMENT_ID = 'mf-theme-overrides'
@@ -49,7 +52,7 @@ function greet(name: string): string {
 - [x] Set up CodeMirror 6
 - [x] Implement inline decorations
 - [ ] Add export support
-- [ ] Build plugin system
+- [x] Build plugin system
 
 ---
 
@@ -85,10 +88,20 @@ export function App() {
   const latestContentRef = useRef(INITIAL_CONTENT)
   const currentFilePathRef = useRef<string | null>(null)
   const outlineNavigationKeyRef = useRef(0)
+  const pluginHostRef = useRef<MarkFlowPluginHost | null>(null)
+
+  if (pluginHostRef.current === null) {
+    pluginHostRef.current = new MarkFlowPluginHost()
+    pluginHostRef.current.setPlugins([createExternalLinkBadgePlugin()])
+  }
 
   useEffect(() => {
     latestContentRef.current = documentState.content
   }, [documentState.content])
+
+  useEffect(() => () => {
+    pluginHostRef.current?.dispose()
+  }, [])
 
   function applyTheme(theme: MarkFlowThemePayload | null) {
     const existing = document.getElementById(THEME_STYLE_ELEMENT_ID) as HTMLStyleElement | null
@@ -535,6 +548,7 @@ export function App() {
             focusMode={focusMode}
             typewriterMode={typewriterMode}
             vimMode={vimMode}
+            pluginHost={pluginHostRef.current ?? undefined}
             filePath={documentState.filePath ?? undefined}
             navigationRequest={outlineNavigationRequest}
           />
@@ -611,6 +625,7 @@ export function App() {
             onToggleTypewriterMode={() => {}}
             focusMode={false}
             typewriterMode={false}
+            pluginHost={pluginHostRef.current ?? undefined}
             filePath={documentState.filePath ?? undefined}
             navigationRequest={null}
           />
@@ -619,4 +634,3 @@ export function App() {
     </div>
   )
 }
-

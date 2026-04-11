@@ -139,6 +139,19 @@ describe('App desktop integration', () => {
     expect(screen.getByText('session.md')).toBeInTheDocument()
   })
 
+  it('loads the default markdown post-processor plugin for starter links', async () => {
+    const api = new MockMarkFlowAPI()
+    window.markflow = api
+
+    const { container } = render(<App />)
+
+    await waitFor(() => {
+      const link = container.querySelector('a.mf-link')
+      expect(link).toHaveAttribute('data-mf-link-kind', 'external')
+      expect(link).toHaveClass('mf-link-external')
+    })
+  })
+
   it('loads opened files and saves the live editor buffer through menu actions', async () => {
     const api = new MockMarkFlowAPI()
     window.markflow = api
@@ -266,6 +279,41 @@ describe('App desktop integration', () => {
 
     await waitFor(() => {
       expect(api.openPath).toHaveBeenCalledWith('/Users/pprp/docs/other.md')
+    })
+  })
+
+  it('loads the sample markdown post-processor without breaking editing', async () => {
+    const api = new MockMarkFlowAPI()
+    window.markflow = api
+
+    const { container } = render(<App />)
+
+    await act(async () => {
+      api.emitFileOpened({
+        filePath: '/Users/pprp/docs/note.md',
+        content: 'Intro\n\n[OpenAI](https://openai.com)',
+      })
+    })
+
+    const view = getEditorView(container)
+
+    await waitFor(() => {
+      const link = container.querySelector('a.mf-link')
+      expect(link).toHaveAttribute('data-mf-link-kind', 'external')
+      expect(link).toHaveClass('mf-link-external')
+    })
+
+    act(() => {
+      view.dispatch({
+        changes: { from: view.state.doc.length, insert: '\nSecond line' },
+      })
+    })
+
+    expect(view.state.doc.toString()).toBe('Intro\n\n[OpenAI](https://openai.com)\nSecond line')
+    expect(container.querySelector('.mf-titlebar-dirty-dot')).toBeInTheDocument()
+
+    await waitFor(() => {
+      expect(container.querySelectorAll('a.mf-link.mf-link-external')).toHaveLength(1)
     })
   })
 
@@ -511,7 +559,7 @@ describe('App export integration', () => {
     const api = new MockMarkFlowAPI()
     window.markflow = api
 
-    const { container } = render(<App />)
+    render(<App />)
 
     await act(async () => {
       api.emitFileOpened({ filePath: '/docs/exportme.md', content: '# Hello\n\nSome text' })

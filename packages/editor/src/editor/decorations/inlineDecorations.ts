@@ -19,7 +19,7 @@ interface DecorationEntry {
 }
 
 const highlightPattern = /==([^=\n](?:.*?[^=\n])?)==/g
-const superscriptPattern = /\^([^\^\n]+)\^/g
+const superscriptPattern = /\^([^^\n]+)\^/g
 const subscriptPattern = /~([^~\n]+)~/g
 
 function getCodeRanges(view: EditorView): Array<{ from: number; to: number }> {

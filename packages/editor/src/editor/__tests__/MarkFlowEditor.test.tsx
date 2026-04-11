@@ -4,6 +4,10 @@ import { EditorView } from '@codemirror/view'
 import { describe, expect, it, vi } from 'vitest'
 import { MarkFlowEditor } from '../MarkFlowEditor'
 
+interface PointerEventInitWithId extends MouseEventInit {
+  pointerId?: number
+}
+
 function getEditorView(container: HTMLElement) {
   const editorRoot = container.querySelector('.cm-editor')
   expect(editorRoot).not.toBeNull()
@@ -159,13 +163,20 @@ describe('MarkFlowEditor', () => {
 
 // PointerEvent polyfill for jsdom
     if (!window.PointerEvent) {
-      ;(window as any).PointerEvent = class PointerEvent extends MouseEvent {
-        pointerId: number;
-        constructor(type: string, params: any = {}) {
-          super(type, params);
-          this.pointerId = params.pointerId || 1;
+      class MockPointerEvent extends MouseEvent {
+        pointerId: number
+
+        constructor(type: string, params: PointerEventInitWithId = {}) {
+          super(type, params)
+          this.pointerId = params.pointerId ?? 1
         }
-      };
+      }
+
+      Object.defineProperty(window, 'PointerEvent', {
+        configurable: true,
+        writable: true,
+        value: MockPointerEvent,
+      })
     }
     // Mock getBoundingClientRect
     Element.prototype.getBoundingClientRect = vi.fn(() => ({
@@ -178,10 +189,10 @@ describe('MarkFlowEditor', () => {
       x: 0,
       y: 0,
       toJSON: () => {}
-    }));
+    }))
 
-    Element.prototype.setPointerCapture = vi.fn();
-    Element.prototype.releasePointerCapture = vi.fn();
+    Element.prototype.setPointerCapture = vi.fn()
+    Element.prototype.releasePointerCapture = vi.fn()
 
 
     const panes = container.querySelectorAll('.mf-split-pane')

@@ -206,7 +206,7 @@ export class FileManager {
             }
           }
         }
-      } catch (err) {
+      } catch {
         // Ignore directory read errors
       }
     }

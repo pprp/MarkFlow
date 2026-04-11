@@ -58,7 +58,7 @@ describe('FileManager global search integration', () => {
   it('searches across vault files returning exact matches case-insensitively', () => {
     const manager = new FileManager(createWindowStub() as never)
     
-    vi.mocked(fs.readdirSync).mockImplementation((dir: fs.PathLike) => {
+    vi.mocked(fs.readdirSync).mockImplementation(((dir: fs.PathLike) => {
       const dirStr = String(dir)
       if (dirStr === '/tmp/vault') {
         return [
@@ -67,7 +67,7 @@ describe('FileManager global search integration', () => {
         ] as unknown as fs.Dirent[]
       }
       return [] as unknown as fs.Dirent[]
-    })
+    }) as never)
 
     vi.mocked(fs.readFileSync).mockImplementation((filepath: fs.PathOrFileDescriptor) => {
       if (filepath === path.join('/tmp/vault', 'doc1.md')) {

@@ -51,6 +51,164 @@ export interface SearchResult {
   matchEnd: number
 }
 
+export type MarkFlowRenderedViewMode = 'wysiwyg' | 'reading' | 'split-preview'
+
+export interface MarkFlowMarkdownPostProcessorContext {
+  filePath?: string
+  viewMode: MarkFlowRenderedViewMode
+  root: HTMLElement
+  sourceText: string
+}
+
+export type MarkFlowMarkdownPostProcessorCleanup = () => void
+
+export interface MarkFlowMarkdownPostProcessor {
+  selector?: string
+  process: (
+    element: HTMLElement,
+    context: MarkFlowMarkdownPostProcessorContext,
+  ) => void | MarkFlowMarkdownPostProcessorCleanup
+}
+
+export interface MarkFlowPluginContext {
+  registerMarkdownPostProcessor: (
+    processor: MarkFlowMarkdownPostProcessor,
+  ) => () => void
+}
+
+export interface MarkFlowPlugin {
+  id: string
+  onload?: (context: MarkFlowPluginContext) => void | (() => void)
+  onunload?: () => void
+}
+
+interface LoadedMarkFlowPlugin {
+  cleanups: Array<() => void>
+  plugin: MarkFlowPlugin
+}
+
+function runCleanups(cleanups: ReadonlyArray<() => void>) {
+  for (const cleanup of [...cleanups].reverse()) {
+    cleanup()
+  }
+}
+
+function selectProcessorTargets(root: HTMLElement, selector?: string) {
+  if (!selector) {
+    return [root]
+  }
+
+  const targets: HTMLElement[] = []
+
+  if (root.matches(selector)) {
+    targets.push(root)
+  }
+
+  targets.push(...root.querySelectorAll<HTMLElement>(selector))
+  return targets
+}
+
+export class MarkFlowPluginHost {
+  private readonly plugins = new Map<string, LoadedMarkFlowPlugin>()
+  private readonly markdownPostProcessors: MarkFlowMarkdownPostProcessor[] = []
+
+  getMarkdownPostProcessorCount() {
+    return this.markdownPostProcessors.length
+  }
+
+  load(plugin: MarkFlowPlugin) {
+    this.unload(plugin.id)
+
+    const cleanups: Array<() => void> = []
+    const context: MarkFlowPluginContext = {
+      registerMarkdownPostProcessor: (processor) => {
+        this.markdownPostProcessors.push(processor)
+
+        let isRegistered = true
+        const unregister = () => {
+          if (!isRegistered) {
+            return
+          }
+
+          isRegistered = false
+          const index = this.markdownPostProcessors.indexOf(processor)
+          if (index >= 0) {
+            this.markdownPostProcessors.splice(index, 1)
+          }
+        }
+
+        cleanups.push(unregister)
+        return unregister
+      },
+    }
+
+    const maybeCleanup = plugin.onload?.(context)
+    if (typeof maybeCleanup === 'function') {
+      cleanups.push(maybeCleanup)
+    }
+
+    this.plugins.set(plugin.id, { cleanups, plugin })
+  }
+
+  setPlugins(plugins: readonly MarkFlowPlugin[]) {
+    const nextIds = new Set(plugins.map((plugin) => plugin.id))
+
+    for (const pluginId of this.plugins.keys()) {
+      if (!nextIds.has(pluginId)) {
+        this.unload(pluginId)
+      }
+    }
+
+    for (const plugin of plugins) {
+      const loaded = this.plugins.get(plugin.id)
+      if (loaded?.plugin === plugin) {
+        continue
+      }
+
+      this.load(plugin)
+    }
+  }
+
+  unload(pluginId: string) {
+    const loaded = this.plugins.get(pluginId)
+    if (!loaded) {
+      return
+    }
+
+    runCleanups(loaded.cleanups)
+    loaded.plugin.onunload?.()
+    this.plugins.delete(pluginId)
+  }
+
+  dispose() {
+    for (const pluginId of [...this.plugins.keys()]) {
+      this.unload(pluginId)
+    }
+  }
+
+  runMarkdownPostProcessors(
+    root: HTMLElement,
+    context: Omit<MarkFlowMarkdownPostProcessorContext, 'root'>,
+  ) {
+    const cleanups: Array<() => void> = []
+    const fullContext: MarkFlowMarkdownPostProcessorContext = {
+      ...context,
+      root,
+    }
+
+    for (const processor of this.markdownPostProcessors) {
+      for (const element of selectProcessorTargets(root, processor.selector)) {
+        const maybeCleanup = processor.process(element, fullContext)
+        if (typeof maybeCleanup === 'function') {
+          cleanups.push(maybeCleanup)
+        }
+      }
+    }
+
+    return () => runCleanups(cleanups)
+  }
+}
+
 export interface MarkFlowDesktopAPI {
   openFile: () => Promise<MarkFlowFilePayload | null>
   openPath: (filePath: string) => Promise<MarkFlowFilePayload | null>

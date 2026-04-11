@@ -703,6 +703,19 @@ body {
   border-bottom-color: var(--mf-link-color);
 }
 
+.cm-editor .mf-link-external::after {
+  content: '↗';
+  display: inline-flex;
+  align-items: center;
+  margin-left: 0.2rem;
+  color: var(--mf-fg-muted);
+  font-size: 0.8em;
+  line-height: 1;
+  vertical-align: text-top;
+  user-select: none;
+  pointer-events: none;
+}
+
 /* ── Footnotes ──────────────────────────────────────────────── */
 .cm-editor .mf-footnote-ref {
   color: var(--mf-link-color);
