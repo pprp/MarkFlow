@@ -426,3 +426,20 @@
   - `MF-035`
 - Next recommended feature:
   - `MF-039` - Auto-save integration
+
+### 2026-04-11 - MF-039 Spell checking underlines misspelled words in prose and offers inline correction suggestions
+
+- Author: Codex
+- Focus: Prevented spell check false positives inside code, links, and YAML front matter regions.
+- What changed:
+  - Updated `packages/editor/src/editor/extensions/spellCheck.ts` to actively exclude YAML front matter.
+  - Implemented `detectFrontMatter()` from `yamlFrontMatter.ts` into the spell check exclusion logic, complementing existing AST-based exclusion rules for code and URLs.
+  - Added full test suite in `packages/editor/src/editor/__tests__/spellCheck.test.ts` to assert that `spellcheck: 'false'` decorations correctly overlap with inline code, fenced blocks, links, URLs, and front matter blocks, avoiding false positive squiggles.
+- Verification:
+  - `pnpm test`
+  - `pnpm build`
+  - `pnpm harness:verify`
+- Newly verified features:
+  - `MF-039`
+- Next recommended feature:
+  - `MF-041` - Add robust multi-cursor editing

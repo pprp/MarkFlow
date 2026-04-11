@@ -1,14 +1,23 @@
 import { EditorView, Decoration, ViewPlugin, ViewUpdate, DecorationSet } from '@codemirror/view'
 import { RangeSetBuilder } from '@codemirror/state'
 import { syntaxTree } from '@codemirror/language'
+import { detectFrontMatter } from '../decorations/yamlFrontMatter'
 
 /**
  * Builds a decoration set that marks code/link regions with spellcheck=false
  * so the browser skips spell checking inside code and links.
  */
 function buildSpellCheckExclusions(view: EditorView): DecorationSet {
-  const builder = new RangeSetBuilder<Decoration>()
-  const noSpellCheck = Decoration.mark({ attributes: { spellcheck: 'false' } })
+  // Collect all ranges that should be excluded
+  const exclusionRanges: { from: number; to: number }[] = []
+
+  // Add Front Matter exclusion
+  const fmRange = detectFrontMatter(view.state.doc)
+  if (fmRange) {
+    const from = view.state.doc.line(fmRange.firstLine).from
+    const to = view.state.doc.line(fmRange.lastLine).to
+    exclusionRanges.push({ from, to })
+  }
 
   for (const { from, to } of view.visibleRanges) {
     syntaxTree(view.state).iterate({
@@ -23,16 +32,31 @@ function buildSpellCheckExclusions(view: EditorView): DecorationSet {
           name === 'Link' ||
           name === 'URL'
         ) {
-          builder.add(node.from, node.to, noSpellCheck)
+          exclusionRanges.push({ from: node.from, to: node.to })
         }
       },
     })
   }
 
+  // Sort ranges and add to builder
+  exclusionRanges.sort((a, b) => a.from - b.from)
+
+  const builder = new RangeSetBuilder<Decoration>()
+  const noSpellCheck = Decoration.mark({ attributes: { spellcheck: 'false' } })
+  
+  let currentPos = -1
+  for (const { from, to } of exclusionRanges) {
+    if (from < currentPos) continue // Skip overlapping
+    if (to > from) {
+      builder.add(from, to, noSpellCheck)
+      currentPos = to
+    }
+  }
+
   return builder.finish()
 }
 
-const spellCheckExclusionPlugin = ViewPlugin.fromClass(
+export const spellCheckExclusionPlugin = ViewPlugin.fromClass(
   class {
     decorations: DecorationSet
 
