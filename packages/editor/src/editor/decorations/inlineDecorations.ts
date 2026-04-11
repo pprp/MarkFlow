@@ -19,6 +19,8 @@ interface DecorationEntry {
 }
 
 const highlightPattern = /==([^=\n](?:.*?[^=\n])?)==/g
+const superscriptPattern = /\^([^\^\n]+)\^/g
+const subscriptPattern = /~([^~\n]+)~/g
 
 function getCodeRanges(view: EditorView): Array<{ from: number; to: number }> {
   const ranges: Array<{ from: number; to: number }> = []
@@ -173,8 +175,9 @@ function buildDecorations(view: EditorView): DecorationSet {
     const line = doc.line(lineNumber)
     for (const segment of getNonCodeSegments(line.from, line.to, codeRanges)) {
       const segmentText = doc.sliceString(segment.from, segment.to)
-      highlightPattern.lastIndex = 0
 
+      // ── Highlight (==text==) ───────────────────────────────────────────
+      highlightPattern.lastIndex = 0
       let match: RegExpExecArray | null
       while ((match = highlightPattern.exec(segmentText)) !== null) {
         const from = segment.from + match.index
@@ -190,6 +193,44 @@ function buildDecorations(view: EditorView): DecorationSet {
           addDecoration(from, from + 2, Decoration.replace({}))
           addDecoration(contentFrom, contentTo, Decoration.mark({ class: 'mf-highlight' }))
           addDecoration(to - 2, to, Decoration.replace({}))
+        }
+      }
+
+      // ── Superscript (^text^) ──────────────────────────────────────────
+      superscriptPattern.lastIndex = 0
+      while ((match = superscriptPattern.exec(segmentText)) !== null) {
+        const from = segment.from + match.index
+        const to = from + match[0].length
+        const cursorInside = cursorHead >= from && cursorHead <= to
+        if (cursorInside) {
+          continue
+        }
+
+        const contentFrom = from + 1
+        const contentTo = to - 1
+        if (contentFrom < contentTo) {
+          addDecoration(from, from + 1, Decoration.replace({}))
+          addDecoration(contentFrom, contentTo, Decoration.mark({ class: 'mf-superscript' }))
+          addDecoration(to - 1, to, Decoration.replace({}))
+        }
+      }
+
+      // ── Subscript (~text~) ────────────────────────────────────────────
+      subscriptPattern.lastIndex = 0
+      while ((match = subscriptPattern.exec(segmentText)) !== null) {
+        const from = segment.from + match.index
+        const to = from + match[0].length
+        const cursorInside = cursorHead >= from && cursorHead <= to
+        if (cursorInside) {
+          continue
+        }
+
+        const contentFrom = from + 1
+        const contentTo = to - 1
+        if (contentFrom < contentTo) {
+          addDecoration(from, from + 1, Decoration.replace({}))
+          addDecoration(contentFrom, contentTo, Decoration.mark({ class: 'mf-subscript' }))
+          addDecoration(to - 1, to, Decoration.replace({}))
         }
       }
     }

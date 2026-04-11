@@ -957,3 +957,26 @@ body {
     background: color-mix(in srgb, var(--mf-code-fg) 11%, var(--mf-bg));
   }
 }
+
+/* ── Tables (MF-013) ────────────────────────────────────────── */
+.cm-editor .mf-table-row { display: flex; border-bottom: 1px solid var(--mf-border, #e0e0e0); }
+.cm-editor .mf-table-header-row { font-weight: 600; background: var(--mf-surface-2, rgba(0,0,0,0.03)); }
+.cm-editor .mf-table-cell { padding: 0.2em 0.6em; }
+.cm-editor .mf-table-delimiter { display: none; }
+
+/* ── Callout / admonition blocks (MF-034) ───────────────────── */
+.cm-editor .mf-callout { border-left: 3px solid; padding: 0.5em 1em; border-radius: 0 4px 4px 0; margin: 0.5em 0; }
+.cm-editor .mf-callout-note { border-color: #4a9cf6; background: rgba(74,156,246,0.08); }
+.cm-editor .mf-callout-tip { border-color: #4caf50; background: rgba(76,175,80,0.08); }
+.cm-editor .mf-callout-important { border-color: #9c59d1; background: rgba(156,89,209,0.08); }
+.cm-editor .mf-callout-warning { border-color: #f0a500; background: rgba(240,165,0,0.08); }
+.cm-editor .mf-callout-caution { border-color: #e05252; background: rgba(224,82,82,0.08); }
+.cm-editor .mf-callout-label { font-weight: 600; font-size: 0.85em; text-transform: uppercase; }
+
+/* ── Superscript / subscript (MF-037) ──────────────────────── */
+.cm-editor .mf-superscript { vertical-align: super; font-size: 0.75em; }
+.cm-editor .mf-subscript { vertical-align: sub; font-size: 0.75em; }
+
+/* ── Inline HTML pass-through (MF-038) ──────────────────────── */
+.cm-editor .mf-html-block { display: block; }
+.cm-editor .mf-html-inline { display: inline; }

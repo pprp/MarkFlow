@@ -318,7 +318,7 @@
       "category": "phase-2-functional",
       "area": "@markflow/editor",
       "priority": 3,
-      "status": "planned",
+      "status": "ready",
       "passes": false,
       "lastVerifiedAt": null,
       "dependsOn": [],
@@ -853,7 +853,7 @@
       "category": "phase-2-functional",
       "area": "@markflow/editor",
       "priority": 3,
-      "status": "planned",
+      "status": "ready",
       "passes": false,
       "lastVerifiedAt": null,
       "dependsOn": [
@@ -923,7 +923,7 @@
           "Add CodeMirror fold-range tests verifying that heading fold ranges cover the correct line spans and that fold/unfold state-cycles produce identical document content."
         ],
         "manual": [
-          "Fold and unfold nested headings on a real document; confirm fold state persists across WYSIWYG↔source mode toggles."
+          "Fold and unfold nested headings on a real document; confirm fold state persists across WYSIWYG\u2194source mode toggles."
         ]
       },
       "notes": "CodeMirror 6 ships `@codemirror/language` fold support via `foldEffect`, `unfoldEffect`, and `foldGutter`. Defining heading-aware fold ranges (fold from heading line to the line before the next equal-or-higher heading) and wiring them to the gutter gives long-document writers a powerful navigation shortcut with minimal implementation risk."
@@ -934,7 +934,7 @@
       "category": "phase-2-functional",
       "area": "@markflow/editor",
       "priority": 4,
-      "status": "planned",
+      "status": "ready",
       "passes": false,
       "lastVerifiedAt": null,
       "dependsOn": [
@@ -961,12 +961,12 @@
       "category": "phase-2-functional",
       "area": "@markflow/editor",
       "priority": 4,
-      "status": "planned",
+      "status": "ready",
       "passes": false,
       "lastVerifiedAt": null,
       "dependsOn": [],
       "steps": [
-        "Insert raw HTML blocks (`<details>`, `<summary>`, `<span style='...'>` ) into a markdown document.",
+        "Insert raw HTML blocks (`<details>`, `<summary>`, `<span style='...'>`\u202f) into a markdown document.",
         "Render in WYSIWYG mode and confirm the HTML is parsed and rendered rather than escaped as literal text.",
         "Edit the raw HTML source and confirm the rendered output updates and the surrounding markdown is unaffected."
       ],
@@ -1077,7 +1077,7 @@
       ],
       "verification": {
         "automated": [
-          "Add integration tests for mode transitions (Normal→Insert→Normal), common motion/operator combinations, and `Escape` behavior that does not conflict with MarkFlow WYSIWYG toggle."
+          "Add integration tests for mode transitions (Normal\u2192Insert\u2192Normal), common motion/operator combinations, and `Escape` behavior that does not conflict with MarkFlow WYSIWYG toggle."
         ],
         "manual": [
           "Write and edit a full markdown document using only vim keybindings and confirm no loss of MarkFlow-specific shortcuts (mode toggle, find/replace)."
@@ -1110,7 +1110,7 @@
           "Switch to reading mode on a document containing math, a mermaid diagram, a table, and an admonition block; confirm each renders without any syntax marker visible."
         ]
       },
-      "notes": "MarkFlow's current WYSIWYG mode still reveals raw syntax when the caret is inside a decorated range. Reading mode removes the caret entirely and applies all decorations unconditionally, giving users a clean finished-document view for proofreading and sharing. This is the third point in the source ↔ WYSIWYG ↔ reading triad that Typora expresses as its signature UX."
+      "notes": "MarkFlow's current WYSIWYG mode still reveals raw syntax when the caret is inside a decorated range. Reading mode removes the caret entirely and applies all decorations unconditionally, giving users a clean finished-document view for proofreading and sharing. This is the third point in the source \u2194 WYSIWYG \u2194 reading triad that Typora expresses as its signature UX."
     },
     {
       "id": "MF-044",

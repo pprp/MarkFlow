@@ -22,6 +22,8 @@ import { yamlFrontMatterDecorations } from './decorations/yamlFrontMatter'
 import { listDecorations } from './decorations/listDecoration'
 import { mathDecorations } from './decorations/mathDecoration'
 import { mermaidDecorations } from './decorations/mermaidDecoration'
+import { tableDecorations } from './decorations/tableDecoration'
+import { inlineHtmlDecorations } from './decorations/inlineHtmlDecoration'
 import { smartInput } from './extensions/smartInput'
 import { focusModeExtension, typewriterModeExtension } from './extensions/focusMode'
 import { smartTypographyExtension } from './extensions/smartTypography'
@@ -65,6 +67,8 @@ function getWysiwygExtensions(filePath?: string) {
     mathDecorations(),
     mermaidDecorations(),
     yamlFrontMatterDecorations(),
+    tableDecorations(),
+    inlineHtmlDecorations(),
   ]
 }
 
