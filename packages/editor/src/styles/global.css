@@ -807,9 +807,10 @@ body {
   border-bottom: none;
 }
 
-.cm-editor .mf-code-block-with-lang {
+.cm-editor .mf-code-block-first.mf-code-block-with-lang {
   border-radius: 0;
   border-top: none;
+  padding-top: 0;
 }
 
 .cm-editor .mf-code-block-last {

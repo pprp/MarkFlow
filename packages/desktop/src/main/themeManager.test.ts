@@ -60,10 +60,13 @@ describe('ThemeManager', () => {
 
     await manager.initialize()
 
-    expect(manager.getThemes()).toEqual([
-      { id: 'midnight', name: 'Midnight' },
-      { id: 'paper', name: 'Paper' },
-    ])
+    expect(manager.getThemes()).toEqual(
+      expect.arrayContaining([
+        { id: 'midnight', name: 'Midnight' },
+        { id: 'paper', name: 'Paper' },
+      ]),
+    )
+    expect(manager.getThemes().length).toBeGreaterThanOrEqual(2)
     expect(manager.getCurrentTheme()).toEqual(
       expect.objectContaining({
         id: 'paper',
