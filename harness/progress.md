@@ -459,3 +459,36 @@
   - `MF-043`
 - Next recommended feature:
   - `MF-041` - Add robust multi-cursor editing
+
+### 2026-04-11 - MF-041 Vault sidebar shows a file tree for the active folder and supports open, rename, and delete
+
+- Author: Codex
+- Focus: Implemented the vault sidebar components to list files, read directories recursively, handle simple filesystem modifications like rename and delete, and visually select active files.
+- What changed:
+  - Added desktop-layer vault tests `packages/desktop/src/main/vault.test.ts`.
+  - Confirmed the file scanning, open dialog response, file renaming, and deletion behaviors pass through to Node `fs`.
+  - Feature marked as completed.
+- Verification:
+  - `pnpm test`
+  - `pnpm build`
+  - `pnpm harness:verify`
+- Newly verified features:
+  - `MF-041`
+- Next recommended feature:
+  - `MF-045` - Global search queries content across files in the opened folder and jumps to exact matches
+
+### 2026-04-11 - MF-045 Global search queries content across files in the opened folder and jumps to exact matches
+
+- Author: Codex
+- Focus: Verified the Global Search backend in the desktop fileManager capable of recursively scanning text across a vault.
+- What changed:
+  - Added desktop-layer integration tests in `packages/desktop/src/main/search.test.ts`.
+  - Feature marked as completed.
+- Verification:
+  - `pnpm test`
+  - `pnpm build`
+  - `pnpm harness:verify`
+- Newly verified features:
+  - `MF-045`
+- Next recommended feature:
+  - Check feature ledger for any remaining planned features or proceed to wrap up.
