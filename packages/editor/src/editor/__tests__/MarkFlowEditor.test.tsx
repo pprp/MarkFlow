@@ -114,4 +114,99 @@ describe('MarkFlowEditor', () => {
 
     openSpy.mockRestore()
   })
+
+  it('renders split view correctly and syncs changes from source to preview', () => {
+    const { container, rerender } = render(
+      <MarkFlowEditor content="Hello" viewMode="split" onChange={vi.fn()} />,
+    )
+
+    const editors = container.querySelectorAll('.cm-editor')
+    expect(editors).toHaveLength(2)
+
+    const sourceView = EditorView.findFromDOM(editors[0] as HTMLElement)
+    const previewView = EditorView.findFromDOM(editors[1] as HTMLElement)
+
+    expect(sourceView).not.toBeNull()
+    expect(previewView).not.toBeNull()
+
+    expect(sourceView!.state.doc.toString()).toBe('Hello')
+    expect(previewView!.state.doc.toString()).toBe('Hello')
+
+    // Modify source and check if preview updates
+    sourceView!.dispatch({
+      changes: { from: 5, insert: ' world' }
+    })
+    
+    // After dispatch, onChange is typically called. The parent component usually rerenders.
+    // In this component test, we simulate the parent rerender with the new content
+    rerender(<MarkFlowEditor content="Hello world" viewMode="split" onChange={vi.fn()} />)
+
+    expect(previewView!.state.doc.toString()).toBe('Hello world')
+  })
+
+  it('adjusts layout correctly on pane resize', () => {
+    const { container } = render(
+      <MarkFlowEditor content="Split" viewMode="split" onChange={vi.fn()} />,
+    )
+
+    const divider = container.querySelector('.mf-split-divider')
+    expect(divider).not.toBeNull()
+
+    const splitContainer = container.querySelector('.mf-split-container')
+    expect(splitContainer).not.toBeNull()
+    
+
+
+// PointerEvent polyfill for jsdom
+    if (!window.PointerEvent) {
+      ;(window as any).PointerEvent = class PointerEvent extends MouseEvent {
+        pointerId: number;
+        constructor(type: string, params: any = {}) {
+          super(type, params);
+          this.pointerId = params.pointerId || 1;
+        }
+      };
+    }
+    // Mock getBoundingClientRect
+    Element.prototype.getBoundingClientRect = vi.fn(() => ({
+      width: 1000,
+      height: 500,
+      top: 0,
+      left: 0,
+      bottom: 500,
+      right: 1000,
+      x: 0,
+      y: 0,
+      toJSON: () => {}
+    }));
+
+    Element.prototype.setPointerCapture = vi.fn();
+    Element.prototype.releasePointerCapture = vi.fn();
+
+
+    const panes = container.querySelectorAll('.mf-split-pane')
+    expect(panes).toHaveLength(2)
+
+    // Initial state (ratio 0.5)
+    expect((panes[0] as HTMLElement).style.flexGrow).toBe('0.5')
+    expect((panes[1] as HTMLElement).style.flexGrow).toBe('0.5')
+
+    // Simulate pointer down, move, and up
+    fireEvent.pointerDown(divider as Element, { pointerId: 1 })
+    fireEvent.pointerMove(divider as Element, { pointerId: 1, clientX: 300 })
+    fireEvent.pointerUp(divider as Element, { pointerId: 1 })
+
+    // 300 / 1000 = 0.3
+    expect((panes[0] as HTMLElement).style.flexGrow).toBe('0.3')
+    expect((panes[1] as HTMLElement).style.flexGrow).toBe('0.7')
+    
+    // Limits
+    fireEvent.pointerDown(divider as Element, { pointerId: 1 })
+    fireEvent.pointerMove(divider as Element, { pointerId: 1, clientX: 50 })
+    fireEvent.pointerUp(divider as Element, { pointerId: 1 })
+    
+    // Should cap at 0.1
+    expect((panes[0] as HTMLElement).style.flexGrow).toBe('0.1')
+    expect((panes[1] as HTMLElement).style.flexGrow).toBe('0.9')
+  })
 })

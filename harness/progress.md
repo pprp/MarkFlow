@@ -406,3 +406,23 @@
   - `MF-015`
 - Next recommended feature:
   - `MF-035` - Split view shows live source and rendered preview side-by-side and keeps them synchronized
+
+### 2026-04-11 - MF-035 Split view shows live source and rendered preview side-by-side
+
+- Author: Codex
+- Focus: Implemented split view mode with real-time sync and synchronized scrolling.
+- What changed:
+  - Updated `packages/editor/src/editor/MarkFlowEditor.tsx` to handle `split` viewMode.
+  - Added a second CodeMirror instance to render the preview pane in read-only WYSIWYG mode while the main editor remains in source mode.
+  - Added state-syncing logic to keep the preview pane up-to-date with the main editor's content.
+  - Implemented bidirectional synchronized scrolling between the source pane and preview pane using `requestAnimationFrame` and scroll listener flags to prevent loops.
+  - Added an adjustable, draggable `.mf-split-divider` allowing users to resize the split ratio between the two panes.
+  - Added new component tests in `MarkFlowEditor.test.tsx` verifying split layout instantiation, document synchronization, and proportional flex adjustments via the divider.
+- Verification:
+  - `pnpm test`
+  - `pnpm build`
+  - `pnpm harness:verify`
+- Newly verified features:
+  - `MF-035`
+- Next recommended feature:
+  - `MF-039` - Auto-save integration

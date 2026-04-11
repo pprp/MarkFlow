@@ -1,4 +1,4 @@
-import { useRef, useEffect, useState } from 'react'
+import { useRef, useEffect, useState, useCallback } from 'react'
 import { Compartment, EditorSelection, EditorState, Transaction } from '@codemirror/state'
 import { EditorView, keymap, drawSelection, highlightActiveLine } from '@codemirror/view'
 import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands'
@@ -424,6 +424,67 @@ export function MarkFlowEditor({
 
     previewViewRef.current = previewView
 
+    // Synchronize scroll position between source and preview
+    const sourceView = viewRef.current
+    if (sourceView) {
+      let isSyncingLeft = false
+      let isSyncingRight = false
+
+      const handleSourceScroll = () => {
+        if (!previewViewRef.current || isSyncingLeft) return
+        isSyncingRight = true
+        
+        const sourceScroll = sourceView.scrollDOM
+        const previewScroll = previewViewRef.current.scrollDOM
+        
+        const sourceRange = sourceScroll.scrollHeight - sourceScroll.clientHeight
+        const previewRange = previewScroll.scrollHeight - previewScroll.clientHeight
+        
+        if (sourceRange > 0 && previewRange > 0) {
+          const percentage = sourceScroll.scrollTop / sourceRange
+          previewScroll.scrollTop = percentage * previewRange
+        }
+        
+        // Reset flag after a short delay to allow the scroll event to fire and be ignored
+        requestAnimationFrame(() => {
+          isSyncingRight = false
+        })
+      }
+
+      const handlePreviewScroll = () => {
+        if (!viewRef.current || isSyncingRight) return
+        isSyncingLeft = true
+        
+        const sourceScroll = viewRef.current.scrollDOM
+        const previewScroll = previewView.scrollDOM
+        
+        const sourceRange = sourceScroll.scrollHeight - sourceScroll.clientHeight
+        const previewRange = previewScroll.scrollHeight - previewScroll.clientHeight
+        
+        if (sourceRange > 0 && previewRange > 0) {
+          const percentage = previewScroll.scrollTop / previewRange
+          sourceScroll.scrollTop = percentage * sourceRange
+        }
+        
+        requestAnimationFrame(() => {
+          isSyncingLeft = false
+        })
+      }
+
+      sourceView.scrollDOM.addEventListener('scroll', handleSourceScroll)
+      previewView.scrollDOM.addEventListener('scroll', handlePreviewScroll)
+
+      // Initial sync
+      handleSourceScroll()
+
+      return () => {
+        sourceView.scrollDOM.removeEventListener('scroll', handleSourceScroll)
+        previewView.scrollDOM.removeEventListener('scroll', handlePreviewScroll)
+        previewView.destroy()
+        previewViewRef.current = null
+      }
+    }
+
     return () => {
       previewView.destroy()
       previewViewRef.current = null
@@ -471,15 +532,48 @@ export function MarkFlowEditor({
     onNavigationHandledRef.current?.()
   }, [navigationRequest])
 
+  const [splitRatio, setSplitRatio] = useState(0.5)
+  const isDraggingRef = useRef(false)
+  const splitContainerRef = useRef<HTMLDivElement>(null)
+
+  const handlePointerDown = useCallback((e: React.PointerEvent) => {
+    isDraggingRef.current = true
+    e.currentTarget.setPointerCapture(e.pointerId)
+  }, [])
+
+  const handlePointerMove = useCallback((e: React.PointerEvent) => {
+    if (!isDraggingRef.current || !splitContainerRef.current) return
+    const rect = splitContainerRef.current.getBoundingClientRect()
+    let newRatio = (e.clientX - rect.left) / rect.width
+    // Keep it reasonable (between 10% and 90%)
+    if (newRatio < 0.1) newRatio = 0.1
+    if (newRatio > 0.9) newRatio = 0.9
+    setSplitRatio(newRatio)
+  }, [])
+
+  const handlePointerUp = useCallback((e: React.PointerEvent) => {
+    if (isDraggingRef.current) {
+      isDraggingRef.current = false
+      e.currentTarget.releasePointerCapture(e.pointerId)
+    }
+  }, [])
+
   if (viewMode === 'split') {
     return (
-      <div className="mf-split-container">
-        <div className="mf-split-pane">
+      <div className="mf-split-container" ref={splitContainerRef}>
+        <div className="mf-split-pane" style={{ flex: splitRatio }}>
           <div ref={containerRef} className="mf-editor-container" style={{ height: '100%' }} />
           <FloatingToolbar view={editorView} />
         </div>
-        <div className="mf-split-divider" aria-hidden="true" />
-        <div className="mf-split-pane">
+        <div 
+          className="mf-split-divider" 
+          aria-hidden="true" 
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerUp}
+          onPointerCancel={handlePointerUp}
+        />
+        <div className="mf-split-pane" style={{ flex: 1 - splitRatio }}>
           <div ref={previewContainerRef} className="mf-editor-container" style={{ height: '100%' }} />
         </div>
       </div>
