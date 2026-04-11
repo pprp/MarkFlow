@@ -1092,8 +1092,8 @@
       "area": "@markflow/editor",
       "priority": 3,
       "status": "ready",
-      "passes": false,
-      "lastVerifiedAt": null,
+      "passes": true,
+      "lastVerifiedAt": "2026-04-11T05:51:27.133Z",
       "dependsOn": [
         "MF-004"
       ],

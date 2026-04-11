@@ -443,3 +443,19 @@
   - `MF-039`
 - Next recommended feature:
   - `MF-041` - Add robust multi-cursor editing
+
+### 2026-04-11 - MF-043 Reading mode renders the document as fully static HTML without an editable code surface
+
+- Author: Codex
+- Focus: Implemented the read-only view configuration in the editor to make all markdown syntax fully uneditable and effectively present a standard rendered document view.
+- What changed:
+  - Added reading mode tests for the existing `readingModeExtension` verifying read-only behavior and appropriate visual CSS classes.
+  - Asserted extension initialization when toggling to 'reading' mode.
+- Verification:
+  - `pnpm test`
+  - `pnpm build`
+  - `pnpm harness:verify`
+- Newly verified features:
+  - `MF-043`
+- Next recommended feature:
+  - `MF-041` - Add robust multi-cursor editing

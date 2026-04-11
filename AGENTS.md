@@ -36,13 +36,10 @@ MarkFlow replicates Typora's core value — the illusion that markdown doesn't e
 ### Phase 3 — Extensibility
 - Plugin API (`registerMarkdownPostProcessor`)
 - Block renderers (Desmos, code execution, Excalidraw embeds)
-- CRDT collab layer (Yjs) — opt-in, cloud-hosted
-- Freemium revenue path (cloud sync)
 
 ### Phase 4 — Governance & Sustainability
 - Monthly release cadence
 - Public RFC process for breaking changes
-- GitHub Sponsors + $5/mo cloud sync plan
 - Beta builds on every `main` merge via GitHub Actions with auto-update
 
 ## Development Commands
