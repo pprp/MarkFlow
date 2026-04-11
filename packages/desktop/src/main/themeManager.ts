@@ -59,6 +59,181 @@ const BUILTIN_THEMES: Array<{ id: string; name: string; cssText: string }> = [
   --mf-selection: #1d4f7a;
 }`
   },
+  {
+    id: 'github',
+    name: 'GitHub',
+    cssText: `:root {
+  --mf-bg: #ffffff;
+  --mf-bg-secondary: #f6f8fa;
+  --mf-bg-tertiary: #ffffff;
+  --mf-bg-code: #f6f8fa;
+  --mf-fg: #24292e;
+  --mf-fg-secondary: #586069;
+  --mf-fg-muted: #6a737d;
+  --mf-heading-color: #24292e;
+  --mf-border: #e1e4e8;
+  --mf-border-light: #eaecef;
+  --mf-hr-color: #e1e4e8;
+  --mf-accent: #0366d6;
+  --mf-accent-hover: #005cc5;
+  --mf-accent-light: rgba(3, 102, 214, 0.08);
+  --mf-link-color: #0366d6;
+  --mf-code-fg: #e01e5a;
+  --mf-blockquote-border: #dfe2e5;
+  --mf-blockquote-fg: #6a737d;
+  --mf-selection: rgba(3, 102, 214, 0.15);
+  --mf-font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  --mf-font-display: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  --mf-font-size: 16px;
+  --mf-line-height: 1.6;
+  --mf-content-width: 780px;
+}`
+  },
+  {
+    id: 'night',
+    name: 'Night',
+    cssText: `:root {
+  --mf-bg: #1d1f21;
+  --mf-bg-secondary: #282a2e;
+  --mf-bg-tertiary: #282a2e;
+  --mf-bg-code: #282a2e;
+  --mf-fg: #c5c8c6;
+  --mf-fg-secondary: #969896;
+  --mf-fg-muted: #707780;
+  --mf-heading-color: #e0e2e0;
+  --mf-fill: rgba(255, 255, 255, 0.06);
+  --mf-fill-secondary: rgba(255, 255, 255, 0.04);
+  --mf-border: #373b41;
+  --mf-border-light: #2d2f31;
+  --mf-hr-color: #373b41;
+  --mf-accent: #81a2be;
+  --mf-accent-hover: #a8c0d6;
+  --mf-accent-light: rgba(129, 162, 190, 0.12);
+  --mf-link-color: #81a2be;
+  --mf-code-fg: #cc6666;
+  --mf-blockquote-border: #4a4e58;
+  --mf-blockquote-fg: #969896;
+  --mf-selection: rgba(129, 162, 190, 0.25);
+  --mf-font-size: 15px;
+  --mf-line-height: 1.7;
+}`
+  },
+  {
+    id: 'newsprint',
+    name: 'Newsprint',
+    cssText: `:root {
+  --mf-bg: #f4ecd8;
+  --mf-bg-secondary: #ede0c4;
+  --mf-bg-tertiary: #f4ecd8;
+  --mf-bg-code: #e8dcc4;
+  --mf-fg: #2c2416;
+  --mf-fg-secondary: #5c4a2a;
+  --mf-fg-muted: #8a7055;
+  --mf-heading-color: #1a1208;
+  --mf-border: #c8ab80;
+  --mf-border-light: #d8c098;
+  --mf-hr-color: #c0a070;
+  --mf-accent: #7c4a1e;
+  --mf-accent-hover: #5e3614;
+  --mf-accent-light: rgba(124, 74, 30, 0.10);
+  --mf-link-color: #7c4a1e;
+  --mf-code-fg: #8b3220;
+  --mf-blockquote-border: #c0a070;
+  --mf-blockquote-fg: #6a5438;
+  --mf-selection: rgba(124, 74, 30, 0.18);
+  --mf-font-sans: Georgia, "Palatino Linotype", Palatino, "Times New Roman", serif;
+  --mf-font-display: "Palatino Linotype", Palatino, Georgia, "Book Antiqua", serif;
+  --mf-font-size: 17px;
+  --mf-line-height: 1.82;
+  --mf-content-width: 680px;
+}`
+  },
+  {
+    id: 'cobalt',
+    name: 'Cobalt',
+    cssText: `:root {
+  --mf-bg: #002240;
+  --mf-bg-secondary: #00294d;
+  --mf-bg-tertiary: #00294d;
+  --mf-bg-code: #003359;
+  --mf-fg: #b0d1e8;
+  --mf-fg-secondary: #7daec8;
+  --mf-fg-muted: #5a8fa8;
+  --mf-heading-color: #e0f0ff;
+  --mf-fill: rgba(255, 255, 255, 0.05);
+  --mf-fill-secondary: rgba(255, 255, 255, 0.03);
+  --mf-border: #1a4a6a;
+  --mf-border-light: #0f3655;
+  --mf-hr-color: #1a4a6a;
+  --mf-accent: #ffc600;
+  --mf-accent-hover: #ffdd4a;
+  --mf-accent-light: rgba(255, 198, 0, 0.12);
+  --mf-link-color: #ffc600;
+  --mf-code-fg: #ff9d00;
+  --mf-blockquote-border: #1a5a80;
+  --mf-blockquote-fg: #6a9ab8;
+  --mf-selection: rgba(255, 198, 0, 0.20);
+  --mf-font-size: 15px;
+  --mf-line-height: 1.68;
+}`
+  },
+  {
+    id: 'pixyll',
+    name: 'Pixyll',
+    cssText: `:root {
+  --mf-bg: #ffffff;
+  --mf-bg-secondary: #f9f9f9;
+  --mf-bg-tertiary: #ffffff;
+  --mf-bg-code: #f5f5f5;
+  --mf-fg: #333333;
+  --mf-fg-secondary: #666666;
+  --mf-fg-muted: #999999;
+  --mf-heading-color: #111111;
+  --mf-border: #eeeeee;
+  --mf-border-light: #f5f5f5;
+  --mf-hr-color: #eeeeee;
+  --mf-accent: #2568ba;
+  --mf-accent-hover: #1a50a0;
+  --mf-accent-light: rgba(37, 104, 186, 0.08);
+  --mf-link-color: #2568ba;
+  --mf-code-fg: #c7254e;
+  --mf-blockquote-border: #cccccc;
+  --mf-blockquote-fg: #888888;
+  --mf-selection: rgba(37, 104, 186, 0.15);
+  --mf-font-sans: "Open Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --mf-font-display: "Open Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --mf-font-size: 16px;
+  --mf-line-height: 1.75;
+  --mf-content-width: 740px;
+}`
+  },
+  {
+    id: 'forest',
+    name: 'Forest',
+    cssText: `:root {
+  --mf-bg: #f0f4f0;
+  --mf-bg-secondary: #e4ece4;
+  --mf-bg-tertiary: #f0f4f0;
+  --mf-bg-code: #e8f0e8;
+  --mf-fg: #1c2e1c;
+  --mf-fg-secondary: #3a5a3a;
+  --mf-fg-muted: #5a7a5a;
+  --mf-heading-color: #122212;
+  --mf-border: #c0d4c0;
+  --mf-border-light: #d4e4d4;
+  --mf-hr-color: #b0c8b0;
+  --mf-accent: #2d7d2d;
+  --mf-accent-hover: #1f611f;
+  --mf-accent-light: rgba(45, 125, 45, 0.10);
+  --mf-link-color: #2d7d2d;
+  --mf-code-fg: #8b4513;
+  --mf-blockquote-border: #a8c8a8;
+  --mf-blockquote-fg: #507050;
+  --mf-selection: rgba(45, 125, 45, 0.15);
+  --mf-font-size: 15px;
+  --mf-line-height: 1.72;
+}`
+  },
 ]
 
 function formatThemeName(themeId: string) {

@@ -63,8 +63,7 @@ export function App() {
   const [viewMode, setViewMode] = useState<ViewMode>('wysiwyg')
   const [focusMode, setFocusMode] = useState(false)
   const [typewriterMode, setTypewriterMode] = useState(false)
-  const [vimMode, setVimMode] = useState(false)
-  const [showSidebar, setShowSidebar] = useState(false)
+const [showSidebar, setShowSidebar] = useState(false)
   const [vaultPath, setVaultPath] = useState<string | null>(null)
   const [vaultFiles, setVaultFiles] = useState<string[]>([])
   const [isGlobalSearchOpen, setIsGlobalSearchOpen] = useState(false)
@@ -75,6 +74,7 @@ export function App() {
     key: number
     position: number
   } | null>(null)
+  const [outlineCollapsed, setOutlineCollapsed] = useState(false)
   const [selectionText, setSelectionText] = useState('')
   const [isQuickOpenOpen, setIsQuickOpenOpen] = useState(false)
   const [isExporting, setIsExporting] = useState(false)
@@ -153,6 +153,11 @@ export function App() {
         case 'export-pdf':
           await handleExport('pdf')
           break
+        case 'export-docx':
+        case 'export-epub':
+        case 'export-latex':
+          await handlePandocExport(action)
+          break
       }
     }
 
@@ -201,11 +206,7 @@ export function App() {
     setTypewriterMode((v) => !v)
   }
 
-  function toggleVimMode() {
-    setVimMode((v) => !v)
-  }
-
-  async function handleOpenFolder() {
+async function handleOpenFolder() {
     const result = await window.markflow?.openFolder()
     if (result) {
       setVaultPath(result.folderPath)
@@ -286,6 +287,24 @@ export function App() {
     await handleOpenPath(item.filePath)
   }
 
+
+  const handlePandocExport = async (action: 'export-docx' | 'export-epub' | 'export-latex') => {
+    const api = window.markflow
+    if (!api) return
+
+    const ext = action === 'export-docx' ? 'docx' : action === 'export-epub' ? 'epub' : 'tex'
+    const defaultName = currentFilePathRef.current
+      ? currentFilePathRef.current.replace(/\.(md|markdown|txt)$/i, '') + '.' + ext
+      : `Untitled.${ext}`
+
+    if (action === 'export-docx') {
+      await api.exportDocx(latestContentRef.current, defaultName)
+    } else if (action === 'export-epub') {
+      await api.exportEpub(latestContentRef.current, defaultName)
+    } else {
+      await api.exportLatex(latestContentRef.current, defaultName)
+    }
+  }
 
   const handleExport = async (format: 'html' | 'pdf') => {
     setIsExporting(true)
@@ -454,15 +473,7 @@ export function App() {
             </svg>
             Focus
           </button>
-          <button
-            className={`mf-mode-toggle${vimMode ? ' mf-mode-active' : ''}`}
-            onClick={toggleVimMode}
-            title="Vim mode"
-            aria-pressed={vimMode}
-          >
-            Vim
-          </button>
-          <button
+<button
             className={`mf-mode-toggle${showSidebar ? ' mf-mode-active' : ''}`}
             onClick={() => setShowSidebar((v) => !v)}
             title="Toggle file sidebar"
@@ -547,33 +558,50 @@ export function App() {
             onToggleTypewriterMode={toggleTypewriterMode}
             focusMode={focusMode}
             typewriterMode={typewriterMode}
-            vimMode={vimMode}
-            pluginHost={pluginHostRef.current ?? undefined}
+pluginHost={pluginHostRef.current ?? undefined}
             filePath={documentState.filePath ?? undefined}
             navigationRequest={outlineNavigationRequest}
           />
         </div>
         {outlineHeadings.length > 0 ? (
-          <aside className="mf-outline-panel">
-            <div className="mf-outline-header">Outline</div>
-            <nav className="mf-outline-nav" aria-label="Outline">
-              {outlineHeadings.map((heading) => {
-                const isActive = heading.anchor === activeOutlineAnchor
+          <aside className={`mf-outline-panel${outlineCollapsed ? ' mf-outline-panel-collapsed' : ''}`}>
+            <div className="mf-outline-header">
+              {!outlineCollapsed && <span className="mf-outline-header-label">Outline</span>}
+              <button
+                type="button"
+                className="mf-outline-toggle"
+                onClick={() => setOutlineCollapsed((v) => !v)}
+                title={outlineCollapsed ? 'Expand outline' : 'Collapse outline'}
+                aria-label={outlineCollapsed ? 'Expand outline' : 'Collapse outline'}
+              >
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+                  {outlineCollapsed
+                    ? <path d="M5 2L10 7L5 12" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
+                    : <path d="M9 2L4 7L9 12" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
+                  }
+                </svg>
+              </button>
+            </div>
+            {!outlineCollapsed && (
+              <nav className="mf-outline-nav" aria-label="Outline">
+                {outlineHeadings.map((heading) => {
+                  const isActive = heading.anchor === activeOutlineAnchor
 
-                return (
-                  <button
-                    key={`${heading.anchor}:${heading.from}`}
-                    type="button"
-                    className={`mf-outline-item${isActive ? ' mf-outline-item-active' : ''}`}
-                    style={{ paddingLeft: `${12 + (heading.level - 1) * 14}px` }}
-                    aria-current={isActive ? 'true' : undefined}
-                    onClick={() => handleOutlineNavigate(heading.from)}
-                  >
-                    <span className="mf-outline-item-text">{heading.text}</span>
-                  </button>
-                )
-              })}
-            </nav>
+                  return (
+                    <button
+                      key={`${heading.anchor}:${heading.from}`}
+                      type="button"
+                      className={`mf-outline-item${isActive ? ' mf-outline-item-active' : ''}`}
+                      style={{ paddingLeft: `${12 + (heading.level - 1) * 14}px` }}
+                      aria-current={isActive ? 'true' : undefined}
+                      onClick={() => handleOutlineNavigate(heading.from)}
+                    >
+                      <span className="mf-outline-item-text">{heading.text}</span>
+                    </button>
+                  )
+                })}
+              </nav>
+            )}
           </aside>
         ) : null}
         </div>

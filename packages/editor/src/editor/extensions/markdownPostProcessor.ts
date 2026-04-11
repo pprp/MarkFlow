@@ -12,43 +12,43 @@ export function markdownPostProcessorExtension({
   pluginHost,
   viewMode,
 }: MarkdownPostProcessorExtensionOptions) {
-  return ViewPlugin.fromClass(
-    class {
-      private cleanup: (() => void) | null = null
-      private frame: number | null = null
+  class MarkdownPostProcessorPlugin {
+    _cleanup: (() => void) | null = null
+    _frame: number | null = null
 
-      constructor(view: EditorView) {
-        this.scheduleRun(view)
+    constructor(view: EditorView) {
+      this._scheduleRun(view)
+    }
+
+    update(update: ViewUpdate) {
+      if (update.docChanged || update.selectionSet || update.viewportChanged) {
+        this._scheduleRun(update.view)
+      }
+    }
+
+    destroy() {
+      if (this._frame !== null) {
+        cancelAnimationFrame(this._frame)
+      }
+      this._cleanup?.()
+    }
+
+    _scheduleRun(view: EditorView) {
+      if (this._frame !== null) {
+        cancelAnimationFrame(this._frame)
       }
 
-      update(update: ViewUpdate) {
-        if (update.docChanged || update.selectionSet || update.viewportChanged) {
-          this.scheduleRun(update.view)
-        }
-      }
-
-      destroy() {
-        if (this.frame !== null) {
-          cancelAnimationFrame(this.frame)
-        }
-        this.cleanup?.()
-      }
-
-      private scheduleRun(view: EditorView) {
-        if (this.frame !== null) {
-          cancelAnimationFrame(this.frame)
-        }
-
-        this.frame = requestAnimationFrame(() => {
-          this.frame = null
-          this.cleanup?.()
-          this.cleanup = pluginHost.runMarkdownPostProcessors(view.contentDOM, {
-            filePath,
-            sourceText: view.state.doc.toString(),
-            viewMode,
-          })
+      this._frame = requestAnimationFrame(() => {
+        this._frame = null
+        this._cleanup?.()
+        this._cleanup = pluginHost.runMarkdownPostProcessors(view.contentDOM, {
+          filePath,
+          sourceText: view.state.doc.toString(),
+          viewMode,
         })
-      }
-    },
-  )
+      })
+    }
+  }
+
+  return ViewPlugin.fromClass(MarkdownPostProcessorPlugin)
 }

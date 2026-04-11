@@ -460,15 +460,56 @@ body {
   flex-direction: column;
   border-left: 1px solid var(--mf-border-light);
   background: var(--mf-bg-secondary);
+  transition: width var(--mf-transition);
+  overflow: hidden;
+}
+
+.mf-outline-panel-collapsed {
+  width: 36px;
 }
 
 .mf-outline-header {
-  padding: 12px 14px 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 10px 8px 14px;
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.05em;
   text-transform: uppercase;
   color: var(--mf-fg-muted);
+  flex-shrink: 0;
+}
+
+.mf-outline-panel-collapsed .mf-outline-header {
+  padding: 10px 0 8px;
+  justify-content: center;
+}
+
+.mf-outline-header-label {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.mf-outline-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border: none;
+  border-radius: var(--mf-radius-sm);
+  background: transparent;
+  color: var(--mf-fg-muted);
+  cursor: default;
+  flex-shrink: 0;
+  transition: background var(--mf-transition-fast), color var(--mf-transition-fast);
+}
+
+.mf-outline-toggle:hover {
+  background: var(--mf-fill);
+  color: var(--mf-fg);
 }
 
 .mf-outline-nav {

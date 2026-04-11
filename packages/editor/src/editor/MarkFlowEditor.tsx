@@ -36,7 +36,6 @@ import { smartPasteExtension } from './extensions/smartPaste'
 import { spellCheckExtension } from './extensions/spellCheck'
 import { markdownPostProcessorExtension } from './extensions/markdownPostProcessor'
 import { readingModeExtension } from './extensions/readingMode'
-import { vimModeExtension } from './extensions/vimMode'
 import { tocDecorations } from './decorations/tocDecoration'
 import { findHeadingAnchorPosition } from './outline'
 import { FloatingToolbar } from '../components/FloatingToolbar'
@@ -54,7 +53,6 @@ export interface MarkFlowEditorProps {
   onToggleTypewriterMode?: () => void
   focusMode?: boolean
   typewriterMode?: boolean
-  vimMode?: boolean
   pluginHost?: MarkFlowPluginHost
   filePath?: string
   navigationRequest?: { key: number; position: number } | null
@@ -136,7 +134,6 @@ export function MarkFlowEditor({
   onToggleTypewriterMode,
   focusMode = false,
   typewriterMode = false,
-  vimMode = false,
   pluginHost,
   filePath,
   navigationRequest,
@@ -157,8 +154,7 @@ export function MarkFlowEditor({
   const viewModeCompartmentRef = useRef(new Compartment())
   const focusModeCompartmentRef = useRef(new Compartment())
   const typewriterModeCompartmentRef = useRef(new Compartment())
-  const vimModeCompartmentRef = useRef(new Compartment())
-  const [editorView, setEditorView] = useState<EditorView | null>(null)
+const [editorView, setEditorView] = useState<EditorView | null>(null)
 
   useEffect(() => {
     onChangeRef.current = onChange
@@ -265,7 +261,6 @@ export function MarkFlowEditor({
         viewModeCompartmentRef.current.of(getViewModeExtensions(viewMode, filePath, pluginHost)),
         focusModeCompartmentRef.current.of(focusMode ? focusModeExtension() : []),
         typewriterModeCompartmentRef.current.of(typewriterMode ? typewriterModeExtension() : []),
-        vimModeCompartmentRef.current.of(vimMode ? vimModeExtension() : []),
       ],
     })
 
@@ -410,16 +405,6 @@ export function MarkFlowEditor({
       ),
     })
   }, [typewriterMode])
-
-  useEffect(() => {
-    const view = viewRef.current
-    if (!view) return
-    view.dispatch({
-      effects: vimModeCompartmentRef.current.reconfigure(
-        vimMode ? vimModeExtension() : [],
-      ),
-    })
-  }, [vimMode])
 
   // Split view: create/destroy the preview pane
   useEffect(() => {

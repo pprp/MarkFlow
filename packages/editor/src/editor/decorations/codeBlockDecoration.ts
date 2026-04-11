@@ -8,13 +8,13 @@ export class LanguageBadgeWidget extends WidgetType {
   }
 
   toDOM() {
-    const div = document.createElement('div')
-    div.className = 'mf-code-block-header'
+    const header = document.createElement('span')
+    header.className = 'mf-code-block-header'
     const badge = document.createElement('span')
     badge.className = 'mf-code-lang-badge'
     badge.textContent = this.lang
-    div.appendChild(badge)
-    return div
+    header.appendChild(badge)
+    return header
   }
 
   eq(other: LanguageBadgeWidget) {

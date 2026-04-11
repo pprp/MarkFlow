@@ -11,6 +11,18 @@ extraResources:
     to: editor
 extraMetadata:
   main: dist/main/index.js
+fileAssociations:
+  - ext: md
+    name: Markdown Document
+    description: Markdown file
+    role: Editor
+    mimeType: text/markdown
+  - ext: markdown
+    name: Markdown Document
+    description: Markdown file
+    role: Editor
+    mimeType: text/markdown
+
 mac:
   category: public.app-category.productivity
   target:

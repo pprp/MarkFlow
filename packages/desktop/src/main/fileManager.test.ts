@@ -2,13 +2,26 @@ import * as fs from 'fs'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { FileManager } from './fileManager'
 
-const { handleMock, removeHandlerMock, showSaveDialogMock } = vi.hoisted(() => ({
+import * as childProcess from 'child_process'
+
+const { handleMock, removeHandlerMock, showSaveDialogMock, appGetPathMock, execFileMock } = vi.hoisted(() => ({
   handleMock: vi.fn(),
   removeHandlerMock: vi.fn(),
   showSaveDialogMock: vi.fn(),
+  appGetPathMock: vi.fn(() => '/tmp'),
+  execFileMock: vi.fn((file: string, args: string[], callback: (err: Error | null, stdout: string, stderr: string) => void) => {
+    if (callback) callback(null, '', '')
+  }),
+}))
+
+vi.mock('child_process', () => ({
+  execFile: execFileMock,
 }))
 
 vi.mock('electron', () => ({
+  app: {
+    getPath: appGetPathMock,
+  },
   dialog: {
     showSaveDialog: showSaveDialogMock,
   },
@@ -108,5 +121,58 @@ describe('FileManager async saves', () => {
     expect(result).toEqual({ success: false, error: 'disk full' })
     expect(window.webContents.send).not.toHaveBeenCalledWith('file-saved', expect.anything())
     expect(((manager as unknown) as { currentFilePath: string | null }).currentFilePath).toBeNull()
+  })
+})
+
+
+describe('FileManager Pandoc exports', () => {
+  beforeEach(() => {
+    handleMock.mockReset()
+    removeHandlerMock.mockReset()
+    showSaveDialogMock.mockReset()
+    execFileMock.mockClear()
+    vi.restoreAllMocks()
+    vi.spyOn(fs.promises, 'writeFile').mockResolvedValue()
+    vi.spyOn(fs.promises, 'unlink').mockResolvedValue()
+  })
+
+  it('exports DOCX using pandoc', async () => {
+    const window = createWindowStub()
+    const manager = new FileManager(window as never)
+
+    showSaveDialogMock.mockResolvedValue({
+      canceled: false,
+      filePath: '/tmp/export.docx',
+    })
+
+    const result = await manager.exportPandoc('# Heading', 'Untitled', 'docx', 'Word Document', ['docx'])
+    expect(result).toBe(true)
+
+    // verify pandoc args
+    const callArgs = execFileMock.mock.calls[0]
+    expect(callArgs[0]).toBe('pandoc')
+    expect(callArgs[1][1]).toBe('-o')
+    expect(callArgs[1][2]).toBe('/tmp/export.docx')
+    expect(callArgs[1]).not.toContain('--standalone')
+  })
+
+  it('exports LaTeX using pandoc with --standalone', async () => {
+    const window = createWindowStub()
+    const manager = new FileManager(window as never)
+
+    showSaveDialogMock.mockResolvedValue({
+      canceled: false,
+      filePath: '/tmp/export.tex',
+    })
+
+    const result = await manager.exportPandoc('# Heading', 'Untitled', 'latex', 'LaTeX', ['tex'])
+    expect(result).toBe(true)
+
+    // verify pandoc args
+    const callArgs = execFileMock.mock.calls[0]
+    expect(callArgs[0]).toBe('pandoc')
+    expect(callArgs[1][1]).toBe('-o')
+    expect(callArgs[1][2]).toBe('/tmp/export.tex')
+    expect(callArgs[1]).toContain('--standalone')
   })
 })

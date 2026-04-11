@@ -39,6 +39,9 @@ class MockMarkFlowAPI implements MarkFlowDesktopAPI {
 
   exportHtml: MarkFlowDesktopAPI['exportHtml'] = vi.fn(async () => true)
   exportPdf: MarkFlowDesktopAPI['exportPdf'] = vi.fn(async () => true)
+  exportDocx: MarkFlowDesktopAPI['exportDocx'] = vi.fn(async () => true)
+  exportEpub: MarkFlowDesktopAPI['exportEpub'] = vi.fn(async () => true)
+  exportLatex: MarkFlowDesktopAPI['exportLatex'] = vi.fn(async () => true)
   openFolder: MarkFlowDesktopAPI['openFolder'] = vi.fn(async () => null)
   getVaultFiles: MarkFlowDesktopAPI['getVaultFiles'] = vi.fn(async () => [])
   renameFile: MarkFlowDesktopAPI['renameFile'] = vi.fn(async () => {})
@@ -381,6 +384,38 @@ describe('App desktop integration', () => {
         'aria-current',
         'true',
       )
+    })
+  })
+
+  it('routes pandoc export menu actions (docx, epub, latex) through the desktop bridge', async () => {
+    const api = new MockMarkFlowAPI()
+    window.markflow = api
+
+    render(<App />)
+
+    await act(async () => {
+      api.emitFileOpened({ filePath: '/tmp/report.md', content: '# Report\n\nBody text.' })
+    })
+
+    await act(async () => {
+      api.emitMenuAction('export-docx')
+    })
+    await waitFor(() => {
+      expect(api.exportDocx).toHaveBeenCalledWith('# Report\n\nBody text.', '/tmp/report.docx')
+    })
+
+    await act(async () => {
+      api.emitMenuAction('export-epub')
+    })
+    await waitFor(() => {
+      expect(api.exportEpub).toHaveBeenCalledWith('# Report\n\nBody text.', '/tmp/report.epub')
+    })
+
+    await act(async () => {
+      api.emitMenuAction('export-latex')
+    })
+    await waitFor(() => {
+      expect(api.exportLatex).toHaveBeenCalledWith('# Report\n\nBody text.', '/tmp/report.tex')
     })
   })
 

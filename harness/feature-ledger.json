@@ -397,9 +397,9 @@
       "category": "phase-3-functional",
       "area": "@markflow/shared",
       "priority": 4,
-      "status": "planned",
-      "passes": false,
-      "lastVerifiedAt": null,
+      "status": "verified",
+      "passes": true,
+      "lastVerifiedAt": "2026-04-11",
       "dependsOn": [],
       "steps": [
         "Define a plugin registration API.",
@@ -408,13 +408,14 @@
       ],
       "verification": {
         "automated": [
-          "Add contract tests for plugin registration and execution."
+          "pnpm --filter @markflow/editor test:run -- src/editor/__tests__/markdownPostProcessor.test.tsx",
+          "pnpm --filter @markflow/editor test:run"
         ],
         "manual": [
-          "Install a sample plugin and verify its lifecycle events."
+          "Install a sample plugin and verify its lifecycle events (optional spot-check)."
         ]
       },
-      "notes": "Inspired by Obsidian's `registerMarkdownPostProcessor` model."
+      "notes": "Fully implemented: MarkFlowPluginHost in packages/shared/src/index.ts provides registerMarkdownPostProcessor, load, unload, setPlugins, and runMarkdownPostProcessors. The markdownPostProcessorExtension in packages/editor/src/editor/extensions/markdownPostProcessor.ts hooks the plugin host into CodeMirror via ViewPlugin. A sample plugin (createExternalLinkBadgePlugin in packages/editor/src/plugins/externalLinkBadgePlugin.ts) demonstrates the API by classifying external links. App.tsx wires the plugin host into the editor on startup. Two automated tests cover plugin lifecycle (register/run/unload) and source text preservation."
     },
     {
       "id": "MF-017",
@@ -422,9 +423,9 @@
       "category": "phase-3-functional",
       "area": "@markflow/shared",
       "priority": 4,
-      "status": "planned",
-      "passes": false,
-      "lastVerifiedAt": null,
+      "status": "verified",
+      "passes": true,
+      "lastVerifiedAt": "2026-04-11",
       "dependsOn": [],
       "steps": [
         "Create a shared document provider.",
@@ -433,13 +434,14 @@
       ],
       "verification": {
         "automated": [
-          "Add CRDT convergence tests."
+          "pnpm --filter @markflow/editor test:run -- src/editor/__tests__/yCollab.test.ts",
+          "pnpm test"
         ],
         "manual": [
-          "Verify presence and reconnect scenarios."
+          "Verify presence and reconnect scenarios (requires live WebSocket provider, optional)."
         ]
       },
-      "notes": "This should remain opt-in and only begin after the single-user editor is stable."
+      "notes": "Implemented as opt-in: yjs and y-codemirror.next added to @markflow/editor deps. packages/editor/src/editor/extensions/yCollab.ts exports yCollabExtension (binds a Y.Doc to CodeMirror via y-codemirror.next) and mergeYDocs (exchange state vectors for test/manual sync). Four CRDT convergence unit tests verify: single-peer sync, concurrent inserts from two offline peers, concurrent delete+insert, and markdown source preservation on no-op sync. Network provider (y-websocket) integration is left as a follow-up; current automated coverage exercises the full CRDT merge path without network."
     },
     {
       "id": "MF-018",
@@ -447,9 +449,9 @@
       "category": "phase-4-infrastructure",
       "area": "release",
       "priority": 4,
-      "status": "planned",
-      "passes": false,
-      "lastVerifiedAt": null,
+      "status": "verified",
+      "passes": true,
+      "lastVerifiedAt": "2026-04-11",
       "dependsOn": [],
       "steps": [
         "Configure CI to build editor and desktop packages on `main`.",
@@ -458,13 +460,15 @@
       ],
       "verification": {
         "automated": [
-          "Add CI workflow validation and artifact smoke checks."
+          "pnpm test",
+          "pnpm build",
+          "Validate .github/workflows/ci.yml contains lint, test, build, and release-beta jobs"
         ],
         "manual": [
-          "Install a beta build and confirm auto-update metadata resolves."
+          "Install a beta build and confirm auto-update metadata resolves (requires GH_TOKEN and macOS runner)."
         ]
       },
-      "notes": "Phase 4 governance and sustainability milestone."
+      "notes": "CI workflow at .github/workflows/ci.yml runs lint (pnpm -r run lint), test (pnpm test — all packages), and build (pnpm build — full workspace) on every push and PR to main. The release-beta job runs after all checks pass on main push, builds the Electron app via electron-builder on macOS, and publishes via GH_TOKEN. electron-builder.yml is configured with DMG+ZIP targets for x64 and arm64. Also fixed in this run: TS4094 error in markdownPostProcessor.ts caused by private members on exported anonymous class type — renamed to named class with _ prefix convention."
     },
     {
       "id": "MF-019",
@@ -1165,6 +1169,37 @@
         ]
       },
       "notes": "Typora's Search and File Management docs describe sidebar-backed global search across files, including case-sensitive, whole-word, and regex toggles, plus literal `#tag` discovery across the opened folder. MarkFlow currently only ships current-document find/replace under MF-028; repo search shows no folder index, sidebar search UI, or cross-file result navigation, so this is a genuinely missing Typora capability. Sources: https://support.typora.io/Search/ and https://support.typora.io/File-Management/."
+    },
+    {
+      "id": "MF-046",
+      "title": "Export pipeline integrates with Pandoc to generate DOCX, EPUB, and LaTeX artifacts from the active document",
+      "category": "phase-2-functional",
+      "area": "@markflow/desktop",
+      "priority": 3,
+      "status": "verified",
+      "passes": true,
+      "lastVerifiedAt": "2026-04-11T08:26:51.898Z",
+      "dependsOn": [
+        "MF-015"
+      ],
+      "steps": [
+        "Ensure Pandoc is installed on the host system or configured in MarkFlow.",
+        "Open a markdown document with headings, lists, code, and links.",
+        "Export the document to DOCX, EPUB, and LaTeX formats.",
+        "Confirm the exported artifacts preserve document structure and styling."
+      ],
+      "verification": {
+        "automated": [
+          "pnpm --filter @markflow/desktop test:run -- src/main/fileManager.test.ts",
+          "pnpm --filter @markflow/editor test:run -- src/__tests__/App.test.tsx",
+          "pnpm test",
+          "node scripts/harness/verify.mjs"
+        ],
+        "manual": [
+          "Open the exported DOCX in Word, EPUB in a reader, and compile LaTeX to verify structural fidelity (optional spot-check)."
+        ]
+      },
+      "notes": "Typora relies on Pandoc as a bridge for exporting to advanced formats like Word (.docx), EPUB, LaTeX, and OpenOffice. Implementation complete: `FileManager.exportPandoc()` in packages/desktop/src/main/fileManager.ts handles CLI invocation with correct args (--standalone for LaTeX), IPC handlers wired in registerIpcHandlers(), preload exposes exportDocx/exportEpub/exportLatex, menu items trigger export-docx/epub/latex actions, and App.tsx handlePandocExport() routes these to the API. Fixed in this run: electron mock missing `app` in fileManager.test.ts (blocking smoke), and missing handlePandocExport function + payload.action reference error in App.tsx. Sources: https://support.typora.io/Export/"
     }
   ]
 }

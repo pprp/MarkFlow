@@ -35,7 +35,7 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm --filter @markflow/editor run test -- --run
+      - run: pnpm test
 
   build:
     name: Build
@@ -50,7 +50,7 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm --filter @markflow/editor run build
+      - run: pnpm build
 
   release-beta:
     name: Beta Release
@@ -67,8 +67,8 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm --filter @markflow/editor run build
-      - name: Build Electron app
+      - run: pnpm build
+      - name: Build and publish Electron beta
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: pnpm --filter @markflow/desktop exec electron-builder --mac --publish always
+        run: pnpm --filter @markflow/desktop exec electron-builder --config electron-builder.yml --mac --publish always

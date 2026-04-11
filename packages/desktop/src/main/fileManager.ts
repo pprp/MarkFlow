@@ -1,5 +1,8 @@
-import { BrowserWindow, dialog, ipcMain } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain } from 'electron'
 import * as fs from 'fs'
+import { execFile } from 'child_process'
+import { promisify } from 'util'
+const execFileAsync = promisify(execFile)
 import * as path from 'path'
 import type { MarkFlowFilePayload, MarkFlowSaveResult, MarkFlowQuickOpenItem, SearchResult } from '@markflow/shared'
 
@@ -25,6 +28,9 @@ export class FileManager {
     ipcMain.removeHandler('search-files')
     ipcMain.removeHandler('export-html')
     ipcMain.removeHandler('export-pdf')
+    ipcMain.removeHandler('export-docx')
+    ipcMain.removeHandler('export-epub')
+    ipcMain.removeHandler('export-latex')
 
     ipcMain.handle('open-file', () => this.openFile())
     ipcMain.handle('open-path', (_event, filePath: string) => this.openExistingPath(filePath))
@@ -41,6 +47,9 @@ export class FileManager {
     ipcMain.handle('search-files', (_event, folderPath: string, query: string) => this.searchFiles(folderPath, query))
     ipcMain.handle('export-html', async (_event, html: string, defaultPath: string) => this.exportHtml(html, defaultPath))
     ipcMain.handle('export-pdf', async (_event, html: string, defaultPath: string) => this.exportPdf(html, defaultPath))
+    ipcMain.handle('export-docx', async (_event, markdown: string, defaultPath: string) => this.exportPandoc(markdown, defaultPath, 'docx', 'Word Document', ['docx']))
+    ipcMain.handle('export-epub', async (_event, markdown: string, defaultPath: string) => this.exportPandoc(markdown, defaultPath, 'epub', 'EPUB', ['epub']))
+    ipcMain.handle('export-latex', async (_event, markdown: string, defaultPath: string) => this.exportPandoc(markdown, defaultPath, 'latex', 'LaTeX', ['tex']))
   }
 
   
@@ -92,6 +101,40 @@ export class FileManager {
       return false
     } finally {
       win.destroy()
+    }
+  }
+
+
+  async exportPandoc(markdown: string, defaultPath: string, format: string, filterName: string, extensions: string[]): Promise<boolean> {
+    const result = await dialog.showSaveDialog(this.window, {
+      title: `Export as ${filterName}`,
+      defaultPath,
+      filters: [{ name: filterName, extensions }],
+    })
+    if (result.canceled || !result.filePath) return false
+
+    const tempDir = app.getPath('temp')
+    const tempFile = path.join(tempDir, `markflow-export-${Date.now()}-${Math.random().toString(36).substring(7)}.md`)
+
+    try {
+      await fs.promises.writeFile(tempFile, markdown, 'utf-8')
+      const args = [tempFile, '-o', result.filePath]
+      if (format === 'latex') {
+        args.push('--standalone')
+      }
+      await execFileAsync('pandoc', args)
+      return true
+    } catch (e) {
+      console.error(`Failed to export ${format}:`, e)
+      return false
+    } finally {
+      try {
+        if (fs.existsSync(tempFile)) {
+          await fs.promises.unlink(tempFile)
+        }
+      } catch (err) {
+        console.error('Failed to cleanup temp file', err)
+      }
     }
   }
 
