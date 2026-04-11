@@ -1,0 +1,108 @@
+.mf-global-search-overlay {
+  position: fixed;
+  top: 10%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 560px;
+  max-width: 90vw;
+  max-height: 70vh;
+  background-color: var(--mf-bg);
+  border: 1px solid var(--mf-border);
+  border-radius: 8px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.2);
+  z-index: 2000;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  font-family: var(--mf-font-sans);
+}
+
+.mf-global-search-input-container {
+  padding: 12px;
+  border-bottom: 1px solid var(--mf-border);
+}
+
+.mf-global-search-input {
+  width: 100%;
+  padding: 8px 12px;
+  font-size: 14px;
+  border: 1px solid var(--mf-border);
+  border-radius: 4px;
+  background-color: var(--mf-bg);
+  color: var(--mf-fg);
+  box-sizing: border-box;
+}
+
+.mf-global-search-input:focus {
+  outline: none;
+  border-color: var(--mf-accent, #007AFF);
+  box-shadow: 0 0 0 2px rgba(0, 122, 255, 0.2);
+}
+
+.mf-global-search-results {
+  flex: 1;
+  overflow-y: auto;
+  padding: 4px 0;
+}
+
+.mf-global-search-empty {
+  padding: 16px;
+  color: var(--mf-fg-muted, rgba(60,60,67,0.42));
+  text-align: center;
+  font-size: 13px;
+}
+
+.mf-global-search-file-group {
+  margin-bottom: 4px;
+}
+
+.mf-global-search-file-header {
+  padding: 4px 12px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--mf-fg-secondary, rgba(60,60,67,0.6));
+  background: var(--mf-bg-secondary, #F2F2F7);
+}
+
+.mf-global-search-result-item {
+  display: flex;
+  flex-direction: column;
+  padding: 5px 16px;
+  cursor: pointer;
+  gap: 2px;
+}
+
+.mf-global-search-result-item:hover,
+.mf-global-search-result-item.is-selected {
+  background: var(--mf-accent-light, rgba(0,122,255,0.1));
+}
+
+.mf-global-search-line-number {
+  font-size: 11px;
+  color: var(--mf-fg-muted, rgba(60,60,67,0.42));
+  font-family: var(--mf-font-mono);
+}
+
+.mf-global-search-line-text {
+  font-size: 13px;
+  color: var(--mf-fg, #000);
+  font-family: var(--mf-font-mono);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mf-global-search-match {
+  background: rgba(255, 200, 0, 0.35);
+  border-radius: 2px;
+}
+
+.mf-global-search-status {
+  padding: 6px 12px;
+  font-size: 11px;
+  color: var(--mf-fg-secondary, rgba(60,60,67,0.6));
+  border-top: 1px solid var(--mf-border);
+  text-align: right;
+}

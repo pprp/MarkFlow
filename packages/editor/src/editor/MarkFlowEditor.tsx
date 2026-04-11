@@ -29,6 +29,9 @@ import { focusModeExtension, typewriterModeExtension } from './extensions/focusM
 import { smartTypographyExtension } from './extensions/smartTypography'
 import { headingFoldExtension } from './extensions/headingFold'
 import { smartPasteExtension } from './extensions/smartPaste'
+import { spellCheckExtension } from './extensions/spellCheck'
+import { readingModeExtension } from './extensions/readingMode'
+import { vimModeExtension } from './extensions/vimMode'
 import { tocDecorations } from './decorations/tocDecoration'
 import { findHeadingAnchorPosition } from './outline'
 import { FloatingToolbar } from '../components/FloatingToolbar'
@@ -46,6 +49,7 @@ export interface MarkFlowEditorProps {
   onToggleTypewriterMode?: () => void
   focusMode?: boolean
   typewriterMode?: boolean
+  vimMode?: boolean
   filePath?: string
   navigationRequest?: { key: number; position: number } | null
 }
@@ -85,6 +89,12 @@ function findRenderedLink(target: EventTarget | null) {
   return link instanceof HTMLAnchorElement ? link : null
 }
 
+function getViewModeExtensions(viewMode: ViewMode, filePath?: string) {
+  if (viewMode === 'wysiwyg') return getWysiwygExtensions(filePath)
+  if (viewMode === 'reading') return [...getWysiwygExtensions(filePath), ...readingModeExtension()]
+  return []
+}
+
 export function MarkFlowEditor({
   content,
   viewMode,
@@ -98,10 +108,13 @@ export function MarkFlowEditor({
   onToggleTypewriterMode,
   focusMode = false,
   typewriterMode = false,
+  vimMode = false,
   filePath,
   navigationRequest,
 }: MarkFlowEditorProps) {
   const containerRef = useRef<HTMLDivElement>(null)
+  const previewContainerRef = useRef<HTMLDivElement>(null)
+  const previewViewRef = useRef<EditorView | null>(null)
   const viewRef = useRef<EditorView | null>(null)
   const onChangeRef = useRef(onChange)
   const onCursorPositionChangeRef = useRef(onCursorPositionChange)
@@ -115,6 +128,7 @@ export function MarkFlowEditor({
   const viewModeCompartmentRef = useRef(new Compartment())
   const focusModeCompartmentRef = useRef(new Compartment())
   const typewriterModeCompartmentRef = useRef(new Compartment())
+  const vimModeCompartmentRef = useRef(new Compartment())
   const [editorView, setEditorView] = useState<EditorView | null>(null)
 
   useEffect(() => {
@@ -204,6 +218,7 @@ export function MarkFlowEditor({
         smartInput(),
         smartPasteExtension(),
         headingFoldExtension(),
+        spellCheckExtension(),
         EditorView.lineWrapping,
         EditorView.updateListener.of((update) => {
           if (update.docChanged) {
@@ -218,9 +233,10 @@ export function MarkFlowEditor({
             onCursorPositionChangeRef.current?.(selection.head)
           }
         }),
-        viewModeCompartmentRef.current.of(viewMode === 'wysiwyg' ? getWysiwygExtensions(filePath) : []),
+        viewModeCompartmentRef.current.of(getViewModeExtensions(viewMode, filePath)),
         focusModeCompartmentRef.current.of(focusMode ? focusModeExtension() : []),
         typewriterModeCompartmentRef.current.of(typewriterMode ? typewriterModeExtension() : []),
+        vimModeCompartmentRef.current.of(vimMode ? vimModeExtension() : []),
       ],
     })
 
@@ -341,7 +357,7 @@ export function MarkFlowEditor({
 
     view.dispatch({
       effects: viewModeCompartmentRef.current.reconfigure(
-        viewMode === 'wysiwyg' ? getWysiwygExtensions(filePath) : [],
+        getViewModeExtensions(viewMode, filePath),
       ),
     })
   }, [filePath, viewMode])
@@ -369,6 +385,69 @@ export function MarkFlowEditor({
   useEffect(() => {
     const view = viewRef.current
     if (!view) return
+    view.dispatch({
+      effects: vimModeCompartmentRef.current.reconfigure(
+        vimMode ? vimModeExtension() : [],
+      ),
+    })
+  }, [vimMode])
+
+  // Split view: create/destroy the preview pane
+  useEffect(() => {
+    if (viewMode !== 'split') {
+      // Destroy preview pane when leaving split mode
+      if (previewViewRef.current) {
+        previewViewRef.current.destroy()
+        previewViewRef.current = null
+      }
+      return
+    }
+
+    if (!previewContainerRef.current) return
+
+    const previewState = EditorState.create({
+      doc: content,
+      extensions: [
+        baseTheme,
+        syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
+        markdown({ base: markdownLanguage, codeLanguages: languages }),
+        EditorView.editable.of(false),
+        EditorView.lineWrapping,
+        ...getWysiwygExtensions(filePath),
+      ],
+    })
+
+    const previewView = new EditorView({
+      state: previewState,
+      parent: previewContainerRef.current,
+    })
+
+    previewViewRef.current = previewView
+
+    return () => {
+      previewView.destroy()
+      previewViewRef.current = null
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [viewMode])
+
+  // Keep split preview in sync with content changes
+  useEffect(() => {
+    const previewView = previewViewRef.current
+    if (!previewView || viewMode !== 'split') return
+
+    const currentContent = previewView.state.doc.toString()
+    if (content === currentContent) return
+
+    previewView.dispatch({
+      changes: { from: 0, to: currentContent.length, insert: content },
+      annotations: Transaction.addToHistory.of(false),
+    })
+  }, [content, viewMode])
+
+  useEffect(() => {
+    const view = viewRef.current
+    if (!view) return
 
     const currentContent = view.state.doc.toString()
     if (content === currentContent) return
@@ -391,6 +470,21 @@ export function MarkFlowEditor({
     view.focus()
     onNavigationHandledRef.current?.()
   }, [navigationRequest])
+
+  if (viewMode === 'split') {
+    return (
+      <div className="mf-split-container">
+        <div className="mf-split-pane">
+          <div ref={containerRef} className="mf-editor-container" style={{ height: '100%' }} />
+          <FloatingToolbar view={editorView} />
+        </div>
+        <div className="mf-split-divider" aria-hidden="true" />
+        <div className="mf-split-pane">
+          <div ref={previewContainerRef} className="mf-editor-container" style={{ height: '100%' }} />
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div style={{ position: 'relative', height: '100%' }}>

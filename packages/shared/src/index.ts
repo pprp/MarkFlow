@@ -4,7 +4,7 @@ export interface MarkFlowDocument {
   isDirty: boolean
 }
 
-export type ViewMode = 'source' | 'wysiwyg'
+export type ViewMode = 'source' | 'wysiwyg' | 'reading' | 'split'
 
 export interface MarkFlowFilePayload {
   filePath: string | null
@@ -43,6 +43,14 @@ export interface MarkFlowQuickOpenItem {
   isRecent: boolean
 }
 
+export interface SearchResult {
+  filePath: string
+  lineNumber: number
+  lineText: string
+  matchStart: number
+  matchEnd: number
+}
+
 export interface MarkFlowDesktopAPI {
   openFile: () => Promise<MarkFlowFilePayload | null>
   openPath: (filePath: string) => Promise<MarkFlowFilePayload | null>
@@ -55,6 +63,11 @@ export interface MarkFlowDesktopAPI {
   getThemes: () => Promise<MarkFlowThemeSummary[]>
   getCurrentTheme: () => Promise<MarkFlowThemePayload | null>
   setTheme: (themeId: string) => Promise<MarkFlowThemePayload | null>
+  openFolder: () => Promise<{ folderPath: string } | null>
+  getVaultFiles: (folderPath: string) => Promise<string[]>
+  renameFile: (oldPath: string, newPath: string) => Promise<void>
+  deleteFile: (filePath: string) => Promise<void>
+  searchFiles: (folderPath: string, query: string) => Promise<SearchResult[]>
   onFileOpened: (cb: (data: MarkFlowFilePayload) => void) => () => void
   onFileSaved: (cb: (data: MarkFlowSavePayload) => void) => () => void
   onMenuAction: (cb: (data: MarkFlowMenuActionPayload) => void) => () => void

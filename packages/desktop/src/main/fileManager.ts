@@ -1,7 +1,7 @@
 import { BrowserWindow, dialog, ipcMain } from 'electron'
 import * as fs from 'fs'
 import * as path from 'path'
-import type { MarkFlowFilePayload, MarkFlowSaveResult, MarkFlowQuickOpenItem } from '@markflow/shared'
+import type { MarkFlowFilePayload, MarkFlowSaveResult, MarkFlowQuickOpenItem, SearchResult } from '@markflow/shared'
 
 export class FileManager {
   private currentFilePath: string | null = null
@@ -18,6 +18,11 @@ export class FileManager {
     ipcMain.removeHandler('get-current-path')
     ipcMain.removeHandler('get-current-document')
     ipcMain.removeHandler('get-quick-open-list')
+    ipcMain.removeHandler('open-folder')
+    ipcMain.removeHandler('get-vault-files')
+    ipcMain.removeHandler('rename-file')
+    ipcMain.removeHandler('delete-file')
+    ipcMain.removeHandler('search-files')
 
     ipcMain.handle('open-file', () => this.openFile())
     ipcMain.handle('open-path', (_event, filePath: string) => this.openExistingPath(filePath))
@@ -27,6 +32,11 @@ export class FileManager {
     ipcMain.handle('get-current-path', () => this.currentFilePath)
     ipcMain.handle('get-current-document', () => this.getCurrentDocument())
     ipcMain.handle('get-quick-open-list', () => this.getQuickOpenList())
+    ipcMain.handle('open-folder', () => this.openFolder())
+    ipcMain.handle('get-vault-files', (_event, folderPath: string) => this.getVaultFiles(folderPath))
+    ipcMain.handle('rename-file', (_event, oldPath: string, newPath: string) => this.renameFile(oldPath, newPath))
+    ipcMain.handle('delete-file', (_event, filePath: string) => this.deleteFile(filePath))
+    ipcMain.handle('search-files', (_event, folderPath: string, query: string) => this.searchFiles(folderPath, query))
   }
 
   private addToRecent(filePath: string) {
@@ -159,6 +169,78 @@ export class FileManager {
     }
 
     return items
+  }
+
+  async openFolder(): Promise<{ folderPath: string } | null> {
+    const result = await dialog.showOpenDialog(this.window, {
+      properties: ['openDirectory'],
+    })
+    if (result.canceled || result.filePaths.length === 0) return null
+    return { folderPath: result.filePaths[0] }
+  }
+
+  getVaultFiles(folderPath: string): string[] {
+    const results: string[] = []
+    const walk = (dir: string) => {
+      let entries: fs.Dirent[]
+      try {
+        entries = fs.readdirSync(dir, { withFileTypes: true })
+      } catch {
+        return
+      }
+      for (const entry of entries) {
+        if (entry.name.startsWith('.')) continue
+        const fullPath = path.join(dir, entry.name)
+        if (entry.isDirectory()) {
+          walk(fullPath)
+        } else if (entry.isFile() && /\.(md|markdown|txt)$/i.test(entry.name)) {
+          results.push(fullPath)
+        }
+      }
+    }
+    walk(folderPath)
+    return results.sort()
+  }
+
+  renameFile(oldPath: string, newPath: string): void {
+    fs.renameSync(oldPath, newPath)
+  }
+
+  deleteFile(filePath: string): void {
+    fs.unlinkSync(filePath)
+  }
+
+  searchFiles(folderPath: string, query: string): SearchResult[] {
+    if (!query.trim()) return []
+    const files = this.getVaultFiles(folderPath)
+    const results: SearchResult[] = []
+    const lowerQuery = query.toLowerCase()
+
+    for (const filePath of files) {
+      let content: string
+      try {
+        content = fs.readFileSync(filePath, 'utf-8')
+      } catch {
+        continue
+      }
+      const lines = content.split('\n')
+      lines.forEach((lineText, idx) => {
+        const lowerLine = lineText.toLowerCase()
+        let searchFrom = 0
+        let matchIdx: number
+        while ((matchIdx = lowerLine.indexOf(lowerQuery, searchFrom)) !== -1) {
+          results.push({
+            filePath,
+            lineNumber: idx + 1,
+            lineText,
+            matchStart: matchIdx,
+            matchEnd: matchIdx + query.length,
+          })
+          searchFrom = matchIdx + 1
+        }
+      })
+    }
+    return results
   }
 
   private updateTitle() {

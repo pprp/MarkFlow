@@ -407,9 +407,50 @@ body {
   background: var(--mf-bg);
 }
 
+.mf-sidebar {
+  width: 220px;
+  border-right: 1px solid var(--mf-border, rgba(60,60,67,0.18));
+  overflow-y: auto;
+  flex-shrink: 0;
+}
+
+.mf-body {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
 .mf-editor-shell {
   flex: 1;
   min-width: 0;
+}
+
+/* ── Split view ─────────────────────────────────────────────── */
+.mf-split-container {
+  display: flex;
+  height: 100%;
+  width: 100%;
+  gap: 0;
+  background: var(--mf-border, rgba(60,60,67,0.18));
+}
+
+.mf-split-pane {
+  flex: 1;
+  overflow: hidden;
+  background: var(--mf-bg, #fff);
+  position: relative;
+}
+
+.mf-split-divider {
+  width: 1px;
+  background: var(--mf-border, rgba(60,60,67,0.18));
+  cursor: col-resize;
+  flex-shrink: 0;
+}
+
+/* ── Reading mode ───────────────────────────────────────────── */
+.mf-reading-mode {
+  cursor: default;
 }
 
 /* ── Outline panel — macOS Finder sidebar style ─────────────── */

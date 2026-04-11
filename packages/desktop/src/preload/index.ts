@@ -6,6 +6,7 @@ import type {
   MarkFlowSavePayload,
   MarkFlowSaveResult,
   MarkFlowThemePayload,
+  SearchResult,
 } from '@markflow/shared'
 
 function subscribe<T>(channel: string, cb: (data: T) => void) {
@@ -29,6 +30,11 @@ const api: MarkFlowDesktopAPI = {
   getThemes: () => ipcRenderer.invoke('get-themes'),
   getCurrentTheme: () => ipcRenderer.invoke('get-current-theme'),
   setTheme: (themeId: string) => ipcRenderer.invoke('set-theme', themeId),
+  openFolder: () => ipcRenderer.invoke('open-folder'),
+  getVaultFiles: (folderPath: string) => ipcRenderer.invoke('get-vault-files', folderPath) as Promise<string[]>,
+  renameFile: (oldPath: string, newPath: string) => ipcRenderer.invoke('rename-file', oldPath, newPath),
+  deleteFile: (filePath: string) => ipcRenderer.invoke('delete-file', filePath),
+  searchFiles: (folderPath: string, query: string) => ipcRenderer.invoke('search-files', folderPath, query) as Promise<SearchResult[]>,
 
   onFileOpened: (cb: (data: MarkFlowFilePayload) => void) => subscribe('file-opened', cb),
   onFileSaved: (cb: (data: MarkFlowSavePayload) => void) => subscribe('file-saved', cb),

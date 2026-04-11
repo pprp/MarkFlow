@@ -3,12 +3,15 @@ import { MarkFlowEditor } from './editor/MarkFlowEditor'
 import { extractOutlineHeadings, findActiveHeadingAnchor } from './editor/outline'
 import { computeStats } from './editor/wordCount'
 import { QuickOpen } from './components/QuickOpen'
-import type { MarkFlowQuickOpenItem, 
+import { VaultSidebar } from './components/VaultSidebar'
+import { GlobalSearch } from './components/GlobalSearch'
+import type { MarkFlowQuickOpenItem,
   MarkFlowDocument,
   MarkFlowMenuAction,
   MarkFlowThemePayload,
   MarkFlowThemeSummary,
   ViewMode,
+  SearchResult,
 } from '@markflow/shared'
 
 const THEME_STYLE_ELEMENT_ID = 'mf-theme-overrides'
@@ -57,6 +60,11 @@ export function App() {
   const [viewMode, setViewMode] = useState<ViewMode>('wysiwyg')
   const [focusMode, setFocusMode] = useState(false)
   const [typewriterMode, setTypewriterMode] = useState(false)
+  const [vimMode, setVimMode] = useState(false)
+  const [showSidebar, setShowSidebar] = useState(false)
+  const [vaultPath, setVaultPath] = useState<string | null>(null)
+  const [vaultFiles, setVaultFiles] = useState<string[]>([])
+  const [isGlobalSearchOpen, setIsGlobalSearchOpen] = useState(false)
   const [themes, setThemes] = useState<MarkFlowThemeSummary[]>([])
   const [activeThemeId, setActiveThemeId] = useState<string>('')
   const [cursorPosition, setCursorPosition] = useState(0)
@@ -171,6 +179,42 @@ export function App() {
     setTypewriterMode((v) => !v)
   }
 
+  function toggleVimMode() {
+    setVimMode((v) => !v)
+  }
+
+  async function handleOpenFolder() {
+    const result = await window.markflow?.openFolder()
+    if (result) {
+      setVaultPath(result.folderPath)
+      setShowSidebar(true)
+      const files = await window.markflow?.getVaultFiles(result.folderPath)
+      setVaultFiles(files ?? [])
+    }
+  }
+
+  async function handleVaultFileRename(oldPath: string, newName: string) {
+    if (!vaultPath) return
+    const dir = oldPath.substring(0, oldPath.lastIndexOf('/') + 1)
+    const newPath = dir + newName
+    await window.markflow?.renameFile(oldPath, newPath)
+    const files = await window.markflow?.getVaultFiles(vaultPath)
+    setVaultFiles(files ?? [])
+  }
+
+  async function handleVaultFileDelete(filePath: string) {
+    await window.markflow?.deleteFile(filePath)
+    if (vaultPath) {
+      const files = await window.markflow?.getVaultFiles(vaultPath)
+      setVaultFiles(files ?? [])
+    }
+  }
+
+  function handleGlobalSearchResult(result: SearchResult) {
+    setIsGlobalSearchOpen(false)
+    void handleOpenPath(result.filePath)
+  }
+
   const triggerAutoSave = useCallback(async () => {
     const api = window.markflow
     if (!api) return
@@ -195,6 +239,10 @@ export function App() {
         ? e.metaKey && e.shiftKey && e.key.toLowerCase() === 'o'
         : e.ctrlKey && e.key.toLowerCase() === 'p'
 
+      const isGlobalSearchKey = isMac
+        ? e.metaKey && e.shiftKey && e.key.toLowerCase() === 'f'
+        : e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'f'
+
       if (isQuickOpenKey) {
         e.preventDefault()
         if (window.markflow) {
@@ -202,6 +250,9 @@ export function App() {
           setQuickOpenItems(items)
           setIsQuickOpenOpen(true)
         }
+      } else if (isGlobalSearchKey) {
+        e.preventDefault()
+        setIsGlobalSearchOpen((prev) => !prev)
       }
     }
     document.addEventListener('keydown', handleGlobalKeyDown)
@@ -323,11 +374,27 @@ export function App() {
             </svg>
             Focus
           </button>
+          <button
+            className={`mf-mode-toggle${vimMode ? ' mf-mode-active' : ''}`}
+            onClick={toggleVimMode}
+            title="Vim mode"
+            aria-pressed={vimMode}
+          >
+            Vim
+          </button>
+          <button
+            className={`mf-mode-toggle${showSidebar ? ' mf-mode-active' : ''}`}
+            onClick={() => setShowSidebar((v) => !v)}
+            title="Toggle file sidebar"
+            aria-pressed={showSidebar}
+          >
+            Files
+          </button>
           {/* Segmented control for view mode */}
           <div className="mf-segment-control" role="group" aria-label="View mode">
             <button
               className={`mf-segment-btn${viewMode === 'wysiwyg' ? ' mf-segment-active' : ''}`}
-              onClick={() => viewMode !== 'wysiwyg' && toggleViewMode()}
+              onClick={() => setViewMode('wysiwyg')}
               title="WYSIWYG mode"
               aria-pressed={viewMode === 'wysiwyg'}
             >
@@ -341,7 +408,7 @@ export function App() {
             </button>
             <button
               className={`mf-segment-btn${viewMode === 'source' ? ' mf-segment-active' : ''}`}
-              onClick={() => viewMode !== 'source' && toggleViewMode()}
+              onClick={() => setViewMode('source')}
               title="Source mode"
               aria-pressed={viewMode === 'source'}
             >
@@ -352,10 +419,40 @@ export function App() {
               </svg>
               Source
             </button>
+            <button
+              className={`mf-segment-btn${viewMode === 'reading' ? ' mf-segment-active' : ''}`}
+              onClick={() => setViewMode('reading')}
+              title="Reading mode"
+              aria-pressed={viewMode === 'reading'}
+            >
+              Reading
+            </button>
+            <button
+              className={`mf-segment-btn${viewMode === 'split' ? ' mf-segment-active' : ''}`}
+              onClick={() => setViewMode('split')}
+              title="Split view"
+              aria-pressed={viewMode === 'split'}
+            >
+              Split
+            </button>
           </div>
         </div>
       </header>
       <main className="mf-main">
+        {showSidebar && (
+          <div className="mf-sidebar">
+            <VaultSidebar
+              folderPath={vaultPath}
+              files={vaultFiles}
+              activeFile={documentState.filePath}
+              onFileOpen={(fp) => void handleOpenPath(fp)}
+              onFileRename={(old, newName) => void handleVaultFileRename(old, newName)}
+              onFileDelete={(fp) => void handleVaultFileDelete(fp)}
+              onOpenFolder={() => void handleOpenFolder()}
+            />
+          </div>
+        )}
+        <div className="mf-body">
         <div className="mf-editor-shell">
           <MarkFlowEditor
             content={documentState.content}
@@ -370,6 +467,7 @@ export function App() {
             onToggleTypewriterMode={toggleTypewriterMode}
             focusMode={focusMode}
             typewriterMode={typewriterMode}
+            vimMode={vimMode}
             filePath={documentState.filePath ?? undefined}
             navigationRequest={outlineNavigationRequest}
           />
@@ -397,6 +495,7 @@ export function App() {
             </nav>
           </aside>
         ) : null}
+        </div>
       </main>
       <footer className="mf-statusbar" aria-label="Document statistics">
         <span className="mf-statusbar-stat">{docStats.words.toLocaleString()} words</span>
@@ -421,6 +520,13 @@ export function App() {
         items={quickOpenItems}
         onClose={() => setIsQuickOpenOpen(false)}
         onSelect={handleQuickOpenSelect}
+      />
+
+      <GlobalSearch
+        isOpen={isGlobalSearchOpen}
+        folderPath={vaultPath}
+        onClose={() => setIsGlobalSearchOpen(false)}
+        onSelectResult={handleGlobalSearchResult}
       />
     </div>
   )
