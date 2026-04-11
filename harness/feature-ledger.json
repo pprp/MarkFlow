@@ -1145,9 +1145,9 @@
       "category": "phase-2-functional",
       "area": "@markflow/desktop",
       "priority": 3,
-      "status": "planned",
-      "passes": false,
-      "lastVerifiedAt": null,
+      "status": "verified",
+      "passes": true,
+      "lastVerifiedAt": "2026-04-11T05:57:16.887Z",
       "dependsOn": [
         "MF-041"
       ],
