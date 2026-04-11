@@ -1038,9 +1038,9 @@
       "category": "phase-3-functional",
       "area": "@markflow/desktop",
       "priority": 4,
-      "status": "ready",
-      "passes": false,
-      "lastVerifiedAt": null,
+      "status": "verified",
+      "passes": true,
+      "lastVerifiedAt": "2026-04-11T05:54:39.349Z",
       "dependsOn": [
         "MF-007",
         "MF-009"
