@@ -27,6 +27,9 @@ import { inlineHtmlDecorations } from './decorations/inlineHtmlDecoration'
 import { smartInput } from './extensions/smartInput'
 import { focusModeExtension, typewriterModeExtension } from './extensions/focusMode'
 import { smartTypographyExtension } from './extensions/smartTypography'
+import { headingFoldExtension } from './extensions/headingFold'
+import { smartPasteExtension } from './extensions/smartPaste'
+import { tocDecorations } from './decorations/tocDecoration'
 import { findHeadingAnchorPosition } from './outline'
 import { FloatingToolbar } from '../components/FloatingToolbar'
 
@@ -69,6 +72,7 @@ function getWysiwygExtensions(filePath?: string) {
     yamlFrontMatterDecorations(),
     tableDecorations(),
     inlineHtmlDecorations(),
+    tocDecorations(),
   ]
 }
 
@@ -198,6 +202,8 @@ export function MarkFlowEditor({
         ]),
         smartTypographyExtension(),
         smartInput(),
+        smartPasteExtension(),
+        headingFoldExtension(),
         EditorView.lineWrapping,
         EditorView.updateListener.of((update) => {
           if (update.docChanged) {
@@ -226,6 +232,20 @@ export function MarkFlowEditor({
     const handleClick = (event: MouseEvent) => {
       if (!event.metaKey && !event.ctrlKey) {
         return
+      }
+
+      // Handle wikilink clicks (MF-040)
+      const wikilinkTarget = (event.target instanceof Element)
+        ? event.target.closest('[data-wikilink]')
+        : null
+      if (wikilinkTarget instanceof HTMLElement) {
+        const wikilinkFile = wikilinkTarget.dataset.wikilink
+        if (wikilinkFile && onOpenPathRef.current) {
+          event.preventDefault()
+          event.stopPropagation()
+          void onOpenPathRef.current(wikilinkFile)
+          return
+        }
       }
 
       const link = findRenderedLink(event.target)
@@ -257,7 +277,48 @@ export function MarkFlowEditor({
       window.open(href, '_blank', 'noopener,noreferrer')
     }
 
+    // Drag-and-drop handler for images and markdown files (MF-029)
+    const handleDrop = (event: DragEvent) => {
+      const files = event.dataTransfer?.files
+      if (!files || files.length === 0) return
+
+      let handled = false
+      for (const file of Array.from(files)) {
+        if (file.type.startsWith('image/')) {
+          event.preventDefault()
+          handled = true
+          const pos = view.posAtCoords({ x: event.clientX, y: event.clientY }) ?? view.state.doc.length
+          const fileName = file.name
+          view.dispatch({
+            changes: { from: pos, to: pos, insert: `![${fileName}](./${fileName})` },
+            selection: { anchor: pos + `![${fileName}](./${fileName})`.length },
+          })
+          // Fire custom event for desktop layer
+          view.dom.dispatchEvent(
+            new CustomEvent('mf-image-drop', {
+              detail: { file },
+              bubbles: true,
+              composed: true,
+            }),
+          )
+          break
+        }
+      }
+
+      if (!handled) {
+        for (const file of Array.from(files)) {
+          const filePath = (file as File & { path?: string }).path ?? file.name
+          if (isMarkdownFilePath(filePath) && onOpenPathRef.current) {
+            event.preventDefault()
+            void onOpenPathRef.current(filePath)
+            break
+          }
+        }
+      }
+    }
+
     view.dom.addEventListener('click', handleClick)
+    view.dom.addEventListener('drop', handleDrop)
 
     viewRef.current = view
     setEditorView(view)
@@ -265,6 +326,7 @@ export function MarkFlowEditor({
 
     return () => {
       view.dom.removeEventListener('click', handleClick)
+      view.dom.removeEventListener('drop', handleDrop)
       view.destroy()
       viewRef.current = null
       setEditorView(null)

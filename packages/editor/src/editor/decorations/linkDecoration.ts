@@ -7,7 +7,7 @@ import {
   WidgetType,
 } from '@codemirror/view'
 import { syntaxTree } from '@codemirror/language'
-import { RangeSetBuilder } from '@codemirror/state'
+import { RangeSetBuilder, RangeSet } from '@codemirror/state'
 
 class ImageWidget extends WidgetType {
   constructor(
@@ -187,6 +187,35 @@ function isReferenceDefinitionUrl(view: EditorView, from: number) {
   return /^\[[^\]]+\]:\s*$/.test(prefix)
 }
 
+const WIKILINK_RE = /\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g
+
+class WikilinkWidget extends WidgetType {
+  constructor(
+    private filename: string,
+    private displayText: string,
+  ) {
+    super()
+  }
+
+  toDOM(): HTMLElement {
+    const href = this.filename.endsWith('.md') ? this.filename : `${this.filename}.md`
+    const a = document.createElement('a')
+    a.className = 'mf-wikilink'
+    a.href = href
+    a.dataset.wikilink = href
+    a.textContent = this.displayText
+    return a
+  }
+
+  eq(other: WikilinkWidget) {
+    return this.filename === other.filename && this.displayText === other.displayText
+  }
+
+  ignoreEvent(): boolean {
+    return false
+  }
+}
+
 export function buildLinkDecorations(view: EditorView, filePath?: string): DecorationSet {
   const builder = new RangeSetBuilder<Decoration>()
   const cursorHead = view.state.selection.main.head
@@ -284,7 +313,33 @@ export function buildLinkDecorations(view: EditorView, filePath?: string): Decor
   }
 
   visit()
-  return builder.finish()
+
+  // Wikilink decoration pass — scan raw text for [[...]] patterns
+  const wikilinkBuilder = new RangeSetBuilder<Decoration>()
+  for (let i = 1; i <= doc.lines; i++) {
+    const line = doc.line(i)
+    WIKILINK_RE.lastIndex = 0
+    let wm: RegExpExecArray | null
+    while ((wm = WIKILINK_RE.exec(line.text)) !== null) {
+      const from = line.from + wm.index
+      const to = from + wm[0].length
+      const cursorInside = cursorHead >= from && cursorHead <= to
+      if (!cursorInside) {
+        const filename = wm[1].trim()
+        const displayText = wm[2]?.trim() ?? filename
+        wikilinkBuilder.add(
+          from,
+          to,
+          Decoration.replace({ widget: new WikilinkWidget(filename, displayText) }),
+        )
+      }
+    }
+  }
+
+  const wikilinkSet = wikilinkBuilder.finish()
+  const linkSet = builder.finish()
+
+  return RangeSet.join([linkSet, wikilinkSet])
 }
 
 export function linkDecorations(filePath?: string) {
