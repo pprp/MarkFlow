@@ -16,15 +16,6 @@ function makeView(doc: string, cursor?: number) {
   return new EditorView({ state, parent })
 }
 
-/** Simulate typing a single character by dispatching an insertion change. */
-function typeChar(view: EditorView, char: string) {
-  const pos = view.state.selection.main.from
-  view.dispatch({
-    changes: { from: pos, insert: char },
-    selection: { anchor: pos + char.length },
-  })
-}
-
 describe('isInCodeContext', () => {
   beforeEach(() => { document.body.innerHTML = '' })
 
@@ -118,7 +109,6 @@ describe('smartTypographyExtension — dashes', () => {
   it('single hyphen at start of line is NOT transformed (list marker)', () => {
     const view = makeView('-') // just a list marker prefix
     const pos = view.state.selection.main.from
-    const charBefore = view.state.doc.sliceString(pos - 1, pos)
     const line = view.state.doc.lineAt(pos)
     const linePrefix = view.state.doc.sliceString(line.from, pos).trim()
     // linePrefix is "-" — skip transformation

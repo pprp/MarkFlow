@@ -73,4 +73,45 @@ describe('MarkFlowEditor', () => {
 
     expect(handleToggleMode).toHaveBeenCalledTimes(1)
   })
+
+  it('jumps to a matching heading on Cmd/Ctrl+Click for internal anchors', () => {
+    const content = ['Intro [Jump](#details)', '', '# Details'].join('\n')
+    const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null)
+    const { container } = render(<MarkFlowEditor content={content} viewMode="wysiwyg" onChange={vi.fn()} />)
+
+    const view = getEditorView(container)
+    const link = container.querySelector('a.mf-link')
+    expect(link).not.toBeNull()
+
+    fireEvent.click(link as Element, { ctrlKey: true })
+
+    expect(view.state.selection.main.head).toBe(content.indexOf('# Details'))
+    expect(openSpy).not.toHaveBeenCalled()
+
+    openSpy.mockRestore()
+  })
+
+  it('resolves local markdown links against the current file path and routes them through onOpenPath', () => {
+    const handleOpenPath = vi.fn()
+    const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null)
+    const { container } = render(
+      <MarkFlowEditor
+        content="Start [Sibling](./sibling.md)"
+        viewMode="wysiwyg"
+        onChange={vi.fn()}
+        onOpenPath={handleOpenPath}
+        filePath="/Users/pprp/docs/current.md"
+      />,
+    )
+
+    const link = container.querySelector('a.mf-link')
+    expect(link).toHaveAttribute('href', 'file:///Users/pprp/docs/sibling.md')
+
+    fireEvent.click(link as Element, { ctrlKey: true })
+
+    expect(handleOpenPath).toHaveBeenCalledWith('/Users/pprp/docs/sibling.md')
+    expect(openSpy).not.toHaveBeenCalled()
+
+    openSpy.mockRestore()
+  })
 })

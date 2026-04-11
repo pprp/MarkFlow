@@ -10,7 +10,7 @@
     "lint": "eslint src/ --ext .ts",
     "test": "vitest --passWithNoTests",
     "test:run": "vitest run --passWithNoTests",
-    "pack": "electron-builder --config electron-builder.yml --mac"
+    "pack": "node ../../scripts/build/cleanBuildArtifacts.mjs && pnpm --filter @markflow/editor build && pnpm --filter @markflow/desktop build && electron-builder --config electron-builder.yml --mac zip && node ../../scripts/build/prunePackArtifacts.mjs"
   },
   "dependencies": {
     "@markflow/shared": "workspace:*",

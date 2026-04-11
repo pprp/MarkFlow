@@ -5,11 +5,12 @@
   "description": "Write in flow, publish anywhere — a WYSIWYG markdown editor",
   "scripts": {
     "dev": "pnpm --filter @markflow/editor dev",
-    "build": "pnpm -r run build",
+    "build": "node ./scripts/build/cleanBuildArtifacts.mjs && pnpm -r run build",
     "test": "pnpm -r run test:run",
     "test:watch": "pnpm -r run test",
     "lint": "pnpm -r run lint",
     "desktop": "pnpm --filter @markflow/desktop dev",
+    "desktop:pack": "node ./scripts/build/cleanBuildArtifacts.mjs && pnpm --filter @markflow/editor build && pnpm --filter @markflow/desktop build && pnpm --filter @markflow/desktop exec electron-builder --config electron-builder.yml --mac zip && node ./scripts/build/prunePackArtifacts.mjs",
     "harness:start": "node ./scripts/harness/start-session.mjs",
     "harness:next": "node ./scripts/harness/next-feature.mjs",
     "harness:verify": "node ./scripts/harness/verify.mjs",

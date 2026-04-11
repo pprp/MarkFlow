@@ -26,4 +26,13 @@ describe('external link handling', () => {
     expect(openExternal).toHaveBeenCalledWith('https://example.com')
     expect(result).toEqual({ action: 'deny' })
   })
+
+  it('denies app-local window.open calls without handing them to the system browser', () => {
+    const openExternal = vi.fn()
+
+    const result = createWindowOpenHandler(openExternal)({ url: 'file:///tmp/notes.md' })
+
+    expect(openExternal).not.toHaveBeenCalled()
+    expect(result).toEqual({ action: 'deny' })
+  })
 })

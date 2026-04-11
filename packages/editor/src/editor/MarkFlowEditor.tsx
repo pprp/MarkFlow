@@ -16,6 +16,7 @@ import type { ViewMode } from '@markflow/shared'
 import { wysiwygDecorations } from './decorations/inlineDecorations'
 import { codeBlockDecorations } from './decorations/codeBlockDecoration'
 import { blockquoteDecorations } from './decorations/blockquoteDecoration'
+import { footnoteDecorations } from './decorations/footnoteDecoration'
 import { fileUrlToPath, isMarkdownFilePath, linkDecorations, resolveLinkHref } from './decorations/linkDecoration'
 import { yamlFrontMatterDecorations } from './decorations/yamlFrontMatter'
 import { listDecorations } from './decorations/listDecoration'
@@ -24,12 +25,15 @@ import { mermaidDecorations } from './decorations/mermaidDecoration'
 import { smartInput } from './extensions/smartInput'
 import { focusModeExtension, typewriterModeExtension } from './extensions/focusMode'
 import { smartTypographyExtension } from './extensions/smartTypography'
+import { findHeadingAnchorPosition } from './outline'
 import { FloatingToolbar } from '../components/FloatingToolbar'
 
 export interface MarkFlowEditorProps {
   content: string
   viewMode: ViewMode
   onChange?: (content: string) => void
+  onCursorPositionChange?: (position: number) => void
+  onNavigationHandled?: () => void
   onOpenPath?: (filePath: string) => void | Promise<unknown>
   onToggleMode?: () => void
   onSelectionChange?: (selectedText: string) => void
@@ -38,6 +42,7 @@ export interface MarkFlowEditorProps {
   focusMode?: boolean
   typewriterMode?: boolean
   filePath?: string
+  navigationRequest?: { key: number; position: number } | null
 }
 
 const baseTheme = EditorView.theme({
@@ -54,6 +59,7 @@ function getWysiwygExtensions(filePath?: string) {
     wysiwygDecorations(),
     codeBlockDecorations(),
     blockquoteDecorations(),
+    footnoteDecorations(),
     linkDecorations(filePath),
     listDecorations(),
     mathDecorations(),
@@ -71,57 +77,12 @@ function findRenderedLink(target: EventTarget | null) {
   return link instanceof HTMLAnchorElement ? link : null
 }
 
-function normalizeHeadingAnchor(value: string) {
-  return value
-    .trim()
-    .toLowerCase()
-    .normalize('NFKD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/[^\p{Letter}\p{Number}\s-]/gu, '')
-    .trim()
-    .replace(/\s+/g, '-')
-}
-
-function findHeadingAnchorPosition(view: EditorView, href: string) {
-  if (!href.startsWith('#')) {
-    return null
-  }
-
-  const targetAnchor = normalizeHeadingAnchor(decodeURIComponent(href.slice(1)))
-  if (!targetAnchor) {
-    return null
-  }
-
-  const seenAnchors = new Map<string, number>()
-
-  for (let lineNumber = 1; lineNumber <= view.state.doc.lines; lineNumber += 1) {
-    const line = view.state.doc.line(lineNumber)
-    const match = line.text.match(/^#{1,6}\s+(.+?)\s*#*\s*$/)
-    if (!match) {
-      continue
-    }
-
-    const baseAnchor = normalizeHeadingAnchor(match[1])
-    if (!baseAnchor) {
-      continue
-    }
-
-    const nextIndex = seenAnchors.get(baseAnchor) ?? 0
-    seenAnchors.set(baseAnchor, nextIndex + 1)
-
-    const anchor = nextIndex === 0 ? baseAnchor : `${baseAnchor}-${nextIndex}`
-    if (anchor === targetAnchor) {
-      return line.from
-    }
-  }
-
-  return null
-}
-
 export function MarkFlowEditor({
   content,
   viewMode,
   onChange,
+  onCursorPositionChange,
+  onNavigationHandled,
   onOpenPath,
   onToggleMode,
   onSelectionChange,
@@ -130,10 +91,13 @@ export function MarkFlowEditor({
   focusMode = false,
   typewriterMode = false,
   filePath,
+  navigationRequest,
 }: MarkFlowEditorProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const viewRef = useRef<EditorView | null>(null)
   const onChangeRef = useRef(onChange)
+  const onCursorPositionChangeRef = useRef(onCursorPositionChange)
+  const onNavigationHandledRef = useRef(onNavigationHandled)
   const onOpenPathRef = useRef(onOpenPath)
   const onToggleModeRef = useRef(onToggleMode)
   const onSelectionChangeRef = useRef(onSelectionChange)
@@ -148,6 +112,14 @@ export function MarkFlowEditor({
   useEffect(() => {
     onChangeRef.current = onChange
   }, [onChange])
+
+  useEffect(() => {
+    onCursorPositionChangeRef.current = onCursorPositionChange
+  }, [onCursorPositionChange])
+
+  useEffect(() => {
+    onNavigationHandledRef.current = onNavigationHandled
+  }, [onNavigationHandled])
 
   useEffect(() => {
     onOpenPathRef.current = onOpenPath
@@ -228,9 +200,12 @@ export function MarkFlowEditor({
             onChangeRef.current?.(update.state.doc.toString())
           }
           if (update.selectionSet || update.docChanged) {
-            const sel = update.state.selection.main
-            const selectedText = sel.empty ? '' : update.state.doc.sliceString(sel.from, sel.to)
+            const selection = update.state.selection.main
+            const selectedText = selection.empty
+              ? ''
+              : update.state.doc.sliceString(selection.from, selection.to)
             onSelectionChangeRef.current?.(selectedText)
+            onCursorPositionChangeRef.current?.(selection.head)
           }
         }),
         viewModeCompartmentRef.current.of(viewMode === 'wysiwyg' ? getWysiwygExtensions(filePath) : []),
@@ -259,7 +234,7 @@ export function MarkFlowEditor({
       event.stopPropagation()
 
       const href = resolveLinkHref(rawHref, filePathRef.current)
-      const headingPosition = findHeadingAnchorPosition(view, href)
+      const headingPosition = findHeadingAnchorPosition(view.state.doc.toString(), href)
       if (headingPosition !== null) {
         view.dispatch({
           selection: EditorSelection.cursor(headingPosition),
@@ -282,6 +257,7 @@ export function MarkFlowEditor({
 
     viewRef.current = view
     setEditorView(view)
+    onCursorPositionChangeRef.current?.(view.state.selection.main.head)
 
     return () => {
       view.dom.removeEventListener('click', handleClick)
@@ -337,6 +313,18 @@ export function MarkFlowEditor({
       annotations: Transaction.addToHistory.of(false),
     })
   }, [content])
+
+  useEffect(() => {
+    const view = viewRef.current
+    if (!view || !navigationRequest) return
+
+    view.dispatch({
+      selection: EditorSelection.cursor(navigationRequest.position),
+      effects: EditorView.scrollIntoView(navigationRequest.position, { y: 'start' }),
+    })
+    view.focus()
+    onNavigationHandledRef.current?.()
+  }, [navigationRequest])
 
   return (
     <div style={{ position: 'relative', height: '100%' }}>

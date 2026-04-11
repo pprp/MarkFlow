@@ -1,0 +1,99 @@
+.mf-quick-open-overlay {
+  position: absolute;
+  top: 10%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 450px;
+  max-width: 90vw;
+  background-color: var(--mf-bg);
+  border: 1px solid var(--mf-border);
+  border-radius: 8px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.2);
+  z-index: 2000;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  font-family: var(--mf-font-sans);
+}
+
+.mf-quick-open-input-container {
+  padding: 12px;
+  border-bottom: 1px solid var(--mf-border);
+}
+
+.mf-quick-open-input {
+  width: 100%;
+  padding: 8px 12px;
+  font-size: 14px;
+  border: 1px solid var(--mf-border);
+  border-radius: 4px;
+  background-color: var(--mf-bg);
+  color: var(--mf-text);
+  box-sizing: border-box;
+}
+
+.mf-quick-open-input:focus {
+  outline: none;
+  border-color: var(--mf-accent, #3b82f6);
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+}
+
+.mf-quick-open-list {
+  max-height: 350px;
+  overflow-y: auto;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.mf-quick-open-item {
+  padding: 8px 12px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  border-left: 3px solid transparent;
+}
+
+.mf-quick-open-item:hover {
+  background-color: var(--mf-bg-hover, rgba(0, 0, 0, 0.05));
+}
+
+.mf-quick-open-item.is-selected {
+  background-color: var(--mf-bg-selected, rgba(59, 130, 246, 0.1));
+  border-left-color: var(--mf-accent, #3b82f6);
+}
+
+.mf-quick-open-item-label {
+  font-weight: 500;
+  font-size: 14px;
+  color: var(--mf-text);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.mf-quick-open-item-recent-badge {
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 10px;
+  background-color: var(--mf-bg-alt, #f3f4f6);
+  color: var(--mf-text-muted, #6b7280);
+}
+
+.mf-quick-open-item-desc {
+  font-size: 12px;
+  color: var(--mf-text-muted, #6b7280);
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  direction: rtl;
+  text-align: left;
+}
+
+.mf-quick-open-empty {
+  padding: 24px;
+  text-align: center;
+  color: var(--mf-text-muted, #6b7280);
+  font-size: 14px;
+}

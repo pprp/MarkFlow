@@ -31,6 +31,14 @@ function getMermaid() {
 const svgCache = new Map<string, string>()
 let renderSerial = 0
 
+function formatMermaidError(error: unknown) {
+  if (error instanceof Error && error.message.trim()) {
+    return `Invalid Mermaid syntax: ${error.message.trim()}`
+  }
+
+  return 'Invalid Mermaid syntax. Switch to Source mode to edit this block.'
+}
+
 // ── Widget ────────────────────────────────────────────────────────────────────
 
 export class MermaidWidget extends WidgetType {
@@ -68,9 +76,11 @@ export class MermaidWidget extends WidgetType {
         // Tell CodeMirror the widget height changed so it can re-measure layout.
         view.requestMeasure()
       })
-      .catch(() => {
-        container.innerHTML =
-          '<div class="mf-mermaid-error">⚠ Invalid diagram syntax</div>'
+      .catch((error) => {
+        const errorBox = document.createElement('div')
+        errorBox.className = 'mf-mermaid-error'
+        errorBox.textContent = formatMermaidError(error)
+        container.replaceChildren(errorBox)
         view.requestMeasure()
       })
 
@@ -87,7 +97,6 @@ export class MermaidWidget extends WidgetType {
 export function buildMermaidDecorations(view: EditorView): DecorationSet {
   const builder = new RangeSetBuilder<Decoration>()
   const doc = view.state.doc
-  const cursor = view.state.selection.main.head
 
   syntaxTree(view.state).iterate({
     enter(node) {
@@ -106,10 +115,6 @@ export function buildMermaidDecorations(view: EditorView): DecorationSet {
       const textNode = node.node.getChild('CodeText')
       if (!textNode) return
       const source = doc.sliceString(textNode.from, textNode.to)
-
-      // When cursor is inside, show raw source (standard code-block behaviour).
-      const cursorInside = cursor >= from && cursor <= to
-      if (cursorInside) return
 
       const firstLine = doc.lineAt(from)
       const lastLine = doc.lineAt(to)

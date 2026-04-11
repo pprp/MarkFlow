@@ -497,9 +497,9 @@
       "category": "phase-2-functional",
       "area": "@markflow/editor",
       "priority": 2,
-      "status": "planned",
-      "passes": false,
-      "lastVerifiedAt": null,
+      "status": "verified",
+      "passes": true,
+      "lastVerifiedAt": "2026-04-11",
       "dependsOn": [],
       "steps": [
         "Open a document with nested headings from multiple levels.",
@@ -508,13 +508,13 @@
       ],
       "verification": {
         "automated": [
-          "Add heading-outline derivation tests and renderer interaction coverage for outline navigation."
+          "pnpm --filter @markflow/editor test:run -- src/editor/__tests__/outline.test.ts src/__tests__/App.test.tsx"
         ],
         "manual": [
-          "Verify long documents remain navigable when headings are added, renamed, or reordered."
+          "Optional interactive pass: open a long document and confirm the panel scroll feel remains comfortable after repeated heading edits."
         ]
       },
-      "notes": "Typora positions outline as a long-document navigation aid for writers. Sources: https://support.typora.io/Outline/ and https://support.typora.io/Quick-Start/."
+      "notes": "Implemented with parser-backed heading derivation in `packages/editor/src/editor/outline.ts`, a right-hand outline panel in `packages/editor/src/App.tsx`, and navigation/highlight coverage in `src/editor/__tests__/outline.test.ts` plus `src/__tests__/App.test.tsx`, including duplicate-anchor handling, fenced-code exclusion, and live rename/reorder sync. Sources: https://support.typora.io/Outline/ and https://support.typora.io/Quick-Start/."
     },
     {
       "id": "MF-021",
@@ -547,24 +547,27 @@
       "category": "phase-2-functional",
       "area": "@markflow/editor",
       "priority": 2,
-      "status": "planned",
-      "passes": false,
-      "lastVerifiedAt": null,
+      "status": "verified",
+      "passes": true,
+      "lastVerifiedAt": "2026-04-11",
       "dependsOn": [],
       "steps": [
         "Open markdown containing inline footnote references and matching footnote definitions.",
         "Render the document in WYSIWYG mode and confirm references appear as superscripts or equivalent footnote markers.",
-        "Reveal and edit the footnote content, then confirm the underlying markdown references and definitions stay intact."
+        "Hover or otherwise reveal the referenced footnote content, edit the note text, and confirm the underlying markdown references and definitions stay intact."
       ],
       "verification": {
         "automated": [
-          "Add footnote parsing and editor interaction tests covering reference-definition round trips."
+          "pnpm --filter @markflow/editor test:run -- src/editor/__tests__/footnoteDecoration.test.tsx src/editor/__tests__/linkDecoration.test.tsx src/editor/__tests__/MarkFlowEditor.test.tsx",
+          "pnpm lint",
+          "pnpm build",
+          "node scripts/harness/verify.mjs"
         ],
         "manual": [
-          "Verify multiple footnotes, repeated references, and missing definitions fail gracefully."
+          "Optional in-app spot-check: verify multi-paragraph footnotes and long hover-preview text remain readable while the raw `[^label]: ...` definitions stay editable."
         ]
       },
-      "notes": "Useful for academics and long-form technical writing. Typora sources: https://support.typora.io/Markdown-Reference/ and https://typora.io/."
+      "notes": "Implemented with `packages/editor/src/editor/decorations/footnoteDecoration.ts`, which renders `[^label]` references as superscript markers, derives hover-preview text from matching `[^label]: ...` definitions, and keeps raw markdown visible whenever the caret enters the reference or definition. `packages/editor/src/editor/decorations/linkDecoration.ts` now skips footnote-shaped `Link` nodes so definitions are not misclassified as regular links, and `packages/editor/src/editor/__tests__/footnoteDecoration.test.tsx` covers caret reveal, repeated references, definition-edit round trips, missing definitions, and code/non-footnote false-positive avoidance. Sources: https://support.typora.io/media/export/Markdown-Reference.pdf and https://typora.io/."
     },
     {
       "id": "MF-023",
@@ -632,13 +635,13 @@
       ],
       "verification": {
         "automated": [
-          "Add parser and view-mode tests covering YAML front matter round trips."
+          "pnpm --filter @markflow/editor test:run -- src/editor/__tests__/yamlFrontMatter.test.ts"
         ],
         "manual": [
-          "Verify metadata keys commonly used by writers, including image-related keys, remain unchanged after editing."
+          "Optional manual spot-check: edit `title`, `tags`, `typora-root-url`, and `typora-copy-images-to` keys while switching modes, and confirm the YAML block remains unchanged."
         ]
       },
-      "notes": "Typora documents YAML front matter and uses metadata keys such as image root/copy settings in writer workflows, but MarkFlow has no implementation or ledger coverage for metadata-aware editing yet. Sources: https://support.typora.io/Markdown-Reference/ and https://support.typora.io/Images/."
+      "notes": "Implemented in `packages/editor/src/editor/decorations/yamlFrontMatter.ts` and covered by `packages/editor/src/editor/__tests__/yamlFrontMatter.test.ts`, which verifies top-of-file detection, `---` / `...` fences, and document-preserving decorations. The current verified scope is preservation and visual distinction of YAML metadata in the editor; MarkFlow does not yet consume Typora-specific keys such as `typora-root-url` or `typora-copy-images-to` for export or image workflows. Sources: https://support.typora.io/YAML/ and https://support.typora.io/media/export/Markdown-Reference.pdf."
     },
     {
       "id": "MF-026",
@@ -821,28 +824,28 @@
     },
     {
       "id": "MF-033",
-      "title": "Command palette gives keyboard-driven access to all editor commands and recently opened files",
+      "title": "Open Quickly fuzzy-searches files in the current folder and recent locations",
       "category": "phase-2-functional",
       "area": "@markflow/editor",
       "priority": 2,
-      "status": "planned",
-      "passes": false,
-      "lastVerifiedAt": null,
+      "status": "verified",
+      "passes": true,
+      "lastVerifiedAt": "2026-04-11T04:00:45.971Z",
       "dependsOn": [],
       "steps": [
-        "Press `Cmd`/`Ctrl`+`P` to open the command palette and confirm it overlays the editor without disrupting the document.",
-        "Type a partial command name and verify the results narrow to matching commands, showing their keyboard shortcuts.",
-        "Select a command or recently opened file from the list and confirm the action executes or the file opens correctly."
+        "Open a markdown file from a folder containing multiple documents, then press `Cmd`+`Shift`+`O` on macOS or `Ctrl`+`P` on Windows/Linux.",
+        "Type part of a filename and confirm the quick-open overlay fuzzy-filters files from the current folder plus recent or pinned locations.",
+        "Select a result with the keyboard and confirm the target file opens without disrupting the current editor session."
       ],
       "verification": {
         "automated": [
-          "Add React component tests for palette open/close state, keyboard navigation (arrow keys, Enter, Escape), fuzzy filtering, and command dispatch."
+          "Add renderer and desktop integration tests for quick-open panel state, keyboard navigation, fuzzy filtering against current-folder and recent-file entries, and file-open dispatch."
         ],
         "manual": [
-          "Open the palette in WYSIWYG mode on a long document and confirm at least 10 commands are discoverable without touching the mouse."
+          "Open a folder with at least 20 markdown files, pin or reopen a few files or folders, and confirm Quick Open can find both current-folder files and recent entries."
         ]
       },
-      "notes": "A command palette (à la VS Code and Obsidian) is the highest-leverage discoverability feature for keyboard-driven power users. It surfaces all commands — including theme switching, mode toggles, export, and future plugin actions — without requiring menu access. Keeps the UI minimal while remaining fully explorable."
+      "notes": "Typora documents `Open Quickly` as filename fuzzy search over the current folder plus recently used or pinned locations, triggered by `Cmd`+`Shift`+`O` on macOS or `Ctrl`+`P` on Windows/Linux. Repo search in MarkFlow currently finds no quick-open overlay, recent-file registry, or folder file index beyond the current-document find/replace flow, so the older generic command-palette framing was too broad for Typora parity. Sources: https://support.typora.io/Search/ and https://support.typora.io/File-Management/."
     },
     {
       "id": "MF-034",
@@ -869,7 +872,7 @@
           "Visually confirm each callout type renders a distinct icon and accent color, and that switching between types updates the rendered widget without breaking the markdown."
         ]
       },
-      "notes": "GitHub Flavored Markdown (GFM) callouts (`> [!NOTE]` et al.) and Obsidian-style admonitions are now common in READMEs and technical documentation. Implementing callout detection as a specialization of the existing blockquote ViewPlugin in `blockquoteDecoration.ts` keeps complexity low while dramatically improving document expressiveness for MarkFlow's target technical-writer audience."
+      "notes": "Typora added GitHub-style alert/callout rendering in Typora 1.8 and its Markdown Reference now lists the same five blockquote forms (`NOTE`, `TIP`, `IMPORTANT`, `WARNING`, `CAUTION`). MarkFlow currently styles generic blockquotes and horizontal rules only, so this remains a real parity gap that can be implemented as a specialization of the existing `blockquoteDecoration.ts` path. Sources: https://support.typora.io/What%27s-New-1.8/ and https://support.typora.io/Markdown-Reference/."
     },
     {
       "id": "MF-035",
@@ -963,7 +966,7 @@
       "lastVerifiedAt": null,
       "dependsOn": [],
       "steps": [
-        "Insert raw HTML blocks (`<details>`, `<summary>`, `<span style='...'>`\u202f) into a markdown document.",
+        "Insert raw HTML blocks (`<details>`, `<summary>`, `<span style='...'>` ) into a markdown document.",
         "Render in WYSIWYG mode and confirm the HTML is parsed and rendered rather than escaped as literal text.",
         "Edit the raw HTML source and confirm the rendered output updates and the surrounding markdown is unaffected."
       ],
@@ -1055,7 +1058,7 @@
           "Open a folder with at least 20 markdown files, verify the tree is navigable, and confirm sidebar file operations match the OS filesystem."
         ]
       },
-      "notes": "A vault/folder sidebar is the natural companion to wikilinks (MF-040) and transitions MarkFlow from a single-file editor to a light knowledge-base tool — directly competitive with Obsidian and Typora's folder mode. The desktop `chokidar` dependency already present in `package.json` can watch the vault for changes and keep the sidebar tree live."
+      "notes": "Typora's current file-management docs describe a broader folder surface including File Tree and File List views, open/switch folder, refresh, sorting, move via drag and drop, recent locations, and pinned folders. MF-041 intentionally tracks the minimum parity slice MarkFlow still lacks before those extensions: loading a folder, browsing it in a sidebar, and performing basic open/rename/delete actions. Repo search still shows no folder sidebar or recent-location infrastructure beyond the current single-document shell. Sources: https://support.typora.io/File-Management/ and https://support.typora.io/Quick-Start/."
     },
     {
       "id": "MF-042",
@@ -1108,6 +1111,60 @@
         ]
       },
       "notes": "MarkFlow's current WYSIWYG mode still reveals raw syntax when the caret is inside a decorated range. Reading mode removes the caret entirely and applies all decorations unconditionally, giving users a clean finished-document view for proofreading and sharing. This is the third point in the source ↔ WYSIWYG ↔ reading triad that Typora expresses as its signature UX."
+    },
+    {
+      "id": "MF-044",
+      "title": "Highlight spans (`==text==`) render inline without mutating source",
+      "category": "phase-2-functional",
+      "area": "@markflow/editor",
+      "priority": 2,
+      "status": "verified",
+      "passes": true,
+      "lastVerifiedAt": "2026-04-11",
+      "dependsOn": [
+        "MF-002"
+      ],
+      "steps": [
+        "Write inline highlight markup such as `==important==` in a WYSIWYG document.",
+        "Move the caret away from the span and confirm the delimiter markers hide while the text renders with highlight styling.",
+        "Move the caret back into the span and confirm the raw `==` delimiters reappear for editing without corrupting the underlying markdown."
+      ],
+      "verification": {
+        "automated": [
+          "pnpm --filter @markflow/editor test:run -- src/editor/__tests__/inlineDecorations.test.tsx"
+        ],
+        "manual": [
+          "Optional in-app spot-check: write several highlighted phrases adjacent to bold or italic spans and confirm neighboring inline syntax remains editable and visually distinct."
+        ]
+      },
+      "notes": "Implemented in `packages/editor/src/editor/decorations/inlineDecorations.ts` as a document-preserving inline decoration pass that hides `==` delimiters outside the caret, restores raw source when the caret enters the span, and skips inline/fenced code ranges. Automated coverage in `packages/editor/src/editor/__tests__/inlineDecorations.test.tsx` verifies delimiter hiding, caret reveal, code-context exclusion, compatibility with neighboring bold/italic spans, and markdown round trips. Source: https://support.typora.io/Markdown-Reference/."
+    },
+    {
+      "id": "MF-045",
+      "title": "Global search queries content across files in the opened folder and jumps to exact matches",
+      "category": "phase-2-functional",
+      "area": "@markflow/desktop",
+      "priority": 3,
+      "status": "planned",
+      "passes": false,
+      "lastVerifiedAt": null,
+      "dependsOn": [
+        "MF-041"
+      ],
+      "steps": [
+        "Open a folder containing multiple markdown files and invoke global search from the sidebar or with `Cmd`/`Ctrl`+`Shift`+`F`.",
+        "Search for a phrase, regex, or `#tag`-style token and confirm matching files plus snippet locations appear across the folder.",
+        "Select a result and confirm MarkFlow opens the correct file, scrolls to the match, and highlights the selected occurrence."
+      ],
+      "verification": {
+        "automated": [
+          "Add desktop and renderer integration tests for folder indexing, cross-file search filters (case, whole-word, regex), and result navigation into the correct file and text range."
+        ],
+        "manual": [
+          "Open a folder with matches in several files, run global search from the sidebar, and confirm selecting results jumps to the right file and text range."
+        ]
+      },
+      "notes": "Typora's Search and File Management docs describe sidebar-backed global search across files, including case-sensitive, whole-word, and regex toggles, plus literal `#tag` discovery across the opened folder. MarkFlow currently only ships current-document find/replace under MF-028; repo search shows no folder index, sidebar search UI, or cross-file result navigation, so this is a genuinely missing Typora capability. Sources: https://support.typora.io/Search/ and https://support.typora.io/File-Management/."
     }
   ]
 }

@@ -1,70 +1,118 @@
 /* ============================================================
-   MarkFlow — Typora-inspired design system
-   Light-mode first, neutral palette, clean typography
+   MarkFlow — Apple Design Language System
+   SF Pro fonts, system colors, vibrancy, HIG spacing
    ============================================================ */
 
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap');
+
 :root {
-  /* Backgrounds */
-  --mf-bg:              #ffffff;
-  --mf-bg-secondary:    #f8f8f8;
-  --mf-bg-code:         #f5f5f5;
+  /* ── Apple System Backgrounds ───────────────────────────────── */
+  --mf-bg:              #FFFFFF;                      /* systemBackground */
+  --mf-bg-secondary:    #F2F2F7;                      /* secondarySystemBackground */
+  --mf-bg-tertiary:     #FFFFFF;                      /* tertiarySystemBackground */
+  --mf-bg-code:         #F6F6F9;                      /* elevated code surface */
 
-  /* Typography */
-  --mf-fg:              #333333;
-  --mf-fg-muted:        #6e6e6e;
-  --mf-heading-color:   #1a1a1a;
+  /* ── Apple System Labels ────────────────────────────────────── */
+  --mf-fg:              #000000;                      /* label */
+  --mf-fg-secondary:    rgba(60, 60, 67, 0.60);      /* secondaryLabel */
+  --mf-fg-muted:        rgba(60, 60, 67, 0.42);      /* tertiaryLabel */
+  --mf-heading-color:   #000000;
 
-  /* Borders & dividers */
-  --mf-border:          #e4e4e4;
-  --mf-border-light:    #efefef;
-  --mf-hr-color:        #e0e0e0;
+  /* ── Apple System Fills ─────────────────────────────────────── */
+  --mf-fill:            rgba(120, 120, 128, 0.12);   /* systemFill */
+  --mf-fill-secondary:  rgba(120, 120, 128, 0.08);   /* secondarySystemFill */
+  --mf-fill-tertiary:   rgba(120, 120, 128, 0.05);   /* tertiarySystemFill */
 
-  /* Accent — calm blue, not saturated */
-  --mf-accent:          #4a90d9;
-  --mf-accent-hover:    #2f7ac4;
+  /* ── Apple Separators ───────────────────────────────────────── */
+  --mf-border:          rgba(60, 60, 67, 0.18);      /* separator */
+  --mf-border-light:    rgba(60, 60, 67, 0.10);      /* opaque separator */
+  --mf-hr-color:        rgba(60, 60, 67, 0.14);
 
-  /* Semantic */
-  --mf-link-color:      #4a90d9;
-  --mf-code-fg:         #c7254e;
-  --mf-blockquote-border: #dde0e3;
-  --mf-blockquote-fg:   #888888;
-  --mf-selection:       #d0e8ff;
+  /* ── Apple System Blue (accent) ─────────────────────────────── */
+  --mf-accent:          #007AFF;                      /* systemBlue */
+  --mf-accent-hover:    #0066D6;
+  --mf-accent-light:    rgba(0, 122, 255, 0.10);
+  --mf-accent-pressed:  rgba(0, 122, 255, 0.18);
 
-  /* Fonts */
-  --mf-font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'PingFang SC',
-                  'Hiragino Sans GB', 'Microsoft YaHei', 'Segoe UI', sans-serif;
-  --mf-font-mono: 'JetBrains Mono', 'SF Mono', Menlo, Consolas, 'Courier New', monospace;
+  /* ── Semantic colors ────────────────────────────────────────── */
+  --mf-link-color:      #007AFF;
+  --mf-code-fg:         #C73649;                      /* Apple system red tint */
+  --mf-blockquote-border: rgba(60, 60, 67, 0.18);
+  --mf-blockquote-fg:   rgba(60, 60, 67, 0.52);
+  --mf-selection:       rgba(0, 122, 255, 0.13);
+
+  /* ── Fonts — SF Pro system stack first ──────────────────────── */
+  --mf-font-sans: -apple-system, "SF Pro Text", BlinkMacSystemFont,
+                  'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei',
+                  'Segoe UI', sans-serif;
+  --mf-font-display: -apple-system, "SF Pro Display", BlinkMacSystemFont, sans-serif;
+  --mf-font-mono: "SF Mono", "JetBrains Mono", Menlo, Consolas, 'Courier New', monospace;
   --mf-font-size:       15px;
-  --mf-line-height:     1.8;
+  --mf-line-height:     1.72;
 
-  /* Layout */
-  --mf-content-width:   740px;
-  --mf-content-padding: 2.5rem;
+  /* ── Layout ─────────────────────────────────────────────────── */
+  --mf-content-width:   720px;
+  --mf-content-padding: 3rem;
+
+  /* ── Radii ──────────────────────────────────────────────────── */
+  --mf-radius-xs:       3px;
+  --mf-radius-sm:       5px;
+  --mf-radius:          7px;
+  --mf-radius-lg:       10px;
+  --mf-radius-xl:       14px;
+
+  /* ── Shadows ─────────────────────────────────────────────────── */
+  --mf-shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --mf-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+  --mf-shadow:    0 4px 16px rgba(0, 0, 0, 0.08), 0 1px 4px rgba(0, 0, 0, 0.04);
+  --mf-shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.06);
+
+  /* ── Transitions ────────────────────────────────────────────── */
+  --mf-transition-fast: 0.10s ease;
+  --mf-transition:      0.15s ease;
 }
 
-/* ── Dark mode ─────────────────────────────────────────────── */
+/* ── Dark mode ──────────────────────────────────────────────── */
 @media (prefers-color-scheme: dark) {
   :root {
-    --mf-bg:              #1e1e1e;
-    --mf-bg-secondary:    #262626;
-    --mf-bg-code:         #2a2a2a;
+    /* Apple Dark System Backgrounds */
+    --mf-bg:              #1C1C1E;                    /* systemBackground dark */
+    --mf-bg-secondary:    #2C2C2E;                    /* secondarySystemBackground dark */
+    --mf-bg-tertiary:     #3A3A3C;                    /* tertiarySystemBackground dark */
+    --mf-bg-code:         #252527;
 
-    --mf-fg:              #cccccc;
-    --mf-fg-muted:        #888888;
-    --mf-heading-color:   #e8e8e8;
+    /* Apple Dark Labels */
+    --mf-fg:              #FFFFFF;
+    --mf-fg-secondary:    rgba(235, 235, 245, 0.60);
+    --mf-fg-muted:        rgba(235, 235, 245, 0.38);
+    --mf-heading-color:   #FFFFFF;
 
-    --mf-border:          #383838;
-    --mf-border-light:    #2e2e2e;
-    --mf-hr-color:        #404040;
+    /* Apple Dark Fills */
+    --mf-fill:            rgba(120, 120, 128, 0.36);
+    --mf-fill-secondary:  rgba(120, 120, 128, 0.22);
+    --mf-fill-tertiary:   rgba(120, 120, 128, 0.14);
 
-    --mf-accent:          #569cd6;
-    --mf-accent-hover:    #79b8f3;
+    /* Apple Dark Separators */
+    --mf-border:          rgba(84, 84, 88, 0.60);
+    --mf-border-light:    rgba(84, 84, 88, 0.32);
+    --mf-hr-color:        rgba(84, 84, 88, 0.48);
 
-    --mf-link-color:      #6cafea;
-    --mf-code-fg:         #f48771;
-    --mf-blockquote-border: #444444;
-    --mf-blockquote-fg:   #888888;
-    --mf-selection:       #264f78;
+    /* Apple System Blue dark */
+    --mf-accent:          #0A84FF;
+    --mf-accent-hover:    #409CFF;
+    --mf-accent-light:    rgba(10, 132, 255, 0.14);
+    --mf-accent-pressed:  rgba(10, 132, 255, 0.22);
+
+    --mf-link-color:      #0A84FF;
+    --mf-code-fg:         #FF6B75;
+    --mf-blockquote-border: rgba(84, 84, 88, 0.60);
+    --mf-blockquote-fg:   rgba(235, 235, 245, 0.42);
+    --mf-selection:       rgba(10, 132, 255, 0.22);
+
+    --mf-shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.20);
+    --mf-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.28), 0 1px 2px rgba(0, 0, 0, 0.18);
+    --mf-shadow:    0 4px 16px rgba(0, 0, 0, 0.40), 0 1px 4px rgba(0, 0, 0, 0.22);
+    --mf-shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.55), 0 2px 8px rgba(0, 0, 0, 0.30);
   }
 }
 
@@ -92,6 +140,43 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
+  font-feature-settings: "kern" 1, "liga" 1, "calt" 1;
+}
+
+/* ── Scrollbars — macOS thin overlay style ──────────────────── */
+::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.18);
+  border-radius: 4px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.30);
+  background-clip: content-box;
+  border: 2px solid transparent;
+}
+
+@media (prefers-color-scheme: dark) {
+  ::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.18);
+    background-clip: content-box;
+    border: 2px solid transparent;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.30);
+    background-clip: content-box;
+    border: 2px solid transparent;
+  }
 }
 
 /* ── App shell ──────────────────────────────────────────────── */
@@ -102,20 +187,28 @@ body {
   background: var(--mf-bg);
 }
 
-/* ── Titlebar ───────────────────────────────────────────────── */
+/* ── Titlebar — macOS vibrancy style ────────────────────────── */
 .mf-titlebar {
   display: grid;
   grid-template-columns: 80px 1fr 1fr 1fr;
   align-items: center;
-  height: 40px;
-  padding: 0 14px 0 0;
-  /* blends into editor background — no separate chrome */
-  background: var(--mf-bg);
+  height: 44px;
+  padding: 0 12px 0 0;
+  /* macOS vibrancy — frosted glass effect */
+  background: rgba(255, 255, 255, 0.82);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
   border-bottom: 1px solid var(--mf-border-light);
   user-select: none;
   -webkit-app-region: drag;
   position: relative;
   flex-shrink: 0;
+}
+
+@media (prefers-color-scheme: dark) {
+  .mf-titlebar {
+    background: rgba(28, 28, 30, 0.82);
+  }
 }
 
 .mf-titlebar-traffic-spacer {
@@ -134,14 +227,14 @@ body {
   color: var(--mf-accent);
   flex-shrink: 0;
   display: block;
-  opacity: 0.85;
+  opacity: 0.90;
 }
 
 .mf-titlebar-appname {
-  font-size: 12.5px;
+  font-size: 12px;
   font-weight: 500;
-  color: var(--mf-fg-muted);
-  letter-spacing: 0.01em;
+  color: var(--mf-fg-secondary);
+  letter-spacing: -0.01em;
   white-space: nowrap;
 }
 
@@ -150,84 +243,156 @@ body {
   align-items: center;
   justify-content: center;
   min-width: 0;
+  gap: 5px;
+}
+
+.mf-titlebar-dirty-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--mf-fg-muted);
+  flex-shrink: 0;
+  opacity: 0.7;
 }
 
 .mf-titlebar-document {
-  max-width: min(40vw, 28rem);
+  max-width: min(38vw, 26rem);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 12.5px;
-  font-weight: 400;
-  color: var(--mf-fg-muted);
-  letter-spacing: 0.005em;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--mf-fg-secondary);
+  letter-spacing: -0.01em;
 }
 
 .mf-titlebar-right {
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 8px;
+  gap: 4px;
 }
 
+/* ── Theme picker ───────────────────────────────────────────── */
 .mf-theme-select {
   -webkit-app-region: no-drag;
-  min-width: 112px;
-  padding: 4px 28px 4px 10px;
-  font-size: 11px;
-  font-weight: 500;
+  appearance: none;
+  -webkit-appearance: none;
+  height: 24px;
+  padding: 0 22px 0 9px;
+  font-size: 11.5px;
+  font-weight: 400;
   font-family: var(--mf-font-sans);
-  color: var(--mf-fg-muted);
-  background: var(--mf-bg-secondary);
-  border: 1px solid var(--mf-border);
-  border-radius: 4px;
-  cursor: pointer;
+  color: var(--mf-fg-secondary);
+  background: var(--mf-fill-secondary)
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%238E8E93' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")
+    no-repeat right 8px center;
+  border: 1px solid var(--mf-border-light);
+  border-radius: var(--mf-radius-sm);
+  cursor: default;
+  letter-spacing: -0.01em;
+  transition: background-color var(--mf-transition-fast), border-color var(--mf-transition-fast);
 }
 
 .mf-theme-select:hover {
-  color: var(--mf-accent);
-  border-color: var(--mf-accent);
+  background-color: var(--mf-fill);
+  border-color: var(--mf-border);
 }
 
-/* ── Mode toggle button ─────────────────────────────────────── */
+/* ── Toolbar icon button (Focus, Typewriter) ────────────────── */
 .mf-mode-toggle {
   -webkit-app-region: no-drag;
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 4px;
-  padding: 3px 9px;
-  font-size: 11px;
-  font-weight: 500;
+  height: 24px;
+  padding: 0 9px;
+  font-size: 11.5px;
+  font-weight: 400;
   font-family: var(--mf-font-sans);
-  color: var(--mf-fg-muted);
+  color: var(--mf-fg-secondary);
   background: transparent;
-  border: 1px solid var(--mf-border);
-  border-radius: 4px;
-  cursor: pointer;
-  transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
-  letter-spacing: 0.02em;
+  border: none;
+  border-radius: var(--mf-radius-sm);
+  cursor: default;
+  transition: background var(--mf-transition-fast), color var(--mf-transition-fast);
+  letter-spacing: -0.01em;
+  white-space: nowrap;
 }
 
 .mf-mode-toggle:hover {
-  color: var(--mf-accent);
-  border-color: var(--mf-accent);
-  background: color-mix(in srgb, var(--mf-accent) 6%, transparent);
+  background: var(--mf-fill-secondary);
+  color: var(--mf-fg);
 }
 
 .mf-mode-toggle:active {
-  background: color-mix(in srgb, var(--mf-accent) 12%, transparent);
+  background: var(--mf-fill);
 }
 
 .mf-mode-active {
   color: var(--mf-accent);
-  border-color: var(--mf-accent);
-  background: color-mix(in srgb, var(--mf-accent) 8%, transparent);
+  background: var(--mf-accent-light);
+}
+
+.mf-mode-active:hover {
+  background: var(--mf-accent-light);
+  color: var(--mf-accent);
+}
+
+/* ── Segmented control — view mode toggle ───────────────────── */
+.mf-segment-control {
+  -webkit-app-region: no-drag;
+  display: inline-flex;
+  align-items: center;
+  height: 24px;
+  background: var(--mf-fill-secondary);
+  border-radius: var(--mf-radius-sm);
+  padding: 2px;
+  gap: 1px;
+}
+
+.mf-segment-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 20px;
+  padding: 0 8px;
+  font-size: 11px;
+  font-weight: 400;
+  font-family: var(--mf-font-sans);
+  color: var(--mf-fg-secondary);
+  background: transparent;
+  border: none;
+  border-radius: var(--mf-radius-xs);
+  cursor: default;
+  transition: all var(--mf-transition-fast);
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+}
+
+.mf-segment-btn:hover:not(.mf-segment-active) {
+  color: var(--mf-fg);
+  background: var(--mf-fill-secondary);
+}
+
+.mf-segment-active {
+  color: var(--mf-fg);
+  background: var(--mf-bg);
+  box-shadow: var(--mf-shadow-xs);
+  font-weight: 500;
+}
+
+@media (prefers-color-scheme: dark) {
+  .mf-segment-active {
+    background: var(--mf-bg-tertiary);
+  }
 }
 
 /* ── Focus mode ─────────────────────────────────────────────── */
 .cm-editor.mf-focus-mode .cm-line {
-  opacity: 0.28;
-  transition: opacity 0.18s ease;
+  opacity: 0.24;
+  transition: opacity 0.20s ease;
 }
 
 .cm-editor.mf-focus-mode .cm-line.mf-focus-active {
@@ -238,26 +403,101 @@ body {
 .mf-main {
   flex: 1;
   overflow: hidden;
+  display: flex;
   background: var(--mf-bg);
 }
 
-/* ── Status bar ─────────────────────────────────────────────── */
+.mf-editor-shell {
+  flex: 1;
+  min-width: 0;
+}
+
+/* ── Outline panel — macOS Finder sidebar style ─────────────── */
+.mf-outline-panel {
+  width: 220px;
+  display: flex;
+  flex-direction: column;
+  border-left: 1px solid var(--mf-border-light);
+  background: var(--mf-bg-secondary);
+}
+
+.mf-outline-header {
+  padding: 12px 14px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--mf-fg-muted);
+}
+
+.mf-outline-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 2px 8px 16px;
+  overflow: auto;
+}
+
+.mf-outline-item {
+  width: 100%;
+  padding: 5px 8px;
+  border: none;
+  border-radius: var(--mf-radius-sm);
+  background: transparent;
+  color: var(--mf-fg-secondary);
+  font: inherit;
+  font-size: 12px;
+  font-family: var(--mf-font-sans);
+  line-height: 1.4;
+  text-align: left;
+  cursor: default;
+  transition: background var(--mf-transition-fast), color var(--mf-transition-fast);
+  letter-spacing: -0.01em;
+}
+
+.mf-outline-item:hover {
+  color: var(--mf-fg);
+  background: var(--mf-fill-secondary);
+}
+
+/* macOS sidebar selected state: accent background + white text */
+.mf-outline-item-active {
+  color: #FFFFFF;
+  background: var(--mf-accent);
+}
+
+.mf-outline-item-active:hover {
+  color: #FFFFFF;
+  background: var(--mf-accent-hover);
+}
+
+.mf-outline-item-text {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── Status bar — macOS bottom bar ─────────────────────────── */
 .mf-statusbar {
   display: flex;
   align-items: center;
-  gap: 6px;
-  height: 24px;
-  padding: 0 14px;
+  gap: 5px;
+  height: 22px;
+  padding: 0 16px;
   background: var(--mf-bg-secondary);
   border-top: 1px solid var(--mf-border-light);
   font-size: 11px;
+  font-family: var(--mf-font-sans);
   color: var(--mf-fg-muted);
   user-select: none;
   flex-shrink: 0;
+  letter-spacing: -0.01em;
 }
 
 .mf-statusbar-sep {
-  opacity: 0.4;
+  opacity: 0.35;
+  font-size: 10px;
 }
 
 .mf-statusbar-selection {
@@ -275,7 +515,7 @@ body {
 }
 
 .cm-editor .cm-scroller {
-  padding: 3rem 0 6rem;
+  padding: 3.5rem 0 6rem;
   background: var(--mf-bg);
 }
 
@@ -283,7 +523,7 @@ body {
   max-width: var(--mf-content-width);
   margin: 0 auto;
   padding: 0 var(--mf-content-padding);
-  caret-color: var(--mf-fg);
+  caret-color: var(--mf-accent);
 }
 
 .cm-editor .cm-line {
@@ -303,43 +543,48 @@ body {
   background: var(--mf-selection) !important;
 }
 
+/* Apple-blue caret with smooth blink */
 .cm-editor .cm-cursor {
-  border-left-color: var(--mf-fg);
-  border-left-width: 1.5px;
+  border-left-color: var(--mf-accent);
+  border-left-width: 2px;
+  border-radius: 1px;
 }
 
-/* hide the inner gutters and line numbers if any */
+/* Hide gutters */
 .cm-editor .cm-gutters {
   display: none;
 }
 
-/* ── WYSIWYG heading styles ─────────────────────────────────── */
-/* Headings get a slight bottom border (like GitHub/Typora default) */
+/* ── Heading styles — SF Pro Display weight/tracking ────────── */
 .cm-editor .mf-h1 {
-  font-size: 1.875em;
+  font-family: var(--mf-font-display);
+  font-size: 1.85em;
   font-weight: 700;
   color: var(--mf-heading-color);
-  padding-bottom: 0.25em;
+  padding-bottom: 0.22em;
   border-bottom: 1px solid var(--mf-border-light);
-  line-height: 1.3;
-  letter-spacing: -0.02em;
+  line-height: 1.25;
+  letter-spacing: -0.025em;
 }
 
 .cm-editor .mf-h2 {
-  font-size: 1.4em;
-  font-weight: 600;
+  font-family: var(--mf-font-display);
+  font-size: 1.42em;
+  font-weight: 700;
   color: var(--mf-heading-color);
-  padding-bottom: 0.2em;
+  padding-bottom: 0.18em;
   border-bottom: 1px solid var(--mf-border-light);
-  line-height: 1.35;
-  letter-spacing: -0.01em;
+  line-height: 1.3;
+  letter-spacing: -0.018em;
 }
 
 .cm-editor .mf-h3 {
-  font-size: 1.175em;
+  font-family: var(--mf-font-display);
+  font-size: 1.18em;
   font-weight: 600;
   color: var(--mf-heading-color);
-  line-height: 1.4;
+  line-height: 1.35;
+  letter-spacing: -0.012em;
 }
 
 .cm-editor .mf-h4 {
@@ -347,12 +592,13 @@ body {
   font-weight: 600;
   color: var(--mf-heading-color);
   line-height: 1.4;
+  letter-spacing: -0.008em;
 }
 
 .cm-editor .mf-h5 {
   font-size: 1em;
   font-weight: 600;
-  color: var(--mf-fg-muted);
+  color: var(--mf-fg-secondary);
   line-height: 1.4;
 }
 
@@ -361,6 +607,7 @@ body {
   font-weight: 600;
   color: var(--mf-fg-muted);
   line-height: 1.4;
+  letter-spacing: 0.01em;
 }
 
 /* ── Inline styles ──────────────────────────────────────────── */
@@ -378,36 +625,59 @@ body {
   color: var(--mf-fg-muted);
 }
 
-/* ── Inline code ────────────────────────────────────────────── */
+/* ── Inline code — Apple monospace style ────────────────────── */
 .cm-editor .mf-inline-code {
   font-family: var(--mf-font-mono);
-  font-size: 0.88em;
+  font-size: 0.87em;
   color: var(--mf-code-fg);
-  background: var(--mf-bg-code);
-  padding: 1px 5px;
-  border-radius: 3px;
-  border: 1px solid var(--mf-border);
+  background: var(--mf-fill-secondary);
+  padding: 1px 5px 2px;
+  border-radius: var(--mf-radius-xs);
+  border: 1px solid var(--mf-border-light);
+}
+
+/* ── Highlights ─────────────────────────────────────────────── */
+.cm-editor .mf-highlight {
+  background: color-mix(in srgb, #FFD60A 55%, var(--mf-bg));
+  border-radius: var(--mf-radius-xs);
+  box-shadow: inset 0 -0.06em 0 color-mix(in srgb, #F0A500 48%, transparent);
+  padding: 0 0.08em;
 }
 
 /* ── Links ──────────────────────────────────────────────────── */
 .cm-editor .mf-link {
   color: var(--mf-link-color);
   text-decoration: none;
-  border-bottom: 1px solid color-mix(in srgb, var(--mf-link-color) 50%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--mf-link-color) 40%, transparent);
   cursor: pointer;
-  transition: border-color 0.15s ease;
+  transition: border-color var(--mf-transition-fast);
 }
 
 .cm-editor .mf-link:hover {
   border-bottom-color: var(--mf-link-color);
 }
 
-/* ── Blockquote ─────────────────────────────────────────────── */
+/* ── Footnotes ──────────────────────────────────────────────── */
+.cm-editor .mf-footnote-ref {
+  color: var(--mf-link-color);
+  font-size: 0.72em;
+  font-weight: 600;
+  line-height: 0;
+  cursor: help;
+  vertical-align: super;
+}
+
+.cm-editor .mf-footnote-missing {
+  opacity: 0.6;
+  text-decoration: underline dotted;
+  text-decoration-thickness: 1px;
+}
+
+/* ── Blockquote — Apple-style left accent bar ───────────────── */
 .cm-editor .mf-blockquote {
   border-left: 3px solid var(--mf-blockquote-border);
   padding-left: 1em;
   color: var(--mf-blockquote-fg);
-  font-style: normal;
   margin: 0;
 }
 
@@ -417,63 +687,62 @@ body {
   width: 100%;
   height: 1px;
   background: var(--mf-hr-color);
-  margin: 1.25em 0;
+  margin: 1.5em 0;
   border: none;
 }
 
-/* ── Code blocks ────────────────────────────────────────────── */
+/* ── Code blocks — rounded Apple cards ──────────────────────── */
 .cm-editor .mf-code-block-line {
   font-family: var(--mf-font-mono);
   font-size: 0.875em;
   background: var(--mf-bg-code);
-  padding: 0 1.25em;
+  padding: 0 1.5em;
   line-height: 1.65;
 }
 
 .cm-editor .mf-code-block-first {
-  border-radius: 5px 5px 0 0;
-  padding-top: 0.75em;
-  border: 1px solid var(--mf-border);
+  border-radius: var(--mf-radius-lg) var(--mf-radius-lg) 0 0;
+  padding-top: 0.85em;
+  border: 1px solid var(--mf-border-light);
   border-bottom: none;
 }
 
-/* When a language badge header is present, top radius lives on the header */
 .cm-editor .mf-code-block-with-lang {
   border-radius: 0;
   border-top: none;
 }
 
 .cm-editor .mf-code-block-last {
-  border-radius: 0 0 5px 5px;
-  padding-bottom: 0.75em;
-  border: 1px solid var(--mf-border);
+  border-radius: 0 0 var(--mf-radius-lg) var(--mf-radius-lg);
+  padding-bottom: 0.85em;
+  border: 1px solid var(--mf-border-light);
   border-top: none;
 }
 
-/* single-line code block */
 .cm-editor .mf-code-block-first.mf-code-block-last {
-  border-radius: 5px;
-  border: 1px solid var(--mf-border);
+  border-radius: var(--mf-radius-lg);
+  border: 1px solid var(--mf-border-light);
 }
 
-/* Language badge header (replaces the opening fence line) */
+/* Language badge header */
 .cm-editor .mf-code-block-header {
   display: block;
   font-family: var(--mf-font-mono);
   font-size: 0.75em;
   background: var(--mf-bg-code);
-  padding: 0.45em 1.25em 0;
-  border: 1px solid var(--mf-border);
+  padding: 0.55em 1.5em 0;
+  border: 1px solid var(--mf-border-light);
   border-bottom: none;
-  border-radius: 5px 5px 0 0;
+  border-radius: var(--mf-radius-lg) var(--mf-radius-lg) 0 0;
   min-height: 1.4em;
 }
 
 .cm-editor .mf-code-lang-badge {
   color: var(--mf-fg-muted);
-  font-size: 0.85em;
+  font-size: 0.84em;
   float: right;
   user-select: none;
+  letter-spacing: 0.02em;
 }
 
 /* ── Task list ──────────────────────────────────────────────── */
@@ -504,7 +773,7 @@ body {
 /* ── Images ─────────────────────────────────────────────────── */
 .cm-editor .mf-image-widget {
   max-width: 100%;
-  border-radius: 4px;
+  border-radius: var(--mf-radius);
   margin: 0.25em 0;
   display: block;
 }
@@ -513,19 +782,19 @@ body {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  color: #c0392b;
+  color: #C0392B;
   font-size: 0.83em;
-  padding: 3px 8px;
-  background: #fdf2f0;
-  border: 1px solid #f5c6c0;
-  border-radius: 4px;
+  padding: 3px 9px;
+  background: rgba(192, 57, 43, 0.06);
+  border: 1px solid rgba(192, 57, 43, 0.18);
+  border-radius: var(--mf-radius-sm);
 }
 
 @media (prefers-color-scheme: dark) {
   .cm-editor .mf-image-error {
-    color: #e17055;
-    background: #2b1a18;
-    border-color: #5c2e28;
+    color: #FF6B75;
+    background: rgba(255, 107, 117, 0.10);
+    border-color: rgba(255, 107, 117, 0.22);
   }
 }
 
@@ -534,22 +803,22 @@ body {
   font-family: var(--mf-font-mono);
   font-size: 0.82em;
   color: var(--mf-fg-muted);
-  opacity: 0.6;
+  opacity: 0.55;
 }
 
 .cm-editor .mf-yaml-frontmatter {
   font-family: var(--mf-font-mono);
   font-size: 0.82em;
-  color: var(--mf-fg-muted);
+  color: var(--mf-fg-secondary);
   background: color-mix(in srgb, var(--mf-accent) 4%, var(--mf-bg));
-  padding-left: 0.5em;
-  border-left: 2px solid color-mix(in srgb, var(--mf-accent) 30%, transparent);
+  padding-left: 0.6em;
+  border-left: 2px solid color-mix(in srgb, var(--mf-accent) 28%, transparent);
 }
 
 /* ── Find / Replace panel ───────────────────────────────────── */
 .cm-editor .cm-panels {
   background: var(--mf-bg-secondary);
-  border-top: 1px solid var(--mf-border);
+  border-top: 1px solid var(--mf-border-light);
   font-family: var(--mf-font-sans);
   font-size: 13px;
   color: var(--mf-fg);
@@ -560,24 +829,24 @@ body {
   flex-wrap: wrap;
   gap: 6px;
   align-items: center;
-  padding: 6px 10px;
+  padding: 6px 12px;
 }
 
 .cm-editor .cm-search input[type='text'] {
   background: var(--mf-bg);
   border: 1px solid var(--mf-border);
-  border-radius: 4px;
+  border-radius: var(--mf-radius-sm);
   color: var(--mf-fg);
   font-family: var(--mf-font-sans);
   font-size: 13px;
-  padding: 3px 8px;
+  padding: 3px 9px;
   outline: none;
-  min-width: 120px;
+  min-width: 130px;
 }
 
 .cm-editor .cm-search input[type='text']:focus {
   border-color: var(--mf-accent);
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--mf-accent) 20%, transparent);
+  box-shadow: 0 0 0 3px var(--mf-accent-light);
 }
 
 .cm-editor .cm-search input[type='checkbox'] {
@@ -585,41 +854,42 @@ body {
 }
 
 .cm-editor .cm-search button {
-  background: var(--mf-bg);
-  border: 1px solid var(--mf-border);
-  border-radius: 4px;
+  background: var(--mf-fill-secondary);
+  border: 1px solid var(--mf-border-light);
+  border-radius: var(--mf-radius-sm);
   color: var(--mf-fg);
-  cursor: pointer;
+  cursor: default;
   font-size: 12px;
-  padding: 3px 10px;
+  padding: 3px 11px;
   white-space: nowrap;
+  font-family: var(--mf-font-sans);
 }
 
 .cm-editor .cm-search button:hover {
-  background: var(--mf-bg-secondary);
-  border-color: var(--mf-accent);
+  background: var(--mf-fill);
+  border-color: var(--mf-border);
 }
 
 .cm-editor .cm-searchMatch {
-  background: color-mix(in srgb, var(--mf-accent) 25%, transparent);
+  background: color-mix(in srgb, var(--mf-accent) 22%, transparent);
   border-radius: 2px;
 }
 
 .cm-editor .cm-searchMatch-selected {
-  background: color-mix(in srgb, var(--mf-accent) 50%, transparent);
+  background: color-mix(in srgb, var(--mf-accent) 48%, transparent);
 }
 
 @media (prefers-color-scheme: dark) {
   .cm-editor .cm-search input[type='text'] {
-    background: #2a2a2a;
-    border-color: #444;
+    background: var(--mf-bg-tertiary);
+    border-color: var(--mf-border);
   }
   .cm-editor .cm-search button {
-    background: #2a2a2a;
-    border-color: #444;
+    background: var(--mf-fill-secondary);
+    border-color: var(--mf-border-light);
   }
   .cm-editor .cm-search button:hover {
-    background: #333;
+    background: var(--mf-fill);
   }
 }
 
@@ -648,7 +918,6 @@ body {
   overflow-x: auto;
 }
 
-/* KaTeX error color override */
 .cm-editor .mf-math-inline .katex-error,
 .cm-editor .mf-math-block .katex-error {
   color: var(--mf-code-fg);
@@ -677,14 +946,14 @@ body {
 .cm-editor .mf-mermaid-error {
   font-size: 13px;
   color: var(--mf-code-fg);
-  padding: 0.5em 0.75em;
-  background: color-mix(in srgb, var(--mf-code-fg) 8%, transparent);
-  border-radius: 4px;
-  border: 1px solid color-mix(in srgb, var(--mf-code-fg) 20%, transparent);
+  padding: 0.5em 0.85em;
+  background: color-mix(in srgb, var(--mf-code-fg) 7%, transparent);
+  border-radius: var(--mf-radius);
+  border: 1px solid color-mix(in srgb, var(--mf-code-fg) 18%, transparent);
 }
 
 @media (prefers-color-scheme: dark) {
   .cm-editor .mf-mermaid-error {
-    background: color-mix(in srgb, var(--mf-code-fg) 12%, #1e1e1e);
+    background: color-mix(in srgb, var(--mf-code-fg) 11%, var(--mf-bg));
   }
 }

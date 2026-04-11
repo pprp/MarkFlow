@@ -43,10 +43,16 @@ describe('mermaidDecorations — basic rendering', () => {
     view.destroy()
   })
 
-  it('reveals source when cursor is inside mermaid block', () => {
-    // Cursor inside the flowchart content on line 2
+  it('keeps rendering decorations when cursor is inside mermaid block', () => {
     const view = makeView(mermaidDoc, 20)
-    expect(view.state.doc.toString()).toBe(mermaidDoc)
+    const decoSet = buildMermaidDecorations(view)
+    let count = 0
+    const iter = decoSet.iter()
+    while (iter.value) {
+      count++
+      iter.next()
+    }
+    expect(count).toBeGreaterThan(0)
     view.destroy()
   })
 

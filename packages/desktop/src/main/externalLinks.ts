@@ -25,6 +25,10 @@ export function handleWillNavigate(
 
 export function createWindowOpenHandler(openExternal: (url: string) => void | Promise<void>) {
   return ({ url }: WindowOpenDetails) => {
+    if (isAppNavigation(url)) {
+      return { action: 'deny' as const }
+    }
+
     void openExternal(url)
     return { action: 'deny' as const }
   }

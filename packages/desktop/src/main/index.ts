@@ -4,11 +4,13 @@ import * as fs from 'fs'
 import { FileManager } from './fileManager'
 import type { MarkFlowMenuAction } from '@markflow/shared'
 import { createWindowOpenHandler, handleWillNavigate } from './externalLinks'
+import { ThemeManager } from './themeManager'
 
 const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged
 
 let mainWindow: BrowserWindow | null = null
 let fileManager: FileManager
+let themeManager: ThemeManager | null = null
 let pendingOpenFilePath: string | null = null
 
 function sendMenuAction(action: MarkFlowMenuAction) {
@@ -40,7 +42,9 @@ function createWindow() {
     minWidth: 640,
     minHeight: 480,
     titleBarStyle: 'hiddenInset',
-    backgroundColor: '#ffffff',
+    backgroundColor: '#FFFFFF',
+    vibrancy: 'sidebar',
+    visualEffectState: 'active',
     webPreferences: {
       preload: path.join(__dirname, '../preload/index.js'),
       contextIsolation: true,
@@ -51,6 +55,9 @@ function createWindow() {
 
   fileManager = new FileManager(mainWindow)
   fileManager.registerIpcHandlers()
+  themeManager = new ThemeManager(mainWindow, app.getPath('userData'))
+  themeManager.registerIpcHandlers()
+  void themeManager.initialize()
   buildMenu()
 
   if (isDev) {
@@ -61,6 +68,8 @@ function createWindow() {
   }
 
   mainWindow.on('closed', () => {
+    void themeManager?.dispose()
+    themeManager = null
     mainWindow = null
   })
 

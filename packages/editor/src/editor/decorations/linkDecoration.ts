@@ -55,9 +55,29 @@ function toFileUrl(filePath: string) {
   return new URL(encodeURI(absolutePath), 'file://').toString()
 }
 
-export function resolveImageSource(src: string, filePath?: string) {
-  const trimmedSrc = src.trim()
+function stripEnclosingAngleBrackets(src: string) {
+  return src.startsWith('<') && src.endsWith('>') ? src.slice(1, -1) : src
+}
+
+function normalizeBareUrlHref(src: string) {
+  if (/^www\./i.test(src)) {
+    return `https://${src}`
+  }
+
+  if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(src) && !/^mailto:/i.test(src)) {
+    return `mailto:${src}`
+  }
+
+  return src
+}
+
+export function resolveLinkHref(src: string, filePath?: string) {
+  const trimmedSrc = stripEnclosingAngleBrackets(src.trim())
   if (!trimmedSrc || trimmedSrc.startsWith('//')) {
+    return trimmedSrc
+  }
+
+  if (trimmedSrc.startsWith('#')) {
     return trimmedSrc
   }
 
@@ -76,19 +96,111 @@ export function resolveImageSource(src: string, filePath?: string) {
   return new URL(trimmedSrc, new URL('.', toFileUrl(filePath))).toString()
 }
 
+export function resolveImageSource(src: string, filePath?: string) {
+  return resolveLinkHref(src, filePath)
+}
+
+export function fileUrlToPath(href: string) {
+  if (!href.startsWith('file://')) {
+    return null
+  }
+
+  const url = new URL(href)
+  const pathname = decodeURIComponent(url.pathname)
+  return pathname.replace(/^\/([A-Za-z]:\/)/, '$1')
+}
+
+export function isMarkdownFilePath(filePath: string) {
+  return /\.(md|markdown|mdown|mkd|txt)$/i.test(filePath)
+}
+
+function normalizeReferenceLabel(label: string) {
+  return label.trim().replace(/\s+/g, ' ').toLowerCase()
+}
+
+function isFootnoteReference(raw: string) {
+  return /^\[\^([^\]\n]+)\]$/.test(raw)
+}
+
+function extractReferenceDefinitions(view: EditorView) {
+  const references = new Map<string, string>()
+  const doc = view.state.doc
+  const cursor = syntaxTree(view.state).cursor()
+
+  const visit = (parentName?: string) => {
+    do {
+      if (cursor.name === 'LinkReference' && parentName !== 'Link') {
+        const raw = doc.sliceString(cursor.from, cursor.to)
+        const match = raw.match(/^\[([^\]]+)\]:\s*(<[^>]+>|[^\s]+)(?:\s+["'(].*)?$/)
+        if (match) {
+          references.set(normalizeReferenceLabel(match[1]), match[2])
+        }
+      }
+
+      if (cursor.firstChild()) {
+        const currentName = cursor.name
+        visit(currentName)
+        cursor.parent()
+      }
+    } while (cursor.nextSibling())
+  }
+
+  visit()
+  return references
+}
+
+function addRenderedLink(
+  builder: RangeSetBuilder<Decoration>,
+  from: number,
+  to: number,
+  textLength: number,
+  href: string | null,
+) {
+  const textFrom = from + 1
+  const textTo = textFrom + textLength
+  const textEnd = textTo + 1
+
+  builder.add(from, from + 1, Decoration.replace({}))
+  if (textFrom < textTo) {
+    builder.add(
+      textFrom,
+      textTo,
+      Decoration.mark({
+        class: 'mf-link',
+        tagName: href ? 'a' : 'span',
+        attributes: href
+          ? {
+              href,
+              target: '_blank',
+              rel: 'noopener noreferrer',
+            }
+          : undefined,
+      }),
+    )
+  }
+  builder.add(textEnd, to, Decoration.replace({}))
+}
+
+function isReferenceDefinitionUrl(view: EditorView, from: number) {
+  const line = view.state.doc.lineAt(from)
+  const prefix = line.text.slice(0, from - line.from)
+  return /^\[[^\]]+\]:\s*$/.test(prefix)
+}
+
 export function buildLinkDecorations(view: EditorView, filePath?: string): DecorationSet {
   const builder = new RangeSetBuilder<Decoration>()
   const cursorHead = view.state.selection.main.head
   const doc = view.state.doc
+  const references = extractReferenceDefinitions(view)
+  const cursor = syntaxTree(view.state).cursor()
 
-  syntaxTree(view.state).iterate({
-    enter(node) {
-      const { from, to } = node
+  const visit = (insideStructuredLink = false) => {
+    do {
+      const { from, to } = cursor
       const cursorInside = cursorHead >= from && cursorHead <= to
 
-      if (node.name === 'Image') {
+      if (cursor.name === 'Image') {
         if (!cursorInside) {
-          // Extract alt and url from the image syntax ![alt](url)
           const raw = doc.sliceString(from, to)
           const match = raw.match(/^!\[([^\]]*)\]\(([^)]*)\)/)
           if (match) {
@@ -100,49 +212,78 @@ export function buildLinkDecorations(view: EditorView, filePath?: string): Decor
             )
           }
         }
-        return
-      }
+      } else if (cursor.name === 'Link') {
+        const raw = doc.sliceString(from, to)
+        if (isFootnoteReference(raw)) {
+          continue
+        }
 
-      if (node.name === 'Link') {
         if (!cursorInside) {
-          // Hide [, ](url) — keep only the link text visible
-          const raw = doc.sliceString(from, to)
-          const match = raw.match(/^\[([^\]]*)\]\(([^)]*)\)/)
-          if (match) {
-            const href = match[2].trim()
-            const textFrom = from + 1
-            const textTo = textFrom + match[1].length
-            const textEnd = textTo + 1
-            // Hide opening [
-            builder.add(from, from + 1, Decoration.replace({}))
-            if (textFrom < textTo) {
-              builder.add(
-                textFrom,
-                textTo,
-                Decoration.mark({
-                  class: 'mf-link',
-                  tagName: href ? 'a' : 'span',
-                  attributes: href
-                    ? {
-                        href,
-                        target: '_blank',
-                        rel: 'noopener noreferrer',
-                      }
-                    : undefined,
-                }),
-              )
+          const inlineMatch = raw.match(/^\[([^\]]*)\]\((<[^>]+>|[^)\s]+)(?:\s+["'(].*)?\)$/)
+          if (inlineMatch) {
+            addRenderedLink(builder, from, to, inlineMatch[1].length, resolveLinkHref(inlineMatch[2], filePath))
+          } else {
+            const referenceMatch = raw.match(/^\[([^\]]*)\](?:\[([^\]]*)\])?$/)
+            if (referenceMatch) {
+              const label = referenceMatch[2] || referenceMatch[1]
+              const href = references.get(normalizeReferenceLabel(label))
+              addRenderedLink(builder, from, to, referenceMatch[1].length, href ? resolveLinkHref(href, filePath) : null)
             }
-            // Hide ](url)
-            builder.add(textEnd, to, Decoration.replace({}))
           }
         } else {
           builder.add(from, to, Decoration.mark({ class: 'mf-link' }))
         }
-        return
+      } else if (cursor.name === 'Autolink' && !cursorInside) {
+        const raw = doc.sliceString(from, to)
+        const match = raw.match(/^<([^>]+)>$/)
+        if (match) {
+          builder.add(from, from + 1, Decoration.replace({}))
+          builder.add(
+            from + 1,
+            to - 1,
+            Decoration.mark({
+              class: 'mf-link',
+              tagName: 'a',
+              attributes: {
+                href: resolveLinkHref(normalizeBareUrlHref(match[1]), filePath),
+                target: '_blank',
+                rel: 'noopener noreferrer',
+              },
+            }),
+          )
+          builder.add(to - 1, to, Decoration.replace({}))
+        }
+      } else if (
+        cursor.name === 'URL' &&
+        !cursorInside &&
+        !insideStructuredLink &&
+        !isReferenceDefinitionUrl(view, from)
+      ) {
+        const raw = doc.sliceString(from, to)
+        builder.add(
+          from,
+          to,
+          Decoration.mark({
+            class: 'mf-link',
+            tagName: 'a',
+            attributes: {
+              href: resolveLinkHref(normalizeBareUrlHref(raw), filePath),
+              target: '_blank',
+              rel: 'noopener noreferrer',
+            },
+          }),
+        )
       }
-    },
-  })
 
+      if (cursor.firstChild()) {
+        const currentName = cursor.name
+        visit(insideStructuredLink || ['Link', 'LinkReference', 'Autolink', 'Image'].includes(currentName))
+        cursor.parent()
+      }
+    } while (cursor.nextSibling())
+  }
+
+  visit()
   return builder.finish()
 }
 

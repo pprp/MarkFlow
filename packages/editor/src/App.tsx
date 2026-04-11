@@ -1,7 +1,9 @@
 import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { MarkFlowEditor } from './editor/MarkFlowEditor'
+import { extractOutlineHeadings, findActiveHeadingAnchor } from './editor/outline'
 import { computeStats } from './editor/wordCount'
-import type {
+import { QuickOpen } from './components/QuickOpen'
+import type { MarkFlowQuickOpenItem, 
   MarkFlowDocument,
   MarkFlowMenuAction,
   MarkFlowThemePayload,
@@ -57,7 +59,14 @@ export function App() {
   const [typewriterMode, setTypewriterMode] = useState(false)
   const [themes, setThemes] = useState<MarkFlowThemeSummary[]>([])
   const [activeThemeId, setActiveThemeId] = useState<string>('')
+  const [cursorPosition, setCursorPosition] = useState(0)
+  const [outlineNavigationRequest, setOutlineNavigationRequest] = useState<{
+    key: number
+    position: number
+  } | null>(null)
   const [selectionText, setSelectionText] = useState('')
+  const [isQuickOpenOpen, setIsQuickOpenOpen] = useState(false)
+  const [quickOpenItems, setQuickOpenItems] = useState<MarkFlowQuickOpenItem[]>([])
   const [documentState, setDocumentState] = useState<MarkFlowDocument>({
     filePath: null,
     content: INITIAL_CONTENT,
@@ -65,6 +74,7 @@ export function App() {
   })
   const persistedContentRef = useRef(INITIAL_CONTENT)
   const latestContentRef = useRef(INITIAL_CONTENT)
+  const outlineNavigationKeyRef = useRef(0)
 
   useEffect(() => {
     latestContentRef.current = documentState.content
@@ -90,6 +100,8 @@ export function App() {
     const applyOpenedDocument = ({ filePath, content }: { filePath: string | null; content: string }) => {
       persistedContentRef.current = content
       latestContentRef.current = content
+      setCursorPosition(0)
+      setOutlineNavigationRequest(null)
       setDocumentState({
         filePath,
         content,
@@ -175,6 +187,32 @@ export function App() {
     return () => clearTimeout(timer)
   }, [documentState.filePath, documentState.isDirty, documentState.content, triggerAutoSave])
 
+
+  useEffect(() => {
+    const handleGlobalKeyDown = async (e: KeyboardEvent) => {
+      const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0
+      const isQuickOpenKey = isMac
+        ? e.metaKey && e.shiftKey && e.key.toLowerCase() === 'o'
+        : e.ctrlKey && e.key.toLowerCase() === 'p'
+
+      if (isQuickOpenKey) {
+        e.preventDefault()
+        if (window.markflow) {
+          const items = await window.markflow.getQuickOpenList()
+          setQuickOpenItems(items)
+          setIsQuickOpenOpen(true)
+        }
+      }
+    }
+    document.addEventListener('keydown', handleGlobalKeyDown)
+    return () => document.removeEventListener('keydown', handleGlobalKeyDown)
+  }, [])
+
+  const handleQuickOpenSelect = async (item: MarkFlowQuickOpenItem) => {
+    setIsQuickOpenOpen(false)
+    await handleOpenPath(item.filePath)
+  }
+
   function handleContentChange(content: string) {
     latestContentRef.current = content
     setDocumentState((currentDocument) => ({
@@ -194,6 +232,24 @@ export function App() {
       applyTheme(nextTheme)
     }
   }
+
+  const outlineHeadings = useMemo(
+    () => extractOutlineHeadings(documentState.content),
+    [documentState.content],
+  )
+
+  const activeOutlineAnchor = useMemo(
+    () => findActiveHeadingAnchor(outlineHeadings, cursorPosition),
+    [cursorPosition, outlineHeadings],
+  )
+
+  const handleOutlineNavigate = useCallback((position: number) => {
+    outlineNavigationKeyRef.current += 1
+    setOutlineNavigationRequest({
+      key: outlineNavigationKeyRef.current,
+      position,
+    })
+  }, [])
 
   const docStats = useMemo(
     () => computeStats(documentState.content, selectionText),
@@ -219,9 +275,11 @@ export function App() {
           <span className="mf-titlebar-appname">MarkFlow</span>
         </div>
         <div className="mf-titlebar-center">
+          {documentState.isDirty && (
+            <span className="mf-titlebar-dirty-dot" aria-hidden="true" />
+          )}
           <span className="mf-titlebar-document">
             {activeDocumentName}
-            {documentState.isDirty ? ' • Unsaved' : ''}
           </span>
         </div>
         <div className="mf-titlebar-right">
@@ -240,6 +298,14 @@ export function App() {
             title="Typewriter mode (Ctrl+Shift+T)"
             aria-pressed={typewriterMode}
           >
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <rect x="1" y="3" width="10" height="6.5" rx="1.2" stroke="currentColor" strokeWidth="1.2" fill="none"/>
+              <rect x="3" y="5.5" width="1.2" height="1.2" rx="0.3" fill="currentColor"/>
+              <rect x="5.4" y="5.5" width="1.2" height="1.2" rx="0.3" fill="currentColor"/>
+              <rect x="7.8" y="5.5" width="1.2" height="1.2" rx="0.3" fill="currentColor"/>
+              <rect x="3.8" y="7.5" width="4.4" height="1" rx="0.3" fill="currentColor" opacity="0.6"/>
+              <rect x="3.5" y="1.2" width="5" height="1.2" rx="0.6" fill="currentColor" opacity="0.4"/>
+            </svg>
             TW
           </button>
           <button
@@ -248,41 +314,89 @@ export function App() {
             title="Focus mode (Ctrl+Shift+F)"
             aria-pressed={focusMode}
           >
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <circle cx="6" cy="6" r="2" fill="currentColor"/>
+              <path d="M1 3V1.5A0.5 0.5 0 0 1 1.5 1H3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+              <path d="M9 1H10.5A0.5 0.5 0 0 1 11 1.5V3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+              <path d="M11 9V10.5A0.5 0.5 0 0 1 10.5 11H9" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+              <path d="M3 11H1.5A0.5 0.5 0 0 1 1 10.5V9" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+            </svg>
             Focus
           </button>
-          <button className="mf-mode-toggle mf-viewmode-toggle" onClick={toggleViewMode} title="Toggle view mode (Ctrl+/)">
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-              {viewMode === 'wysiwyg' ? (
-                <>
-                  <rect x="1" y="2" width="5" height="1.5" rx="0.5" fill="currentColor" opacity="0.7"/>
-                  <rect x="1" y="5" width="8" height="1.5" rx="0.5" fill="currentColor" opacity="0.5"/>
-                  <rect x="1" y="8" width="6" height="1.5" rx="0.5" fill="currentColor" opacity="0.5"/>
-                  <rect x="1" y="11" width="9" height="1.5" rx="0.5" fill="currentColor" opacity="0.3"/>
-                </>
-              ) : (
-                <>
-                  <text x="1" y="9" fontSize="7" fill="currentColor" fontFamily="monospace" opacity="0.8">&lt;/&gt;</text>
-                </>
-              )}
-            </svg>
-            {viewMode === 'wysiwyg' ? 'WYSIWYG' : 'Source'}
-          </button>
+          {/* Segmented control for view mode */}
+          <div className="mf-segment-control" role="group" aria-label="View mode">
+            <button
+              className={`mf-segment-btn${viewMode === 'wysiwyg' ? ' mf-segment-active' : ''}`}
+              onClick={() => viewMode !== 'wysiwyg' && toggleViewMode()}
+              title="WYSIWYG mode"
+              aria-pressed={viewMode === 'wysiwyg'}
+            >
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <rect x="1" y="1.5" width="4" height="1.4" rx="0.5" fill="currentColor" opacity="0.75"/>
+                <rect x="1" y="4.3" width="7" height="1.4" rx="0.5" fill="currentColor" opacity="0.55"/>
+                <rect x="1" y="7.1" width="5.5" height="1.4" rx="0.5" fill="currentColor" opacity="0.55"/>
+                <rect x="1" y="9.9" width="8" height="1.4" rx="0.5" fill="currentColor" opacity="0.35"/>
+              </svg>
+              Preview
+            </button>
+            <button
+              className={`mf-segment-btn${viewMode === 'source' ? ' mf-segment-active' : ''}`}
+              onClick={() => viewMode !== 'source' && toggleViewMode()}
+              title="Source mode"
+              aria-pressed={viewMode === 'source'}
+            >
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <path d="M4 3L1.5 6L4 9" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M8 3L10.5 6L8 9" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M6.5 2L5.5 10" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" opacity="0.6"/>
+              </svg>
+              Source
+            </button>
+          </div>
         </div>
       </header>
       <main className="mf-main">
-        <MarkFlowEditor
-          content={documentState.content}
-          viewMode={viewMode}
-          onChange={handleContentChange}
-          onOpenPath={handleOpenPath}
-          onToggleMode={toggleViewMode}
-          onSelectionChange={setSelectionText}
-          onToggleFocusMode={toggleFocusMode}
-          onToggleTypewriterMode={toggleTypewriterMode}
-          focusMode={focusMode}
-          typewriterMode={typewriterMode}
-          filePath={documentState.filePath ?? undefined}
-        />
+        <div className="mf-editor-shell">
+          <MarkFlowEditor
+            content={documentState.content}
+            viewMode={viewMode}
+            onChange={handleContentChange}
+            onCursorPositionChange={setCursorPosition}
+            onNavigationHandled={() => setOutlineNavigationRequest(null)}
+            onOpenPath={handleOpenPath}
+            onToggleMode={toggleViewMode}
+            onSelectionChange={setSelectionText}
+            onToggleFocusMode={toggleFocusMode}
+            onToggleTypewriterMode={toggleTypewriterMode}
+            focusMode={focusMode}
+            typewriterMode={typewriterMode}
+            filePath={documentState.filePath ?? undefined}
+            navigationRequest={outlineNavigationRequest}
+          />
+        </div>
+        {outlineHeadings.length > 0 ? (
+          <aside className="mf-outline-panel">
+            <div className="mf-outline-header">Outline</div>
+            <nav className="mf-outline-nav" aria-label="Outline">
+              {outlineHeadings.map((heading) => {
+                const isActive = heading.anchor === activeOutlineAnchor
+
+                return (
+                  <button
+                    key={`${heading.anchor}:${heading.from}`}
+                    type="button"
+                    className={`mf-outline-item${isActive ? ' mf-outline-item-active' : ''}`}
+                    style={{ paddingLeft: `${12 + (heading.level - 1) * 14}px` }}
+                    aria-current={isActive ? 'true' : undefined}
+                    onClick={() => handleOutlineNavigate(heading.from)}
+                  >
+                    <span className="mf-outline-item-text">{heading.text}</span>
+                  </button>
+                )
+              })}
+            </nav>
+          </aside>
+        ) : null}
       </main>
       <footer className="mf-statusbar" aria-label="Document statistics">
         <span className="mf-statusbar-stat">{docStats.words.toLocaleString()} words</span>
@@ -301,6 +415,13 @@ export function App() {
           </>
         )}
       </footer>
+
+      <QuickOpen
+        isOpen={isQuickOpenOpen}
+        items={quickOpenItems}
+        onClose={() => setIsQuickOpenOpen(false)}
+        onSelect={handleQuickOpenSelect}
+      />
     </div>
   )
 }

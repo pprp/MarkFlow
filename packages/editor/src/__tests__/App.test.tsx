@@ -1,7 +1,7 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { EditorView } from '@codemirror/view'
 import { act } from 'react'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { App } from '../App'
 import type {
   MarkFlowDesktopAPI,
@@ -34,6 +34,7 @@ class MockMarkFlowAPI implements MarkFlowDesktopAPI {
   saveFileAs: MarkFlowDesktopAPI['saveFileAs'] = vi.fn(async () => ({ success: true }))
   newFile: MarkFlowDesktopAPI['newFile'] = vi.fn(async () => {})
   getCurrentPath: MarkFlowDesktopAPI['getCurrentPath'] = vi.fn(async () => null)
+  getQuickOpenList: MarkFlowDesktopAPI['getQuickOpenList'] = vi.fn(async () => [])
   getCurrentDocument: MarkFlowDesktopAPI['getCurrentDocument'] = vi.fn(async () => null)
   getThemes: MarkFlowDesktopAPI['getThemes'] = vi.fn(async () => this.themes)
   getCurrentTheme: MarkFlowDesktopAPI['getCurrentTheme'] = vi.fn(async () => this.buildThemePayload('paper'))
@@ -149,7 +150,8 @@ describe('App desktop integration', () => {
       })
     })
 
-    expect(screen.getByText('notes.md • Unsaved')).toBeInTheDocument()
+    expect(screen.getByText('notes.md')).toBeInTheDocument()
+    expect(container.querySelector('.mf-titlebar-dirty-dot')).toBeInTheDocument()
 
     await act(async () => {
       api.emitMenuAction('save-file')
@@ -185,7 +187,8 @@ describe('App desktop integration', () => {
       })
     })
 
-    expect(screen.getByText('draft.md • Unsaved')).toBeInTheDocument()
+    expect(screen.getByText('draft.md')).toBeInTheDocument()
+    expect(container.querySelector('.mf-titlebar-dirty-dot')).toBeInTheDocument()
 
     await act(async () => {
       api.emitMenuAction('new-file')
@@ -203,7 +206,7 @@ describe('App desktop integration', () => {
 
     expect(screen.getByText('Untitled')).toBeInTheDocument()
     expect(getEditorView(container).state.doc.toString()).toBe('')
-    expect(screen.queryByText(/Unsaved/)).not.toBeInTheDocument()
+    expect(container.querySelector('.mf-titlebar-dirty-dot')).not.toBeInTheDocument()
   })
 
   it('wires editor shortcut toggling and document filePath-based image resolution through App', async () => {
@@ -229,7 +232,7 @@ describe('App desktop integration', () => {
     fireEvent.keyDown(view.contentDOM, { key: '/', ctrlKey: true })
 
     await waitFor(() => {
-      expect(container.querySelector('.mf-viewmode-toggle')).toHaveTextContent('Source')
+      expect(container.querySelector('.mf-segment-btn.mf-segment-active')).toHaveTextContent('Source')
     })
   })
 
@@ -276,6 +279,96 @@ describe('App desktop integration', () => {
     await waitFor(() => {
       expect(document.getElementById('mf-theme-overrides')).toHaveTextContent('--mf-bg: #111827')
       expect(select.value).toBe('midnight')
+    })
+  })
+
+  it('shows an outline that mirrors heading hierarchy and navigates to the active heading', async () => {
+    const api = new MockMarkFlowAPI()
+    window.markflow = api
+
+    const content = ['# Intro', '', '## Setup', '', '### Deep Dive', '', '# Appendix'].join('\n')
+    const { container } = render(<App />)
+
+    await act(async () => {
+      api.emitFileOpened({ filePath: '/tmp/outline.md', content })
+    })
+
+    const outline = await screen.findByRole('navigation', { name: 'Outline' })
+    expect(within(outline).getAllByRole('button').map((button) => button.textContent)).toEqual([
+      'Intro',
+      'Setup',
+      'Deep Dive',
+      'Appendix',
+    ])
+
+    expect(screen.getByRole('button', { name: 'Intro' })).toHaveAttribute('aria-current', 'true')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Appendix' }))
+
+    await waitFor(() => {
+      expect(getEditorView(container).state.selection.main.head).toBe(content.indexOf('# Appendix'))
+    })
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Appendix' })).toHaveAttribute('aria-current', 'true')
+    })
+
+    act(() => {
+      getEditorView(container).dispatch({
+        selection: { anchor: content.indexOf('### Deep Dive') },
+      })
+    })
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Deep Dive' })).toHaveAttribute(
+        'aria-current',
+        'true',
+      )
+    })
+  })
+
+  it('keeps the outline in sync when headings are renamed or reordered', async () => {
+    const api = new MockMarkFlowAPI()
+    window.markflow = api
+
+    const { container } = render(<App />)
+
+    await act(async () => {
+      api.emitFileOpened({
+        filePath: '/tmp/outline.md',
+        content: ['# Alpha', '', '## Beta'].join('\n'),
+      })
+    })
+
+    expect(within(screen.getByRole('navigation', { name: 'Outline' })).getAllByRole('button').map(
+      (button) => button.textContent,
+    )).toEqual(['Alpha', 'Beta'])
+
+    act(() => {
+      const view = getEditorView(container)
+      const renameFrom = view.state.doc.toString().indexOf('Beta')
+      view.dispatch({
+        changes: { from: renameFrom, to: renameFrom + 4, insert: 'Beta renamed' },
+      })
+    })
+
+    await waitFor(() => {
+      expect(within(screen.getByRole('navigation', { name: 'Outline' })).getAllByRole('button').map(
+        (button) => button.textContent,
+      )).toEqual(['Alpha', 'Beta renamed'])
+    })
+
+    await act(async () => {
+      api.emitFileOpened({
+        filePath: '/tmp/outline.md',
+        content: ['# Gamma', '', '## Beta renamed', '', '# Alpha'].join('\n'),
+      })
+    })
+
+    await waitFor(() => {
+      expect(within(screen.getByRole('navigation', { name: 'Outline' })).getAllByRole('button').map(
+        (button) => button.textContent,
+      )).toEqual(['Gamma', 'Beta renamed', 'Alpha'])
     })
   })
 })
@@ -348,5 +441,52 @@ describe('App auto-save', () => {
 
     // saveFile should have been called at least once more than before the dirty edit
     expect((api.saveFile as ReturnType<typeof vi.fn>).mock.calls.length).toBeGreaterThan(callsBefore)
+  })
+})
+
+
+describe('App Quick Open integration', () => {
+  afterEach(() => {
+    delete window.markflow
+  })
+
+  it('opens Quick Open on Mod-Shift-O, fuzzy-filters files, and dispatches file-open', async () => {
+    const api = new MockMarkFlowAPI()
+    api.getQuickOpenList = vi.fn(async () => [
+      { id: '/docs/apple.md', label: 'apple.md', description: '/docs', filePath: '/docs/apple.md', isRecent: false },
+      { id: '/docs/banana.md', label: 'banana.md', description: '/docs', filePath: '/docs/banana.md', isRecent: false },
+      { id: '/recent/cherry.md', label: 'cherry.md', description: '/recent', filePath: '/recent/cherry.md', isRecent: true }
+    ])
+    window.markflow = api
+
+    render(<App />)
+
+    // Trigger Quick Open (assuming Mac Mod-Shift-O)
+    fireEvent.keyDown(document, { key: 'o', metaKey: true, shiftKey: true })
+    fireEvent.keyDown(document, { key: 'p', ctrlKey: true })
+
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText('Search files by name...')).toBeInTheDocument()
+    })
+
+    const input = screen.getByPlaceholderText('Search files by name...')
+    
+    // Type query
+    fireEvent.change(input, { target: { value: 'app' } })
+    
+    // Check filtered results
+    expect(screen.getByText('apple.md')).toBeInTheDocument()
+    expect(screen.queryByText('banana.md')).not.toBeInTheDocument()
+    expect(screen.queryByText('cherry.md')).not.toBeInTheDocument()
+
+    // Select the first item using Enter
+    fireEvent.keyDown(screen.getByPlaceholderText('Search files by name...'), { key: 'Enter' })
+
+    await waitFor(() => {
+      expect(api.openPath).toHaveBeenCalledWith('/docs/apple.md')
+    })
+
+    // Panel should close
+    expect(screen.queryByPlaceholderText('Search files by name...')).not.toBeInTheDocument()
   })
 })

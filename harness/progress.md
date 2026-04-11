@@ -314,3 +314,74 @@
   - use `pnpm harness:next` to pick the next highest-priority unverified ledger item after `MF-012`
 - Risks / notes:
   - a real interactive desktop pass is still useful to visually confirm theme contrast and the feel of live CSS edits across the whole window chrome
+
+### 2026-04-11 - MF-020 outline panel verification
+
+- Author: Codex
+- Focus: implement a Typora-style outline surface that mirrors heading hierarchy and keeps long-document navigation inside the editor flow.
+- What changed:
+  - kept the research lane read-only for this run; no new Typora feature entries were added, and the backlog stayed anchored to the existing harness recommendation of `MF-020`
+  - added `packages/editor/src/editor/outline.ts` so the app now derives heading hierarchy, duplicate-safe anchors, active-heading state, and in-document anchor lookup from the Markdown parser, excluding fenced-code pseudo-headings and handling setext headings correctly
+  - updated `packages/editor/src/App.tsx`, `packages/editor/src/editor/MarkFlowEditor.tsx`, and `packages/editor/src/styles/global.css` to render a right-hand outline panel, highlight the active heading, and scroll/focus the editor when outline entries are clicked
+  - added regression coverage in `packages/editor/src/editor/__tests__/outline.test.ts` and `packages/editor/src/__tests__/App.test.tsx` for heading derivation, duplicate anchors, click navigation, and live heading rename/reorder sync; also removed pre-existing unused test helpers in `packages/editor/src/editor/__tests__/smartTypography.test.ts` so lint stays green
+  - marked `MF-020` as verified in `harness/feature-ledger.json`
+- Verification:
+  - `pnpm --filter @markflow/editor test:run -- src/editor/__tests__/outline.test.ts src/__tests__/App.test.tsx src/editor/__tests__/MarkFlowEditor.test.tsx`
+  - `node scripts/harness/verify.mjs`
+  - `pnpm lint`
+  - `pnpm build`
+  - `./harness/init.sh --smoke`
+- Newly verified features:
+  - `MF-020`
+- Next recommended feature:
+  - `MF-022` - Footnote references render cleanly and reveal editable note content without corrupting markdown
+- Risks / notes:
+  - the logic is now parser-backed and excludes fenced-code false positives, but an interactive pass on a very long document is still useful to validate outline scroll feel after repeated heading edits
+  - the Researcher lane identified `MF-025` notes as stale versus the already-landed YAML implementation; that ledger cleanup should be handled in a later research-only pass
+
+### 2026-04-11 - MF-044 highlight span verification
+
+- Author: Codex
+- Focus: refresh the Typora parity ledger and close one low-dependency inline-formatting gap end to end.
+- What changed:
+  - refreshed the research backlog by updating `MF-022` footnote notes/verification for Typora superscript-hover behavior and parser-collision risk, correcting `MF-025` YAML notes to match the shipped scope, refreshing `MF-034` callout notes against Typora 1.8 docs, and adding `MF-044` for Typora-style `==highlight==` spans
+  - implemented `MF-044` in `packages/editor/src/editor/decorations/inlineDecorations.ts` by scanning only non-code line segments for `==...==`, hiding the delimiters away from the caret, and restoring raw markdown when the caret re-enters the span
+  - added regression coverage in `packages/editor/src/editor/__tests__/inlineDecorations.test.tsx` for delimiter hiding, caret reveal, code-context exclusion, the stray-inline-code `==` opener case, and compatibility with neighboring bold/italic spans
+  - added `.mf-highlight` styling in `packages/editor/src/styles/global.css`, updated the `MF-044` ledger entry to point at the real automated verification, and kept the manual step as an optional in-app spot-check so the verified state matches the collected evidence
+  - resolved a reviewer-found bug where an inline-code `==` opener could consume the opener of a later real highlight on the same line, then reran the full verification chain and obtained final reviewer acceptance
+- Verification:
+  - `pnpm --filter @markflow/editor test:run -- src/editor/__tests__/inlineDecorations.test.tsx`
+  - `pnpm test`
+  - `pnpm lint`
+  - `pnpm build`
+  - `pnpm harness:verify`
+  - reviewer acceptance: `Accept`
+- Newly verified features:
+  - `MF-044`
+- Next recommended feature:
+  - `MF-022` - Footnote references render cleanly and reveal editable note content without corrupting markdown
+- Risks / notes:
+  - highlight parsing is still regex-based rather than syntax-tree-based, so unusual nested delimiter cases remain the main future edge surface
+  - `MF-022` is still the next harness candidate, but the refreshed ledger notes now accurately capture its parser-level complexity before implementation starts
+
+### 2026-04-11 - MF-033 Open Quickly fuzzy-searches files
+
+- Author: Codex
+- Focus: Implemented Quick Open (fuzzy file search for current folder and recent locations).
+- What changed:
+  - Updated `packages/shared/src/index.ts` to add `MarkFlowQuickOpenItem` type and `getQuickOpenList` IPC interface.
+  - Updated `packages/desktop/src/main/fileManager.ts` to maintain a list of `recentFiles` (up to 20 files).
+  - Implemented `getQuickOpenList` in `fileManager.ts` to scan the current directory for markdown files and append recent files.
+  - Registered `get-quick-open-list` IPC handler in the main process and exposed it via `packages/desktop/src/preload/index.ts`.
+  - Added a new `QuickOpen` overlay component (`packages/editor/src/components/QuickOpen.tsx` and `.css`) to render the fuzzy-search input and the results.
+  - Hooked up Quick Open in `packages/editor/src/App.tsx` via a global keydown listener for `Cmd+Shift+O` (macOS) and `Ctrl+P` (Windows/Linux).
+  - Fixed an existing test error in `linkDecoration.test.tsx` by applying a correct selector assertion or using properly scoped view rendering in `jsdom`.
+  - Extended desktop integration tests in `packages/editor/src/__tests__/App.test.tsx` to assert the Quick Open interaction and fuzzy filtering logic.
+- Verification:
+  - `pnpm test`
+  - `pnpm build`
+  - `pnpm harness:verify`
+- Newly verified features:
+  - `MF-033`
+- Next recommended feature:
+  - `MF-013` - Tables render in WYSIWYG mode and stay editable as markdown

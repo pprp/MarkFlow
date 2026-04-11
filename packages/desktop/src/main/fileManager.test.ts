@@ -57,6 +57,23 @@ describe('FileManager async saves', () => {
     expect(window.setTitle).toHaveBeenCalledWith('notes.md — MarkFlow')
   })
 
+  it('registers open-path and returns null for missing linked files', async () => {
+    const window = createWindowStub()
+    const manager = new FileManager(window as never)
+    const handlers = new Map<string, (...args: unknown[]) => unknown>()
+
+    handleMock.mockImplementation((channel: string, handler: (...args: unknown[]) => unknown) => {
+      handlers.set(channel, handler)
+    })
+
+    manager.registerIpcHandlers()
+
+    const result = await handlers.get('open-path')?.({}, '/tmp/markflow-missing-link-target.md')
+
+    expect(result).toBeNull()
+    expect(window.webContents.send).not.toHaveBeenCalledWith('file-opened', expect.anything())
+  })
+
   it('saves through save-as asynchronously and returns the selected file path', async () => {
     const writeFileMock = vi.spyOn(fs.promises, 'writeFile').mockResolvedValue()
     const window = createWindowStub()
