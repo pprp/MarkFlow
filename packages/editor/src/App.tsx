@@ -74,6 +74,7 @@ export function App() {
   } | null>(null)
   const [selectionText, setSelectionText] = useState('')
   const [isQuickOpenOpen, setIsQuickOpenOpen] = useState(false)
+  const [isExporting, setIsExporting] = useState(false)
   const [quickOpenItems, setQuickOpenItems] = useState<MarkFlowQuickOpenItem[]>([])
   const [documentState, setDocumentState] = useState<MarkFlowDocument>({
     filePath: null,
@@ -82,6 +83,7 @@ export function App() {
   })
   const persistedContentRef = useRef(INITIAL_CONTENT)
   const latestContentRef = useRef(INITIAL_CONTENT)
+  const currentFilePathRef = useRef<string | null>(null)
   const outlineNavigationKeyRef = useRef(0)
 
   useEffect(() => {
@@ -110,6 +112,7 @@ export function App() {
       latestContentRef.current = content
       setCursorPosition(0)
       setOutlineNavigationRequest(null)
+      currentFilePathRef.current = filePath
       setDocumentState({
         filePath,
         content,
@@ -130,6 +133,12 @@ export function App() {
           break
         case 'save-file-as':
           await api.saveFileAs(latestContentRef.current)
+          break
+        case 'export-html':
+          await handleExport('html')
+          break
+        case 'export-pdf':
+          await handleExport('pdf')
           break
       }
     }
@@ -262,6 +271,64 @@ export function App() {
   const handleQuickOpenSelect = async (item: MarkFlowQuickOpenItem) => {
     setIsQuickOpenOpen(false)
     await handleOpenPath(item.filePath)
+  }
+
+
+  const handleExport = async (format: 'html' | 'pdf') => {
+    setIsExporting(true)
+    // Wait a couple of frames for the React state to render the unconstrained editor
+    await new Promise(r => requestAnimationFrame(r))
+    await new Promise(r => requestAnimationFrame(r))
+    await new Promise(r => setTimeout(r, 100)) // give CodeMirror time to settle
+
+    const exportEl = document.getElementById('mf-export-container')
+    const cmContent = exportEl?.querySelector('.cm-content')
+    
+    if (!cmContent) {
+      setIsExporting(false)
+      return
+    }
+
+    const styles = Array.from(document.querySelectorAll('style')).map(s => s.outerHTML).join('\n')
+    
+    const html = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>${currentFilePathRef.current ? currentFilePathRef.current.split('/').pop() : 'Export'}</title>
+  ${styles}
+  <style>
+    body { background-color: var(--mf-bg); color: var(--mf-text); font-family: var(--mf-font-sans); padding: 40px; margin: 0; }
+    .cm-content { padding: 0 !important; }
+  </style>
+</head>
+<body class="mf-export-body">
+  <div class="mf-editor-shell">
+    <div class="mf-editor-container">
+      <div class="cm-editor">
+        <div class="cm-scroller">
+          ${cmContent.outerHTML}
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>`
+
+    setIsExporting(false)
+
+    const api = window.markflow
+    if (!api) return
+    
+    const defaultName = currentFilePathRef.current 
+      ? currentFilePathRef.current.replace(/\.(md|markdown|txt)$/i, '') + '.' + format
+      : 'Untitled.' + format
+
+    if (format === 'html') {
+      await api.exportHtml(html, defaultName)
+    } else {
+      await api.exportPdf(html, defaultName)
+    }
   }
 
   function handleContentChange(content: string) {
@@ -528,6 +595,28 @@ export function App() {
         onClose={() => setIsGlobalSearchOpen(false)}
         onSelectResult={handleGlobalSearchResult}
       />
+
+      {isExporting && (
+        <div id="mf-export-container" style={{ position: 'absolute', left: '-9999px', top: 0, width: '800px', height: 'auto' }}>
+          <MarkFlowEditor
+            content={documentState.content}
+            viewMode="wysiwyg"
+            onChange={() => {}}
+            onCursorPositionChange={() => {}}
+            onNavigationHandled={() => {}}
+            onOpenPath={async () => {}}
+            onToggleMode={() => {}}
+            onSelectionChange={() => {}}
+            onToggleFocusMode={() => {}}
+            onToggleTypewriterMode={() => {}}
+            focusMode={false}
+            typewriterMode={false}
+            filePath={documentState.filePath ?? undefined}
+            navigationRequest={null}
+          />
+        </div>
+      )}
     </div>
   )
 }
+

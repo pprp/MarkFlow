@@ -36,6 +36,15 @@ class MockMarkFlowAPI implements MarkFlowDesktopAPI {
   getCurrentPath: MarkFlowDesktopAPI['getCurrentPath'] = vi.fn(async () => null)
   getQuickOpenList: MarkFlowDesktopAPI['getQuickOpenList'] = vi.fn(async () => [])
   getCurrentDocument: MarkFlowDesktopAPI['getCurrentDocument'] = vi.fn(async () => null)
+
+  exportHtml: MarkFlowDesktopAPI['exportHtml'] = vi.fn(async () => true)
+  exportPdf: MarkFlowDesktopAPI['exportPdf'] = vi.fn(async () => true)
+  openFolder: MarkFlowDesktopAPI['openFolder'] = vi.fn(async () => null)
+  getVaultFiles: MarkFlowDesktopAPI['getVaultFiles'] = vi.fn(async () => [])
+  renameFile: MarkFlowDesktopAPI['renameFile'] = vi.fn(async () => {})
+  deleteFile: MarkFlowDesktopAPI['deleteFile'] = vi.fn(async () => {})
+  searchFiles: MarkFlowDesktopAPI['searchFiles'] = vi.fn(async () => [])
+
   getThemes: MarkFlowDesktopAPI['getThemes'] = vi.fn(async () => this.themes)
   getCurrentTheme: MarkFlowDesktopAPI['getCurrentTheme'] = vi.fn(async () => this.buildThemePayload('paper'))
   setTheme: MarkFlowDesktopAPI['setTheme'] = vi.fn(async (themeId: string) => {
@@ -488,5 +497,38 @@ describe('App Quick Open integration', () => {
 
     // Panel should close
     expect(screen.queryByPlaceholderText('Search files by name...')).not.toBeInTheDocument()
+  })
+})
+
+
+
+describe('App export integration', () => {
+  afterEach(() => {
+    delete window.markflow
+  })
+
+  it('generates HTML from a hidden editor and calls exportHtml', async () => {
+    const api = new MockMarkFlowAPI()
+    window.markflow = api
+
+    const { container } = render(<App />)
+
+    await act(async () => {
+      api.emitFileOpened({ filePath: '/docs/exportme.md', content: '# Hello\n\nSome text' })
+    })
+
+    // Do NOT mock requestAnimationFrame, just wait for it using waitFor
+    await act(async () => {
+      api.emitMenuAction('export-html')
+    })
+
+    await waitFor(() => {
+      expect(api.exportHtml).toHaveBeenCalled()
+    }, { timeout: 2000 })
+
+    const callArgs = (api.exportHtml as ReturnType<typeof vi.fn>).mock.calls[0]
+    expect(callArgs[0]).toContain('Hello')
+    expect(callArgs[0]).toContain('Some text')
+    expect(callArgs[1]).toBe('/docs/exportme.html')
   })
 })

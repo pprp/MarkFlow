@@ -29,7 +29,7 @@ export interface MarkFlowThemePayload extends MarkFlowThemeSummary {
   cssText: string
 }
 
-export type MarkFlowMenuAction = 'new-file' | 'open-file' | 'save-file' | 'save-file-as'
+export type MarkFlowMenuAction = 'new-file' | 'open-file' | 'save-file' | 'save-file-as' | 'export-html' | 'export-pdf'
 
 export interface MarkFlowMenuActionPayload {
   action: MarkFlowMenuAction
@@ -56,6 +56,8 @@ export interface MarkFlowDesktopAPI {
   openPath: (filePath: string) => Promise<MarkFlowFilePayload | null>
   saveFile: (content: string) => Promise<MarkFlowSaveResult | null>
   saveFileAs: (content: string) => Promise<MarkFlowSaveResult | null>
+  exportHtml: (html: string, defaultPath: string) => Promise<boolean>
+  exportPdf: (html: string, defaultPath: string) => Promise<boolean>
   newFile: () => Promise<void>
   getCurrentPath: () => Promise<string | null>
   getQuickOpenList: () => Promise<MarkFlowQuickOpenItem[]>

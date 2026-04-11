@@ -23,6 +23,8 @@ const api: MarkFlowDesktopAPI = {
   saveFile: (content: string) => ipcRenderer.invoke('save-file', content) as Promise<MarkFlowSaveResult | null>,
   saveFileAs: (content: string) =>
     ipcRenderer.invoke('save-file-as', content) as Promise<MarkFlowSaveResult | null>,
+  exportHtml: (html: string, defaultPath: string) => ipcRenderer.invoke('export-html', html, defaultPath),
+  exportPdf: (html: string, defaultPath: string) => ipcRenderer.invoke('export-pdf', html, defaultPath),
   newFile: () => ipcRenderer.invoke('new-file'),
   getCurrentPath: () => ipcRenderer.invoke('get-current-path'),
   getQuickOpenList: () => ipcRenderer.invoke('get-quick-open-list'),

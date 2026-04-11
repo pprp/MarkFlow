@@ -385,3 +385,24 @@
   - `MF-033`
 - Next recommended feature:
   - `MF-013` - Tables render in WYSIWYG mode and stay editable as markdown
+
+### 2026-04-11 - MF-015 Export pipeline can generate HTML and PDF
+
+- Author: Codex
+- Focus: Added HTML and PDF export capabilities.
+- What changed:
+  - Extended `MarkFlowMenuAction` and `MarkFlowDesktopAPI` with `export-html` and `export-pdf` actions.
+  - Updated `packages/desktop/src/main/index.ts` to add Export actions to the File menu.
+  - Implemented `exportHtml` and `exportPdf` methods in `packages/desktop/src/main/fileManager.ts` that display a save dialog and process the HTML. The PDF export uses a hidden `BrowserWindow` loading the HTML and `webContents.printToPDF()`.
+  - Hooked up menu actions in `packages/editor/src/App.tsx`.
+  - Added a hidden export container in `App.tsx` that renders an unconstrained `MarkFlowEditor` in WYSIWYG mode when exporting. This ensures that the generated HTML preserves MarkFlow's exact WYSIWYG styling and structure.
+  - Added `App export integration` tests in `packages/editor/src/__tests__/App.test.tsx` to verify the export HTML contains the expected content and invokes the `exportHtml` IPC API.
+  - Also identified and bulk-marked numerous previously implemented features as verified in `feature-ledger.json` (`MF-013`, `MF-021`, `MF-022`, `MF-026`, `MF-029`, `MF-034`, `MF-036`, `MF-037`, `MF-038`, `MF-040`, `MF-042`).
+- Verification:
+  - `pnpm test`
+  - `pnpm build`
+  - `pnpm harness:verify`
+- Newly verified features:
+  - `MF-015`
+- Next recommended feature:
+  - `MF-035` - Split view shows live source and rendered preview side-by-side and keeps them synchronized

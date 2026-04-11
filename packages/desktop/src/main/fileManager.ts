@@ -23,6 +23,8 @@ export class FileManager {
     ipcMain.removeHandler('rename-file')
     ipcMain.removeHandler('delete-file')
     ipcMain.removeHandler('search-files')
+    ipcMain.removeHandler('export-html')
+    ipcMain.removeHandler('export-pdf')
 
     ipcMain.handle('open-file', () => this.openFile())
     ipcMain.handle('open-path', (_event, filePath: string) => this.openExistingPath(filePath))
@@ -37,6 +39,60 @@ export class FileManager {
     ipcMain.handle('rename-file', (_event, oldPath: string, newPath: string) => this.renameFile(oldPath, newPath))
     ipcMain.handle('delete-file', (_event, filePath: string) => this.deleteFile(filePath))
     ipcMain.handle('search-files', (_event, folderPath: string, query: string) => this.searchFiles(folderPath, query))
+    ipcMain.handle('export-html', async (_event, html: string, defaultPath: string) => this.exportHtml(html, defaultPath))
+    ipcMain.handle('export-pdf', async (_event, html: string, defaultPath: string) => this.exportPdf(html, defaultPath))
+  }
+
+  
+  async exportHtml(html: string, defaultPath: string): Promise<boolean> {
+    const result = await dialog.showSaveDialog(this.window, {
+      title: 'Export as HTML',
+      defaultPath,
+      filters: [{ name: 'HTML', extensions: ['html'] }],
+    })
+    if (result.canceled || !result.filePath) return false
+
+    try {
+      await fs.promises.writeFile(result.filePath, html, 'utf-8')
+      return true
+    } catch (e) {
+      console.error('Failed to export HTML:', e)
+      return false
+    }
+  }
+
+  async exportPdf(html: string, defaultPath: string): Promise<boolean> {
+    const result = await dialog.showSaveDialog(this.window, {
+      title: 'Export as PDF',
+      defaultPath,
+      filters: [{ name: 'PDF', extensions: ['pdf'] }],
+    })
+    if (result.canceled || !result.filePath) return false
+
+    // Create a hidden window to render the HTML and print to PDF
+    const win = new BrowserWindow({
+      show: false,
+      webPreferences: {
+        nodeIntegration: false,
+        contextIsolation: true,
+      }
+    })
+
+    try {
+      await win.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(html))
+      const pdfData = await win.webContents.printToPDF({
+        printBackground: true,
+        pageSize: 'A4',
+        margins: { marginType: 'default' }
+      })
+      await fs.promises.writeFile(result.filePath, pdfData)
+      return true
+    } catch (e) {
+      console.error('Failed to export PDF:', e)
+      return false
+    } finally {
+      win.destroy()
+    }
   }
 
   private addToRecent(filePath: string) {
