@@ -1,5 +1,6 @@
 import { EditorView, Decoration, ViewPlugin, ViewUpdate, DecorationSet } from '@codemirror/view'
 import { RangeSetBuilder } from '@codemirror/state'
+import { getDecorationViewportWindow } from './viewportWindow'
 
 /**
  * Detects YAML front matter at the very start of the document (a `---`
@@ -28,8 +29,10 @@ export function detectFrontMatter(doc: { lines: number; line: (n: number) => { t
 export function buildFrontMatterDecorations(view: EditorView): DecorationSet {
   const builder = new RangeSetBuilder<Decoration>()
   const doc = view.state.doc
+  const { startLine, endLine } = getDecorationViewportWindow(view)
   const range = detectFrontMatter(doc)
   if (!range) return builder.finish()
+  if (range.lastLine < startLine || range.firstLine > endLine) return builder.finish()
 
   for (let lineNum = range.firstLine; lineNum <= range.lastLine; lineNum++) {
     const line = doc.line(lineNum)

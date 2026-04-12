@@ -9,6 +9,7 @@ import {
 } from '@codemirror/view'
 import { syntaxTree } from '@codemirror/language'
 import { RangeSetBuilder } from '@codemirror/state'
+import { getDecorationViewportWindow } from './viewportWindow'
 
 // ── Widgets ───────────────────────────────────────────────────────────────────
 
@@ -71,9 +72,11 @@ class BlockMathWidget extends WidgetType {
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 /** Collect ranges of fenced code / inline code to avoid math-inside-code. */
-function getCodeRanges(view: EditorView): Array<{ from: number; to: number }> {
+function getCodeRanges(view: EditorView, from: number, to: number): Array<{ from: number; to: number }> {
   const ranges: Array<{ from: number; to: number }> = []
   syntaxTree(view.state).iterate({
+    from,
+    to,
     enter(node) {
       if (
         node.name === 'FencedCode' ||
@@ -107,8 +110,9 @@ interface DecoEntry {
 export function buildMathDecorations(view: EditorView): DecorationSet {
   const builder = new RangeSetBuilder<Decoration>()
   const doc = view.state.doc
+  const { from: minFrom, to: maxTo, startLine, endLine } = getDecorationViewportWindow(view)
   const cursor = view.state.selection.main.head
-  const codeRanges = getCodeRanges(view)
+  const codeRanges = getCodeRanges(view, minFrom, maxTo)
 
   const entries: DecoEntry[] = []
   // Ranges spanned by multi-line $$...$$ blocks (so inline scan can skip them).
@@ -119,7 +123,7 @@ export function buildMathDecorations(view: EditorView): DecorationSet {
   let openBlock: { lineNum: number; lineFrom: number } | null = null
   const contentBuf: string[] = []
 
-  for (let i = 1; i <= doc.lines; i++) {
+  for (let i = startLine; i <= endLine; i++) {
     const line = doc.line(i)
 
     if (line.text.trim() !== '$$') {
@@ -167,7 +171,7 @@ export function buildMathDecorations(view: EditorView): DecorationSet {
   // ── Single-line display math: $$expr$$ within a line ─────────────────────
   // Pattern: $$…$$ where content has no newline and is non-empty.
   const displayRe = /\$\$([^$\n]+?)\$\$/g
-  for (let i = 1; i <= doc.lines; i++) {
+  for (let i = startLine; i <= endLine; i++) {
     const line = doc.line(i)
     // Skip lines inside already-processed multi-line blocks or code.
     if (overlapsAny(line.from, line.to, blockMathRanges)) continue
@@ -190,7 +194,7 @@ export function buildMathDecorations(view: EditorView): DecorationSet {
   // ── Inline math: $expr$ per line ─────────────────────────────────────────
   // Opening/closing $ must not be adjacent to another $.
   const inlineRe = /(?<!\$)\$(?!\$)([^$\n]+?)\$(?!\$)/g
-  for (let i = 1; i <= doc.lines; i++) {
+  for (let i = startLine; i <= endLine; i++) {
     const line = doc.line(i)
     if (overlapsAny(line.from, line.to, blockMathRanges)) continue
     if (overlapsAny(line.from, line.to, codeRanges)) continue
@@ -236,4 +240,3 @@ export function mathDecorations() {
     { decorations: (v) => v.decorations },
   )
 }
-

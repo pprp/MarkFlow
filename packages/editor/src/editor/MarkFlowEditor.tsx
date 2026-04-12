@@ -1,7 +1,7 @@
 import { useRef, useEffect, useState, useCallback } from 'react'
 import { Compartment, EditorSelection, EditorState, Transaction } from '@codemirror/state'
 import { EditorView, keymap, drawSelection, highlightActiveLine } from '@codemirror/view'
-import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands'
+import { defaultKeymap, history, historyKeymap, indentWithTab, undoDepth } from '@codemirror/commands'
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown'
 import { languages } from '@codemirror/language-data'
 import {
@@ -39,6 +39,7 @@ import { readingModeExtension } from './extensions/readingMode'
 import { tocDecorations } from './decorations/tocDecoration'
 import { findHeadingAnchorPosition } from './outline'
 import { FloatingToolbar } from '../components/FloatingToolbar'
+import { MAX_UNDO_HISTORY_EVENTS, pruneHistoryState } from './historyLimit'
 
 export interface MarkFlowEditorProps {
   content: string
@@ -121,6 +122,108 @@ function getViewModeExtensions(viewMode: ViewMode, filePath?: string, pluginHost
   return []
 }
 
+function getEditorExtensions(
+  viewMode: ViewMode,
+  focusMode: boolean,
+  typewriterMode: boolean,
+  filePath: string | undefined,
+  pluginHost: MarkFlowPluginHost | undefined,
+  onChangeRef: React.MutableRefObject<MarkFlowEditorProps['onChange']>,
+  onCursorPositionChangeRef: React.MutableRefObject<MarkFlowEditorProps['onCursorPositionChange']>,
+  onSelectionChangeRef: React.MutableRefObject<MarkFlowEditorProps['onSelectionChange']>,
+  onToggleModeRef: React.MutableRefObject<MarkFlowEditorProps['onToggleMode']>,
+  onToggleFocusModeRef: React.MutableRefObject<MarkFlowEditorProps['onToggleFocusMode']>,
+  onToggleTypewriterModeRef: React.MutableRefObject<MarkFlowEditorProps['onToggleTypewriterMode']>,
+  pruneHistoryRef: React.MutableRefObject<((view: EditorView) => void) | null>,
+  viewModeCompartment: Compartment,
+  focusModeCompartment: Compartment,
+  typewriterModeCompartment: Compartment,
+) {
+  return [
+    baseTheme,
+    EditorState.allowMultipleSelections.of(true),
+    history({ minDepth: MAX_UNDO_HISTORY_EVENTS, newGroupDelay: 500 }),
+    drawSelection(),
+    highlightActiveLine(),
+    bracketMatching(),
+    closeBrackets(),
+    indentOnInput(),
+    highlightSelectionMatches(),
+    syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
+    markdown({ base: markdownLanguage, codeLanguages: languages }),
+    keymap.of([
+      {
+        key: 'Escape',
+        preventDefault: true,
+        run: (view) => {
+          const main = view.state.selection.main
+          if (view.state.selection.ranges.length <= 1) {
+            return false
+          }
+
+          view.dispatch({
+            selection: EditorSelection.cursor(main.head),
+          })
+          return true
+        },
+      },
+      {
+        key: 'Mod-/',
+        preventDefault: true,
+        run: () => {
+          onToggleModeRef.current?.()
+          return true
+        },
+      },
+      {
+        key: 'Mod-Shift-f',
+        preventDefault: true,
+        run: () => {
+          onToggleFocusModeRef.current?.()
+          return true
+        },
+      },
+      {
+        key: 'Mod-Shift-t',
+        preventDefault: true,
+        run: () => {
+          onToggleTypewriterModeRef.current?.()
+          return true
+        },
+      },
+      ...defaultKeymap,
+      ...historyKeymap,
+      ...searchKeymap,
+      ...closeBracketsKeymap,
+      indentWithTab,
+    ]),
+    EditorView.clickAddsSelectionRange.of((event) => event.altKey),
+    smartTypographyExtension(),
+    smartInput(),
+    smartPasteExtension(),
+    headingFoldExtension(),
+    spellCheckExtension(),
+    EditorView.lineWrapping,
+    EditorView.updateListener.of((update) => {
+      if (update.docChanged) {
+        onChangeRef.current?.(update.state.doc.toString())
+        pruneHistoryRef.current?.(update.view)
+      }
+      if (update.selectionSet || update.docChanged) {
+        const selection = update.state.selection.main
+        const selectedText = selection.empty
+          ? ''
+          : update.state.doc.sliceString(selection.from, selection.to)
+        onSelectionChangeRef.current?.(selectedText)
+        onCursorPositionChangeRef.current?.(selection.head)
+      }
+    }),
+    viewModeCompartment.of(getViewModeExtensions(viewMode, filePath, pluginHost)),
+    focusModeCompartment.of(focusMode ? focusModeExtension() : []),
+    typewriterModeCompartment.of(typewriterMode ? typewriterModeExtension() : []),
+  ]
+}
+
 export function MarkFlowEditor({
   content,
   viewMode,
@@ -151,10 +254,11 @@ export function MarkFlowEditor({
   const onToggleFocusModeRef = useRef(onToggleFocusMode)
   const onToggleTypewriterModeRef = useRef(onToggleTypewriterMode)
   const filePathRef = useRef(filePath)
+  const pruneHistoryRef = useRef<((view: EditorView) => void) | null>(null)
   const viewModeCompartmentRef = useRef(new Compartment())
   const focusModeCompartmentRef = useRef(new Compartment())
   const typewriterModeCompartmentRef = useRef(new Compartment())
-const [editorView, setEditorView] = useState<EditorView | null>(null)
+  const [editorView, setEditorView] = useState<EditorView | null>(null)
 
   useEffect(() => {
     onChangeRef.current = onChange
@@ -192,76 +296,56 @@ const [editorView, setEditorView] = useState<EditorView | null>(null)
     filePathRef.current = filePath
   }, [filePath])
 
+  pruneHistoryRef.current = (view: EditorView) => {
+    if (undoDepth(view.state) <= MAX_UNDO_HISTORY_EVENTS) {
+      return
+    }
+
+    const nextExtensions = getEditorExtensions(
+      viewMode,
+      focusMode,
+      typewriterMode,
+      filePathRef.current,
+      pluginHost,
+      onChangeRef,
+      onCursorPositionChangeRef,
+      onSelectionChangeRef,
+      onToggleModeRef,
+      onToggleFocusModeRef,
+      onToggleTypewriterModeRef,
+      pruneHistoryRef,
+      viewModeCompartmentRef.current,
+      focusModeCompartmentRef.current,
+      typewriterModeCompartmentRef.current,
+    )
+    const nextState = pruneHistoryState(view.state, nextExtensions)
+    if (nextState !== view.state) {
+      view.setState(nextState)
+    }
+  }
+
   useEffect(() => {
     if (!containerRef.current || viewRef.current) return
 
     const state = EditorState.create({
       doc: content,
-      extensions: [
-        baseTheme,
-        history(),
-        drawSelection(),
-        highlightActiveLine(),
-        bracketMatching(),
-        closeBrackets(),
-        indentOnInput(),
-        highlightSelectionMatches(),
-        syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
-        markdown({ base: markdownLanguage, codeLanguages: languages }),
-        keymap.of([
-          {
-            key: 'Mod-/',
-            preventDefault: true,
-            run: () => {
-              onToggleModeRef.current?.()
-              return true
-            },
-          },
-          {
-            key: 'Mod-Shift-f',
-            preventDefault: true,
-            run: () => {
-              onToggleFocusModeRef.current?.()
-              return true
-            },
-          },
-          {
-            key: 'Mod-Shift-t',
-            preventDefault: true,
-            run: () => {
-              onToggleTypewriterModeRef.current?.()
-              return true
-            },
-          },
-          ...defaultKeymap,
-          ...historyKeymap,
-          ...searchKeymap,
-          ...closeBracketsKeymap,
-          indentWithTab,
-        ]),
-        smartTypographyExtension(),
-        smartInput(),
-        smartPasteExtension(),
-        headingFoldExtension(),
-        spellCheckExtension(),
-        EditorView.lineWrapping,
-        EditorView.updateListener.of((update) => {
-          if (update.docChanged) {
-            onChangeRef.current?.(update.state.doc.toString())
-          }
-          if (update.selectionSet || update.docChanged) {
-            const selection = update.state.selection.main
-            const selectedText = selection.empty
-              ? ''
-              : update.state.doc.sliceString(selection.from, selection.to)
-            onSelectionChangeRef.current?.(selectedText)
-            onCursorPositionChangeRef.current?.(selection.head)
-          }
-        }),
-        viewModeCompartmentRef.current.of(getViewModeExtensions(viewMode, filePath, pluginHost)),
-        focusModeCompartmentRef.current.of(focusMode ? focusModeExtension() : []),
-        typewriterModeCompartmentRef.current.of(typewriterMode ? typewriterModeExtension() : []),
-      ],
+      extensions: getEditorExtensions(
+        viewMode,
+        focusMode,
+        typewriterMode,
+        filePath,
+        pluginHost,
+        onChangeRef,
+        onCursorPositionChangeRef,
+        onSelectionChangeRef,
+        onToggleModeRef,
+        onToggleFocusModeRef,
+        onToggleTypewriterModeRef,
+        pruneHistoryRef,
+        viewModeCompartmentRef.current,
+        focusModeCompartmentRef.current,
+        typewriterModeCompartmentRef.current,
+      ),
     })
 
     const view = new EditorView({

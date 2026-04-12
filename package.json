@@ -14,6 +14,7 @@
     "harness:start": "node ./scripts/harness/start-session.mjs",
     "harness:next": "node ./scripts/harness/next-feature.mjs",
     "harness:verify": "node ./scripts/harness/verify.mjs",
+    "harness:fixture:large": "node ./scripts/harness/generate-large-markdown.mjs",
     "harness:init": "./harness/init.sh --smoke"
   },
   "devDependencies": {

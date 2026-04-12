@@ -11,6 +11,14 @@ export interface MarkFlowFilePayload {
   content: string
 }
 
+export interface MarkFlowFileLoadProgressPayload {
+  filePath: string
+  bytesRead: number
+  totalBytes: number
+  previewContent: string
+  done: boolean
+}
+
 export interface MarkFlowSavePayload {
   filePath: string
 }
@@ -232,6 +240,7 @@ export interface MarkFlowDesktopAPI {
   deleteFile: (filePath: string) => Promise<void>
   searchFiles: (folderPath: string, query: string) => Promise<SearchResult[]>
   onFileOpened: (cb: (data: MarkFlowFilePayload) => void) => () => void
+  onFileLoadingProgress: (cb: (data: MarkFlowFileLoadProgressPayload) => void) => () => void
   onFileSaved: (cb: (data: MarkFlowSavePayload) => void) => () => void
   onMenuAction: (cb: (data: MarkFlowMenuActionPayload) => void) => () => void
   onThemeUpdated: (cb: (data: MarkFlowThemePayload) => void) => () => void

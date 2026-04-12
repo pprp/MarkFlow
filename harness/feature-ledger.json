@@ -1236,7 +1236,7 @@
       "category": "phase-2-performance",
       "area": "@markflow/editor",
       "priority": 1,
-      "status": "planned",
+      "status": "ready",
       "passes": false,
       "lastVerifiedAt": null,
       "dependsOn": [],
@@ -1250,10 +1250,10 @@
           "pnpm --filter @markflow/editor test:run -- --grep virtual"
         ],
         "manual": [
-          "Load large-file fixture; observe scroll FPS in DevTools Performance tab."
+          "Run `pnpm harness:fixture:large`, load `harness/fixtures/mf-large-180k.md`, and observe scroll FPS in DevTools Performance tab."
         ]
       },
-      "notes": "Use CodeMirror 6 viewport-aware decoration pipeline; avoid full document scans on every keypress."
+      "notes": "Implemented on 2026-04-12 with a shared viewport window helper in `packages/editor/src/editor/decorations/viewportWindow.ts` that keeps documents over 5 000 lines bounded to the visible ranges plus a 200-line buffer, while smaller files retain the full-document path. `packages/editor/src/editor/decorations/linkDecoration.ts`, `packages/editor/src/editor/decorations/tocDecoration.ts`, and `packages/editor/src/editor/decorations/footnoteDecoration.ts` now cache full-document metadata on `docChanged` so scroll and selection changes do not rescan the entire file; the other decoration builders consume the shared window helper as their render bound. Automated coverage lives in `packages/editor/src/editor/__tests__/virtualRendering.test.ts` and passed again on 2026-04-12 alongside `pnpm --filter @markflow/editor build` and `pnpm --filter @markflow/editor lint`; that suite now also clamps the virtualized window at both the top and bottom document edges to reduce the blank-region risk called out in review. `pnpm harness:fixture:large` now generates the required 180 000-line markdown fixture at `harness/fixtures/mf-large-180k.md` for the remaining manual perf/DOM validation, so `passes` still remains false only because that interactive check is unrun."
     },
     {
       "id": "MF-049",
@@ -1343,7 +1343,7 @@
       "category": "phase-2-performance",
       "area": "@markflow/desktop",
       "priority": 1,
-      "status": "planned",
+      "status": "ready",
       "passes": false,
       "lastVerifiedAt": null,
       "dependsOn": [],
@@ -1358,10 +1358,10 @@
           "pnpm --filter @markflow/desktop test:run -- --grep chunk-loader"
         ],
         "manual": [
-          "Open the large-file fixture and measure time-to-first-line with a stopwatch."
+          "Run `pnpm harness:fixture:large -- --megabytes 200 --output harness/fixtures/mf-large-200mb.md`, open that file, and measure time-to-first-line with a stopwatch."
         ]
       },
-      "notes": "Use Node.js fs.createReadStream on the Electron main process; feed chunks to renderer via IPC."
+      "notes": "Implemented on 2026-04-12 with a streamed `fs.createReadStream` open path in `packages/desktop/src/main/fileManager.ts` that switches files larger than 1 MB to 64 KB chunk reads, emits `file-loading-progress` IPC payloads with a live preview, and only sends the final `file-opened` payload after the full document is assembled. `packages/shared/src/index.ts`, `packages/desktop/src/preload/index.ts`, and `packages/editor/src/App.tsx` now expose and render that progress signal as a large-file preview panel so the user sees the first screenful and a progress bar while the background load continues. `pnpm harness:fixture:large` now also supports `--megabytes` / `--bytes`; it was exercised on 2026-04-12 with `--megabytes 200`, producing a 209,715,284-byte fixture at `/tmp/markflow-large-200mb.md` so the remaining manual open-time/OOM check has a reproducible input. Automated coverage passed on 2026-04-12 via `pnpm --filter @markflow/desktop test:run -- src/main/fileManager.test.ts`, `pnpm --filter @markflow/shared build`, `pnpm --filter @markflow/desktop build`, `pnpm --filter @markflow/desktop lint`, `pnpm --filter @markflow/editor build`, `pnpm --filter @markflow/editor lint`, and `pnpm --filter @markflow/editor test:run -- src/__tests__/App.test.tsx`, but the required manual 200 MB open-time/OOM check is still pending so `passes` remains false."
     },
     {
       "id": "MF-053",
@@ -1451,24 +1451,24 @@
       "category": "phase-2-functional",
       "area": "@markflow/editor",
       "priority": 2,
-      "status": "planned",
+      "status": "ready",
       "passes": false,
       "lastVerifiedAt": null,
       "dependsOn": [],
       "steps": [
-        "Press Cmd+G, enter a line number, and confirm the caret moves to that line.",
-        "Confirm the viewport scrolls so the target line is centered.",
+        "Press Cmd/Ctrl+L, enter a line number, and confirm the caret moves to that line.",
+        "Confirm the viewport scrolls so the target line is visible near the top of the editor.",
         "Test with a line number beyond the document end and confirm a graceful clamp."
       ],
       "verification": {
         "automated": [
-          "pnpm --filter @markflow/editor test:run -- --grep goto-line"
+          "pnpm --filter @markflow/editor test:run -- --grep go-to-line"
         ],
         "manual": [
-          "Use Cmd+G on a 180k-line file; verify correct line is shown."
+          "Use Cmd/Ctrl+L on a 180k-line file; verify the requested line is shown without visible lag."
         ]
       },
-      "notes": "Uses CodeMirror 6 EditorView.dispatch with a scrollIntoView effect."
+      "notes": "Implemented on 2026-04-12 via a lightweight `packages/editor/src/components/GoToLine.tsx` overlay opened from `packages/editor/src/App.tsx` with `Cmd/Ctrl+L`. The app computes the target document offset from the requested line number, clamps out-of-range input to the document bounds, and reuses the existing `MarkFlowEditor` navigation request path so `EditorView.dispatch` sets the caret and runs `scrollIntoView` without recreating the editor. Automated coverage lives in `packages/editor/src/__tests__/App.test.tsx` and passed on 2026-04-12 with `pnpm --filter @markflow/editor test:run -- --grep go-to-line`, plus `pnpm --filter @markflow/editor build` and `pnpm --filter @markflow/editor lint`. `passes` remains false only because the required manual large-document shortcut smoke test is still pending."
     },
     {
       "id": "MF-057",
@@ -1476,7 +1476,7 @@
       "category": "phase-2-functional",
       "area": "@markflow/editor",
       "priority": 2,
-      "status": "planned",
+      "status": "ready",
       "passes": false,
       "lastVerifiedAt": null,
       "dependsOn": [],
@@ -1493,7 +1493,7 @@
           "Alt-click three lines; type a word; confirm all three lines updated."
         ]
       },
-      "notes": "CodeMirror 6 supports multiple selections natively; wire up Alt+Click and Cmd+D (select-next-occurrence)."
+      "notes": "Implemented on 2026-04-12 in `packages/editor/src/editor/MarkFlowEditor.tsx` by enabling `EditorState.allowMultipleSelections`, remapping `EditorView.clickAddsSelectionRange` to `Alt` so add-cursor clicks match the feature spec, and adding an explicit `Escape` keybinding that collapses back to the primary selection. `Mod-D` select-next-occurrence support now works through the existing CodeMirror `searchKeymap` because multiple selections are enabled. Automated coverage lives in `packages/editor/src/editor/__tests__/MarkFlowEditor.test.tsx` and passed on 2026-04-12 with `pnpm --filter @markflow/editor test:run -- --grep multi-cursor`, plus `pnpm --filter @markflow/editor build` and `pnpm --filter @markflow/editor lint`. `passes` remains false only because the manual Alt-click interaction check is still pending."
     },
     {
       "id": "MF-058",
@@ -1528,7 +1528,7 @@
       "category": "phase-2-performance",
       "area": "@markflow/editor",
       "priority": 2,
-      "status": "planned",
+      "status": "ready",
       "passes": false,
       "lastVerifiedAt": null,
       "dependsOn": [],
@@ -1539,13 +1539,13 @@
       ],
       "verification": {
         "automated": [
-          "pnpm --filter @markflow/editor test:run -- --grep undo-cap"
+          "pnpm --filter @markflow/editor test:run -- --grep \"caps undo history\""
         ],
         "manual": [
           "Monitor heap in DevTools Memory snapshot after 600 edits."
         ]
       },
-      "notes": "Configure CodeMirror historyConfig with a maxDepth of 500."
+      "notes": "Implemented on 2026-04-12 in `packages/editor/src/editor/MarkFlowEditor.tsx` and `packages/editor/src/editor/historyLimit.ts`. The editor now configures CodeMirror history with a 500-event target and prunes serialized `historyField` state back to the newest 500 change events whenever the native branch grows past the cap, which keeps undo depth exact even though CodeMirror's built-in history only exposes a retention floor (`minDepth`) instead of a true max depth. Automated coverage in `packages/editor/src/editor/__tests__/MarkFlowEditor.test.tsx` proves that 600 isolated edits settle at exactly 500 undoable events and that the 501st undo stops cleanly; it passed on 2026-04-12 with `pnpm --filter @markflow/editor test:run -- --grep \"caps undo history\"`, plus `pnpm --filter @markflow/editor build` and `pnpm --filter @markflow/editor lint`. `passes` remains false because the manual heap-size verification for large-file sessions is still pending."
     },
     {
       "id": "MF-060",

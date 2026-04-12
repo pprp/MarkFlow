@@ -2,9 +2,20 @@ import { app, BrowserWindow, dialog, ipcMain } from 'electron'
 import * as fs from 'fs'
 import { execFile } from 'child_process'
 import { promisify } from 'util'
+import { StringDecoder } from 'string_decoder'
 const execFileAsync = promisify(execFile)
 import * as path from 'path'
-import type { MarkFlowFilePayload, MarkFlowSaveResult, MarkFlowQuickOpenItem, SearchResult } from '@markflow/shared'
+import type {
+  MarkFlowFileLoadProgressPayload,
+  MarkFlowFilePayload,
+  MarkFlowQuickOpenItem,
+  MarkFlowSaveResult,
+  SearchResult,
+} from '@markflow/shared'
+
+const STREAM_OPEN_CHUNK_SIZE = 64 * 1024
+const STREAM_OPEN_THRESHOLD_BYTES = 1024 * 1024
+const STREAM_PREVIEW_BYTE_LIMIT = 64 * 1024
 
 export class FileManager {
   private currentFilePath: string | null = null
@@ -166,7 +177,7 @@ export class FileManager {
     return this.openPath(result.filePaths[0])
   }
 
-  openExistingPath(filePath: string): MarkFlowFilePayload | null {
+  async openExistingPath(filePath: string): Promise<MarkFlowFilePayload | null> {
     if (!fs.existsSync(filePath)) {
       return null
     }
@@ -206,8 +217,8 @@ export class FileManager {
     return saveResult
   }
 
-  openPath(filePath: string): MarkFlowFilePayload {
-    const content = fs.readFileSync(filePath, 'utf-8')
+  async openPath(filePath: string): Promise<MarkFlowFilePayload> {
+    const content = await this.readFileForOpen(filePath)
     this.currentFilePath = filePath
     this.addToRecent(filePath)
     this.window.webContents.send('file-opened', { filePath, content })
@@ -369,5 +380,62 @@ export class FileManager {
   private emitFileSaved(filePath: string) {
     this.window.webContents.send('file-saved', { filePath })
     this.updateTitle()
+  }
+
+  private async readFileForOpen(filePath: string): Promise<string> {
+    const stats = await fs.promises.stat(filePath)
+    if (stats.size < STREAM_OPEN_THRESHOLD_BYTES) {
+      return fs.promises.readFile(filePath, 'utf-8')
+    }
+
+    return this.readLargeFileForOpen(filePath, stats.size)
+  }
+
+  private async readLargeFileForOpen(filePath: string, totalBytes: number): Promise<string> {
+    const chunks: Buffer[] = []
+    const previewDecoder = new StringDecoder('utf8')
+    const stream = fs.createReadStream(filePath, {
+      highWaterMark: STREAM_OPEN_CHUNK_SIZE,
+    })
+
+    let previewContent = ''
+    let bytesRead = 0
+
+    const emitProgress = (done: boolean) => {
+      const payload: MarkFlowFileLoadProgressPayload = {
+        filePath,
+        bytesRead,
+        totalBytes,
+        previewContent,
+        done,
+      }
+      this.window.webContents.send('file-loading-progress', payload)
+    }
+
+    return new Promise<string>((resolve, reject) => {
+      stream.on('data', (chunk: string | Buffer) => {
+        const bufferChunk = typeof chunk === 'string' ? Buffer.from(chunk) : chunk
+
+        chunks.push(bufferChunk)
+        bytesRead += bufferChunk.length
+
+        if (previewContent.length < STREAM_PREVIEW_BYTE_LIMIT) {
+          previewContent = `${previewContent}${previewDecoder.write(bufferChunk)}`.slice(0, STREAM_PREVIEW_BYTE_LIMIT)
+        }
+
+        emitProgress(false)
+      })
+
+      stream.once('error', (error) => {
+        reject(error)
+      })
+
+      stream.once('end', () => {
+        previewContent = `${previewContent}${previewDecoder.end()}`.slice(0, STREAM_PREVIEW_BYTE_LIMIT)
+        bytesRead = totalBytes
+        emitProgress(true)
+        resolve(Buffer.concat(chunks).toString('utf-8'))
+      })
+    })
   }
 }

@@ -9,6 +9,181 @@
 
 ## Session Log
 
+### 2026-04-12 - MF-059 undo history capped at 500 events, pending manual memory verification
+
+- Author: Codex
+- Focus: Enforce a real upper bound on undo depth without forking CodeMirror's history implementation or resetting the editor state wholesale.
+- What changed:
+  - added `packages/editor/src/editor/historyLimit.ts`, which serializes/prunes CodeMirror's exported `historyField` and rebuilds editor state with only the newest 500 change events retained
+  - updated `packages/editor/src/editor/MarkFlowEditor.tsx` to use the shared history limit, keep the editor extensions stable across state rebuilds, and prune history only when the native branch grows past the configured cap
+  - extended `packages/editor/src/editor/__tests__/MarkFlowEditor.test.tsx` with a regression that creates 600 isolated edits, asserts the undo depth settles at exactly 500, and confirms the 501st undo returns `false`
+  - updated `harness/feature-ledger.json` so `MF-059` now reflects the actual implementation and truthful `ready` / `passes=false` state
+- Verification:
+  - `pnpm --filter @markflow/editor test:run -- --grep "caps undo history"` (passes; current editor suite reports 23 files / 231 tests)
+  - `pnpm --filter @markflow/editor test:run -- src/editor/__tests__/MarkFlowEditor.test.tsx` (passes)
+  - `pnpm --filter @markflow/editor build` (passes)
+  - `pnpm --filter @markflow/editor lint` (passes)
+- Review / risks:
+  - `MF-059` still needs the manual heap-size verification before it can move from `ready` to `verified`
+  - the cap is enforced by rebuilding editor state from serialized history when needed; that preserves doc/selection/extensions, but any future extension that stores non-serializable transient state in editor fields should be checked before reusing this pattern elsewhere
+  - unrelated in-flight workspace edits outside `MF-059` were left untouched
+- Newly verified features:
+  - none
+- Next recommended feature:
+  - `MF-060` - Auto-save writes a recovery checkpoint every 30 seconds without blocking the editor
+
+### 2026-04-12 - MF-057 multi-cursor editing enabled, pending manual Alt-click verification
+
+- Author: Codex
+- Focus: Expose CodeMirror's native multi-selection support with the exact interaction model the backlog calls for, without layering custom cursor bookkeeping on top.
+- What changed:
+  - updated `packages/editor/src/editor/MarkFlowEditor.tsx` to enable `EditorState.allowMultipleSelections`, map add-selection clicks to `Alt` instead of CodeMirror's default `Ctrl`/`Cmd`, and collapse multiple cursors back to the primary caret with `Escape`
+  - kept `Mod-D` on the existing `searchKeymap`, which now produces real multi-cursor select-next-occurrence behavior because multiple selections are enabled at the editor state level
+  - extended `packages/editor/src/editor/__tests__/MarkFlowEditor.test.tsx` with coverage for the Alt-click gesture config, simultaneous multi-cursor edits, `Mod-D` next-occurrence expansion, and `Escape` collapse semantics
+  - updated `harness/feature-ledger.json` so `MF-057` now reflects the implemented behavior and truthful `ready` / `passes=false` state
+- Verification:
+  - `pnpm --filter @markflow/editor test:run -- --grep multi-cursor` (passes; current editor suite reports 23 files / 230 tests)
+  - `pnpm --filter @markflow/editor test:run -- src/editor/__tests__/MarkFlowEditor.test.tsx` (passes)
+  - `pnpm --filter @markflow/editor build` (passes)
+  - `pnpm --filter @markflow/editor lint` (passes)
+- Review / risks:
+  - `MF-057` still needs manual desktop validation because the shipped Alt-click gesture itself was not exercised interactively in this session
+  - this deliberately changes the add-cursor modifier from CodeMirror's platform default to backlog-specified `Alt`; if later UX work wants macOS-native `Cmd` semantics as well, that should be an explicit follow-up rather than an accidental regression
+  - unrelated in-flight workspace edits outside `MF-057` were left untouched
+- Newly verified features:
+  - none
+- Next recommended feature:
+  - `MF-059` - Undo history is capped at 500 steps and compressed for large-file sessions to stay under 256 MB
+
+### 2026-04-12 - MF-056 go-to-line dialog implemented, pending manual large-file validation
+
+- Author: Codex
+- Focus: Add a low-friction line-jump workflow without introducing a second editor instance or bypassing the existing navigation path.
+- What changed:
+  - added `packages/editor/src/components/GoToLine.tsx` and `packages/editor/src/components/GoToLine.css`, a compact overlay opened by `Cmd/Ctrl+L` that pre-fills the current line number and accepts numeric input only
+  - updated `packages/editor/src/App.tsx` to compute current/target line positions from the active document, clamp out-of-range requests to the file bounds, and reuse the existing editor navigation request state so caret movement and viewport scrolling stay in one path
+  - extended `packages/editor/src/__tests__/App.test.tsx` with integration coverage for both normal line jumps and end-of-document clamping
+  - updated `harness/feature-ledger.json` so `MF-056` now reflects the shipped shortcut, scroll behavior, automated verification command, and truthful `ready` / `passes=false` state
+- Verification:
+  - `pnpm --filter @markflow/editor test:run -- --grep go-to-line` (passes; current editor suite reports 23 files / 226 tests)
+  - `pnpm --filter @markflow/editor build` (passes)
+  - `pnpm --filter @markflow/editor lint` (passes)
+- Review / risks:
+  - `MF-056` still needs the manual 180k-line shortcut smoke test before it can move from `ready` to `verified`
+  - line-number calculations currently scan the in-memory document string in `App`, which is acceptable for one-shot dialog submits but should be revisited if later desktop streaming work moves toward partial-document navigation
+  - unrelated in-flight workspace edits outside `MF-056` were left untouched
+- Newly verified features:
+  - none
+- Next recommended feature:
+  - `MF-057` - Multi-cursor editing allows placing cursors on non-contiguous lines and editing them simultaneously
+
+### 2026-04-12 - Large-file risk reductions for MF-048 and MF-052
+
+- Author: Codex
+- Focus: Narrow the remaining large-file manual risks by making the desktop 200 MB scenario reproducible from the repo and adding stronger virtual-rendering edge coverage.
+- What changed:
+  - extended `scripts/harness/generate-large-markdown.mjs` so it can target a byte budget via `--bytes` or `--megabytes`, not just a fixed line count
+  - added top-edge and bottom-edge viewport-window tests in `packages/editor/src/editor/__tests__/virtualRendering.test.ts` so `MF-048` now explicitly covers the two boundary cases most likely to cause blank regions
+  - updated `harness/feature-ledger.json` so `MF-052` now points to a reproducible 200 MB fixture command and `MF-048` records the stronger edge-window automated evidence
+- Verification:
+  - `pnpm harness:fixture:large -- --megabytes 200 --output /tmp/markflow-large-200mb.md` (passes; generated 2,121,648 lines / 209,715,284 bytes)
+  - `pnpm --filter @markflow/editor test:run -- src/editor/__tests__/virtualRendering.test.ts` (passes; current suite reports 23 files / 224 tests)
+- Review / risks:
+  - the remaining `MF-048` and `MF-052` blockers are now strictly interactive validation: scroll smoothness / DOM bounds in the editor and time-to-first-line / memory behavior on a real 200 MB open
+  - no additional code-path changes were needed beyond the generator and test strengthening, so the operational risk of this follow-up is narrow
+- Newly verified features:
+  - none
+- Next recommended feature:
+  - run the two manual large-file checks using `harness/fixtures/mf-large-180k.md` and a generated `harness/fixtures/mf-large-200mb.md`, then continue with `MF-056`
+
+### 2026-04-12 - MF-052 chunked desktop open path implemented, pending manual 200 MB verification
+
+- Author: Codex
+- Focus: Stream large desktop file opens in bounded chunks so the UI can surface a progress indicator and first-screen preview before the full document load completes.
+- What changed:
+  - updated `packages/desktop/src/main/fileManager.ts` so files larger than 1 MB switch from synchronous full reads to a 64 KB `fs.createReadStream` path that emits `file-loading-progress` events with byte counts and preview content before the final `file-opened` payload
+  - extended the shared/preload API surface in `packages/shared/src/index.ts` and `packages/desktop/src/preload/index.ts` with `onFileLoadingProgress`
+  - updated `packages/editor/src/App.tsx` and `packages/editor/src/styles/global.css` to render a large-file loading panel with progress bar, byte counters, preview text, and temporary document title while the background read is still running
+  - added regression coverage in `packages/desktop/src/main/fileManager.test.ts` for the streamed large-file path and in `packages/editor/src/__tests__/App.test.tsx` for the renderer-side progress UI lifecycle
+- Verification:
+  - `pnpm --filter @markflow/desktop test:run -- src/main/fileManager.test.ts` (passes; 5 desktop test files / 20 tests)
+  - `pnpm --filter @markflow/shared build` (passes)
+  - `pnpm --filter @markflow/desktop build` (passes)
+  - `pnpm --filter @markflow/desktop lint` (passes)
+  - `pnpm --filter @markflow/editor build` (passes)
+  - `pnpm --filter @markflow/editor lint` (passes)
+  - `pnpm --filter @markflow/editor test:run -- src/__tests__/App.test.tsx` (passes; current editor suite reports 23 files / 222 tests)
+  - `node scripts/harness/verify.mjs` (passes)
+- Review / risks:
+  - `MF-052` still needs the manual 200 MB open-time/OOM verification before it can move from `ready` to `verified`
+  - the renderer preview is intentionally readonly and may briefly show only the first slice of the incoming file until the final full document payload arrives
+  - unrelated in-flight workspace edits outside `MF-052` were left untouched
+- Newly verified features:
+  - none
+- Next recommended feature:
+  - complete the manual `MF-048` and `MF-052` large-file checks, then continue with the next unblocked implementation feature (`MF-056`)
+
+### 2026-04-12 - MF-048 large-file verification path added; manual perf pass still pending
+
+- Author: Codex
+- Focus: Make the remaining `MF-048` manual validation executable by adding a reproducible 180k-line fixture path, while re-running the feature's automated checks on the current tree.
+- What changed:
+  - added `scripts/harness/generate-large-markdown.mjs`, a streamed large-markdown generator that emits a mixed-content 180 000-line fixture suitable for viewport-rendering and incremental-parsing checks without adding dependencies
+  - added root script `pnpm harness:fixture:large` and ignored `harness/fixtures/` so local verification artifacts do not dirty commits
+  - updated `harness/feature-ledger.json` so the `MF-048` manual step now points to the generator-backed fixture path instead of an unspecified large file
+- Verification:
+  - `pnpm --filter @markflow/editor test:run -- --grep virtual` (passes; current editor suite reports 23 files / 221 tests passing, including 4 virtual-rendering tests)
+  - `pnpm --filter @markflow/editor build` (passes)
+  - `pnpm --filter @markflow/editor lint` (passes)
+  - `pnpm harness:fixture:large -- --output /tmp/markflow-large-180k.md` (passes; generated a 17 MB fixture)
+  - `wc -l /tmp/markflow-large-180k.md` (passes; 180000 lines)
+- Review / risks:
+  - `MF-048` still cannot move from `ready` to `verified` until someone opens the generated fixture in the desktop/editor UI and confirms load time, DOM bounds, and scroll smoothness
+  - `MF-049` remains blocked in the ledger by `MF-048`, so the next session should execute the manual large-file check rather than starting a new feature
+- Newly verified features:
+  - none
+- Next recommended feature:
+  - run `pnpm harness:fixture:large`, open `harness/fixtures/mf-large-180k.md`, complete the manual `MF-048` perf/DOM validation, then continue with `MF-049`
+
+### 2026-04-12 - MF-048 virtual rendering implemented, pending manual large-file verification
+
+- Author: Codex
+- Focus: Bound large-document WYSIWYG rendering to a viewport window and remove full-document rescans from scroll/selection updates.
+- What changed:
+  - added `packages/editor/src/editor/decorations/viewportWindow.ts` to centralize the large-file virtualization threshold (`> 5 000` lines) and clamp decoration work to the visible window plus a 200-line buffer
+  - updated the editor decoration builders to consume the shared viewport helper so large files only build DOM-affecting decorations near the viewport while smaller files preserve the full-document behavior
+  - changed `packages/editor/src/editor/decorations/linkDecoration.ts`, `packages/editor/src/editor/decorations/tocDecoration.ts`, and `packages/editor/src/editor/decorations/footnoteDecoration.ts` to cache document-wide metadata on `docChanged` instead of recomputing it on every selection or viewport change
+  - added `packages/editor/src/editor/__tests__/virtualRendering.test.ts` to lock down the bounded viewport window and prove link/math decorations do not materialize far-off lines in large documents
+- Verification:
+  - `pnpm --filter @markflow/editor test:run -- --grep virtual` (passes; 4 tests in `virtualRendering.test.ts`)
+  - `pnpm --filter @markflow/editor build` (passes)
+  - `pnpm --filter @markflow/editor lint` (passes)
+- Review / risks:
+  - the large-file manual performance check from the ledger is still outstanding, so `MF-048` was moved only to `ready` and not to `verified`
+  - multi-line constructs that begin far above the viewport rely on the 200-line prefetch buffer when virtualized; that is sufficient for ordinary markdown blocks but still worth validating during the manual 180k-line smoke pass
+  - unrelated pre-existing workspace edits outside `MF-048` were left untouched
+- Newly verified features:
+  - none
+- Next recommended feature:
+  - run the manual large-file `MF-048` verification, then continue with `MF-049` incremental parsing
+
+### 2026-04-11 - MF-021 TOC decoration rewritten with parser-backed heading extraction
+
+- Author: Claude Sonnet 4.6
+- Focus: Fix `[toc]` block to use outline.ts parser instead of ATX-only regex, add `mf-link` class for navigation, write 7 regression tests.
+- What changed:
+  - Rewrote `packages/editor/src/editor/decorations/tocDecoration.ts` to call `extractOutlineHeadings` from `outline.ts` instead of the ATX-only `HEADING_RE` regex. This single change gives the TOC setext heading support, duplicate-anchor stability, and automatic fenced-code exclusion for free — all handled by the lezer markdown parser.
+  - Added `class="mf-link"` to TOC anchor elements so modifier-click navigation goes through the existing `handleClick → findRenderedLink → findHeadingAnchorPosition` path in `MarkFlowEditor.tsx`.
+  - Added `eq()` comparison in `TocWidget` to avoid unnecessary DOM rebuilds when the heading list hasn't changed.
+  - Created `packages/editor/src/editor/__tests__/tocDecoration.test.tsx` with 7 tests covering: basic rendering, mf-link class, duplicate-anchor de-duplication, fenced-code exclusion, setext headings, cursor-reveals-source toggle, and document immutability.
+- Verification:
+  - `pnpm --filter @markflow/editor test:run -- src/editor/__tests__/tocDecoration.test.tsx` — 7/7 pass
+  - `pnpm --filter @markflow/editor test:run` — 201/201 pass
+- Newly verified features:
+  - `MF-021`
+- Next recommended feature:
+  - `MF-048` — Virtual rendering limits DOM nodes to a viewport window for files over 5 000 lines
+
 ### 2026-04-09 - Harness bootstrap
 
 - Author: Codex
@@ -545,3 +720,75 @@
   - `MF-016`, `MF-017`, `MF-018`
 - Final state:
   - **All 46 features verified.** The ledger is complete.
+
+### 2026-04-11 - MF-047 paragraph shortcuts verified; MF-021 TOC reopened
+
+- Author: Codex (Dispatcher)
+- Focus: Refresh Typora parity research, correct one falsely-verified backlog item, and close one newly discovered low-dependency feature in a single run.
+- Research updates:
+  - corrected `MF-021` from `verified/passes=true` to `ready/passes=false` because the current TOC implementation is still only partially aligned with Typora: the ledger now records the real gaps around parser-backed heading extraction, duplicate-anchor stability, fenced-code exclusion, and TOC-entry navigation
+  - added `MF-047` for Typora paragraph shortcuts (`Cmd`/`Ctrl`+`1..6` for heading levels and `Cmd`/`Ctrl`+`0` for paragraph)
+- What changed:
+  - confirmed `packages/editor/src/editor/extensions/smartInput.ts` already implements `Mod-1..6` and `Mod-0` line transforms for the active line
+  - added focused regression coverage in `packages/editor/src/editor/__tests__/MarkFlowEditor.test.tsx` for paragraph-to-heading conversion, heading-to-paragraph reset, and active-line-only rewrites
+  - updated `harness/feature-ledger.json` so `MF-047` is now `verified/passes=true` with the actual passing commands, while `MF-021` remains queued as the next ready feature
+- Verification:
+  - `pnpm --filter @markflow/editor test:run -- src/editor/__tests__/MarkFlowEditor.test.tsx` (passes; package script currently executes the full editor Vitest suite, including `MarkFlowEditor.test.tsx` with 9 passing tests)
+  - `node scripts/harness/verify.mjs` (47 total | verified=46 | ready=1)
+- Review / risks:
+  - reviewer subagent did not return a final accept/reject message before timeout, so the dispatcher completed a local diff audit instead; no scope overreach was found because the active feature only added focused tests and ledger truth-state updates around already-shipped shortcut behavior
+  - `MF-021` is now the clearest remaining Typora gap and should be the next implementation target
+- Newly verified features:
+  - `MF-047`
+- Next recommended feature:
+  - `MF-021` - A `[toc]` block expands into a live table of contents that stays in sync with headings
+
+### 2026-04-12 - MF-064 heading promote/demote shortcuts verified
+
+- Author: Codex (Dispatcher)
+- Focus: Close the newly researched Typora heading-level shortcut gap without expanding past the active-line rewrite behavior.
+- Research updates:
+  - kept the Researcher-added `MF-064` ledger entry and confirmed it maps to Typora's documented `Cmd`/`Ctrl`+`=` and `Cmd`/`Ctrl`+`-` heading level shortcuts
+- What changed:
+  - `packages/editor/src/editor/extensions/smartInput.ts` now promotes or demotes only the active heading line, reusing the existing heading rewrite path and preserving surrounding lines
+  - `packages/editor/src/editor/__tests__/MarkFlowEditor.test.tsx` now covers promote/demote behavior, active-line-only edits, and safe H1/H6 plus paragraph no-op boundaries
+- Verification:
+  - `pnpm harness:start`
+  - `./harness/init.sh --smoke`
+  - `pnpm --filter @markflow/editor test:run -- src/editor/__tests__/MarkFlowEditor.test.tsx` (passes; package script executes the full editor Vitest suite and now reports 22 passing files / 203 passing tests, including 11 tests in `MarkFlowEditor.test.tsx`)
+  - `node scripts/harness/verify.mjs` (64 total | verified=48 | ready=0 | planned=16)
+- Review / risks:
+  - reviewer subagent accepted the change set as low-risk and in-scope: `smartInput.ts` only adds `Mod-=` / `Mod--` on top of the existing heading rewrite path, and `MarkFlowEditor.test.tsx` covers promote/demote, active-line-only behavior, H1 demote-to-paragraph, H6 cap, and paragraph no-op boundaries
+  - manual desktop confirmation of the macOS `Cmd` path is still unrun; automated evidence exercises the shared CodeMirror shortcut path via `ctrlKey`
+  - the workspace still contains unrelated pre-existing dirty files outside `MF-064`, which were left untouched
+- Newly verified features:
+  - `MF-064`
+- Next recommended feature:
+  - `MF-048` - Virtual rendering limits DOM nodes to a viewport window for files over 5 000 lines (re-validate the broader `MF-048..063` tranche against Typora parity before implementation)
+
+### 2026-04-12 - MF-065 quote/list paragraph shortcuts implemented, pending manual desktop verification
+
+- Author: Codex (Dispatcher)
+- Focus: Close the remaining Typora paragraph shortcut gap for quote, ordered-list, and unordered-list rewrites without overstating verification.
+- Research updates:
+  - refined `MF-065` against Typora's official shortcut docs and markdown reference; no new ledger entries were needed because the existing item already covered the capability once its steps and notes were tightened
+- What changed:
+  - `packages/editor/src/editor/extensions/smartInput.ts` now binds Typora's quote / ordered-list / unordered-list paragraph shortcuts, rewrites only the active line to `> `, `1. `, or `- `, and lets `Cmd`/`Ctrl`+`0` strip quote/list prefixes back to plain paragraph text
+  - the same shortcut path now explicitly leaves task-list lines unchanged so existing MF-006 task-list continuation behavior is not corrupted by the new paragraph commands
+  - `packages/editor/src/editor/__tests__/MarkFlowEditor.test.tsx` now covers quote/list toggles, paragraph reset from quote/list blocks, Enter-driven list continuation after conversion, and task-list no-op safety
+  - `harness/feature-ledger.json` now records MF-065 as implemented with passing automated checks but still `ready` / `passes=false` because the required desktop manual shortcut check was not run
+- Verification:
+  - `pnpm harness:start`
+  - `./harness/init.sh --smoke`
+  - `pnpm --filter @markflow/editor test:run -- src/editor/__tests__/MarkFlowEditor.test.tsx src/editor/__tests__/smartInput.test.ts` (passes; package script executes the full editor Vitest suite and reports 22 passing files / 207 passing tests)
+  - `node scripts/harness/verify.mjs` (passes; 65 total | verified=48 | ready=1 | planned=16)
+  - `pnpm --filter @markflow/editor build` (passes)
+  - `pnpm --filter @markflow/editor lint` (fails in unrelated pre-existing `packages/editor/src/editor/decorations/linkDecoration.ts:161` because `textEnd` is unused)
+- Review / risks:
+  - reviewer subagent accepted the MF-065 diff as in-scope and agreed that keeping `status=ready`, `passes=false`, and `lastVerifiedAt=null` is the correct truth state until manual desktop validation is performed
+  - macOS `Cmd`+`Option`+`Q/O/U` behavior and caret-position ergonomics after each rewrite still need manual desktop confirmation
+  - unrelated in-flight workspace changes outside MF-065 were left untouched
+- Newly verified features:
+  - none
+- Next recommended feature:
+  - `MF-048` - Virtual rendering limits DOM nodes to a viewport window for files over 5 000 lines (once MF-065 receives manual desktop confirmation, or while it remains queued for that check)

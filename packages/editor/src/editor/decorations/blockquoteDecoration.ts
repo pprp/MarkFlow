@@ -8,6 +8,7 @@ import {
 } from '@codemirror/view'
 import { syntaxTree } from '@codemirror/language'
 import { RangeSetBuilder } from '@codemirror/state'
+import { getDecorationViewportWindow } from './viewportWindow'
 
 class HrWidget extends WidgetType {
   toDOM() {
@@ -66,9 +67,12 @@ function buildDecorations(view: EditorView): DecorationSet {
   const builder = new RangeSetBuilder<Decoration>()
   const cursorHead = view.state.selection.main.head
   const doc = view.state.doc
+  const { from: minFrom, to: maxTo } = getDecorationViewportWindow(view)
   const decoratedLines = new Set<number>()
 
   syntaxTree(view.state).iterate({
+    from: minFrom,
+    to: maxTo,
     enter(node) {
       const { from, to } = node
       const cursorInside = cursorHead >= from && cursorHead <= to

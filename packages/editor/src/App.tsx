@@ -5,11 +5,13 @@ import { computeStats } from './editor/wordCount'
 import { QuickOpen } from './components/QuickOpen'
 import { VaultSidebar } from './components/VaultSidebar'
 import { GlobalSearch } from './components/GlobalSearch'
+import { GoToLine } from './components/GoToLine'
 import { createExternalLinkBadgePlugin } from './plugins/externalLinkBadgePlugin'
 import {
   MarkFlowPluginHost,
   type MarkFlowQuickOpenItem,
   type MarkFlowDocument,
+  type MarkFlowFileLoadProgressPayload,
   type MarkFlowMenuAction,
   type MarkFlowThemePayload,
   type MarkFlowThemeSummary,
@@ -19,6 +21,16 @@ import {
 
 const THEME_STYLE_ELEMENT_ID = 'mf-theme-overrides'
 const AUTO_SAVE_DELAY_MS = 30_000
+
+function formatLoadingBytes(bytes: number) {
+  if (bytes >= 1024 * 1024) {
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+  }
+  if (bytes >= 1024) {
+    return `${Math.round(bytes / 1024)} KB`
+  }
+  return `${bytes} B`
+}
 
 const INITIAL_CONTENT = `# Welcome to MarkFlow
 
@@ -56,21 +68,98 @@ function greet(name: string): string {
 
 ---
 
+## Math — KaTeX
+
+Inline math: $E = mc^2$ and $\\pi \\approx 3.14159$.
+
+Display math:
+
+$$
+\\int_0^\\infty e^{-x^2} dx = \\frac{\\sqrt{\\pi}}{2}
+$$
+
+## Mermaid Diagram
+
+\`\`\`mermaid
+graph TD
+  A[Start] --> B{Is it working?}
+  B -->|Yes| C[Great!]
+  B -->|No| D[Debug]
+  D --> B
+\`\`\`
+
+## Table
+
+| Feature   | Status  | Priority |
+|-----------|---------|----------|
+| Math      | ✅ Done  | High     |
+| Mermaid   | ✅ Done  | High     |
+| Tables    | ✅ Done  | Medium   |
+| Export    | Partial | Low      |
+
+## Image
+
+![MarkFlow placeholder](https://via.placeholder.com/400x120?text=MarkFlow+Image+Test)
+
+## Footnote
+
+This has a footnote[^1] and another[^2].
+
+[^1]: First footnote — rendered correctly.
+[^2]: Second footnote — also rendered.
+
+---
+
 Happy writing!
 `
+
+function getLineNumberAtPosition(content: string, position: number) {
+  const boundedPosition = Math.max(0, Math.min(position, content.length))
+  let lineNumber = 1
+
+  for (let index = 0; index < boundedPosition; index += 1) {
+    if (content.charCodeAt(index) === 10) {
+      lineNumber += 1
+    }
+  }
+
+  return lineNumber
+}
+
+function getLineStartPosition(content: string, requestedLineNumber: number) {
+  const totalLines = content.length === 0 ? 1 : content.split('\n').length
+  const clampedLineNumber = Math.max(1, Math.min(requestedLineNumber, totalLines))
+
+  if (clampedLineNumber === 1) {
+    return 0
+  }
+
+  let currentLine = 1
+  for (let index = 0; index < content.length; index += 1) {
+    if (content.charCodeAt(index) === 10) {
+      currentLine += 1
+      if (currentLine === clampedLineNumber) {
+        return index + 1
+      }
+    }
+  }
+
+  return content.length
+}
 
 export function App() {
   const [viewMode, setViewMode] = useState<ViewMode>('wysiwyg')
   const [focusMode, setFocusMode] = useState(false)
   const [typewriterMode, setTypewriterMode] = useState(false)
-const [showSidebar, setShowSidebar] = useState(false)
+  const [showSidebar, setShowSidebar] = useState(false)
   const [vaultPath, setVaultPath] = useState<string | null>(null)
   const [vaultFiles, setVaultFiles] = useState<string[]>([])
   const [isGlobalSearchOpen, setIsGlobalSearchOpen] = useState(false)
+  const [isGoToLineOpen, setIsGoToLineOpen] = useState(false)
   const [themes, setThemes] = useState<MarkFlowThemeSummary[]>([])
   const [activeThemeId, setActiveThemeId] = useState<string>('')
   const [cursorPosition, setCursorPosition] = useState(0)
-  const [outlineNavigationRequest, setOutlineNavigationRequest] = useState<{
+  const [editorNavigationRequest, setEditorNavigationRequest] = useState<{
     key: number
     position: number
   } | null>(null)
@@ -84,10 +173,11 @@ const [showSidebar, setShowSidebar] = useState(false)
     content: INITIAL_CONTENT,
     isDirty: false,
   })
+  const [loadingFile, setLoadingFile] = useState<MarkFlowFileLoadProgressPayload | null>(null)
   const persistedContentRef = useRef(INITIAL_CONTENT)
   const latestContentRef = useRef(INITIAL_CONTENT)
   const currentFilePathRef = useRef<string | null>(null)
-  const outlineNavigationKeyRef = useRef(0)
+  const editorNavigationKeyRef = useRef(0)
   const pluginHostRef = useRef<MarkFlowPluginHost | null>(null)
 
   if (pluginHostRef.current === null) {
@@ -121,10 +211,12 @@ const [showSidebar, setShowSidebar] = useState(false)
     if (!api) return
 
     const applyOpenedDocument = ({ filePath, content }: { filePath: string | null; content: string }) => {
+      setLoadingFile((current) => (filePath && current?.filePath !== filePath ? current : null))
       persistedContentRef.current = content
       latestContentRef.current = content
       setCursorPosition(0)
-      setOutlineNavigationRequest(null)
+      setEditorNavigationRequest(null)
+      setIsGoToLineOpen(false)
       currentFilePathRef.current = filePath
       setDocumentState({
         filePath,
@@ -162,6 +254,9 @@ const [showSidebar, setShowSidebar] = useState(false)
     }
 
     const unsubscribeFileOpened = api.onFileOpened(applyOpenedDocument)
+    const unsubscribeFileLoadingProgress = api.onFileLoadingProgress((payload) => {
+      setLoadingFile(payload)
+    })
     const unsubscribeFileSaved = api.onFileSaved(({ filePath }) => {
       persistedContentRef.current = latestContentRef.current
       setDocumentState((currentDocument) => ({
@@ -187,6 +282,7 @@ const [showSidebar, setShowSidebar] = useState(false)
 
     return () => {
       unsubscribeFileOpened()
+      unsubscribeFileLoadingProgress()
       unsubscribeFileSaved()
       unsubscribeMenuAction()
       unsubscribeThemeUpdated()
@@ -206,7 +302,7 @@ const [showSidebar, setShowSidebar] = useState(false)
     setTypewriterMode((v) => !v)
   }
 
-async function handleOpenFolder() {
+  async function handleOpenFolder() {
     const result = await window.markflow?.openFolder()
     if (result) {
       setVaultPath(result.folderPath)
@@ -238,6 +334,16 @@ async function handleOpenFolder() {
     void handleOpenPath(result.filePath)
   }
 
+  const totalLines = useMemo(
+    () => (documentState.content.length === 0 ? 1 : documentState.content.split('\n').length),
+    [documentState.content],
+  )
+
+  const currentLineNumber = useMemo(
+    () => getLineNumberAtPosition(documentState.content, cursorPosition),
+    [cursorPosition, documentState.content],
+  )
+
   const triggerAutoSave = useCallback(async () => {
     const api = window.markflow
     if (!api) return
@@ -254,7 +360,6 @@ async function handleOpenFolder() {
     return () => clearTimeout(timer)
   }, [documentState.filePath, documentState.isDirty, documentState.content, triggerAutoSave])
 
-
   useEffect(() => {
     const handleGlobalKeyDown = async (e: KeyboardEvent) => {
       const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0
@@ -265,6 +370,9 @@ async function handleOpenFolder() {
       const isGlobalSearchKey = isMac
         ? e.metaKey && e.shiftKey && e.key.toLowerCase() === 'f'
         : e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'f'
+      const isGoToLineKey = isMac
+        ? e.metaKey && !e.shiftKey && e.key.toLowerCase() === 'l'
+        : e.ctrlKey && !e.shiftKey && e.key.toLowerCase() === 'l'
 
       if (isQuickOpenKey) {
         e.preventDefault()
@@ -276,6 +384,11 @@ async function handleOpenFolder() {
       } else if (isGlobalSearchKey) {
         e.preventDefault()
         setIsGlobalSearchOpen((prev) => !prev)
+      } else if (isGoToLineKey) {
+        e.preventDefault()
+        setIsQuickOpenOpen(false)
+        setIsGlobalSearchOpen(false)
+        setIsGoToLineOpen(true)
       }
     }
     document.addEventListener('keydown', handleGlobalKeyDown)
@@ -394,12 +507,24 @@ async function handleOpenFolder() {
   )
 
   const handleOutlineNavigate = useCallback((position: number) => {
-    outlineNavigationKeyRef.current += 1
-    setOutlineNavigationRequest({
-      key: outlineNavigationKeyRef.current,
+    editorNavigationKeyRef.current += 1
+    setEditorNavigationRequest({
+      key: editorNavigationKeyRef.current,
       position,
     })
   }, [])
+
+  const handleGoToLine = useCallback(
+    (lineNumber: number) => {
+      editorNavigationKeyRef.current += 1
+      setEditorNavigationRequest({
+        key: editorNavigationKeyRef.current,
+        position: getLineStartPosition(documentState.content, lineNumber),
+      })
+      setIsGoToLineOpen(false)
+    },
+    [documentState.content],
+  )
 
   const docStats = useMemo(
     () => computeStats(documentState.content, selectionText),
@@ -408,9 +533,15 @@ async function handleOpenFolder() {
 
   const activeDocumentName = documentState.filePath
     ? documentState.filePath.split(/[\\/]/).at(-1) ?? documentState.filePath
+    : loadingFile?.filePath
+      ? loadingFile.filePath.split(/[\\/]/).at(-1) ?? loadingFile.filePath
     : documentState.content === INITIAL_CONTENT && !documentState.isDirty
       ? 'Starter Document'
       : 'Untitled'
+
+  const loadingProgressPercent = loadingFile
+    ? Math.min(100, Math.round((loadingFile.bytesRead / Math.max(loadingFile.totalBytes, 1)) * 100))
+    : 0
 
   return (
     <div className="mf-app">
@@ -446,6 +577,7 @@ async function handleOpenFolder() {
             className={`mf-mode-toggle${typewriterMode ? ' mf-mode-active' : ''}`}
             onClick={toggleTypewriterMode}
             title="Typewriter mode (Ctrl+Shift+T)"
+            aria-label="Typewriter mode"
             aria-pressed={typewriterMode}
           >
             <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
@@ -462,6 +594,7 @@ async function handleOpenFolder() {
             className={`mf-mode-toggle${focusMode ? ' mf-mode-active' : ''}`}
             onClick={toggleFocusMode}
             title="Focus mode (Ctrl+Shift+F)"
+            aria-label="Focus mode"
             aria-pressed={focusMode}
           >
             <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
@@ -473,10 +606,11 @@ async function handleOpenFolder() {
             </svg>
             Focus
           </button>
-<button
+          <button
             className={`mf-mode-toggle${showSidebar ? ' mf-mode-active' : ''}`}
             onClick={() => setShowSidebar((v) => !v)}
             title="Toggle file sidebar"
+            aria-label="Toggle file sidebar"
             aria-pressed={showSidebar}
           >
             Files
@@ -487,6 +621,7 @@ async function handleOpenFolder() {
               className={`mf-segment-btn${viewMode === 'wysiwyg' ? ' mf-segment-active' : ''}`}
               onClick={() => setViewMode('wysiwyg')}
               title="WYSIWYG mode"
+              aria-label="Preview mode"
               aria-pressed={viewMode === 'wysiwyg'}
             >
               <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
@@ -501,6 +636,7 @@ async function handleOpenFolder() {
               className={`mf-segment-btn${viewMode === 'source' ? ' mf-segment-active' : ''}`}
               onClick={() => setViewMode('source')}
               title="Source mode"
+              aria-label="Source mode"
               aria-pressed={viewMode === 'source'}
             >
               <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
@@ -514,6 +650,7 @@ async function handleOpenFolder() {
               className={`mf-segment-btn${viewMode === 'reading' ? ' mf-segment-active' : ''}`}
               onClick={() => setViewMode('reading')}
               title="Reading mode"
+              aria-label="Reading mode"
               aria-pressed={viewMode === 'reading'}
             >
               Reading
@@ -522,6 +659,7 @@ async function handleOpenFolder() {
               className={`mf-segment-btn${viewMode === 'split' ? ' mf-segment-active' : ''}`}
               onClick={() => setViewMode('split')}
               title="Split view"
+              aria-label="Split view"
               aria-pressed={viewMode === 'split'}
             >
               Split
@@ -544,66 +682,90 @@ async function handleOpenFolder() {
           </div>
         )}
         <div className="mf-body">
-        <div className="mf-editor-shell">
-          <MarkFlowEditor
-            content={documentState.content}
-            viewMode={viewMode}
-            onChange={handleContentChange}
-            onCursorPositionChange={setCursorPosition}
-            onNavigationHandled={() => setOutlineNavigationRequest(null)}
-            onOpenPath={handleOpenPath}
-            onToggleMode={toggleViewMode}
-            onSelectionChange={setSelectionText}
-            onToggleFocusMode={toggleFocusMode}
-            onToggleTypewriterMode={toggleTypewriterMode}
-            focusMode={focusMode}
-            typewriterMode={typewriterMode}
-pluginHost={pluginHostRef.current ?? undefined}
-            filePath={documentState.filePath ?? undefined}
-            navigationRequest={outlineNavigationRequest}
-          />
-        </div>
-        {outlineHeadings.length > 0 ? (
-          <aside className={`mf-outline-panel${outlineCollapsed ? ' mf-outline-panel-collapsed' : ''}`}>
-            <div className="mf-outline-header">
-              {!outlineCollapsed && <span className="mf-outline-header-label">Outline</span>}
-              <button
-                type="button"
-                className="mf-outline-toggle"
-                onClick={() => setOutlineCollapsed((v) => !v)}
-                title={outlineCollapsed ? 'Expand outline' : 'Collapse outline'}
-                aria-label={outlineCollapsed ? 'Expand outline' : 'Collapse outline'}
-              >
-                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-                  {outlineCollapsed
-                    ? <path d="M5 2L10 7L5 12" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
-                    : <path d="M9 2L4 7L9 12" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
-                  }
-                </svg>
-              </button>
-            </div>
-            {!outlineCollapsed && (
-              <nav className="mf-outline-nav" aria-label="Outline">
-                {outlineHeadings.map((heading) => {
-                  const isActive = heading.anchor === activeOutlineAnchor
+          <div className="mf-editor-shell">
+            {loadingFile ? (
+              <section className="mf-file-loading" aria-live="polite">
+                <div className="mf-file-loading-header">
+                  <div>
+                    <p className="mf-file-loading-label">Opening large file</p>
+                    <p className="mf-file-loading-meta">
+                      {formatLoadingBytes(loadingFile.bytesRead)} of {formatLoadingBytes(loadingFile.totalBytes)}
+                    </p>
+                  </div>
+                  <strong className="mf-file-loading-percent">{loadingProgressPercent}%</strong>
+                </div>
+                <div
+                  className="mf-file-loading-bar"
+                  role="progressbar"
+                  aria-label="Large file loading progress"
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-valuenow={loadingProgressPercent}
+                >
+                  <span style={{ width: `${loadingProgressPercent}%` }} />
+                </div>
+                <pre className="mf-file-loading-preview">{loadingFile.previewContent}</pre>
+              </section>
+            ) : null}
+            <MarkFlowEditor
+              content={documentState.content}
+              viewMode={viewMode}
+              onChange={handleContentChange}
+              onCursorPositionChange={setCursorPosition}
+              onNavigationHandled={() => setEditorNavigationRequest(null)}
+              onOpenPath={handleOpenPath}
+              onToggleMode={toggleViewMode}
+              onSelectionChange={setSelectionText}
+              onToggleFocusMode={toggleFocusMode}
+              onToggleTypewriterMode={toggleTypewriterMode}
+              focusMode={focusMode}
+              typewriterMode={typewriterMode}
+              pluginHost={pluginHostRef.current ?? undefined}
+              filePath={documentState.filePath ?? undefined}
+              navigationRequest={editorNavigationRequest}
+            />
+          </div>
+          {outlineHeadings.length > 0 ? (
+            <aside className={`mf-outline-panel${outlineCollapsed ? ' mf-outline-panel-collapsed' : ''}`}>
+              <div className="mf-outline-header">
+                {!outlineCollapsed && <span className="mf-outline-header-label">Outline</span>}
+                <button
+                  type="button"
+                  className="mf-outline-toggle"
+                  onClick={() => setOutlineCollapsed((v) => !v)}
+                  title={outlineCollapsed ? 'Expand outline' : 'Collapse outline'}
+                  aria-label={outlineCollapsed ? 'Expand outline' : 'Collapse outline'}
+                >
+                  <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+                    {outlineCollapsed
+                      ? <path d="M5 2L10 7L5 12" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
+                      : <path d="M9 2L4 7L9 12" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
+                    }
+                  </svg>
+                </button>
+              </div>
+              {!outlineCollapsed && (
+                <nav className="mf-outline-nav" aria-label="Outline">
+                  {outlineHeadings.map((heading) => {
+                    const isActive = heading.anchor === activeOutlineAnchor
 
-                  return (
-                    <button
-                      key={`${heading.anchor}:${heading.from}`}
-                      type="button"
-                      className={`mf-outline-item${isActive ? ' mf-outline-item-active' : ''}`}
-                      style={{ paddingLeft: `${12 + (heading.level - 1) * 14}px` }}
-                      aria-current={isActive ? 'true' : undefined}
-                      onClick={() => handleOutlineNavigate(heading.from)}
-                    >
-                      <span className="mf-outline-item-text">{heading.text}</span>
-                    </button>
-                  )
-                })}
-              </nav>
-            )}
-          </aside>
-        ) : null}
+                    return (
+                      <button
+                        key={`${heading.anchor}:${heading.from}`}
+                        type="button"
+                        className={`mf-outline-item${isActive ? ' mf-outline-item-active' : ''}`}
+                        style={{ paddingLeft: `${12 + (heading.level - 1) * 14}px` }}
+                        aria-current={isActive ? 'true' : undefined}
+                        onClick={() => handleOutlineNavigate(heading.from)}
+                      >
+                        <span className="mf-outline-item-text">{heading.text}</span>
+                      </button>
+                    )
+                  })}
+                </nav>
+              )}
+            </aside>
+          ) : null}
         </div>
       </main>
       <footer className="mf-statusbar" aria-label="Document statistics">
@@ -636,6 +798,14 @@ pluginHost={pluginHostRef.current ?? undefined}
         folderPath={vaultPath}
         onClose={() => setIsGlobalSearchOpen(false)}
         onSelectResult={handleGlobalSearchResult}
+      />
+
+      <GoToLine
+        isOpen={isGoToLineOpen}
+        currentLine={currentLineNumber}
+        totalLines={totalLines}
+        onClose={() => setIsGoToLineOpen(false)}
+        onSubmit={handleGoToLine}
       />
 
       {isExporting && (

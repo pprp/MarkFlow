@@ -8,6 +8,7 @@ import {
 } from '@codemirror/view'
 import { syntaxTree } from '@codemirror/language'
 import { RangeSetBuilder } from '@codemirror/state'
+import { getDecorationViewportWindow } from './viewportWindow'
 
 // ── Mermaid lazy loader ───────────────────────────────────────────────────────
 
@@ -97,8 +98,10 @@ export class MermaidWidget extends WidgetType {
 export function buildMermaidDecorations(view: EditorView): DecorationSet {
   const builder = new RangeSetBuilder<Decoration>()
   const doc = view.state.doc
-
+  const { from: minFrom, to: maxTo } = getDecorationViewportWindow(view)
   syntaxTree(view.state).iterate({
+    from: minFrom,
+    to: maxTo,
     enter(node) {
       if (node.name !== 'FencedCode') return
 

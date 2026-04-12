@@ -1,8 +1,8 @@
 import * as fs from 'fs'
+import * as os from 'os'
+import * as path from 'path'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { FileManager } from './fileManager'
-
-import * as childProcess from 'child_process'
 
 const { handleMock, removeHandlerMock, showSaveDialogMock, appGetPathMock, execFileMock } = vi.hoisted(() => ({
   handleMock: vi.fn(),
@@ -174,5 +174,55 @@ describe('FileManager Pandoc exports', () => {
     expect(callArgs[1][1]).toBe('-o')
     expect(callArgs[1][2]).toBe('/tmp/export.tex')
     expect(callArgs[1]).toContain('--standalone')
+  })
+})
+
+describe('FileManager chunk loader', () => {
+  beforeEach(() => {
+    handleMock.mockReset()
+    removeHandlerMock.mockReset()
+    showSaveDialogMock.mockReset()
+    vi.restoreAllMocks()
+  })
+
+  it('streams large files in 64 KB chunks, emits progress, and opens the final document', async () => {
+    const window = createWindowStub()
+    const manager = new FileManager(window as never)
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'markflow-chunk-loader-'))
+    const filePath = path.join(tempDir, 'large.md')
+    const fileContent = `# Heading\nFirst screen\n${'Second chunk\n'.repeat(200000)}`
+
+    fs.writeFileSync(filePath, fileContent, 'utf-8')
+
+    const result = await manager.openPath(filePath)
+    const progressCalls = window.webContents.send.mock.calls.filter(([channel]) => channel === 'file-loading-progress')
+
+    expect(result).toEqual({
+      filePath,
+      content: fileContent,
+    })
+    expect(progressCalls.length).toBeGreaterThan(1)
+    expect(progressCalls[0][1]).toEqual(
+      expect.objectContaining({
+        filePath,
+        bytesRead: expect.any(Number),
+        totalBytes: Buffer.byteLength(fileContent, 'utf-8'),
+        previewContent: expect.stringContaining('# Heading\nFirst screen\n'),
+        done: false,
+      }),
+    )
+    expect(progressCalls.at(-1)?.[1]).toEqual(
+      expect.objectContaining({
+        filePath,
+        bytesRead: Buffer.byteLength(fileContent, 'utf-8'),
+        totalBytes: Buffer.byteLength(fileContent, 'utf-8'),
+        previewContent: expect.stringContaining('# Heading\nFirst screen\n'),
+        done: true,
+      }),
+    )
+    expect(window.webContents.send).toHaveBeenCalledWith('file-opened', {
+      filePath,
+      content: fileContent,
+    })
   })
 })

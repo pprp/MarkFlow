@@ -8,6 +8,7 @@ import {
 } from '@codemirror/view'
 import { syntaxTree } from '@codemirror/language'
 import { RangeSetBuilder, RangeSet } from '@codemirror/state'
+import { getDecorationViewportWindow } from './viewportWindow'
 
 class ImageWidget extends WidgetType {
   constructor(
@@ -125,27 +126,19 @@ function isFootnoteReference(raw: string) {
 function extractReferenceDefinitions(view: EditorView) {
   const references = new Map<string, string>()
   const doc = view.state.doc
-  const cursor = syntaxTree(view.state).cursor()
-
-  const visit = (parentName?: string) => {
-    do {
-      if (cursor.name === 'LinkReference' && parentName !== 'Link') {
-        const raw = doc.sliceString(cursor.from, cursor.to)
+  syntaxTree(view.state).iterate({
+    from: 0,
+    to: doc.length,
+    enter(node) {
+      if (node.name === 'LinkReference' && node.node.parent?.name !== 'Link') {
+        const raw = doc.sliceString(node.from, node.to)
         const match = raw.match(/^\[([^\]]+)\]:\s*(<[^>]+>|[^\s]+)(?:\s+["'(].*)?$/)
         if (match) {
           references.set(normalizeReferenceLabel(match[1]), match[2])
         }
       }
-
-      if (cursor.firstChild()) {
-        const currentName = cursor.name
-        visit(currentName)
-        cursor.parent()
-      }
-    } while (cursor.nextSibling())
-  }
-
-  visit()
+    },
+  })
   return references
 }
 
@@ -158,7 +151,6 @@ function addRenderedLink(
 ) {
   const textFrom = from + 1
   const textTo = textFrom + textLength
-  const textEnd = textTo + 1
 
   builder.add(from, from + 1, Decoration.replace({}))
   if (textFrom < textTo) {
@@ -178,13 +170,25 @@ function addRenderedLink(
       }),
     )
   }
-  builder.add(textEnd, to, Decoration.replace({}))
+  // Hide from end of link text (the `]` char) through the closing `)` — textEnd was off-by-one
+  builder.add(textTo, to, Decoration.replace({}))
 }
 
 function isReferenceDefinitionUrl(view: EditorView, from: number) {
   const line = view.state.doc.lineAt(from)
   const prefix = line.text.slice(0, from - line.from)
   return /^\[[^\]]+\]:\s*$/.test(prefix)
+}
+
+function isInsideStructuredLink(node: { parent: { name: string; parent: unknown } | null }) {
+  let current = node.parent
+  while (current) {
+    if (current.name === 'Link' || current.name === 'LinkReference' || current.name === 'Autolink' || current.name === 'Image') {
+      return true
+    }
+    current = current.parent as { name: string; parent: unknown } | null
+  }
+  return false
 }
 
 const WIKILINK_RE = /\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g
@@ -216,19 +220,24 @@ class WikilinkWidget extends WidgetType {
   }
 }
 
-export function buildLinkDecorations(view: EditorView, filePath?: string): DecorationSet {
+export function buildLinkDecorations(
+  view: EditorView,
+  filePath?: string,
+  references: ReadonlyMap<string, string> = extractReferenceDefinitions(view),
+): DecorationSet {
   const builder = new RangeSetBuilder<Decoration>()
   const cursorHead = view.state.selection.main.head
   const doc = view.state.doc
-  const references = extractReferenceDefinitions(view)
-  const cursor = syntaxTree(view.state).cursor()
+  const { from: minFrom, to: maxTo, startLine, endLine } = getDecorationViewportWindow(view)
 
-  const visit = (insideStructuredLink = false) => {
-    do {
-      const { from, to } = cursor
+  syntaxTree(view.state).iterate({
+    from: minFrom,
+    to: maxTo,
+    enter(node) {
+      const { from, to } = node
       const cursorInside = cursorHead >= from && cursorHead <= to
 
-      if (cursor.name === 'Image') {
+      if (node.name === 'Image') {
         if (!cursorInside) {
           const raw = doc.sliceString(from, to)
           const match = raw.match(/^!\[([^\]]*)\]\(([^)]*)\)/)
@@ -241,10 +250,10 @@ export function buildLinkDecorations(view: EditorView, filePath?: string): Decor
             )
           }
         }
-      } else if (cursor.name === 'Link') {
+      } else if (node.name === 'Link') {
         const raw = doc.sliceString(from, to)
         if (isFootnoteReference(raw)) {
-          continue
+          return
         }
 
         if (!cursorInside) {
@@ -262,7 +271,7 @@ export function buildLinkDecorations(view: EditorView, filePath?: string): Decor
         } else {
           builder.add(from, to, Decoration.mark({ class: 'mf-link' }))
         }
-      } else if (cursor.name === 'Autolink' && !cursorInside) {
+      } else if (node.name === 'Autolink' && !cursorInside) {
         const raw = doc.sliceString(from, to)
         const match = raw.match(/^<([^>]+)>$/)
         if (match) {
@@ -283,9 +292,9 @@ export function buildLinkDecorations(view: EditorView, filePath?: string): Decor
           builder.add(to - 1, to, Decoration.replace({}))
         }
       } else if (
-        cursor.name === 'URL' &&
+        node.name === 'URL' &&
         !cursorInside &&
-        !insideStructuredLink &&
+        !isInsideStructuredLink(node.node) &&
         !isReferenceDefinitionUrl(view, from)
       ) {
         const raw = doc.sliceString(from, to)
@@ -303,20 +312,12 @@ export function buildLinkDecorations(view: EditorView, filePath?: string): Decor
           }),
         )
       }
-
-      if (cursor.firstChild()) {
-        const currentName = cursor.name
-        visit(insideStructuredLink || ['Link', 'LinkReference', 'Autolink', 'Image'].includes(currentName))
-        cursor.parent()
-      }
-    } while (cursor.nextSibling())
-  }
-
-  visit()
+    },
+  })
 
   // Wikilink decoration pass — scan raw text for [[...]] patterns
   const wikilinkBuilder = new RangeSetBuilder<Decoration>()
-  for (let i = 1; i <= doc.lines; i++) {
+  for (let i = startLine; i <= endLine; i++) {
     const line = doc.line(i)
     WIKILINK_RE.lastIndex = 0
     let wm: RegExpExecArray | null
@@ -346,14 +347,19 @@ export function linkDecorations(filePath?: string) {
   return ViewPlugin.fromClass(
     class {
       decorations: DecorationSet
+      references: Map<string, string>
 
       constructor(view: EditorView) {
-        this.decorations = buildLinkDecorations(view, filePath)
+        this.references = extractReferenceDefinitions(view)
+        this.decorations = buildLinkDecorations(view, filePath, this.references)
       }
 
       update(update: ViewUpdate) {
+        if (update.docChanged) {
+          this.references = extractReferenceDefinitions(update.view)
+        }
         if (update.docChanged || update.selectionSet || update.viewportChanged) {
-          this.decorations = buildLinkDecorations(update.view, filePath)
+          this.decorations = buildLinkDecorations(update.view, filePath, this.references)
         }
       }
     },

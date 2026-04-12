@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { App } from '../App'
 import type {
   MarkFlowDesktopAPI,
+  MarkFlowFileLoadProgressPayload,
   MarkFlowFilePayload,
   MarkFlowMenuAction,
   MarkFlowMenuActionPayload,
@@ -59,6 +60,7 @@ class MockMarkFlowAPI implements MarkFlowDesktopAPI {
   })
 
   private fileOpenedListeners = new Set<(data: MarkFlowFilePayload) => void>()
+  private fileLoadingProgressListeners = new Set<(data: MarkFlowFileLoadProgressPayload) => void>()
   private fileSavedListeners = new Set<(data: MarkFlowSavePayload) => void>()
   private menuActionListeners = new Set<(data: MarkFlowMenuActionPayload) => void>()
   private themeUpdatedListeners = new Set<(data: MarkFlowThemePayload) => void>()
@@ -88,6 +90,11 @@ class MockMarkFlowAPI implements MarkFlowDesktopAPI {
     return () => this.fileOpenedListeners.delete(cb)
   }
 
+  onFileLoadingProgress(cb: (data: MarkFlowFileLoadProgressPayload) => void) {
+    this.fileLoadingProgressListeners.add(cb)
+    return () => this.fileLoadingProgressListeners.delete(cb)
+  }
+
   onFileSaved(cb: (data: MarkFlowSavePayload) => void) {
     this.fileSavedListeners.add(cb)
     return () => this.fileSavedListeners.delete(cb)
@@ -105,6 +112,10 @@ class MockMarkFlowAPI implements MarkFlowDesktopAPI {
 
   emitFileOpened(data: MarkFlowFilePayload) {
     for (const listener of this.fileOpenedListeners) listener(data)
+  }
+
+  emitFileLoadingProgress(data: MarkFlowFileLoadProgressPayload) {
+    for (const listener of this.fileLoadingProgressListeners) listener(data)
   }
 
   emitFileSaved(data: MarkFlowSavePayload) {
@@ -191,6 +202,42 @@ describe('App desktop integration', () => {
     })
 
     expect(screen.getByText('notes.md')).toBeInTheDocument()
+  })
+
+  it('shows streamed large-file progress until the final document arrives', async () => {
+    const api = new MockMarkFlowAPI()
+    window.markflow = api
+
+    const { container } = render(<App />)
+
+    await act(async () => {
+      api.emitFileLoadingProgress({
+        filePath: '/tmp/huge.md',
+        bytesRead: 65536,
+        totalBytes: 262144,
+        previewContent: '# Huge file\n\nFirst screen of content',
+        done: false,
+      })
+    })
+
+    expect(screen.getByText('huge.md')).toBeInTheDocument()
+    expect(screen.getByText('Opening large file')).toBeInTheDocument()
+    expect(screen.getByRole('progressbar', { name: 'Large file loading progress' })).toHaveAttribute(
+      'aria-valuenow',
+      '25',
+    )
+    expect(container.querySelector('.mf-file-loading-preview')?.textContent).toContain(
+      '# Huge file\n\nFirst screen of content',
+    )
+
+    await act(async () => {
+      api.emitFileOpened({ filePath: '/tmp/huge.md', content: '# Huge file\n\nCompleted document' })
+    })
+
+    await waitFor(() => {
+      expect(screen.queryByText('Opening large file')).not.toBeInTheDocument()
+      expect(getEditorView(container).state.doc.toString()).toBe('# Huge file\n\nCompleted document')
+    })
   })
 
   it('routes new and open menu actions back through the desktop bridge', async () => {
@@ -384,6 +431,55 @@ describe('App desktop integration', () => {
         'aria-current',
         'true',
       )
+    })
+  })
+
+  it('opens a go-to-line dialog with Cmd/Ctrl+L and jumps to the requested line', async () => {
+    const api = new MockMarkFlowAPI()
+    window.markflow = api
+
+    const content = ['# Intro', 'Alpha', 'Beta', 'Gamma'].join('\n')
+    const { container } = render(<App />)
+
+    await act(async () => {
+      api.emitFileOpened({ filePath: '/tmp/goto.md', content })
+    })
+
+    fireEvent.keyDown(document, { key: 'l', ctrlKey: true })
+
+    const lineInput = await screen.findByRole('textbox', { name: 'Line number' })
+    expect(screen.getByRole('dialog', { name: 'Go to line' })).toBeInTheDocument()
+    expect(lineInput).toHaveValue('1')
+
+    fireEvent.change(lineInput, { target: { value: '3' } })
+    fireEvent.submit(lineInput.closest('form') as HTMLFormElement)
+
+    await waitFor(() => {
+      expect(getEditorView(container).state.selection.main.head).toBe(content.indexOf('Beta'))
+    })
+
+    expect(screen.queryByRole('dialog', { name: 'Go to line' })).not.toBeInTheDocument()
+  })
+
+  it('clamps go-to-line requests to the final line when the input exceeds the document size', async () => {
+    const api = new MockMarkFlowAPI()
+    window.markflow = api
+
+    const content = ['First', 'Second', 'Third'].join('\n')
+    const { container } = render(<App />)
+
+    await act(async () => {
+      api.emitFileOpened({ filePath: '/tmp/goto-clamp.md', content })
+    })
+
+    fireEvent.keyDown(document, { key: 'l', ctrlKey: true })
+
+    const lineInput = await screen.findByRole('textbox', { name: 'Line number' })
+    fireEvent.change(lineInput, { target: { value: '999' } })
+    fireEvent.submit(lineInput.closest('form') as HTMLFormElement)
+
+    await waitFor(() => {
+      expect(getEditorView(container).state.selection.main.head).toBe(content.indexOf('Third'))
     })
   })
 

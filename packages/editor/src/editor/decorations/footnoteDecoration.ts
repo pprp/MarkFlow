@@ -1,6 +1,7 @@
 import { RangeSetBuilder } from '@codemirror/state'
 import { syntaxTree } from '@codemirror/language'
 import { Decoration, DecorationSet, EditorView, ViewPlugin, ViewUpdate } from '@codemirror/view'
+import { getDecorationViewportWindow } from './viewportWindow'
 
 const footnoteReferencePattern = /^\[\^([^\]\n]+)\]$/
 const footnoteDefinitionPattern = /^(\[\^([^\]\n]+)\]:[ \t]*)(.*)$/
@@ -9,10 +10,12 @@ function normalizeFootnoteLabel(label: string) {
   return label.trim().replace(/\s+/g, ' ').toLowerCase()
 }
 
-function getBlockCodeRanges(view: EditorView) {
+function getBlockCodeRanges(view: EditorView, minFrom: number, maxTo: number) {
   const ranges: Array<{ from: number; to: number }> = []
 
   syntaxTree(view.state).iterate({
+    from: minFrom,
+    to: maxTo,
     enter(node) {
       if (node.name === 'FencedCode' || node.name === 'CodeBlock') {
         ranges.push({ from: node.from, to: node.to })
@@ -31,7 +34,9 @@ function isInRange(position: number, ranges: ReadonlyArray<{ from: number; to: n
 function extractFootnoteDefinitions(view: EditorView) {
   const definitions = new Map<string, string>()
   const doc = view.state.doc
-  const blockCodeRanges = getBlockCodeRanges(view)
+  const minFrom = 0
+  const maxTo = doc.length
+  const blockCodeRanges = getBlockCodeRanges(view, minFrom, maxTo)
 
   for (let lineNumber = 1; lineNumber <= doc.lines; lineNumber += 1) {
     const line = doc.line(lineNumber)
@@ -82,12 +87,21 @@ function isFootnoteDefinitionMarker(view: EditorView, from: number, raw: string)
 }
 
 export function buildFootnoteDecorations(view: EditorView): DecorationSet {
+  return buildFootnoteDecorationsWithDefinitions(view, extractFootnoteDefinitions(view))
+}
+
+export function buildFootnoteDecorationsWithDefinitions(
+  view: EditorView,
+  definitions: ReadonlyMap<string, string>,
+): DecorationSet {
   const builder = new RangeSetBuilder<Decoration>()
   const cursorHead = view.state.selection.main.head
   const doc = view.state.doc
-  const definitions = extractFootnoteDefinitions(view)
+  const { from: minFrom, to: maxTo } = getDecorationViewportWindow(view)
 
   syntaxTree(view.state).iterate({
+    from: minFrom,
+    to: maxTo,
     enter(node) {
       if (node.name !== 'Link') {
         return
@@ -133,14 +147,19 @@ export function footnoteDecorations() {
   return ViewPlugin.fromClass(
     class {
       decorations: DecorationSet
+      definitions: Map<string, string>
 
       constructor(view: EditorView) {
-        this.decorations = buildFootnoteDecorations(view)
+        this.definitions = extractFootnoteDefinitions(view)
+        this.decorations = buildFootnoteDecorationsWithDefinitions(view, this.definitions)
       }
 
       update(update: ViewUpdate) {
+        if (update.docChanged) {
+          this.definitions = extractFootnoteDefinitions(update.view)
+        }
         if (update.docChanged || update.selectionSet || update.viewportChanged) {
-          this.decorations = buildFootnoteDecorations(update.view)
+          this.decorations = buildFootnoteDecorationsWithDefinitions(update.view, this.definitions)
         }
       }
     },

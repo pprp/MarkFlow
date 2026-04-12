@@ -7,6 +7,7 @@ import {
 } from '@codemirror/view'
 import { syntaxTree } from '@codemirror/language'
 import { RangeSetBuilder } from '@codemirror/state'
+import { getDecorationViewportWindow } from './viewportWindow'
 
 interface DecorationEntry {
   from: number
@@ -19,6 +20,7 @@ function buildDecorations(view: EditorView): DecorationSet {
   const builder = new RangeSetBuilder<Decoration>()
   const cursorHead = view.state.selection.main.head
   const doc = view.state.doc
+  const { from: minFrom, to: maxTo } = getDecorationViewportWindow(view)
   const entries: DecorationEntry[] = []
   let order = 0
 
@@ -27,6 +29,8 @@ function buildDecorations(view: EditorView): DecorationSet {
   }
 
   syntaxTree(view.state).iterate({
+    from: minFrom,
+    to: maxTo,
     enter(node) {
       const { from, to } = node
 
@@ -62,11 +66,11 @@ function buildDecorations(view: EditorView): DecorationSet {
               trimmed.includes('-')
 
             if (isDelimiterRow) {
-              // Hide the entire delimiter line
+              // Hide the entire delimiter line by replacing its content
               addDecoration(
                 line.from,
                 line.to,
-                Decoration.mark({ class: 'mf-table-delimiter' }),
+                Decoration.replace({}),
               )
             } else {
               // Hide pipe separators, mark cell content

@@ -1,6 +1,7 @@
 import { EditorView, Decoration, ViewPlugin, ViewUpdate, DecorationSet, WidgetType } from '@codemirror/view'
 import { syntaxTree } from '@codemirror/language'
 import { RangeSetBuilder } from '@codemirror/state'
+import { getDecorationViewportWindow } from './viewportWindow'
 
 export class LanguageBadgeWidget extends WidgetType {
   constructor(readonly lang: string) {
@@ -26,8 +27,11 @@ export function buildCodeBlockDecorations(view: EditorView): DecorationSet {
   const builder = new RangeSetBuilder<Decoration>()
   const cursorHead = view.state.selection.main.head
   const doc = view.state.doc
+  const { from: minFrom, to: maxTo } = getDecorationViewportWindow(view)
 
   syntaxTree(view.state).iterate({
+    from: minFrom,
+    to: maxTo,
     enter(node) {
       if (node.name !== 'FencedCode') return
 

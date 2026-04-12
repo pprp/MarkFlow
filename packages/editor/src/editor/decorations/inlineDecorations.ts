@@ -1,6 +1,7 @@
 import { EditorView, Decoration, ViewPlugin, ViewUpdate, DecorationSet } from '@codemirror/view'
 import { syntaxTree } from '@codemirror/language'
 import { RangeSetBuilder } from '@codemirror/state'
+import { getDecorationViewportWindow } from './viewportWindow'
 
 const headingClasses: Record<string, string> = {
   ATXHeading1: 'mf-h1',
@@ -22,10 +23,12 @@ const highlightPattern = /==([^=\n](?:.*?[^=\n])?)==/g
 const superscriptPattern = /\^([^^\n]+)\^/g
 const subscriptPattern = /~([^~\n]+)~/g
 
-function getCodeRanges(view: EditorView): Array<{ from: number; to: number }> {
+function getCodeRanges(view: EditorView, from: number, to: number): Array<{ from: number; to: number }> {
   const ranges: Array<{ from: number; to: number }> = []
 
   syntaxTree(view.state).iterate({
+    from,
+    to,
     enter(node) {
       if (node.name === 'InlineCode' || node.name === 'FencedCode' || node.name === 'CodeBlock') {
         ranges.push({ from: node.from, to: node.to })
@@ -74,7 +77,8 @@ function buildDecorations(view: EditorView): DecorationSet {
   const builder = new RangeSetBuilder<Decoration>()
   const cursorHead = view.state.selection.main.head
   const doc = view.state.doc
-  const codeRanges = getCodeRanges(view)
+  const { from: minFrom, to: maxTo, startLine, endLine } = getDecorationViewportWindow(view)
+  const codeRanges = getCodeRanges(view, minFrom, maxTo)
   const entries: DecorationEntry[] = []
   let order = 0
 
@@ -83,6 +87,8 @@ function buildDecorations(view: EditorView): DecorationSet {
   }
 
   syntaxTree(view.state).iterate({
+    from: minFrom,
+    to: maxTo,
     enter(node) {
       const { from, to } = node
 
@@ -171,7 +177,7 @@ function buildDecorations(view: EditorView): DecorationSet {
     },
   })
 
-  for (let lineNumber = 1; lineNumber <= doc.lines; lineNumber++) {
+  for (let lineNumber = startLine; lineNumber <= endLine; lineNumber++) {
     const line = doc.line(lineNumber)
     for (const segment of getNonCodeSegments(line.from, line.to, codeRanges)) {
       const segmentText = doc.sliceString(segment.from, segment.to)

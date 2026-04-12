@@ -1,6 +1,7 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import type {
   MarkFlowDesktopAPI,
+  MarkFlowFileLoadProgressPayload,
   MarkFlowFilePayload,
   MarkFlowMenuActionPayload,
   MarkFlowSavePayload,
@@ -42,6 +43,8 @@ const api: MarkFlowDesktopAPI = {
   searchFiles: (folderPath: string, query: string) => ipcRenderer.invoke('search-files', folderPath, query) as Promise<SearchResult[]>,
 
   onFileOpened: (cb: (data: MarkFlowFilePayload) => void) => subscribe('file-opened', cb),
+  onFileLoadingProgress: (cb: (data: MarkFlowFileLoadProgressPayload) => void) =>
+    subscribe('file-loading-progress', cb),
   onFileSaved: (cb: (data: MarkFlowSavePayload) => void) => subscribe('file-saved', cb),
   onMenuAction: (cb: (data: MarkFlowMenuActionPayload) => void) => subscribe('menu-action', cb),
   onThemeUpdated: (cb: (data: MarkFlowThemePayload) => void) => subscribe('theme-updated', cb),

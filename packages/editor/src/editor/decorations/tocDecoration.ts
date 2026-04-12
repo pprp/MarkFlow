@@ -7,53 +7,27 @@ import {
   WidgetType,
 } from '@codemirror/view'
 import { RangeSetBuilder } from '@codemirror/state'
+import { extractOutlineHeadings, type OutlineHeading } from '../outline'
+import { getDecorationViewportWindow } from './viewportWindow'
 
 const TOC_LINE_RE = /^\[toc\]\s*$/i
-const HEADING_RE = /^(#{1,6})\s+(.+)$/gm
-
-function slugify(text: string): string {
-  return text
-    .toLowerCase()
-    .replace(/[^\w\s-]/g, '')
-    .trim()
-    .replace(/\s+/g, '-')
-}
-
-interface Heading {
-  level: number
-  text: string
-  anchor: string
-}
-
-function parseHeadings(doc: string): Heading[] {
-  const headings: Heading[] = []
-  let match: RegExpExecArray | null
-  HEADING_RE.lastIndex = 0
-  while ((match = HEADING_RE.exec(doc)) !== null) {
-    headings.push({
-      level: match[1].length,
-      text: match[2].trim(),
-      anchor: slugify(match[2].trim()),
-    })
-  }
-  return headings
-}
 
 class TocWidget extends WidgetType {
-  constructor(private docContent: string) {
+  constructor(private headings: OutlineHeading[]) {
     super()
   }
 
   toDOM(): HTMLElement {
-    const headings = parseHeadings(this.docContent)
     const container = document.createElement('div')
     container.className = 'mf-toc'
 
     const ul = document.createElement('ul')
-    for (const heading of headings) {
+    for (const heading of this.headings) {
       const li = document.createElement('li')
       li.dataset.level = String(heading.level)
       const a = document.createElement('a')
+      // Use mf-link class so modifier-click is handled by the editor's navigation path
+      a.className = 'mf-link'
       a.href = `#${heading.anchor}`
       a.textContent = heading.text
       li.appendChild(a)
@@ -63,8 +37,14 @@ class TocWidget extends WidgetType {
     return container
   }
 
-  eq(): boolean {
-    return false
+  eq(other: TocWidget): boolean {
+    if (this.headings.length !== other.headings.length) return false
+    return this.headings.every(
+      (h, i) =>
+        h.anchor === other.headings[i].anchor &&
+        h.text === other.headings[i].text &&
+        h.level === other.headings[i].level,
+    )
   }
 
   ignoreEvent(): boolean {
@@ -72,13 +52,13 @@ class TocWidget extends WidgetType {
   }
 }
 
-function buildTocDecorations(view: EditorView): DecorationSet {
+function buildTocDecorations(view: EditorView, headings: OutlineHeading[]): DecorationSet {
   const builder = new RangeSetBuilder<Decoration>()
   const cursorHead = view.state.selection.main.head
   const doc = view.state.doc
-  const docContent = doc.toString()
+  const { startLine, endLine } = getDecorationViewportWindow(view)
 
-  for (let i = 1; i <= doc.lines; i++) {
+  for (let i = startLine; i <= endLine; i++) {
     const line = doc.line(i)
     if (TOC_LINE_RE.test(line.text)) {
       const cursorOnLine = cursorHead >= line.from && cursorHead <= line.to
@@ -86,7 +66,7 @@ function buildTocDecorations(view: EditorView): DecorationSet {
         builder.add(
           line.from,
           line.to,
-          Decoration.replace({ widget: new TocWidget(docContent) }),
+          Decoration.replace({ widget: new TocWidget(headings) }),
         )
       }
     }
@@ -99,14 +79,19 @@ export function tocDecorations() {
   return ViewPlugin.fromClass(
     class {
       decorations: DecorationSet
+      headings: OutlineHeading[]
 
       constructor(view: EditorView) {
-        this.decorations = buildTocDecorations(view)
+        this.headings = extractOutlineHeadings(view.state.doc.toString())
+        this.decorations = buildTocDecorations(view, this.headings)
       }
 
       update(update: ViewUpdate) {
+        if (update.docChanged) {
+          this.headings = extractOutlineHeadings(update.view.state.doc.toString())
+        }
         if (update.docChanged || update.selectionSet || update.viewportChanged) {
-          this.decorations = buildTocDecorations(update.view)
+          this.decorations = buildTocDecorations(update.view, this.headings)
         }
       }
     },

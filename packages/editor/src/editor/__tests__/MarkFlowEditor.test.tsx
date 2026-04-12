@@ -1,8 +1,11 @@
 import { fireEvent, render } from '@testing-library/react'
-import { undo } from '@codemirror/commands'
+import { isolateHistory, undo, undoDepth } from '@codemirror/commands'
+import { EditorSelection, Transaction } from '@codemirror/state'
 import { EditorView, runScopeHandlers } from '@codemirror/view'
 import { describe, expect, it, vi } from 'vitest'
+import { waitFor } from '@testing-library/react'
 import { MarkFlowEditor } from '../MarkFlowEditor'
+import { MAX_UNDO_HISTORY_EVENTS } from '../historyLimit'
 
 interface PointerEventInitWithId extends MouseEventInit {
   pointerId?: number
@@ -163,6 +166,107 @@ describe('MarkFlowEditor', () => {
     fireEvent.keyDown(view.contentDOM, { key: '-', ctrlKey: true })
     fireEvent.keyDown(view.contentDOM, { key: '=', ctrlKey: true })
     expect(view.state.doc.toString()).toBe(['Top line', '###### Deep line', 'Plain paragraph'].join('\n'))
+  })
+
+  it('configures Alt-click as the gesture for adding another cursor', () => {
+    const { container } = render(
+      <MarkFlowEditor content="alpha\nbeta\ngamma" viewMode="wysiwyg" onChange={vi.fn()} />,
+    )
+
+    const view = getEditorView(container)
+    const clickAddsSelectionRange = view.state.facet(EditorView.clickAddsSelectionRange)[0]
+
+    expect(clickAddsSelectionRange(new MouseEvent('mousedown', { altKey: true }))).toBe(true)
+    expect(clickAddsSelectionRange(new MouseEvent('mousedown', { ctrlKey: true }))).toBe(false)
+    expect(clickAddsSelectionRange(new MouseEvent('mousedown'))).toBe(false)
+  })
+
+  it('edits simultaneously across multiple cursors', () => {
+    const { container } = render(
+      <MarkFlowEditor content={['foo', 'bar', 'baz'].join('\n')} viewMode="wysiwyg" onChange={vi.fn()} />,
+    )
+
+    const view = getEditorView(container)
+    const selections = EditorSelection.create([
+      EditorSelection.cursor(view.state.doc.line(1).from),
+      EditorSelection.cursor(view.state.doc.line(2).from),
+      EditorSelection.cursor(view.state.doc.line(3).from),
+    ])
+
+    view.dispatch({ selection: selections })
+    view.dispatch(view.state.replaceSelection('> '))
+
+    expect(view.state.doc.toString()).toBe(['> foo', '> bar', '> baz'].join('\n'))
+    expect(view.state.selection.ranges).toHaveLength(3)
+  })
+
+  it('selects the next occurrence with Cmd/Ctrl+D when multiple selections are enabled', () => {
+    const { container } = render(
+      <MarkFlowEditor content="foo foo foo" viewMode="wysiwyg" onChange={vi.fn()} />,
+    )
+
+    const view = getEditorView(container)
+    view.dispatch({ selection: EditorSelection.range(0, 3) })
+
+    fireEvent.keyDown(view.contentDOM, { key: 'd', ctrlKey: true })
+    expect(view.state.selection.ranges.map((range) => [range.from, range.to])).toEqual([
+      [0, 3],
+      [4, 7],
+    ])
+
+    fireEvent.keyDown(view.contentDOM, { key: 'd', ctrlKey: true })
+    expect(view.state.selection.ranges.map((range) => [range.from, range.to])).toEqual([
+      [0, 3],
+      [4, 7],
+      [8, 11],
+    ])
+  })
+
+  it('collapses multiple cursors back to the primary caret with Escape', () => {
+    const { container } = render(
+      <MarkFlowEditor content={['foo', 'bar', 'baz'].join('\n')} viewMode="wysiwyg" onChange={vi.fn()} />,
+    )
+
+    const view = getEditorView(container)
+    view.dispatch({
+      selection: EditorSelection.create([
+        EditorSelection.cursor(view.state.doc.line(1).from),
+        EditorSelection.cursor(view.state.doc.line(2).from + 1),
+        EditorSelection.cursor(view.state.doc.line(3).from + 2),
+      ]),
+    })
+
+    fireEvent.keyDown(view.contentDOM, { key: 'Escape' })
+
+    expect(view.state.selection.ranges).toHaveLength(1)
+    expect(view.state.selection.main.head).toBe(view.state.doc.line(1).from)
+  })
+
+  it('caps undo history at 500 edit events and stops cleanly after that point', async () => {
+    const { container } = render(
+      <MarkFlowEditor content="" viewMode="wysiwyg" onChange={vi.fn()} />,
+    )
+
+    const view = getEditorView(container)
+    for (let index = 0; index < 600; index += 1) {
+      view.dispatch({
+        changes: { from: view.state.doc.length, insert: String(index % 10) },
+        annotations: [
+          Transaction.time.of(index * 1000),
+          Transaction.userEvent.of('input.type'),
+          isolateHistory.of('full'),
+        ],
+      })
+    }
+
+    await waitFor(() => {
+      expect(undoDepth(view.state)).toBe(MAX_UNDO_HISTORY_EVENTS)
+    })
+
+    for (let index = 0; index < MAX_UNDO_HISTORY_EVENTS; index += 1) {
+      expect(undo(view)).toBe(true)
+    }
+    expect(undo(view)).toBe(false)
   })
 
   it('toggles quote, ordered-list, and unordered-list shortcuts on only the active line', () => {
