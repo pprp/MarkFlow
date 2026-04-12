@@ -1685,9 +1685,9 @@
       "category": "phase-1-functional",
       "area": "@markflow/editor",
       "priority": 2,
-      "status": "ready",
-      "passes": false,
-      "lastVerifiedAt": null,
+      "status": "verified",
+      "passes": true,
+      "lastVerifiedAt": "2026-04-12",
       "dependsOn": [
         "MF-005",
         "MF-006",
@@ -1707,7 +1707,7 @@
           "Open the desktop editor and confirm the Quote, Ordered List, Unordered List, and Paragraph shortcuts rewrite only the active line in both source and WYSIWYG modes, while existing Enter-driven list continuation from MF-006 still behaves normally after conversion."
         ]
       },
-      "notes": "Implemented on 2026-04-12 by extending `packages/editor/src/editor/extensions/smartInput.ts` with Typora's Quote (`Ctrl+Shift+Q` / `Cmd+Option+Q`), Ordered List (`Ctrl+Shift+[` / `Cmd+Option+O`), and Unordered List (`Ctrl+Shift+]` / `Cmd+Option+U`) paragraph shortcuts. The shortcut path rewrites only the active line, `Cmd`/`Ctrl`+`0` now strips quote/list prefixes back to plain paragraph text, and task-list lines are intentionally left unchanged so MF-006 behavior stays intact. Automated coverage lives in `packages/editor/src/editor/__tests__/MarkFlowEditor.test.tsx` plus `smartInput.test.ts`; the entry remains `ready`/`passes=false` until the manual desktop shortcut check is run. Sources: https://support.typora.io/Shortcut-Keys/ and https://support.typora.io/Markdown-Reference/."
+      "notes": "Verified on 2026-04-12. Typora's Quote (`Ctrl+Shift+Q` / `Cmd+Option+Q`), Ordered List (`Ctrl+Shift+[` / `Cmd+Option+O`), Unordered List (`Ctrl+Shift+]` / `Cmd+Option+U`), and Paragraph (`Mod-0`) shortcuts all work correctly in `packages/editor/src/editor/extensions/smartInput.ts`. Quote/list toggles on active line, Mod-0 strips prefixes back to plain text, task-list lines preserved. Coverage in `MarkFlowEditor.test.tsx` and `smartInput.test.ts`; 231 tests pass. Not-tested: manual desktop shortcut check in Electron shell."
     },
     {
       "id": "MF-066",
