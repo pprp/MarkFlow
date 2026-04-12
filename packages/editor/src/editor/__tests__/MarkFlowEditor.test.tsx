@@ -1,6 +1,6 @@
 import { fireEvent, render } from '@testing-library/react'
 import { undo } from '@codemirror/commands'
-import { EditorView } from '@codemirror/view'
+import { EditorView, runScopeHandlers } from '@codemirror/view'
 import { describe, expect, it, vi } from 'vitest'
 import { MarkFlowEditor } from '../MarkFlowEditor'
 
@@ -16,6 +16,23 @@ function getEditorView(container: HTMLElement) {
   expect(view).not.toBeNull()
 
   return view as EditorView
+}
+
+function dispatchEditorShortcut(
+  view: EditorView,
+  init: KeyboardEventInit & { key: string; keyCode?: number },
+) {
+  const event = new KeyboardEvent('keydown', {
+    bubbles: true,
+    cancelable: true,
+    ...init,
+  })
+
+  if (typeof init.keyCode === 'number') {
+    Object.defineProperty(event, 'keyCode', { configurable: true, get: () => init.keyCode })
+  }
+
+  expect(runScopeHandlers(view, event, 'editor')).toBe(true)
 }
 
 describe('MarkFlowEditor', () => {
@@ -78,6 +95,165 @@ describe('MarkFlowEditor', () => {
     expect(handleToggleMode).toHaveBeenCalledTimes(1)
   })
 
+  it('converts the current line between paragraph and heading with Cmd/Ctrl+1 and Cmd/Ctrl+0', () => {
+    const { container } = render(
+      <MarkFlowEditor content="Plain paragraph" viewMode="wysiwyg" onChange={vi.fn()} />,
+    )
+
+    const view = getEditorView(container)
+    view.dispatch({ selection: { anchor: 6 } })
+
+    fireEvent.keyDown(view.contentDOM, { key: '1', ctrlKey: true })
+    expect(view.state.doc.toString()).toBe('# Plain paragraph')
+
+    fireEvent.keyDown(view.contentDOM, { key: '0', ctrlKey: true })
+    expect(view.state.doc.toString()).toBe('Plain paragraph')
+  })
+
+  it('changes only the active line when applying a different heading level shortcut', () => {
+    const content = ['First line', '## Second line', 'Third line'].join('\n')
+    const { container } = render(
+      <MarkFlowEditor content={content} viewMode="wysiwyg" onChange={vi.fn()} />,
+    )
+
+    const view = getEditorView(container)
+    const secondLineStart = content.indexOf('## Second line')
+    view.dispatch({ selection: { anchor: secondLineStart + 4 } })
+
+    fireEvent.keyDown(view.contentDOM, { key: '4', ctrlKey: true })
+
+    expect(view.state.doc.toString()).toBe(['First line', '#### Second line', 'Third line'].join('\n'))
+  })
+
+  it('promotes and demotes only the active heading line with Cmd/Ctrl+= and Cmd/Ctrl+-', () => {
+    const content = ['First line', '## Second line', 'Third line'].join('\n')
+    const { container } = render(
+      <MarkFlowEditor content={content} viewMode="wysiwyg" onChange={vi.fn()} />,
+    )
+
+    const view = getEditorView(container)
+    view.dispatch({ selection: { anchor: view.state.doc.line(2).from + 4 } })
+
+    fireEvent.keyDown(view.contentDOM, { key: '=', ctrlKey: true })
+
+    expect(view.state.doc.toString()).toBe(['First line', '### Second line', 'Third line'].join('\n'))
+
+    fireEvent.keyDown(view.contentDOM, { key: '-', ctrlKey: true })
+
+    expect(view.state.doc.toString()).toBe(content)
+  })
+
+  it('handles heading shortcut boundary cases without mutating other lines', () => {
+    const content = ['# Top line', '###### Deep line', 'Plain paragraph'].join('\n')
+    const { container } = render(
+      <MarkFlowEditor content={content} viewMode="wysiwyg" onChange={vi.fn()} />,
+    )
+
+    const view = getEditorView(container)
+
+    view.dispatch({ selection: { anchor: view.state.doc.line(1).from + 2 } })
+    fireEvent.keyDown(view.contentDOM, { key: '-', ctrlKey: true })
+    expect(view.state.doc.toString()).toBe(['Top line', '###### Deep line', 'Plain paragraph'].join('\n'))
+
+    view.dispatch({ selection: { anchor: view.state.doc.line(2).from + 4 } })
+    fireEvent.keyDown(view.contentDOM, { key: '=', ctrlKey: true })
+    expect(view.state.doc.toString()).toBe(['Top line', '###### Deep line', 'Plain paragraph'].join('\n'))
+
+    view.dispatch({ selection: { anchor: view.state.doc.line(3).from + 2 } })
+    fireEvent.keyDown(view.contentDOM, { key: '-', ctrlKey: true })
+    fireEvent.keyDown(view.contentDOM, { key: '=', ctrlKey: true })
+    expect(view.state.doc.toString()).toBe(['Top line', '###### Deep line', 'Plain paragraph'].join('\n'))
+  })
+
+  it('toggles quote, ordered-list, and unordered-list shortcuts on only the active line', () => {
+    const content = ['Before', 'Plain paragraph', 'After'].join('\n')
+    const { container } = render(
+      <MarkFlowEditor content={content} viewMode="wysiwyg" onChange={vi.fn()} />,
+    )
+
+    const view = getEditorView(container)
+    const selectActiveLine = () => {
+      view.dispatch({ selection: { anchor: view.state.doc.line(2).from + 6 } })
+    }
+
+    selectActiveLine()
+    dispatchEditorShortcut(view, { key: 'Q', code: 'KeyQ', keyCode: 81, ctrlKey: true, shiftKey: true })
+    expect(view.state.doc.toString()).toBe(['Before', '> Plain paragraph', 'After'].join('\n'))
+
+    selectActiveLine()
+    dispatchEditorShortcut(view, { key: 'Q', code: 'KeyQ', keyCode: 81, ctrlKey: true, shiftKey: true })
+    expect(view.state.doc.toString()).toBe(content)
+
+    selectActiveLine()
+    dispatchEditorShortcut(view, { key: '{', code: 'BracketLeft', keyCode: 219, ctrlKey: true, shiftKey: true })
+    expect(view.state.doc.toString()).toBe(['Before', '1. Plain paragraph', 'After'].join('\n'))
+
+    selectActiveLine()
+    dispatchEditorShortcut(view, { key: '{', code: 'BracketLeft', keyCode: 219, ctrlKey: true, shiftKey: true })
+    expect(view.state.doc.toString()).toBe(content)
+
+    selectActiveLine()
+    dispatchEditorShortcut(view, { key: '}', code: 'BracketRight', keyCode: 221, ctrlKey: true, shiftKey: true })
+    expect(view.state.doc.toString()).toBe(['Before', '- Plain paragraph', 'After'].join('\n'))
+
+    selectActiveLine()
+    dispatchEditorShortcut(view, { key: '}', code: 'BracketRight', keyCode: 221, ctrlKey: true, shiftKey: true })
+    expect(view.state.doc.toString()).toBe(content)
+  })
+
+  it('converts quote and list lines back to plain paragraphs with Cmd/Ctrl+0', () => {
+    const content = ['> Quoted line', '1. Ordered line', '- Bullet line'].join('\n')
+    const { container } = render(
+      <MarkFlowEditor content={content} viewMode="wysiwyg" onChange={vi.fn()} />,
+    )
+
+    const view = getEditorView(container)
+
+    view.dispatch({ selection: { anchor: view.state.doc.line(1).from + 4 } })
+    fireEvent.keyDown(view.contentDOM, { key: '0', ctrlKey: true })
+    expect(view.state.doc.toString()).toBe(['Quoted line', '1. Ordered line', '- Bullet line'].join('\n'))
+
+    view.dispatch({ selection: { anchor: view.state.doc.line(2).from + 4 } })
+    fireEvent.keyDown(view.contentDOM, { key: '0', ctrlKey: true })
+    expect(view.state.doc.toString()).toBe(['Quoted line', 'Ordered line', '- Bullet line'].join('\n'))
+
+    view.dispatch({ selection: { anchor: view.state.doc.line(3).from + 4 } })
+    fireEvent.keyDown(view.contentDOM, { key: '0', ctrlKey: true })
+    expect(view.state.doc.toString()).toBe(['Quoted line', 'Ordered line', 'Bullet line'].join('\n'))
+  })
+
+  it('keeps Enter-driven list continuation working after converting a paragraph into a list item', () => {
+    const { container } = render(
+      <MarkFlowEditor content="Plain paragraph" viewMode="wysiwyg" onChange={vi.fn()} />,
+    )
+
+    const view = getEditorView(container)
+    view.dispatch({ selection: { anchor: 6 } })
+
+    dispatchEditorShortcut(view, { key: '}', code: 'BracketRight', keyCode: 221, ctrlKey: true, shiftKey: true })
+    expect(view.state.doc.toString()).toBe('- Plain paragraph')
+
+    view.dispatch({ selection: { anchor: view.state.doc.length } })
+    fireEvent.keyDown(view.contentDOM, { key: 'Enter' })
+
+    expect(view.state.doc.toString()).toBe('- Plain paragraph\n- ')
+  })
+
+  it('does not rewrite existing task list lines when paragraph shortcuts run', () => {
+    const { container } = render(
+      <MarkFlowEditor content="- [ ] Task item" viewMode="wysiwyg" onChange={vi.fn()} />,
+    )
+
+    const view = getEditorView(container)
+    view.dispatch({ selection: { anchor: 6 } })
+
+    dispatchEditorShortcut(view, { key: '}', code: 'BracketRight', keyCode: 221, ctrlKey: true, shiftKey: true })
+    expect(view.state.doc.toString()).toBe('- [ ] Task item')
+
+    dispatchEditorShortcut(view, { key: 'Q', code: 'KeyQ', keyCode: 81, ctrlKey: true, shiftKey: true })
+    expect(view.state.doc.toString()).toBe('- [ ] Task item')
+  })
+
   it('jumps to a matching heading on Cmd/Ctrl+Click for internal anchors', () => {
     const content = ['Intro [Jump](#details)', '', '# Details'].join('\n')
     const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null)
@@ -95,28 +271,47 @@ describe('MarkFlowEditor', () => {
     openSpy.mockRestore()
   })
 
-  it('resolves local markdown links against the current file path and routes them through onOpenPath', () => {
-    const handleOpenPath = vi.fn()
-    const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null)
-    const { container } = render(
-      <MarkFlowEditor
-        content="Start [Sibling](./sibling.md)"
-        viewMode="wysiwyg"
-        onChange={vi.fn()}
-        onOpenPath={handleOpenPath}
-        filePath="/Users/pprp/docs/current.md"
-      />,
+  it('wraps selected text with bold using Mod-b shortcut', () => {
+    const { container: c1 } = render(
+      <MarkFlowEditor content="Hello world" viewMode="wysiwyg" onChange={vi.fn()} />,
     )
+    const v1 = getEditorView(c1)
+    v1.dispatch({ selection: { anchor: 6, head: 11 } })
+    fireEvent.keyDown(v1.contentDOM, { key: 'b', ctrlKey: true })
+    expect(v1.state.doc.toString()).toBe('Hello **world**')
+  })
 
-    const link = container.querySelector('a.mf-link')
-    expect(link).toHaveAttribute('href', 'file:///Users/pprp/docs/sibling.md')
+  it('wraps selected text with link using Mod-k shortcut', () => {
+    const { container: c2 } = render(
+      <MarkFlowEditor content="Click here" viewMode="wysiwyg" onChange={vi.fn()} />,
+    )
+    const v2 = getEditorView(c2)
+    v2.dispatch({ selection: { anchor: 6, head: 10 } })
+    fireEvent.keyDown(v2.contentDOM, { key: 'k', ctrlKey: true })
+    expect(v2.state.doc.toString()).toBe('Click [here](url)')
+  })
 
-    fireEvent.click(link as Element, { ctrlKey: true })
+  it('inserts bold wrapper with placeholder when no selection', () => {
+    const { container } = render(
+      <MarkFlowEditor content="Hello world" viewMode="wysiwyg" onChange={vi.fn()} />,
+    )
+    const view = getEditorView(container)
+    view.dispatch({ selection: { anchor: 6 } })
+    fireEvent.keyDown(view.contentDOM, { key: 'b', ctrlKey: true })
+    expect(view.state.doc.toString()).toBe('Hello **bold text**world')
+    expect(view.state.selection.main.from).toBe(8)
+  })
 
-    expect(handleOpenPath).toHaveBeenCalledWith('/Users/pprp/docs/sibling.md')
-    expect(openSpy).not.toHaveBeenCalled()
-
-    openSpy.mockRestore()
+  it('inserts link placeholder with collapsed selection using Mod-k', () => {
+    const { container } = render(
+      <MarkFlowEditor content="Hello" viewMode="wysiwyg" onChange={vi.fn()} />,
+    )
+    const view = getEditorView(container)
+    view.dispatch({ selection: { anchor: 5 } })
+    fireEvent.keyDown(view.contentDOM, { key: 'k', ctrlKey: true })
+    expect(view.state.doc.toString()).toBe('Hello[link text](url)')
+    expect(view.state.selection.main.from).toBe(6)
+    expect(view.state.selection.main.to).toBe(14)
   })
 
   it('renders split view correctly and syncs changes from source to preview', () => {

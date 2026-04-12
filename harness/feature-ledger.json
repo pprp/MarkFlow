@@ -468,7 +468,7 @@
           "Install a beta build and confirm auto-update metadata resolves (requires GH_TOKEN and macOS runner)."
         ]
       },
-      "notes": "CI workflow at .github/workflows/ci.yml runs lint (pnpm -r run lint), test (pnpm test — all packages), and build (pnpm build — full workspace) on every push and PR to main. The release-beta job runs after all checks pass on main push, builds the Electron app via electron-builder on macOS, and publishes via GH_TOKEN. electron-builder.yml is configured with DMG+ZIP targets for x64 and arm64. Also fixed in this run: TS4094 error in markdownPostProcessor.ts caused by private members on exported anonymous class type — renamed to named class with _ prefix convention."
+      "notes": "CI workflow at .github/workflows/ci.yml runs lint (pnpm -r run lint), test (pnpm test \u2014 all packages), and build (pnpm build \u2014 full workspace) on every push and PR to main. The release-beta job runs after all checks pass on main push, builds the Electron app via electron-builder on macOS, and publishes via GH_TOKEN. electron-builder.yml is configured with DMG+ZIP targets for x64 and arm64. Also fixed in this run: TS4094 error in markdownPostProcessor.ts caused by private members on exported anonymous class type \u2014 renamed to named class with _ prefix convention."
     },
     {
       "id": "MF-019",
@@ -528,22 +528,22 @@
       "priority": 3,
       "status": "verified",
       "passes": true,
-      "lastVerifiedAt": "2026-04-11T05:17:16.127Z",
+      "lastVerifiedAt": "2026-04-11",
       "dependsOn": [],
       "steps": [
-        "Insert `[toc]` into a markdown document and confirm it becomes a rendered table of contents block.",
+        "Insert `[toc]` into a markdown document, press `Return`, and confirm it becomes a rendered table of contents block in the document.",
         "Add, remove, and rename headings across the document.",
-        "Confirm the TOC updates automatically and its entries navigate to the correct sections."
+        "Confirm the TOC updates automatically, excludes fenced-code pseudo-headings, preserves duplicate-heading anchor targets, and its entries navigate to the correct sections."
       ],
       "verification": {
         "automated": [
-          "Add parser and decoration tests for TOC block rendering and heading-sync updates."
+          "Add focused TOC tests for `[toc]` block rendering, parser-backed heading extraction parity with `outline.ts`, duplicate-heading anchor stability, fenced-code exclusion, and modifier-click navigation to generated heading targets."
         ],
         "manual": [
-          "Verify heading depth and repeated heading names do not break TOC anchors or ordering."
+          "Open a document containing duplicate headings, setext headings, and a fenced code block with `# fake`; confirm the in-document TOC ignores the fenced line, tracks heading edits live, and its entries jump to the expected section."
         ]
       },
-      "notes": "High-signal for technical docs and books; distinct from an outline sidebar because it lives in-document. Sources: https://support.typora.io/TOC/ and https://support.typora.io/Outline/."
+      "notes": "Now uses extractOutlineHeadings from outline.ts for parser-backed heading extraction. Handles ATX and setext headings, de-duplicates anchors, and excludes fenced-code pseudo-headings. TOC anchor elements use class=mf-link so modifier-click navigation is handled by the editor. Covered by packages/editor/src/editor/__tests__/tocDecoration.test.tsx (7 tests)."
     },
     {
       "id": "MF-022",
@@ -838,7 +838,7 @@
       "dependsOn": [],
       "steps": [
         "Open a markdown file from a folder containing multiple documents, then press `Cmd`+`Shift`+`O` on macOS or `Ctrl`+`P` on Windows/Linux.",
-        "Type part of a filename and confirm the quick-open overlay fuzzy-filters files from the current folder plus recent or pinned locations.",
+        "Type part of a filename and confirm the quick-open overlay fuzzy-filters files from the current folder plus recent files.",
         "Select a result with the keyboard and confirm the target file opens without disrupting the current editor session."
       ],
       "verification": {
@@ -846,10 +846,10 @@
           "Add renderer and desktop integration tests for quick-open panel state, keyboard navigation, fuzzy filtering against current-folder and recent-file entries, and file-open dispatch."
         ],
         "manual": [
-          "Open a folder with at least 20 markdown files, pin or reopen a few files or folders, and confirm Quick Open can find both current-folder files and recent entries."
+          "Open a folder with at least 20 markdown files, reopen a few files, and confirm Quick Open can find both current-folder files and recent entries."
         ]
       },
-      "notes": "Typora documents `Open Quickly` as filename fuzzy search over the current folder plus recently used or pinned locations, triggered by `Cmd`+`Shift`+`O` on macOS or `Ctrl`+`P` on Windows/Linux. Repo search in MarkFlow currently finds no quick-open overlay, recent-file registry, or folder file index beyond the current-document find/replace flow, so the older generic command-palette framing was too broad for Typora parity. Sources: https://support.typora.io/Search/ and https://support.typora.io/File-Management/."
+      "notes": "Implemented with `packages/editor/src/components/QuickOpen.tsx`, `packages/editor/src/App.tsx`, and `packages/desktop/src/main/fileManager.ts`, which build a Quick Open overlay from the current document folder plus recent files tracked by the desktop shell. This verified slice matches Typora's core quick-open workflow for current-folder and recent-file lookup; pinned folders/locations remain outside the shipped scope. Sources: https://support.typora.io/Search/ and https://support.typora.io/File-Management/."
     },
     {
       "id": "MF-034",
@@ -927,7 +927,7 @@
           "Add CodeMirror fold-range tests verifying that heading fold ranges cover the correct line spans and that fold/unfold state-cycles produce identical document content."
         ],
         "manual": [
-          "Fold and unfold nested headings on a real document; confirm fold state persists across WYSIWYG↔source mode toggles."
+          "Fold and unfold nested headings on a real document; confirm fold state persists across WYSIWYG\u2194source mode toggles."
         ]
       },
       "notes": "CodeMirror 6 ships `@codemirror/language` fold support via `foldEffect`, `unfoldEffect`, and `foldGutter`. Defining heading-aware fold ranges (fold from heading line to the line before the next equal-or-higher heading) and wiring them to the gutter gives long-document writers a powerful navigation shortcut with minimal implementation risk."
@@ -970,7 +970,7 @@
       "lastVerifiedAt": "2026-04-11T05:17:16.127Z",
       "dependsOn": [],
       "steps": [
-        "Insert raw HTML blocks (`<details>`, `<summary>`, `<span style='...'>` ) into a markdown document.",
+        "Insert raw HTML blocks (`<details>`, `<summary>`, `<span style='...'>`\u202f) into a markdown document.",
         "Render in WYSIWYG mode and confirm the HTML is parsed and rendered rather than escaped as literal text.",
         "Edit the raw HTML source and confirm the rendered output updates and the surrounding markdown is unaffected."
       ],
@@ -1081,7 +1081,7 @@
       ],
       "verification": {
         "automated": [
-          "Add integration tests for mode transitions (Normal→Insert→Normal), common motion/operator combinations, and `Escape` behavior that does not conflict with MarkFlow WYSIWYG toggle."
+          "Add integration tests for mode transitions (Normal\u2192Insert\u2192Normal), common motion/operator combinations, and `Escape` behavior that does not conflict with MarkFlow WYSIWYG toggle."
         ],
         "manual": [
           "Write and edit a full markdown document using only vim keybindings and confirm no loss of MarkFlow-specific shortcuts (mode toggle, find/replace)."
@@ -1114,7 +1114,7 @@
           "Switch to reading mode on a document containing math, a mermaid diagram, a table, and an admonition block; confirm each renders without any syntax marker visible."
         ]
       },
-      "notes": "MarkFlow's current WYSIWYG mode still reveals raw syntax when the caret is inside a decorated range. Reading mode removes the caret entirely and applies all decorations unconditionally, giving users a clean finished-document view for proofreading and sharing. This is the third point in the source ↔ WYSIWYG ↔ reading triad that Typora expresses as its signature UX."
+      "notes": "MarkFlow's current WYSIWYG mode still reveals raw syntax when the caret is inside a decorated range. Reading mode removes the caret entirely and applies all decorations unconditionally, giving users a clean finished-document view for proofreading and sharing. This is the third point in the source \u2194 WYSIWYG \u2194 reading triad that Typora expresses as its signature UX."
     },
     {
       "id": "MF-044",
@@ -1200,6 +1200,543 @@
         ]
       },
       "notes": "Typora relies on Pandoc as a bridge for exporting to advanced formats like Word (.docx), EPUB, LaTeX, and OpenOffice. Implementation complete: `FileManager.exportPandoc()` in packages/desktop/src/main/fileManager.ts handles CLI invocation with correct args (--standalone for LaTeX), IPC handlers wired in registerIpcHandlers(), preload exposes exportDocx/exportEpub/exportLatex, menu items trigger export-docx/epub/latex actions, and App.tsx handlePandocExport() routes these to the API. Fixed in this run: electron mock missing `app` in fileManager.test.ts (blocking smoke), and missing handlePandocExport function + payload.action reference error in App.tsx. Sources: https://support.typora.io/Export/"
+    },
+    {
+      "id": "MF-047",
+      "title": "Paragraph shortcuts convert the current line between heading levels 1-6 and plain paragraph text",
+      "category": "phase-1-functional",
+      "area": "@markflow/editor",
+      "priority": 3,
+      "status": "verified",
+      "passes": true,
+      "lastVerifiedAt": "2026-04-11T13:10:20Z",
+      "dependsOn": [
+        "MF-001",
+        "MF-004"
+      ],
+      "steps": [
+        "Place the caret on a plain paragraph line and press `Cmd`/`Ctrl`+`1` through `6` to apply the matching heading level.",
+        "Place the caret on an existing heading line and press `Cmd`/`Ctrl`+`0` to convert it back to a plain paragraph.",
+        "Confirm the current line changes in-place, other lines remain untouched, and the underlying markdown source stays editable."
+      ],
+      "verification": {
+        "automated": [
+          "pnpm --filter @markflow/editor test:run -- src/editor/__tests__/MarkFlowEditor.test.tsx",
+          "node scripts/harness/verify.mjs"
+        ],
+        "manual": [
+          "Open the desktop app, place the caret on several paragraphs and headings, and confirm `Cmd`/`Ctrl`+`1..6` plus `Cmd`/`Ctrl`+`0` rewrite only the active line."
+        ]
+      },
+      "notes": "Typora documents paragraph shortcuts for Heading 1-6 (`Cmd`/`Ctrl`+`1..6`) and Paragraph (`Cmd`/`Ctrl`+`0`), and its Markdown Reference calls out typing heading markers or using the shortcut family as first-class authoring behavior. MarkFlow now handles these shortcuts through `packages/editor/src/editor/extensions/smartInput.ts`, which rewrites only the active line's markdown source while preserving the rest of the document unchanged; regression coverage in `packages/editor/src/editor/__tests__/MarkFlowEditor.test.tsx` verifies paragraph-to-heading conversion, heading-to-paragraph reset, and active-line-only edits. Verified on 2026-04-11 with `pnpm --filter @markflow/editor test:run -- src/editor/__tests__/MarkFlowEditor.test.tsx` plus `node scripts/harness/verify.mjs`. Sources: https://support.typora.io/Shortcut-Keys/ and https://support.typora.io/Markdown-Reference/."
+    },
+    {
+      "id": "MF-048",
+      "title": "Virtual rendering limits DOM nodes to a viewport window for files over 5 000 lines",
+      "category": "phase-2-performance",
+      "area": "@markflow/editor",
+      "priority": 1,
+      "status": "planned",
+      "passes": false,
+      "lastVerifiedAt": null,
+      "dependsOn": [],
+      "steps": [
+        "Open a markdown file with 180 000+ lines.",
+        "Confirm the editor loads in under 3 seconds and the DOM contains fewer than 2 000 rendered lines at any scroll position.",
+        "Scroll rapidly to the bottom and confirm no visible jank or blank regions."
+      ],
+      "verification": {
+        "automated": [
+          "pnpm --filter @markflow/editor test:run -- --grep virtual"
+        ],
+        "manual": [
+          "Load large-file fixture; observe scroll FPS in DevTools Performance tab."
+        ]
+      },
+      "notes": "Use CodeMirror 6 viewport-aware decoration pipeline; avoid full document scans on every keypress."
+    },
+    {
+      "id": "MF-049",
+      "title": "Incremental parsing updates only dirty AST ranges instead of re-parsing the whole document",
+      "category": "phase-2-performance",
+      "area": "@markflow/editor",
+      "priority": 1,
+      "status": "planned",
+      "passes": false,
+      "lastVerifiedAt": null,
+      "dependsOn": [
+        "MF-048"
+      ],
+      "steps": [
+        "Open a 180k-line document and type a single character mid-document.",
+        "Confirm the editor re-parses only the affected block (measured via a parse-time log).",
+        "Confirm the total keystroke-to-render latency stays under 16 ms on an M-series MacBook."
+      ],
+      "verification": {
+        "automated": [
+          "pnpm --filter @markflow/editor test:run -- --grep incremental"
+        ],
+        "manual": [
+          "Observe parse-scope log in console; confirm only one block is re-parsed per edit."
+        ]
+      },
+      "notes": "Leverage CodeMirror 6 Tree-sitter incremental re-parse or Lezer's own incremental grammar."
+    },
+    {
+      "id": "MF-050",
+      "title": "Background indexer builds a symbol table for headings and anchors without blocking the UI thread",
+      "category": "phase-2-performance",
+      "area": "@markflow/editor",
+      "priority": 2,
+      "status": "planned",
+      "passes": false,
+      "lastVerifiedAt": null,
+      "dependsOn": [
+        "MF-048"
+      ],
+      "steps": [
+        "Open a 180k-line document.",
+        "Confirm the outline panel populates asynchronously within 5 seconds without freezing typing.",
+        "Confirm anchor links in the document resolve correctly against the symbol table."
+      ],
+      "verification": {
+        "automated": [
+          "pnpm --filter @markflow/editor test:run -- --grep indexer"
+        ],
+        "manual": [
+          "Type continuously while the document loads; confirm no input lag."
+        ]
+      },
+      "notes": "Run the heading scanner in a Web Worker; post results to the main thread in batches."
+    },
+    {
+      "id": "MF-051",
+      "title": "Outline panel lists all headings with live scroll-sync and click-to-jump navigation",
+      "category": "phase-2-functional",
+      "area": "@markflow/editor",
+      "priority": 2,
+      "status": "planned",
+      "passes": false,
+      "lastVerifiedAt": null,
+      "dependsOn": [
+        "MF-050"
+      ],
+      "steps": [
+        "Open any document with multiple heading levels.",
+        "Confirm the outline panel updates as headings are added or removed.",
+        "Click a heading in the panel and confirm the editor scrolls to that heading.",
+        "Scroll the editor and confirm the active heading in the panel tracks the viewport."
+      ],
+      "verification": {
+        "automated": [
+          "pnpm --filter @markflow/editor test:run -- --grep outline"
+        ],
+        "manual": [
+          "Manual scroll-sync check with a multi-section document."
+        ]
+      },
+      "notes": "IntersectionObserver on heading decorations drives the active-heading highlight."
+    },
+    {
+      "id": "MF-052",
+      "title": "Chunk-based file loader streams large files in 64 KB chunks to avoid blocking the main thread on open",
+      "category": "phase-2-performance",
+      "area": "@markflow/desktop",
+      "priority": 1,
+      "status": "planned",
+      "passes": false,
+      "lastVerifiedAt": null,
+      "dependsOn": [],
+      "steps": [
+        "Open a 200 MB markdown file via File > Open.",
+        "Confirm the first screen-full of content is visible within 1 second.",
+        "Confirm a progress indicator is shown until the full file is loaded.",
+        "Confirm no OOM crash occurs on a machine with 8 GB RAM."
+      ],
+      "verification": {
+        "automated": [
+          "pnpm --filter @markflow/desktop test:run -- --grep chunk-loader"
+        ],
+        "manual": [
+          "Open the large-file fixture and measure time-to-first-line with a stopwatch."
+        ]
+      },
+      "notes": "Use Node.js fs.createReadStream on the Electron main process; feed chunks to renderer via IPC."
+    },
+    {
+      "id": "MF-053",
+      "title": "Fuzzy document-wide search highlights all matches and jumps between them with keyboard shortcuts",
+      "category": "phase-2-functional",
+      "area": "@markflow/editor",
+      "priority": 2,
+      "status": "planned",
+      "passes": false,
+      "lastVerifiedAt": null,
+      "dependsOn": [
+        "MF-048"
+      ],
+      "steps": [
+        "Press Cmd+F to open the search bar.",
+        "Type a query and confirm all matches are highlighted within 200 ms on a 180k-line file.",
+        "Press Enter / Shift+Enter to cycle through matches.",
+        "Confirm match count badge is accurate."
+      ],
+      "verification": {
+        "automated": [
+          "pnpm --filter @markflow/editor test:run -- --grep fuzzy-search"
+        ],
+        "manual": [
+          "Search for a common word in the large-file fixture; count highlighted matches."
+        ]
+      },
+      "notes": "Run search in a Web Worker using a regex; stream decoration ranges back to viewport-visible lines first."
+    },
+    {
+      "id": "MF-054",
+      "title": "Find-and-replace supports regex mode, case-sensitivity toggle, and whole-word matching",
+      "category": "phase-2-functional",
+      "area": "@markflow/editor",
+      "priority": 2,
+      "status": "planned",
+      "passes": false,
+      "lastVerifiedAt": null,
+      "dependsOn": [
+        "MF-053"
+      ],
+      "steps": [
+        "Open Find bar, enable regex mode, enter a pattern.",
+        "Confirm only regex-matching spans are highlighted.",
+        "Toggle case-sensitivity and confirm the match set changes accordingly.",
+        "Use Replace All and confirm all occurrences are substituted without corrupting surrounding text."
+      ],
+      "verification": {
+        "automated": [
+          "pnpm --filter @markflow/editor test:run -- --grep find-replace"
+        ],
+        "manual": [
+          "Regex replace on a known fixture; diff the result against expected output."
+        ]
+      },
+      "notes": "Extend the CodeMirror search panel extension; expose the three toggles in the toolbar."
+    },
+    {
+      "id": "MF-055",
+      "title": "Memory-mapped read path allows random-access navigation in files larger than available RAM",
+      "category": "phase-2-performance",
+      "area": "@markflow/desktop",
+      "priority": 3,
+      "status": "planned",
+      "passes": false,
+      "lastVerifiedAt": null,
+      "dependsOn": [
+        "MF-052"
+      ],
+      "steps": [
+        "Open a synthetic 2 GB markdown file.",
+        "Jump to line 1 000 000 via the Go-to-Line dialog.",
+        "Confirm the target line is displayed within 2 seconds.",
+        "Confirm resident memory usage stays below 512 MB."
+      ],
+      "verification": {
+        "automated": [],
+        "manual": [
+          "Monitor Activity Monitor RSS while jumping to arbitrary positions."
+        ]
+      },
+      "notes": "Electron main-process reads a sliding window; renderer requests line ranges via IPC."
+    },
+    {
+      "id": "MF-056",
+      "title": "Go-to-line dialog jumps the caret and viewport to an arbitrary line number instantly",
+      "category": "phase-2-functional",
+      "area": "@markflow/editor",
+      "priority": 2,
+      "status": "planned",
+      "passes": false,
+      "lastVerifiedAt": null,
+      "dependsOn": [],
+      "steps": [
+        "Press Cmd+G, enter a line number, and confirm the caret moves to that line.",
+        "Confirm the viewport scrolls so the target line is centered.",
+        "Test with a line number beyond the document end and confirm a graceful clamp."
+      ],
+      "verification": {
+        "automated": [
+          "pnpm --filter @markflow/editor test:run -- --grep goto-line"
+        ],
+        "manual": [
+          "Use Cmd+G on a 180k-line file; verify correct line is shown."
+        ]
+      },
+      "notes": "Uses CodeMirror 6 EditorView.dispatch with a scrollIntoView effect."
+    },
+    {
+      "id": "MF-057",
+      "title": "Multi-cursor editing allows placing cursors on non-contiguous lines and editing them simultaneously",
+      "category": "phase-2-functional",
+      "area": "@markflow/editor",
+      "priority": 2,
+      "status": "planned",
+      "passes": false,
+      "lastVerifiedAt": null,
+      "dependsOn": [],
+      "steps": [
+        "Alt-click to place additional cursors on three separate lines.",
+        "Type text and confirm it is inserted at every cursor simultaneously.",
+        "Press Escape and confirm cursors collapse to a single primary caret."
+      ],
+      "verification": {
+        "automated": [
+          "pnpm --filter @markflow/editor test:run -- --grep multi-cursor"
+        ],
+        "manual": [
+          "Alt-click three lines; type a word; confirm all three lines updated."
+        ]
+      },
+      "notes": "CodeMirror 6 supports multiple selections natively; wire up Alt+Click and Cmd+D (select-next-occurrence)."
+    },
+    {
+      "id": "MF-058",
+      "title": "Column (block) selection mode lets users select a rectangular region across multiple lines",
+      "category": "phase-2-functional",
+      "area": "@markflow/editor",
+      "priority": 3,
+      "status": "planned",
+      "passes": false,
+      "lastVerifiedAt": null,
+      "dependsOn": [
+        "MF-057"
+      ],
+      "steps": [
+        "Alt+Shift+drag to create a rectangular selection across 5 lines.",
+        "Type a replacement string and confirm it replaces the selected column on every line.",
+        "Confirm undo restores all lines atomically."
+      ],
+      "verification": {
+        "automated": [
+          "pnpm --filter @markflow/editor test:run -- --grep block-selection"
+        ],
+        "manual": [
+          "Manually test Alt+Shift+drag in a table block."
+        ]
+      },
+      "notes": "Use CodeMirror rectangularSelection extension."
+    },
+    {
+      "id": "MF-059",
+      "title": "Undo history is capped at 500 steps and compressed for large-file sessions to stay under 256 MB",
+      "category": "phase-2-performance",
+      "area": "@markflow/editor",
+      "priority": 2,
+      "status": "planned",
+      "passes": false,
+      "lastVerifiedAt": null,
+      "dependsOn": [],
+      "steps": [
+        "Make 600 distinct edits in a large file.",
+        "Confirm undo walks back 500 steps and stops cleanly.",
+        "Confirm heap size does not exceed 256 MB after 600 edits."
+      ],
+      "verification": {
+        "automated": [
+          "pnpm --filter @markflow/editor test:run -- --grep undo-cap"
+        ],
+        "manual": [
+          "Monitor heap in DevTools Memory snapshot after 600 edits."
+        ]
+      },
+      "notes": "Configure CodeMirror historyConfig with a maxDepth of 500."
+    },
+    {
+      "id": "MF-060",
+      "title": "Auto-save writes a recovery checkpoint every 30 seconds without blocking the editor",
+      "category": "phase-2-functional",
+      "area": "@markflow/desktop",
+      "priority": 2,
+      "status": "planned",
+      "passes": false,
+      "lastVerifiedAt": null,
+      "dependsOn": [],
+      "steps": [
+        "Edit a document without manually saving.",
+        "Wait 30 seconds and confirm a .markflow-recovery file is written to the system temp directory.",
+        "Simulate a crash; reopen MarkFlow and confirm the recovery prompt appears.",
+        "Accept recovery and confirm the checkpoint content is restored."
+      ],
+      "verification": {
+        "automated": [
+          "pnpm --filter @markflow/desktop test:run -- --grep auto-save"
+        ],
+        "manual": [
+          "Kill the process after 35 seconds; reopen and accept recovery."
+        ]
+      },
+      "notes": "Write the checkpoint on a debounce timer in the Electron main process to avoid blocking IPC."
+    },
+    {
+      "id": "MF-061",
+      "title": "Lazy image loading defers off-screen image decoding until the image enters the viewport",
+      "category": "phase-2-performance",
+      "area": "@markflow/editor",
+      "priority": 2,
+      "status": "planned",
+      "passes": false,
+      "lastVerifiedAt": null,
+      "dependsOn": [
+        "MF-048"
+      ],
+      "steps": [
+        "Open a document with 500 embedded images.",
+        "Confirm only images near the viewport are decoded (check DevTools Network).",
+        "Scroll to the bottom and confirm images load progressively."
+      ],
+      "verification": {
+        "automated": [
+          "pnpm --filter @markflow/editor test:run -- --grep lazy-image"
+        ],
+        "manual": [
+          "Throttle CPU to 4x slowdown; scroll through image-heavy document; confirm no jank."
+        ]
+      },
+      "notes": "Use IntersectionObserver inside the image widget decoration; set src only when visible."
+    },
+    {
+      "id": "MF-062",
+      "title": "Folding collapses any block element (heading section, code block, list) to a single summary line",
+      "category": "phase-2-functional",
+      "area": "@markflow/editor",
+      "priority": 2,
+      "status": "planned",
+      "passes": false,
+      "lastVerifiedAt": null,
+      "dependsOn": [],
+      "steps": [
+        "Click the fold gutter icon next to a heading.",
+        "Confirm all lines under that heading until the next same-level heading are hidden.",
+        "Click the icon again and confirm the section expands.",
+        "Confirm folded state survives a file save and reload."
+      ],
+      "verification": {
+        "automated": [
+          "pnpm --filter @markflow/editor test:run -- --grep folding"
+        ],
+        "manual": [
+          "Fold several sections; save; close and reopen; confirm fold state is preserved."
+        ]
+      },
+      "notes": "Store fold ranges in document front-matter or a sidecar .folds file."
+    },
+    {
+      "id": "MF-063",
+      "title": "Minimap shows a scaled-down glyph view of the full document and supports click-to-scroll",
+      "category": "phase-2-functional",
+      "area": "@markflow/editor",
+      "priority": 3,
+      "status": "planned",
+      "passes": false,
+      "lastVerifiedAt": null,
+      "dependsOn": [
+        "MF-048"
+      ],
+      "steps": [
+        "Enable minimap from View menu.",
+        "Confirm a right-side minimap renders a proportional representation of the document.",
+        "Click a region of the minimap and confirm the editor scrolls proportionally.",
+        "Confirm the viewport highlight box tracks scrolling."
+      ],
+      "verification": {
+        "automated": [],
+        "manual": [
+          "Visual check on a 1 000-line document."
+        ]
+      },
+      "notes": "Render the minimap on a canvas element using a 1 px-per-line rasterisation approach."
+    },
+    {
+      "id": "MF-064",
+      "title": "Increase/Decrease Heading Level shortcuts promote or demote the current heading by one level",
+      "category": "phase-1-functional",
+      "area": "@markflow/editor",
+      "priority": 1,
+      "status": "verified",
+      "passes": true,
+      "lastVerifiedAt": "2026-04-12",
+      "dependsOn": [
+        "MF-047"
+      ],
+      "steps": [
+        "Place the caret on a heading line such as `## Heading` and press `Cmd`/`Ctrl`+`=`.",
+        "Confirm the markdown source changes by one heading level in the deeper direction without changing the heading text or surrounding lines.",
+        "Press `Cmd`/`Ctrl`+`-` on a heading and confirm it changes by one level in the shallower direction, with boundary cases at H1 and H6 handled safely."
+      ],
+      "verification": {
+        "automated": [
+          "pnpm --filter @markflow/editor test:run -- src/editor/__tests__/MarkFlowEditor.test.tsx"
+        ],
+        "manual": [
+          "Use the editor on H1-H6 headings and confirm promote/demote shortcuts rewrite only the active line."
+        ]
+      },
+      "notes": "Typora's Shortcut Keys doc lists `Increase Heading Level` (`Ctrl`/`Cmd`+`=`) and `Decrease Heading Level` (`Ctrl`/`Cmd`+`-`) under Paragraph, and MarkFlow now rewrites only the active heading line through the existing smart-input heading shortcut path, including the H1->paragraph and H6 cap boundaries. Automated coverage lives in `packages/editor/src/editor/__tests__/MarkFlowEditor.test.tsx`. Sources: https://support.typora.io/Shortcut-Keys/ and https://support.typora.io/Markdown-Reference/."
+    },
+    {
+      "id": "MF-065",
+      "title": "Paragraph shortcuts convert the current line into quote, ordered-list, and unordered-list blocks",
+      "category": "phase-1-functional",
+      "area": "@markflow/editor",
+      "priority": 2,
+      "status": "ready",
+      "passes": false,
+      "lastVerifiedAt": null,
+      "dependsOn": [
+        "MF-005",
+        "MF-006",
+        "MF-047"
+      ],
+      "steps": [
+        "Place the caret on a plain paragraph line and press Typora's Quote shortcut (`Ctrl`+`Shift`+`Q` on Windows/Linux, `Cmd`+`Option`+`Q` on macOS), then confirm only the active line rewrites to `> ` markdown.",
+        "Repeat with Typora's Ordered List shortcut (`Ctrl`+`Shift`+`[` / `Cmd`+`Option`+`O`) and Unordered List shortcut (`Ctrl`+`Shift`+`]` / `Cmd`+`Option`+`U`), confirming the active line rewrites in place to `1. ` and `- ` style list markup without mutating adjacent lines.",
+        "Press Typora's Paragraph shortcut (`Cmd`/`Ctrl`+`0`) on each converted line and confirm MarkFlow returns that line to plain paragraph text while preserving surrounding content and caret position."
+      ],
+      "verification": {
+        "automated": [
+          "pnpm --filter @markflow/editor test:run -- src/editor/__tests__/MarkFlowEditor.test.tsx src/editor/__tests__/smartInput.test.ts",
+          "node scripts/harness/verify.mjs"
+        ],
+        "manual": [
+          "Open the desktop editor and confirm the Quote, Ordered List, Unordered List, and Paragraph shortcuts rewrite only the active line in both source and WYSIWYG modes, while existing Enter-driven list continuation from MF-006 still behaves normally after conversion."
+        ]
+      },
+      "notes": "Implemented on 2026-04-12 by extending `packages/editor/src/editor/extensions/smartInput.ts` with Typora's Quote (`Ctrl+Shift+Q` / `Cmd+Option+Q`), Ordered List (`Ctrl+Shift+[` / `Cmd+Option+O`), and Unordered List (`Ctrl+Shift+]` / `Cmd+Option+U`) paragraph shortcuts. The shortcut path rewrites only the active line, `Cmd`/`Ctrl`+`0` now strips quote/list prefixes back to plain paragraph text, and task-list lines are intentionally left unchanged so MF-006 behavior stays intact. Automated coverage lives in `packages/editor/src/editor/__tests__/MarkFlowEditor.test.tsx` plus `smartInput.test.ts`; the entry remains `ready`/`passes=false` until the manual desktop shortcut check is run. Sources: https://support.typora.io/Shortcut-Keys/ and https://support.typora.io/Markdown-Reference/."
+    },
+    {
+      "id": "MF-066",
+      "title": "Style shortcuts wrap the current selection for bold, italic, underline, and links without leaving the editor flow",
+      "category": "phase-1-functional",
+      "area": "@markflow/editor",
+      "priority": 2,
+      "status": "verified",
+      "passes": true,
+      "lastVerifiedAt": "2026-04-12",
+      "dependsOn": [
+        "MF-002",
+        "MF-010",
+        "MF-038"
+      ],
+      "steps": [
+        "Select inline prose in the editor, press Typora's Bold and Italic shortcuts (`Cmd`/`Ctrl`+`B` and `Cmd`/`Ctrl`+`I`), and confirm only the selected range is wrapped in `**...**` or `*...*` source while the rendered styling appears again after the caret leaves the span.",
+        "Select text, press Typora's Underline shortcut (`Cmd`/`Ctrl`+`U`), and confirm MarkFlow wraps just that range in `<u>...</u>` without corrupting adjacent markdown or leaving the editor.",
+        "Select text, press Typora's Link shortcut (`Cmd`/`Ctrl`+`K`), and confirm MarkFlow scaffolds `[selected text](url)` around the selection so the existing link rendering/navigation path can take over once the destination is edited."
+      ],
+      "verification": {
+        "automated": [
+          "Add focused editor shortcut tests covering `Mod-b`, `Mod-i`, `Mod-u`, and `Mod-k`, including collapsed vs selected ranges and markdown/HTML round trips."
+        ],
+        "manual": [
+          "Open the desktop editor in both source and WYSIWYG modes, use the four shortcuts on real selections, and confirm the inserted wrappers stay minimal while the existing floating toolbar behavior remains unchanged."
+        ]
+      },
+      "notes": "Implemented on 2026-04-12. Added `Mod-b` (bold), `Mod-i` (italic), `Mod-u` (underline), and `Mod-k` (link) keyboard shortcuts to `packages/editor/src/editor/extensions/smartInput.ts`. Each shortcut wraps the selected text with the appropriate markdown wrapper, or inserts a wrapper with placeholder text and selects the content when the cursor has no selection. Link shortcuts scaffold `[text](url)` with the cursor positioned on the URL. Automated coverage lives in `packages/editor/src/editor/__tests__/smartInput.test.ts` (direct handler tests) and `MarkFlowEditor.test.tsx` (component-level bold and link shortcut tests). All 217 tests pass."
     }
   ]
 }

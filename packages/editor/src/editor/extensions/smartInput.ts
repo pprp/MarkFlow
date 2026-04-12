@@ -9,6 +9,13 @@ const PAIRS: Record<string, string> = {
   '`': '`',
 }
 
+const LEADING_WHITESPACE_RE = /^(\s*)(.*)$/
+const HEADING_RE = /^(\s{0,3})(#{1,6})\s+(.*)$/
+const BLOCKQUOTE_RE = /^(\s*)>\s?(.*)$/
+const TASK_LIST_RE = /^(\s*)([-*+])\s\[[ xX]\]\s(.*)$/
+const ORDERED_LIST_RE = /^(\s*)(\d+)\.\s(.*)$/
+const UNORDERED_LIST_RE = /^(\s*)([-*+])\s(?!\[[ xX]\]\s)(.*)$/
+
 /** Auto-close brackets and quotes */
 function handlePairInput(view: EditorView, char: string): boolean {
   const close = PAIRS[char]
@@ -134,7 +141,250 @@ function handleEnter(view: EditorView): boolean {
   return false
 }
 
+function replaceCurrentLine(view: EditorView, nextText: string): boolean {
+  const { state } = view
+  const line = state.doc.lineAt(state.selection.main.head)
+
+  if (nextText === line.text) {
+    return true
+  }
+
+  view.dispatch({
+    changes: { from: line.from, to: line.to, insert: nextText },
+  })
+
+  return true
+}
+
+function setCurrentLineParagraph(view: EditorView): boolean {
+  const { state } = view
+  const line = state.doc.lineAt(state.selection.main.head)
+
+  const headingMatch = line.text.match(HEADING_RE)
+  if (headingMatch) {
+    return replaceCurrentLine(view, `${headingMatch[1]}${headingMatch[3]}`)
+  }
+
+  const blockquoteMatch = line.text.match(BLOCKQUOTE_RE)
+  if (blockquoteMatch) {
+    return replaceCurrentLine(view, `${blockquoteMatch[1]}${blockquoteMatch[2]}`)
+  }
+
+  const orderedMatch = line.text.match(ORDERED_LIST_RE)
+  if (orderedMatch) {
+    return replaceCurrentLine(view, `${orderedMatch[1]}${orderedMatch[3]}`)
+  }
+
+  const unorderedMatch = line.text.match(UNORDERED_LIST_RE)
+  if (unorderedMatch) {
+    return replaceCurrentLine(view, `${unorderedMatch[1]}${unorderedMatch[3]}`)
+  }
+
+  return true
+}
+
+function setCurrentLineHeadingLevel(view: EditorView, level: number | null): boolean {
+  const { state } = view
+  const line = state.doc.lineAt(state.selection.main.head)
+  const match = line.text.match(HEADING_RE)
+  const indent = match?.[1] ?? ''
+  const content = match ? match[3] : line.text
+
+  if (level === null) {
+    return setCurrentLineParagraph(view)
+  }
+
+  const nextText = level === null ? `${indent}${content}` : `${indent}${'#'.repeat(level)} ${content}`
+
+  return replaceCurrentLine(view, nextText)
+}
+
+function adjustCurrentLineHeadingLevel(view: EditorView, direction: 1 | -1): boolean {
+  const { state } = view
+  const line = state.doc.lineAt(state.selection.main.head)
+  const match = line.text.match(HEADING_RE)
+
+  if (!match) {
+    return true
+  }
+
+  const currentLevel = match[2].length
+
+  if (direction > 0) {
+    return setCurrentLineHeadingLevel(view, Math.min(currentLevel + 1, 6))
+  }
+
+  return setCurrentLineHeadingLevel(view, currentLevel === 1 ? null : currentLevel - 1)
+}
+
+function toggleCurrentLineBlock(
+  view: EditorView,
+  pattern: RegExp,
+  getParagraphText: (match: RegExpMatchArray) => string,
+  prefix: string,
+): boolean {
+  const { state } = view
+  const line = state.doc.lineAt(state.selection.main.head)
+  const match = line.text.match(pattern)
+
+  if (line.text.match(TASK_LIST_RE)) {
+    return true
+  }
+
+  if (match) {
+    return replaceCurrentLine(view, getParagraphText(match))
+  }
+
+  const [, indent, content] = line.text.match(LEADING_WHITESPACE_RE) ?? ['', '', line.text]
+  return replaceCurrentLine(view, `${indent}${prefix}${content}`)
+}
+
+function toggleCurrentLineQuote(view: EditorView): boolean {
+  return toggleCurrentLineBlock(view, BLOCKQUOTE_RE, (match) => `${match[1]}${match[2]}`, '> ')
+}
+
+function toggleCurrentLineOrderedList(view: EditorView): boolean {
+  return toggleCurrentLineBlock(view, ORDERED_LIST_RE, (match) => `${match[1]}${match[3]}`, '1. ')
+}
+
+function toggleCurrentLineUnorderedList(view: EditorView): boolean {
+  return toggleCurrentLineBlock(view, UNORDERED_LIST_RE, (match) => `${match[1]}${match[3]}`, '- ')
+}
+
+
+export function wrapSelectionOrInsert(
+  view: EditorView,
+  open: string,
+  close: string,
+  placeholder: string,
+): boolean {
+  const { state } = view
+  const sel = state.selection.main
+
+  if (!sel.empty) {
+    // Selection exists — wrap it
+    view.dispatch({
+      changes: [
+        { from: sel.from, insert: open },
+        { from: sel.to, insert: close },
+      ],
+      selection: { anchor: sel.from + open.length, head: sel.to + open.length },
+    })
+    return true
+  }
+
+  // Collapsed selection — insert wrapper with placeholder
+  const insert = open + placeholder + close
+  view.dispatch({
+    changes: { from: sel.from, insert },
+    selection: { anchor: sel.from + open.length, head: sel.from + open.length + placeholder.length },
+  })
+  return true
+}
+
+export function applyBold(view: EditorView): boolean {
+  return wrapSelectionOrInsert(view, '**', '**', 'bold text')
+}
+
+export function applyItalic(view: EditorView): boolean {
+  return wrapSelectionOrInsert(view, '*', '*', 'italic text')
+}
+
+export function applyUnderline(view: EditorView): boolean {
+  return wrapSelectionOrInsert(view, '<u>', '</u>', 'underline text')
+}
+
+export function applyLink(view: EditorView): boolean {
+  const { state } = view
+  const sel = state.selection.main
+
+  if (!sel.empty) {
+    const text = state.doc.sliceString(sel.from, sel.to)
+    const insert = `[${text}](url)`
+    view.dispatch({
+      changes: { from: sel.from, to: sel.to, insert },
+      selection: { anchor: sel.from + text.length + 3, head: sel.from + text.length + 6 },
+    })
+    return true
+  }
+
+  const insert = '[link text](url)'
+  view.dispatch({
+    changes: { from: sel.from, insert },
+    selection: { anchor: sel.from + 1, head: sel.from + 9 },
+  })
+  return true
+}
+
 const smartInputKeymap: KeyBinding[] = [
+  ...Array.from({ length: 6 }, (_, index) => ({
+    key: `Mod-${index + 1}`,
+    preventDefault: true,
+    run: (view: EditorView) => setCurrentLineHeadingLevel(view, index + 1),
+  })),
+  {
+    key: 'Mod-0',
+    preventDefault: true,
+    run: (view: EditorView) => setCurrentLineHeadingLevel(view, null),
+  },
+  {
+    key: 'Mod-=',
+    preventDefault: true,
+    run: (view: EditorView) => adjustCurrentLineHeadingLevel(view, 1),
+  },
+  {
+    key: 'Mod--',
+    preventDefault: true,
+    run: (view: EditorView) => adjustCurrentLineHeadingLevel(view, -1),
+  },
+  {
+    key: 'Ctrl-Shift-q',
+    mac: 'Cmd-Alt-q',
+    preventDefault: true,
+    run: toggleCurrentLineQuote,
+  },
+  {
+    key: 'Ctrl-Shift-[',
+    mac: 'Cmd-Alt-o',
+    preventDefault: true,
+    run: toggleCurrentLineOrderedList,
+  },
+  {
+    key: 'Ctrl-{',
+    preventDefault: true,
+    run: toggleCurrentLineOrderedList,
+  },
+  {
+    key: 'Ctrl-Shift-]',
+    mac: 'Cmd-Alt-u',
+    preventDefault: true,
+    run: toggleCurrentLineUnorderedList,
+  },
+  {
+    key: 'Ctrl-}',
+    preventDefault: true,
+    run: toggleCurrentLineUnorderedList,
+  },
+  {
+    key: 'Mod-b',
+    preventDefault: true,
+    run: applyBold,
+  },
+  {
+    key: 'Mod-i',
+    preventDefault: true,
+    run: applyItalic,
+  },
+  {
+    key: 'Mod-u',
+    preventDefault: true,
+    run: applyUnderline,
+  },
+  {
+    key: 'Mod-k',
+    preventDefault: true,
+    run: applyLink,
+  },
   {
     key: 'Enter',
     run: handleEnter,
