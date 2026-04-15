@@ -40,6 +40,28 @@
 - Next recommended feature:
   - `MF-060` - complete the crash/relaunch recovery flow in a GUI session with direct human control or working Accessibility permission, then update the ledger only if the prompt and restored content truly pass
 
+### 2026-04-16 - MF-060 final handoff kept the ledger honest after another blocked manual run
+
+- Author: Codex (Dispatcher)
+- Focus: rerun the required `MF-060` startup and verification steps, record only what this session can prove, and leave the repo truthful.
+- What changed:
+  - reran `pnpm harness:start`, `./harness/init.sh --smoke`, the required desktop auto-save test command, the focused recovery suites, and `pnpm harness:verify`
+  - rechecked the manual verification boundary with `AXIsProcessTrusted()`, a plain `osascript` probe, and a timed `System Events` query
+  - left production code and `harness/feature-ledger.json` unchanged; only appended this handoff in `harness/progress.md`
+- Changed files:
+  - `harness/progress.md`
+- Verification:
+  - `pnpm --filter @markflow/desktop test:run -- --grep auto-save` (passes)
+  - `pnpm --filter @markflow/desktop exec vitest run src/main/fileManager.test.ts -t "auto-save recovery checkpoints"` (passes)
+  - `pnpm --filter @markflow/editor exec vitest run src/__tests__/App.test.tsx -t "App auto-save"` (passes)
+  - `pnpm harness:verify` (passes; 106 total | verified=61 | ready=13 | planned=32 | blocked=0)
+  - manual capability probes remain blocked: `AXIsProcessTrusted()` returned `false`, plain `osascript` returned `1`, and the timed `System Events` query hit a 5-second timeout
+- Review / risks:
+  - `MF-060` must remain `status=planned`, `passes=false`, and `lastVerifiedAt=null` until a real GUI session can kill MarkFlow after 35 seconds of dirty idle time, relaunch it, accept recovery, and confirm restored content
+  - the remaining blocker is environment-specific Accessibility control, not a newly observed code defect
+- Next recommended feature:
+  - `MF-060` - finish the required crash/relaunch recovery acceptance flow in a GUI session with direct human control or working Accessibility permission
+
 ### 2026-04-16 - MF-105 verified with real Enter and Shift+Enter keypath coverage
 
 - Author: Codex (Dispatcher)
