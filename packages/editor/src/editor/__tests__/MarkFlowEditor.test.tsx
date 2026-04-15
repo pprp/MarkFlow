@@ -13,6 +13,8 @@ interface PointerEventInitWithId extends MouseEventInit {
   pointerId?: number
 }
 
+const IS_MAC_PLATFORM = /Mac|iPhone|iPad|iPod/.test(globalThis.navigator?.platform ?? '')
+
 function getEditorView(container: HTMLElement) {
   const editorRoot = container.querySelector('.cm-editor')
   expect(editorRoot).not.toBeNull()
@@ -38,6 +40,24 @@ function dispatchEditorShortcut(
   }
 
   expect(runScopeHandlers(view, event, 'editor')).toBe(true)
+}
+
+function dispatchEditorShortcutOnDom(
+  view: EditorView,
+  init: KeyboardEventInit & { key: string; keyCode?: number },
+) {
+  const event = new KeyboardEvent('keydown', {
+    bubbles: true,
+    cancelable: true,
+    ...init,
+  })
+
+  if (typeof init.keyCode === 'number') {
+    Object.defineProperty(event, 'keyCode', { configurable: true, get: () => init.keyCode })
+  }
+
+  view.contentDOM.dispatchEvent(event)
+  return event
 }
 
 describe('MarkFlowEditor', () => {
@@ -581,6 +601,118 @@ describe('MarkFlowEditor', () => {
     })
     expect(view.state.doc.toString()).toBe(['Before', '$$', '', '$$', 'After'].join('\n'))
     expect(view.state.selection.main.from).toBe(view.state.doc.line(3).from)
+  })
+
+  it.each([
+    {
+      label: 'Ctrl+T table scaffold',
+      shortcut: { key: 't', code: 'KeyT', keyCode: 84, ctrlKey: true },
+      expectedDoc: ['Before', '|  |  |', '| --- | --- |', '|  |  |', 'After'].join('\n'),
+      expectedLine: 2,
+      expectedOffset: 2,
+      expectedEditedDoc: ['Before', '| x |  |', '| --- | --- |', '|  |  |', 'After'].join('\n'),
+    },
+    {
+      label: 'Ctrl+Shift+K code fence scaffold',
+      shortcut: { key: 'K', code: 'KeyK', keyCode: 75, ctrlKey: true, shiftKey: true },
+      expectedDoc: ['Before', '```', '', '```', 'After'].join('\n'),
+      expectedLine: 3,
+      expectedOffset: 0,
+      expectedEditedDoc: ['Before', '```', 'x', '```', 'After'].join('\n'),
+    },
+    {
+      label: 'Ctrl+Shift+M math block scaffold',
+      shortcut: { key: 'M', code: 'KeyM', keyCode: 77, ctrlKey: true, shiftKey: true },
+      expectedDoc: ['Before', '$$', '', '$$', 'After'].join('\n'),
+      expectedLine: 3,
+      expectedOffset: 0,
+      expectedEditedDoc: ['Before', '$$', 'x', '$$', 'After'].join('\n'),
+    },
+  ])(
+    'preserves %s markdown after the real editor DOM shortcut path toggles to source mode',
+    ({ shortcut, expectedDoc, expectedLine, expectedOffset, expectedEditedDoc }) => {
+      const initialDoc = ['Before', 'Target paragraph', 'After'].join('\n')
+      const { container, rerender } = render(
+        <MarkFlowEditor content={initialDoc} viewMode="wysiwyg" onChange={vi.fn()} />,
+      )
+
+      const view = getEditorView(container)
+      view.dispatch({ selection: { anchor: view.state.doc.line(2).from + 3 } })
+
+      const event = dispatchEditorShortcutOnDom(view, shortcut)
+      const expectedSelection = view.state.doc.line(expectedLine).from + expectedOffset
+
+      expect(event.defaultPrevented).toBe(true)
+      expect(view.state.doc.toString()).toBe(expectedDoc)
+      expect(view.state.selection.main.head).toBe(expectedSelection)
+
+      rerender(<MarkFlowEditor content={expectedDoc} viewMode="source" onChange={vi.fn()} />)
+
+      const sourceView = getEditorView(container)
+      expect(sourceView).toBe(view)
+      expect(sourceView.state.doc.toString()).toBe(expectedDoc)
+      expect(sourceView.state.selection.main.head).toBe(expectedSelection)
+
+      sourceView.dispatch(sourceView.state.replaceSelection('x'))
+      expect(sourceView.state.doc.toString()).toBe(expectedEditedDoc)
+    },
+  )
+
+  describe.runIf(IS_MAC_PLATFORM)('macOS paragraph scaffold shortcuts', () => {
+    it.each([
+      {
+        label: 'Cmd+Opt+T table scaffold',
+        shortcut: { key: 't', code: 'KeyT', keyCode: 84, metaKey: true, altKey: true },
+        expectedDoc: ['Before', '|  |  |', '| --- | --- |', '|  |  |', 'After'].join('\n'),
+        expectedLine: 2,
+        expectedOffset: 2,
+        expectedEditedDoc: ['Before', '| x |  |', '| --- | --- |', '|  |  |', 'After'].join('\n'),
+      },
+      {
+        label: 'Cmd+Opt+C code fence scaffold',
+        shortcut: { key: 'c', code: 'KeyC', keyCode: 67, metaKey: true, altKey: true },
+        expectedDoc: ['Before', '```', '', '```', 'After'].join('\n'),
+        expectedLine: 3,
+        expectedOffset: 0,
+        expectedEditedDoc: ['Before', '```', 'x', '```', 'After'].join('\n'),
+      },
+      {
+        label: 'Cmd+Opt+B math block scaffold',
+        shortcut: { key: 'b', code: 'KeyB', keyCode: 66, metaKey: true, altKey: true },
+        expectedDoc: ['Before', '$$', '', '$$', 'After'].join('\n'),
+        expectedLine: 3,
+        expectedOffset: 0,
+        expectedEditedDoc: ['Before', '$$', 'x', '$$', 'After'].join('\n'),
+      },
+    ])(
+      'fires %s on the real editor DOM path and keeps the markdown after toggling to source mode',
+      ({ shortcut, expectedDoc, expectedLine, expectedOffset, expectedEditedDoc }) => {
+        const initialDoc = ['Before', 'Target paragraph', 'After'].join('\n')
+        const { container, rerender } = render(
+          <MarkFlowEditor content={initialDoc} viewMode="wysiwyg" onChange={vi.fn()} />,
+        )
+
+        const view = getEditorView(container)
+        view.dispatch({ selection: { anchor: view.state.doc.line(2).from + 3 } })
+
+        const event = dispatchEditorShortcutOnDom(view, shortcut)
+        const expectedSelection = view.state.doc.line(expectedLine).from + expectedOffset
+
+        expect(event.defaultPrevented).toBe(true)
+        expect(view.state.doc.toString()).toBe(expectedDoc)
+        expect(view.state.selection.main.head).toBe(expectedSelection)
+
+        rerender(<MarkFlowEditor content={expectedDoc} viewMode="source" onChange={vi.fn()} />)
+
+        const sourceView = getEditorView(container)
+        expect(sourceView).toBe(view)
+        expect(sourceView.state.doc.toString()).toBe(expectedDoc)
+        expect(sourceView.state.selection.main.head).toBe(expectedSelection)
+
+        sourceView.dispatch(sourceView.state.replaceSelection('x'))
+        expect(sourceView.state.doc.toString()).toBe(expectedEditedDoc)
+      },
+    )
   })
 
   it('ignores table/code fence/math block shortcuts in source mode and on non-paragraph blocks', () => {
