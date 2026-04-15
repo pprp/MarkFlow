@@ -1342,3 +1342,31 @@
   - none
 - Next recommended feature:
   - `MF-060` - on a GUI session with direct human control or working macOS accessibility permissions, relaunch MarkFlow, accept the recovery prompt, confirm `RECOVERY_PROBE_1776267455411` is restored, then update the ledger only if that full flow truly passes
+
+### 2026-04-15 - MF-060 verification rerun kept the ledger truthful after a deeper CDP blocker probe
+
+- Author: Codex (Dispatcher)
+- Focus: follow the required `MF-060` session-start protocol, rerun the mandated automated verification, and determine whether a lower-level Electron CDP path could finally close the remaining manual crash/relaunch recovery proof in this terminal-controlled macOS session.
+- What changed:
+  - re-ran `pnpm harness:start` and `./harness/init.sh --smoke`, then re-read the existing `MF-060` ledger entry plus the already-landed recovery flow in `packages/desktop/src/main/fileManager.ts`, `packages/desktop/src/main/index.ts`, `packages/desktop/src/preload/index.ts`, `packages/editor/src/App.tsx`, `packages/desktop/src/main/fileManager.test.ts`, and `packages/editor/src/__tests__/App.test.tsx`.
+  - re-ran the required verification commands: `pnpm --filter @markflow/desktop test:run -- --grep auto-save`, `pnpm --filter @markflow/desktop exec vitest run src/main/fileManager.test.ts -t "auto-save recovery checkpoints"`, `pnpm --filter @markflow/editor exec vitest run src/__tests__/App.test.tsx -t "App auto-save"`, and `pnpm harness:verify`.
+  - launched a fresh real Electron instance on `--remote-debugging-port=9230` against the live Vite renderer and probed the remaining manual path through raw CDP instead of changing product code: target discovery worked, but renderer-driving commands still stalled, so `harness/feature-ledger.json` remained unchanged and this handoff records the blocker.
+- Simplifications made:
+  - kept the repository scope to `MF-060` verification only; no production code or feature-ledger fields changed because the implementation was already present and the missing proof is still manual.
+  - used a direct CDP probe against the live desktop app instead of widening scope with debug hooks, recovery-dialog instrumentation, or unrelated desktop changes.
+- Verification:
+  - `pnpm harness:start` (passes)
+  - `./harness/init.sh --smoke` (passes; full workspace smoke/test path remained green in this worktree)
+  - `pnpm --filter @markflow/desktop test:run -- --grep auto-save` (passes; the desktop package script still executes the full desktop suite rather than narrowing to the grep)
+  - `pnpm --filter @markflow/desktop exec vitest run src/main/fileManager.test.ts -t "auto-save recovery checkpoints"` (passes)
+  - `pnpm --filter @markflow/editor exec vitest run src/__tests__/App.test.tsx -t "App auto-save"` (passes)
+  - `pnpm harness:verify` (passes; 103 total | verified=60 | ready=10 | planned=33 | blocked=0)
+  - live Electron CDP control probe (blocked): on `ws://127.0.0.1:9230`, target discovery and `Page.getNavigationHistory` succeeded for the `http://localhost:5173/` window, but `Runtime.enable`, `Runtime.evaluate`, `DOM.getDocument`, `Accessibility.getFullAXTree`, and `Page.captureScreenshot` all timed out against the live renderer, so this environment still could not truthfully accept the recovery prompt or read the restored editor content back.
+- Review / risks:
+  - `MF-060` still cannot move to `status=verified`, `passes=true`, or receive a `lastVerifiedAt` timestamp until a GUI session can actually relaunch MarkFlow, accept the recovery prompt, and confirm the restored checkpoint content.
+  - this session reconfirmed the automated safety net, but it did not add new manual proof for the final crash/relaunch acceptance step.
+  - because the real recovery acceptance/readback proof is still missing, `harness/feature-ledger.json` must stay `status=planned`, `passes=false`, and `lastVerifiedAt=null`.
+- Newly verified features:
+  - none
+- Next recommended feature:
+  - `MF-060` - on a GUI session with direct human control or reliable desktop automation, relaunch MarkFlow, accept the recovery prompt, confirm the restored content, and only then update the ledger fields
