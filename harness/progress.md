@@ -1284,3 +1284,31 @@
   - none
 - Next recommended feature:
   - if a GUI session is available, run the manual `MF-083` cross-platform reveal check and only then move it to `verified`; otherwise continue with `MF-102` as the next small desktop-only parity gap
+
+### 2026-04-15 - MF-060 live crash proof tightened, recovery acceptance still blocked by GUI control
+
+- Author: Codex (Dispatcher)
+- Focus: rerun the required `MF-060` session-start protocol, execute the mandated automated verification, and push the live crash/relaunch recovery proof as far as the current terminal-controlled macOS environment could truthfully support.
+- What changed:
+  - re-ran `pnpm harness:start`, `./harness/init.sh --smoke`, `pnpm --filter @markflow/desktop test:run -- --grep auto-save`, `pnpm --filter @markflow/desktop build`, and `pnpm harness:verify` against the existing `MF-060` implementation.
+  - launched real Electron desktop instances on `--remote-debugging-port=9224` and `--remote-debugging-port=9225`, inserted `RECOVERY_PROBE_1776266402` into the unsaved starter document through the live renderer, waited 35 seconds, and confirmed `/var/folders/dl/qdq_vh116gl1yjbd8pxk_bd00000gn/T/.markflow-recovery` contained the probe content.
+  - force-killed the actual Electron main processes, confirmed `/Users/pprp/Library/Application Support/@markflow/desktop/.markflow-recovery-session.json` remained `{\"cleanExit\":false}` after the real `SIGKILL`, and left `harness/feature-ledger.json` unchanged because the final recovery-prompt acceptance/readback proof still could not be completed truthfully.
+- Simplifications made:
+  - reused the shipped starter document plus one live probe string instead of adding fixtures, app instrumentation, or debug-only product hooks.
+  - used direct Electron main-process launches and CDP/browser-target control rather than widening scope with source changes just to satisfy manual verification.
+- Verification:
+  - `pnpm harness:start` (passes)
+  - `./harness/init.sh --smoke` (passes; full workspace tests still green in this worktree)
+  - `pnpm --filter @markflow/desktop test:run -- --grep auto-save` (passes; the desktop package script still executes the full desktop suite rather than narrowing to the grep)
+  - `pnpm --filter @markflow/desktop build` (passes)
+  - `pnpm harness:verify` (passes; 103 total | verified=60 | ready=10 | planned=33 | blocked=0)
+  - live desktop checkpoint probe (partial pass): after 35 seconds, the temp recovery file contained `RECOVERY_PROBE_1776266402`, and after `SIGKILL` of the real Electron main process the session state still reported `{\"cleanExit\":false}`.
+  - live desktop recovery acceptance (blocked): after relaunch, the `http://localhost:5173/` target again stopped responding to page-level CDP (`Page.enable` / `Runtime.evaluate` timed out), browser-level `Target.attachToTarget` plus `Page.handleJavaScriptDialog` never observed an acceptible dialog, an early auto-attach + `Page.addScriptToEvaluateOnNewDocument` + reload pass on port `9225` still could not read back the restored editor content, and macOS `System Events` keypress automation hung in this terminal session.
+- Review / risks:
+  - `MF-060` still cannot move to `status=verified`, `passes=true`, or receive a `lastVerifiedAt` timestamp until a GUI session with reliable dialog control completes the final step: relaunch MarkFlow, accept the recovery prompt, and confirm the restored document still contains the checkpointed content.
+  - this session materially strengthened the live proof for the first three manual steps, but it still did not truthfully close the fourth step.
+  - because the manual acceptance/readback proof remains incomplete, `harness/feature-ledger.json` must stay `status=planned`, `passes=false`, and `lastVerifiedAt=null`.
+- Newly verified features:
+  - none
+- Next recommended feature:
+  - `MF-060` - on a GUI session with direct human control or working macOS accessibility automation, relaunch MarkFlow, accept the recovery prompt, confirm `RECOVERY_PROBE_1776266402` is restored, then update the ledger only if that full flow truly passes
