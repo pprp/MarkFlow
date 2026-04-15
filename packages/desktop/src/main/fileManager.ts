@@ -9,6 +9,8 @@ import type {
   MarkFlowFileLoadProgressPayload,
   MarkFlowFilePayload,
   MarkFlowQuickOpenItem,
+  MarkFlowRecoveryCheckpoint,
+  MarkFlowRecoveryDraft,
   MarkFlowSaveResult,
   SearchResult,
 } from '@markflow/shared'
@@ -16,10 +18,21 @@ import type {
 const STREAM_OPEN_CHUNK_SIZE = 64 * 1024
 const STREAM_OPEN_THRESHOLD_BYTES = 1024 * 1024
 const STREAM_PREVIEW_BYTE_LIMIT = 64 * 1024
+const RECOVERY_CHECKPOINT_DELAY_MS = 30_000
+const RECOVERY_CHECKPOINT_FILE_NAME = '.markflow-recovery'
+const SESSION_STATE_FILE_NAME = '.markflow-recovery-session.json'
+
+interface MarkFlowSessionState {
+  cleanExit: boolean
+}
 
 export class FileManager {
   private currentFilePath: string | null = null
   private recentFiles: string[] = []
+  private pendingRecoveryDraft: MarkFlowRecoveryDraft | null = null
+  private recoveryWriteTimer: NodeJS.Timeout | null = null
+  private readonly recoveryCheckpointPath = path.join(app.getPath('temp'), RECOVERY_CHECKPOINT_FILE_NAME)
+  private readonly sessionStatePath = path.join(app.getPath('userData'), SESSION_STATE_FILE_NAME)
 
   constructor(private window: BrowserWindow) {}
 
@@ -31,6 +44,8 @@ export class FileManager {
     ipcMain.removeHandler('new-file')
     ipcMain.removeHandler('get-current-path')
     ipcMain.removeHandler('get-current-document')
+    ipcMain.removeHandler('get-recovery-checkpoint')
+    ipcMain.removeHandler('discard-recovery-checkpoint')
     ipcMain.removeHandler('get-quick-open-list')
     ipcMain.removeHandler('open-folder')
     ipcMain.removeHandler('get-vault-files')
@@ -42,6 +57,7 @@ export class FileManager {
     ipcMain.removeHandler('export-docx')
     ipcMain.removeHandler('export-epub')
     ipcMain.removeHandler('export-latex')
+    ipcMain.removeAllListeners('schedule-recovery-checkpoint')
 
     ipcMain.handle('open-file', () => this.openFile())
     ipcMain.handle('open-path', (_event, filePath: string) => this.openExistingPath(filePath))
@@ -50,6 +66,13 @@ export class FileManager {
     ipcMain.handle('new-file', () => this.newFile())
     ipcMain.handle('get-current-path', () => this.currentFilePath)
     ipcMain.handle('get-current-document', () => this.getCurrentDocument())
+    ipcMain.on('schedule-recovery-checkpoint', (_event, draft: MarkFlowRecoveryDraft) => {
+      this.scheduleRecoveryCheckpoint(draft)
+    })
+    ipcMain.handle('get-recovery-checkpoint', () => this.getRecoveryCheckpoint())
+    ipcMain.handle('discard-recovery-checkpoint', async () => {
+      await this.discardRecoveryCheckpoint()
+    })
     ipcMain.handle('get-quick-open-list', () => this.getQuickOpenList())
     ipcMain.handle('open-folder', () => this.openFolder())
     ipcMain.handle('get-vault-files', (_event, folderPath: string) => this.getVaultFiles(folderPath))
@@ -61,6 +84,18 @@ export class FileManager {
     ipcMain.handle('export-docx', async (_event, markdown: string, defaultPath: string) => this.exportPandoc(markdown, defaultPath, 'docx', 'Word Document', ['docx']))
     ipcMain.handle('export-epub', async (_event, markdown: string, defaultPath: string) => this.exportPandoc(markdown, defaultPath, 'epub', 'EPUB', ['epub']))
     ipcMain.handle('export-latex', async (_event, markdown: string, defaultPath: string) => this.exportPandoc(markdown, defaultPath, 'latex', 'LaTeX', ['tex']))
+  }
+
+  markSessionStarted() {
+    void this.writeSessionState({ cleanExit: false })
+  }
+
+  markSessionClosed() {
+    void this.writeSessionState({ cleanExit: true })
+  }
+
+  dispose() {
+    this.clearRecoveryCheckpointTimer()
   }
 
   
@@ -192,6 +227,7 @@ export class FileManager {
 
     const saveResult = await this.writeFile(this.currentFilePath, content ?? '')
     if (saveResult.success) {
+      await this.discardRecoveryCheckpoint()
       this.emitFileSaved(this.currentFilePath)
     }
     return saveResult
@@ -212,6 +248,7 @@ export class FileManager {
     if (saveResult.success) {
       this.currentFilePath = result.filePath
       this.addToRecent(result.filePath)
+      await this.discardRecoveryCheckpoint()
       this.emitFileSaved(result.filePath)
     }
     return saveResult
@@ -234,6 +271,63 @@ export class FileManager {
     return {
       filePath: this.currentFilePath,
       content: fs.readFileSync(this.currentFilePath, 'utf-8'),
+    }
+  }
+
+  scheduleRecoveryCheckpoint(draft: MarkFlowRecoveryDraft) {
+    this.pendingRecoveryDraft = draft
+    this.clearRecoveryCheckpointTimer()
+    this.recoveryWriteTimer = setTimeout(() => {
+      const nextDraft = this.pendingRecoveryDraft
+      this.pendingRecoveryDraft = null
+      this.recoveryWriteTimer = null
+
+      if (!nextDraft) {
+        return
+      }
+
+      void this.writeRecoveryCheckpoint(nextDraft)
+    }, RECOVERY_CHECKPOINT_DELAY_MS)
+  }
+
+  async getRecoveryCheckpoint(): Promise<MarkFlowRecoveryCheckpoint | null> {
+    if (!(await this.shouldSurfaceRecoveryCheckpoint())) {
+      return null
+    }
+
+    try {
+      const payload = JSON.parse(
+        await fs.promises.readFile(this.recoveryCheckpointPath, 'utf-8'),
+      ) as Partial<MarkFlowRecoveryCheckpoint>
+
+      if (
+        typeof payload.content !== 'string' ||
+        typeof payload.savedAt !== 'string' ||
+        (payload.filePath !== null && typeof payload.filePath !== 'string')
+      ) {
+        return null
+      }
+
+      return {
+        filePath: payload.filePath ?? null,
+        content: payload.content,
+        savedAt: payload.savedAt,
+      }
+    } catch {
+      return null
+    }
+  }
+
+  async discardRecoveryCheckpoint() {
+    this.pendingRecoveryDraft = null
+    this.clearRecoveryCheckpointTimer()
+
+    try {
+      await fs.promises.unlink(this.recoveryCheckpointPath)
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+        console.error('Failed to discard MarkFlow recovery checkpoint:', error)
+      }
     }
   }
 
@@ -380,6 +474,56 @@ export class FileManager {
   private emitFileSaved(filePath: string) {
     this.window.webContents.send('file-saved', { filePath })
     this.updateTitle()
+  }
+
+  private clearRecoveryCheckpointTimer() {
+    if (this.recoveryWriteTimer) {
+      clearTimeout(this.recoveryWriteTimer)
+      this.recoveryWriteTimer = null
+    }
+  }
+
+  private async shouldSurfaceRecoveryCheckpoint() {
+    const sessionState = await this.readSessionState()
+    return sessionState?.cleanExit === false && fs.existsSync(this.recoveryCheckpointPath)
+  }
+
+  private async readSessionState(): Promise<MarkFlowSessionState | null> {
+    try {
+      const payload = JSON.parse(
+        await fs.promises.readFile(this.sessionStatePath, 'utf-8'),
+      ) as Partial<MarkFlowSessionState>
+
+      if (typeof payload.cleanExit !== 'boolean') {
+        return null
+      }
+
+      return { cleanExit: payload.cleanExit }
+    } catch {
+      return null
+    }
+  }
+
+  private async writeSessionState(state: MarkFlowSessionState) {
+    try {
+      await fs.promises.mkdir(path.dirname(this.sessionStatePath), { recursive: true })
+      await fs.promises.writeFile(this.sessionStatePath, JSON.stringify(state), 'utf-8')
+    } catch (error) {
+      console.error('Failed to update MarkFlow recovery session state:', error)
+    }
+  }
+
+  private async writeRecoveryCheckpoint(draft: MarkFlowRecoveryDraft) {
+    const checkpoint: MarkFlowRecoveryCheckpoint = {
+      ...draft,
+      savedAt: new Date().toISOString(),
+    }
+
+    try {
+      await fs.promises.writeFile(this.recoveryCheckpointPath, JSON.stringify(checkpoint), 'utf-8')
+    } catch (error) {
+      console.error('Failed to write MarkFlow recovery checkpoint:', error)
+    }
   }
 
   private async readFileForOpen(filePath: string): Promise<string> {

@@ -55,6 +55,7 @@ function createWindow() {
 
   fileManager = new FileManager(mainWindow)
   fileManager.registerIpcHandlers()
+  fileManager.markSessionStarted()
   themeManager = new ThemeManager(mainWindow, app.getPath('userData'))
   themeManager.registerIpcHandlers()
   void themeManager.initialize()
@@ -68,6 +69,7 @@ function createWindow() {
   }
 
   mainWindow.on('closed', () => {
+    fileManager.dispose()
     void themeManager?.dispose()
     themeManager = null
     mainWindow = null
@@ -145,6 +147,10 @@ app.whenReady().then(createWindow)
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit()
+})
+
+app.on('before-quit', () => {
+  fileManager?.markSessionClosed()
 })
 
 app.on('activate', () => {

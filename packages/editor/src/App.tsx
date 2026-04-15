@@ -14,6 +14,7 @@ import {
   type MarkFlowDocument,
   type MarkFlowFileLoadProgressPayload,
   type MarkFlowMenuAction,
+  type MarkFlowRecoveryCheckpoint,
   type MarkFlowThemePayload,
   type MarkFlowThemeSummary,
   type ViewMode,
@@ -21,7 +22,6 @@ import {
 } from '@markflow/shared'
 
 const THEME_STYLE_ELEMENT_ID = 'mf-theme-overrides'
-const AUTO_SAVE_DELAY_MS = 30_000
 
 function formatLoadingBytes(bytes: number) {
   if (bytes >= 1024 * 1024) {
@@ -230,6 +230,26 @@ export function App() {
       })
     }
 
+    const applyRecoveredDocument = (
+      checkpoint: MarkFlowRecoveryCheckpoint,
+      persistedContent: string,
+    ) => {
+      setLoadingFile(null)
+      persistedContentRef.current = persistedContent
+      latestContentRef.current = checkpoint.content
+      setCursorPosition(0)
+      setViewportPosition(null)
+      setSymbolTable(createEmptySymbolTable())
+      setEditorNavigationRequest(null)
+      setIsGoToLineOpen(false)
+      currentFilePathRef.current = checkpoint.filePath
+      setDocumentState({
+        filePath: checkpoint.filePath,
+        content: checkpoint.content,
+        isDirty: checkpoint.content !== persistedContent,
+      })
+    }
+
     const handleMenuAction = async ({ action }: { action: MarkFlowMenuAction }) => {
       switch (action) {
         case 'new-file':
@@ -275,11 +295,32 @@ export function App() {
     })
     const unsubscribeThemeUpdated = api.onThemeUpdated(applyTheme)
 
-    void api.getCurrentDocument().then((currentDocument) => {
+    void (async () => {
+      const currentDocument = await api.getCurrentDocument()
       if (currentDocument) {
         applyOpenedDocument(currentDocument)
       }
-    })
+      const recoveryCheckpoint = await api.getRecoveryCheckpoint()
+      if (!recoveryCheckpoint) {
+        return
+      }
+
+      const recoveredName = recoveryCheckpoint.filePath?.split(/[\\/]/).at(-1) ?? 'untitled document'
+      const shouldRecover = window.confirm(
+        `Recover the auto-saved changes for ${recoveredName} from ${new Date(recoveryCheckpoint.savedAt).toLocaleString()}?`,
+      )
+
+      if (!shouldRecover) {
+        await api.discardRecoveryCheckpoint()
+        return
+      }
+
+      const persistedContent =
+        currentDocument && currentDocument.filePath === recoveryCheckpoint.filePath
+          ? currentDocument.content
+          : ''
+      applyRecoveredDocument(recoveryCheckpoint, persistedContent)
+    })()
     void api.getThemes().then(setThemes)
     void api.getCurrentTheme().then((theme) => {
       applyTheme(theme)
@@ -349,21 +390,16 @@ export function App() {
     [cursorPosition, documentState.content],
   )
 
-  const triggerAutoSave = useCallback(async () => {
+  useEffect(() => {
     const api = window.markflow
     if (!api) return
-    const { filePath, isDirty } = documentState
-    if (!filePath || !isDirty) return
-    await api.saveFile(latestContentRef.current)
-  }, [documentState])
+    if (!documentState.isDirty) return
 
-  useEffect(() => {
-    if (!documentState.filePath || !documentState.isDirty) return
-    const timer = setTimeout(() => {
-      void triggerAutoSave()
-    }, AUTO_SAVE_DELAY_MS)
-    return () => clearTimeout(timer)
-  }, [documentState.filePath, documentState.isDirty, documentState.content, triggerAutoSave])
+    api.scheduleRecoveryCheckpoint({
+      filePath: documentState.filePath,
+      content: documentState.content,
+    })
+  }, [documentState.content, documentState.filePath, documentState.isDirty])
 
   useEffect(() => {
     const handleGlobalKeyDown = async (e: KeyboardEvent) => {

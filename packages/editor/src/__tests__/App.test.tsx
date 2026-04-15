@@ -9,6 +9,7 @@ import type {
   MarkFlowFilePayload,
   MarkFlowMenuAction,
   MarkFlowMenuActionPayload,
+  MarkFlowRecoveryCheckpoint,
   MarkFlowSavePayload,
   MarkFlowThemePayload,
   MarkFlowThemeSummary,
@@ -33,6 +34,9 @@ class MockMarkFlowAPI implements MarkFlowDesktopAPI {
   openPath: MarkFlowDesktopAPI['openPath'] = vi.fn(async () => null)
   saveFile: MarkFlowDesktopAPI['saveFile'] = vi.fn(async () => ({ success: true }))
   saveFileAs: MarkFlowDesktopAPI['saveFileAs'] = vi.fn(async () => ({ success: true }))
+  scheduleRecoveryCheckpoint: MarkFlowDesktopAPI['scheduleRecoveryCheckpoint'] = vi.fn(() => {})
+  getRecoveryCheckpoint: MarkFlowDesktopAPI['getRecoveryCheckpoint'] = vi.fn(async () => null)
+  discardRecoveryCheckpoint: MarkFlowDesktopAPI['discardRecoveryCheckpoint'] = vi.fn(async () => {})
   newFile: MarkFlowDesktopAPI['newFile'] = vi.fn(async () => {})
   getCurrentPath: MarkFlowDesktopAPI['getCurrentPath'] = vi.fn(async () => null)
   getQuickOpenList: MarkFlowDesktopAPI['getQuickOpenList'] = vi.fn(async () => [])
@@ -566,25 +570,23 @@ describe('App desktop integration', () => {
 describe('App auto-save', () => {
   afterEach(() => {
     delete window.markflow
-    vi.useRealTimers()
+    vi.restoreAllMocks()
   })
 
-  it('does NOT call saveFile for an untitled document even after the delay', async () => {
-    vi.useFakeTimers()
+  it('does NOT schedule a recovery checkpoint for the untouched starter document', async () => {
     const api = new MockMarkFlowAPI()
     window.markflow = api
 
     render(<App />)
 
-    await act(async () => {
-      vi.runAllTimers()
+    await waitFor(() => {
+      expect(api.getRecoveryCheckpoint).toHaveBeenCalled()
     })
 
-    expect(api.saveFile).not.toHaveBeenCalled()
+    expect(api.scheduleRecoveryCheckpoint).not.toHaveBeenCalled()
   })
 
-  it('does NOT call saveFile when a named file is open but document is not dirty', async () => {
-    vi.useFakeTimers()
+  it('does NOT schedule a recovery checkpoint when a named file is open but clean', async () => {
     const api = new MockMarkFlowAPI()
     window.markflow = api
 
@@ -594,19 +596,14 @@ describe('App auto-save', () => {
       api.emitFileOpened({ filePath: '/docs/note.md', content: '# Hello' })
     })
 
-    // Advance past auto-save delay without making dirty edits
-    await act(async () => {
-      vi.runAllTimers()
+    await waitFor(() => {
+      expect(getEditorView(container).state.doc.toString()).toBe('# Hello')
     })
 
-    // saveFile may have been called during render setup, but should not be called due to auto-save
-    // Just check doc is unchanged — a cleaner check is that no new saves fired after open
-    expect(getEditorView(container).state.doc.toString()).toBe('# Hello')
-    vi.useRealTimers()
+    expect(api.scheduleRecoveryCheckpoint).not.toHaveBeenCalled()
   })
 
-  it('calls saveFile after the auto-save delay when a named dirty document is open', async () => {
-    vi.useFakeTimers()
+  it('schedules a recovery checkpoint when a document becomes dirty', async () => {
     const api = new MockMarkFlowAPI()
     window.markflow = api
 
@@ -622,15 +619,55 @@ describe('App auto-save', () => {
       view.dispatch({ changes: { from: view.state.doc.length, insert: '\nnew text' } })
     })
 
-    const callsBefore = (api.saveFile as ReturnType<typeof vi.fn>).mock.calls.length
+    await waitFor(() => {
+      expect(api.scheduleRecoveryCheckpoint).toHaveBeenLastCalledWith({
+        filePath: '/docs/note.md',
+        content: '# Hello\nnew text',
+      })
+    })
+  })
 
-    // Advance past the 30-second auto-save delay
-    await act(async () => {
-      vi.advanceTimersByTime(31_000)
+  it('prompts to recover the last checkpoint and restores it as a dirty document when accepted', async () => {
+    const api = new MockMarkFlowAPI()
+    const recoveryCheckpoint: MarkFlowRecoveryCheckpoint = {
+      filePath: '/docs/recovered.md',
+      content: '# Recovered\n\ncheckpoint',
+      savedAt: '2026-04-15T12:00:00.000Z',
+    }
+
+    api.getRecoveryCheckpoint = vi.fn(async () => recoveryCheckpoint)
+    const confirmMock = vi.spyOn(window, 'confirm').mockReturnValue(true)
+    window.markflow = api
+
+    const { container } = render(<App />)
+
+    await waitFor(() => {
+      expect(confirmMock).toHaveBeenCalled()
+      expect(getEditorView(container).state.doc.toString()).toBe('# Recovered\n\ncheckpoint')
     })
 
-    // saveFile should have been called at least once more than before the dirty edit
-    expect((api.saveFile as ReturnType<typeof vi.fn>).mock.calls.length).toBeGreaterThan(callsBefore)
+    expect(screen.getByText('recovered.md')).toBeInTheDocument()
+    expect(container.querySelector('.mf-titlebar-dirty-dot')).toBeInTheDocument()
+    expect(api.discardRecoveryCheckpoint).not.toHaveBeenCalled()
+  })
+
+  it('discards the recovery checkpoint when the prompt is rejected', async () => {
+    const api = new MockMarkFlowAPI()
+    api.getRecoveryCheckpoint = vi.fn(async () => ({
+      filePath: '/docs/recovered.md',
+      content: '# Recovered\n\ncheckpoint',
+      savedAt: '2026-04-15T12:00:00.000Z',
+    }))
+
+    const confirmMock = vi.spyOn(window, 'confirm').mockReturnValue(false)
+    window.markflow = api
+
+    render(<App />)
+
+    await waitFor(() => {
+      expect(confirmMock).toHaveBeenCalled()
+      expect(api.discardRecoveryCheckpoint).toHaveBeenCalled()
+    })
   })
 })
 

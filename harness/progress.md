@@ -1051,3 +1051,37 @@
   - `MF-099`
 - Next recommended feature:
   - `MF-102` - Zoom in, zoom out, and reset zoom adjust the window scale without disturbing document state
+
+### 2026-04-15 - MF-060 recovery checkpoint auto-save implemented, manual crash validation pending
+
+- Author: Codex (Dispatcher)
+- Focus: move the 30-second auto-save path into the Electron main process so MarkFlow writes non-blocking recovery checkpoints and can offer crash recovery on relaunch.
+- What changed:
+  - extended `packages/shared/src/index.ts` and `packages/desktop/src/preload/index.ts` with recovery-checkpoint IPC methods so the renderer can fire-and-forget dirty-buffer snapshots and query or discard pending recovery state.
+  - updated `packages/desktop/src/main/fileManager.ts` and `packages/desktop/src/main/index.ts` so the main process debounces `.markflow-recovery` writes into the system temp directory, tracks clean vs unclean shutdown in user data, clears checkpoints on successful manual save, and exposes recovery state only after an unclean exit.
+  - updated `packages/editor/src/App.tsx` so dirty documents schedule recovery snapshots instead of calling `saveFile` on a renderer timer, and so launch hydration prompts for recovery with the checkpoint restored as a dirty document when accepted.
+  - extended `packages/desktop/src/main/fileManager.test.ts`, `packages/desktop/src/main/search.test.ts`, `packages/desktop/src/main/vault.test.ts`, and `packages/editor/src/__tests__/App.test.tsx` to cover the new main-process recovery flow and the renderer recovery prompt contract.
+  - left `harness/feature-ledger.json` unchanged because the required manual crash/reopen verification could not be completed in this CLI session.
+- Simplifications made:
+  - kept the renderer side as a thin snapshot publisher and let the main process own the 30-second debounce plus disk I/O.
+  - reused a simple temp-file JSON checkpoint and `window.confirm` recovery prompt instead of introducing a new desktop-only modal or persistence layer.
+  - reused the existing `file-saved` flow to clear checkpoints after successful explicit saves.
+- Verification:
+  - `pnpm harness:start` (passes)
+  - `./harness/init.sh --smoke` (passes)
+  - `pnpm --filter @markflow/desktop test:run -- --grep auto-save` (passes; current desktop suite reports 5 files / 22 tests because the package script still executes the full filtered run)
+  - `pnpm --filter @markflow/shared build` (passes)
+  - `pnpm --filter @markflow/desktop lint` (passes)
+  - `pnpm --filter @markflow/desktop build` (passes)
+  - `pnpm --filter @markflow/editor test:run -- --grep "App auto-save"` (passes; current editor suite reports 27 files / 297 tests because the package script still executes the full filtered run)
+  - `pnpm --filter @markflow/editor lint` (passes)
+  - `pnpm --filter @markflow/editor build` (passes; existing Vite chunk-size warnings only)
+  - `pnpm harness:verify` (passes; 102 total | verified=60 | ready=7 | planned=35 | blocked=0)
+- Review / risks:
+  - the required manual desktop check for “wait 35 seconds, kill the process, relaunch, accept recovery” was not possible in the current CLI environment, so `MF-060` must stay unverified and `passes=false` until a human runs it.
+  - the recovery prompt currently uses `window.confirm`, which is functionally correct but not yet a polished desktop-native recovery dialog.
+  - this feature intentionally checkpoints recovery state rather than silently writing the source file from the renderer timer; confirm that this matches the intended desktop product semantics before reconciling earlier auto-save expectations.
+- Newly verified features:
+  - none
+- Next recommended feature:
+  - `MF-060` - run the manual crash/relaunch recovery flow on a real desktop session, then update the ledger only if it truly passes

@@ -3,7 +3,8 @@ import * as path from 'path'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { FileManager } from './fileManager'
 
-const { handleMock, removeHandlerMock, showSaveDialogMock, showOpenDialogMock } = vi.hoisted(() => ({
+const { appGetPathMock, handleMock, removeHandlerMock, showSaveDialogMock, showOpenDialogMock } = vi.hoisted(() => ({
+  appGetPathMock: vi.fn(() => '/tmp'),
   handleMock: vi.fn(),
   removeHandlerMock: vi.fn(),
   showSaveDialogMock: vi.fn(),
@@ -11,6 +12,9 @@ const { handleMock, removeHandlerMock, showSaveDialogMock, showOpenDialogMock } 
 }))
 
 vi.mock('electron', () => ({
+  app: {
+    getPath: appGetPathMock,
+  },
   dialog: {
     showSaveDialog: showSaveDialogMock,
     showOpenDialog: showOpenDialogMock,
@@ -42,6 +46,8 @@ function createWindowStub() {
 
 describe('FileManager global search integration', () => {
   beforeEach(() => {
+    appGetPathMock.mockReset()
+    appGetPathMock.mockImplementation(() => '/tmp')
     handleMock.mockReset()
     removeHandlerMock.mockReset()
     vi.mocked(fs.readdirSync).mockReset()

@@ -28,6 +28,15 @@ export interface MarkFlowSaveResult {
   error?: string
 }
 
+export interface MarkFlowRecoveryDraft {
+  filePath: string | null
+  content: string
+}
+
+export interface MarkFlowRecoveryCheckpoint extends MarkFlowRecoveryDraft {
+  savedAt: string
+}
+
 export interface MarkFlowThemeSummary {
   id: string
   name: string
@@ -222,6 +231,9 @@ export interface MarkFlowDesktopAPI {
   openPath: (filePath: string) => Promise<MarkFlowFilePayload | null>
   saveFile: (content: string) => Promise<MarkFlowSaveResult | null>
   saveFileAs: (content: string) => Promise<MarkFlowSaveResult | null>
+  scheduleRecoveryCheckpoint: (draft: MarkFlowRecoveryDraft) => void
+  getRecoveryCheckpoint: () => Promise<MarkFlowRecoveryCheckpoint | null>
+  discardRecoveryCheckpoint: () => Promise<void>
   exportHtml: (html: string, defaultPath: string) => Promise<boolean>
   exportPdf: (html: string, defaultPath: string) => Promise<boolean>
   exportDocx: (markdown: string, defaultPath: string) => Promise<boolean>

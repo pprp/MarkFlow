@@ -4,8 +4,10 @@ import * as path from 'path'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { FileManager } from './fileManager'
 
-const { handleMock, removeHandlerMock, showSaveDialogMock, appGetPathMock, execFileMock } = vi.hoisted(() => ({
+const { handleMock, onMock, removeAllListenersMock, removeHandlerMock, showSaveDialogMock, appGetPathMock, execFileMock } = vi.hoisted(() => ({
   handleMock: vi.fn(),
+  onMock: vi.fn(),
+  removeAllListenersMock: vi.fn(),
   removeHandlerMock: vi.fn(),
   showSaveDialogMock: vi.fn(),
   appGetPathMock: vi.fn(() => '/tmp'),
@@ -27,6 +29,8 @@ vi.mock('electron', () => ({
   },
   ipcMain: {
     handle: handleMock,
+    on: onMock,
+    removeAllListeners: removeAllListenersMock,
     removeHandler: removeHandlerMock,
   },
 }))
@@ -44,8 +48,12 @@ function createWindowStub() {
 describe('FileManager async saves', () => {
   beforeEach(() => {
     handleMock.mockReset()
+    onMock.mockReset()
+    removeAllListenersMock.mockReset()
     removeHandlerMock.mockReset()
     showSaveDialogMock.mockReset()
+    appGetPathMock.mockReset()
+    appGetPathMock.mockImplementation(() => '/tmp')
     vi.restoreAllMocks()
   })
 
@@ -128,9 +136,13 @@ describe('FileManager async saves', () => {
 describe('FileManager Pandoc exports', () => {
   beforeEach(() => {
     handleMock.mockReset()
+    onMock.mockReset()
+    removeAllListenersMock.mockReset()
     removeHandlerMock.mockReset()
     showSaveDialogMock.mockReset()
     execFileMock.mockClear()
+    appGetPathMock.mockReset()
+    appGetPathMock.mockImplementation(() => '/tmp')
     vi.restoreAllMocks()
     vi.spyOn(fs.promises, 'writeFile').mockResolvedValue()
     vi.spyOn(fs.promises, 'unlink').mockResolvedValue()
@@ -180,8 +192,12 @@ describe('FileManager Pandoc exports', () => {
 describe('FileManager chunk loader', () => {
   beforeEach(() => {
     handleMock.mockReset()
+    onMock.mockReset()
+    removeAllListenersMock.mockReset()
     removeHandlerMock.mockReset()
     showSaveDialogMock.mockReset()
+    appGetPathMock.mockReset()
+    appGetPathMock.mockImplementation(() => '/tmp')
     vi.restoreAllMocks()
   })
 
@@ -224,5 +240,74 @@ describe('FileManager chunk loader', () => {
       filePath,
       content: fileContent,
     })
+  })
+})
+
+describe('FileManager auto-save recovery checkpoints', () => {
+  beforeEach(() => {
+    handleMock.mockReset()
+    onMock.mockReset()
+    removeAllListenersMock.mockReset()
+    removeHandlerMock.mockReset()
+    showSaveDialogMock.mockReset()
+    appGetPathMock.mockReset()
+    appGetPathMock.mockImplementation(() => '/tmp')
+    vi.restoreAllMocks()
+    vi.useFakeTimers()
+  })
+
+  it('writes the last auto-save checkpoint to the temp directory after 30 seconds of idle time', async () => {
+    const writeFileMock = vi.spyOn(fs.promises, 'writeFile').mockResolvedValue()
+    const manager = new FileManager(createWindowStub() as never)
+
+    manager.scheduleRecoveryCheckpoint({ filePath: '/docs/note.md', content: '# draft 1' })
+    await vi.advanceTimersByTimeAsync(20_000)
+    manager.scheduleRecoveryCheckpoint({ filePath: '/docs/note.md', content: '# draft 2' })
+
+    await vi.advanceTimersByTimeAsync(29_000)
+    expect(writeFileMock).not.toHaveBeenCalled()
+
+    await vi.advanceTimersByTimeAsync(1_000)
+    expect(writeFileMock).toHaveBeenCalledTimes(1)
+    expect(writeFileMock).toHaveBeenCalledWith(
+      '/tmp/.markflow-recovery',
+      expect.stringContaining('"content":"# draft 2"'),
+      'utf-8',
+    )
+  })
+
+  it('surfaces the last auto-save checkpoint after an unclean shutdown and discards it after a manual save', async () => {
+    vi.useRealTimers()
+
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'markflow-recovery-'))
+    appGetPathMock.mockImplementation(() => tempDir)
+
+    const window = createWindowStub()
+    const manager = new FileManager(window as never)
+    const recoveryPath = path.join(tempDir, '.markflow-recovery')
+    const sessionStatePath = path.join(tempDir, '.markflow-recovery-session.json')
+    const filePath = path.join(tempDir, 'note.md')
+
+    fs.writeFileSync(
+      recoveryPath,
+      JSON.stringify({
+        filePath,
+        content: '# Recovered draft',
+        savedAt: '2026-04-15T12:00:00.000Z',
+      }),
+      'utf-8',
+    )
+    fs.writeFileSync(sessionStatePath, JSON.stringify({ cleanExit: false }), 'utf-8')
+    fs.writeFileSync(filePath, '# Recovered draft', 'utf-8')
+
+    expect(await manager.getRecoveryCheckpoint()).toEqual({
+      filePath,
+      content: '# Recovered draft',
+      savedAt: '2026-04-15T12:00:00.000Z',
+    })
+
+    ;((manager as unknown) as { currentFilePath: string | null }).currentFilePath = filePath
+    expect(await manager.saveFile('# Recovered draft')).toEqual({ success: true })
+    expect(fs.existsSync(recoveryPath)).toBe(false)
   })
 })

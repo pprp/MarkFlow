@@ -4,6 +4,8 @@ import type {
   MarkFlowFileLoadProgressPayload,
   MarkFlowFilePayload,
   MarkFlowMenuActionPayload,
+  MarkFlowRecoveryCheckpoint,
+  MarkFlowRecoveryDraft,
   MarkFlowSavePayload,
   MarkFlowSaveResult,
   MarkFlowThemePayload,
@@ -24,6 +26,12 @@ const api: MarkFlowDesktopAPI = {
   saveFile: (content: string) => ipcRenderer.invoke('save-file', content) as Promise<MarkFlowSaveResult | null>,
   saveFileAs: (content: string) =>
     ipcRenderer.invoke('save-file-as', content) as Promise<MarkFlowSaveResult | null>,
+  scheduleRecoveryCheckpoint: (draft: MarkFlowRecoveryDraft) => {
+    ipcRenderer.send('schedule-recovery-checkpoint', draft)
+  },
+  getRecoveryCheckpoint: () =>
+    ipcRenderer.invoke('get-recovery-checkpoint') as Promise<MarkFlowRecoveryCheckpoint | null>,
+  discardRecoveryCheckpoint: () => ipcRenderer.invoke('discard-recovery-checkpoint') as Promise<void>,
   exportHtml: (html: string, defaultPath: string) => ipcRenderer.invoke('export-html', html, defaultPath),
   exportPdf: (html: string, defaultPath: string) => ipcRenderer.invoke('export-pdf', html, defaultPath),
   exportDocx: (markdown: string, defaultPath: string) => ipcRenderer.invoke('export-docx', markdown, defaultPath),
