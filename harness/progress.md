@@ -9,6 +9,36 @@
 
 ## Session Log
 
+### 2026-04-15 - MF-097 HTML media embeds now render safely, manual playback validation pending
+
+- Author: Codex (Dispatcher)
+- Focus: Close the concrete Typora parity gap where raw HTML media tags were stripped out of MarkFlow's WYSIWYG view instead of rendering as preserved embeds.
+- Research updates:
+  - Researcher refined `MF-075` to match Typora's actual clipboard model: normal `Copy` already writes rich clipboard formats, while the source-oriented actions are `Copy as Markdown` and `Copy as HTML Code`.
+  - Researcher refined `MF-090` around Typora's real recent-file and pinned-folder behavior instead of the earlier generic recents wording.
+  - Researcher strengthened `MF-097` against Typora's current HTML and Media docs, confirming MarkFlow's inline HTML sanitizer was the genuine missing path.
+- What changed:
+  - updated `packages/editor/src/editor/decorations/inlineHtmlDecoration.ts` so WYSIWYG HTML blocks now preserve `<video>`, `<audio>`, and `<iframe>` tags with a small safe attribute allowlist, strip script/style tags and inline event handlers, and force iframe embeds through a sandboxed container
+  - extended `packages/editor/src/editor/__tests__/inlineHtmlDecoration.test.ts` with focused coverage for media-tag rendering, attribute preservation, caret-driven source reveal, iframe sandboxing, and unsafe iframe URL rejection
+  - updated `MF-097` in `harness/feature-ledger.json` to `ready` / `passes=false`, recorded the exact automated verification commands, and kept the manual desktop media/embed check as the remaining gate
+- Simplifications made:
+  - reused the existing inline HTML decoration pipeline instead of introducing a second media-specific renderer
+  - kept the scope to one sanitizer path, one focused test file, and the active ledger entry rather than widening into copy actions or desktop recent-files work
+- Verification:
+  - `pnpm harness:start` (passes)
+  - `./harness/init.sh --smoke` (passes; includes `pnpm test` and `pnpm harness:verify`)
+  - `pnpm --filter @markflow/editor exec vitest run src/editor/__tests__/inlineHtmlDecoration.test.ts` (passes; 1 file / 6 tests)
+  - `pnpm --filter @markflow/editor lint -- src/editor/decorations/inlineHtmlDecoration.ts src/editor/__tests__/inlineHtmlDecoration.test.ts` (passes)
+  - `pnpm --filter @markflow/editor build` (passes; existing Vite chunk-size warnings only)
+  - `pnpm harness:verify` (passes; 102 total | verified=60 | ready=9 | planned=33 | blocked=0)
+- Review / risks:
+  - Reviewer accepted the scoped `MF-097` implementation after the ledger state was corrected to `ready`
+  - residual risk is limited to the pending manual check: real local media playback and confirming iframe embeds never navigate the editor shell still need an interactive desktop run before `MF-097` can move to `verified`
+- Newly verified features:
+  - none
+- Next recommended feature:
+  - if a human can run the desktop media/embed smoke check, clear `MF-097`; otherwise continue with `MF-075` as the next newly clarified Typora parity gap
+
 ### 2026-04-15 - MF-078 Alt+Up/Down parity tightened, manual numbered-list validation pending
 
 - Author: Codex (Dispatcher)

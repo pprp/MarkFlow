@@ -25,7 +25,186 @@ const ALLOWED_TAGS = new Set([
   'ul',
   'ol',
   'li',
+  'video',
+  'audio',
+  'source',
+  'track',
+  'iframe',
 ])
+
+const STRIP_CONTENT_TAGS = new Set(['script', 'style'])
+
+const TAG_ALLOWED_ATTRIBUTES: Record<string, Set<string>> = {
+  video: new Set(['src', 'controls', 'width', 'height', 'poster', 'preload', 'loop', 'muted', 'autoplay', 'playsinline']),
+  audio: new Set(['src', 'controls', 'preload', 'loop', 'muted', 'autoplay']),
+  source: new Set(['src', 'type']),
+  track: new Set(['kind', 'src', 'srclang', 'label', 'default']),
+  iframe: new Set(['src', 'title', 'width', 'height', 'allow', 'allowfullscreen', 'loading', 'sandbox']),
+}
+
+const BOOLEAN_ATTRIBUTES = new Set([
+  'controls',
+  'loop',
+  'muted',
+  'autoplay',
+  'playsinline',
+  'allowfullscreen',
+  'default',
+])
+
+const DEFAULT_IFRAME_SANDBOX = 'allow-scripts allow-presentation'
+const SAFE_IFRAME_ALLOW_TOKENS = new Set([
+  'autoplay',
+  'clipboard-write',
+  'encrypted-media',
+  'fullscreen',
+  'picture-in-picture',
+  'web-share',
+])
+
+function sanitizeUrl(value: string, allowedProtocols: ReadonlySet<string>) {
+  const trimmed = value.trim()
+  if (!trimmed) {
+    return null
+  }
+
+  const protocolMatch = trimmed.match(/^([a-zA-Z][\w+.-]*):/)
+  if (!protocolMatch) {
+    return trimmed
+  }
+
+  return allowedProtocols.has(protocolMatch[1].toLowerCase()) ? trimmed : null
+}
+
+function sanitizeDimension(value: string) {
+  const trimmed = value.trim()
+  return /^\d+(?:px|%)?$/.test(trimmed) ? trimmed : null
+}
+
+function sanitizePreload(value: string) {
+  const trimmed = value.trim().toLowerCase()
+  return trimmed === 'none' || trimmed === 'metadata' || trimmed === 'auto' ? trimmed : null
+}
+
+function sanitizeTrackKind(value: string) {
+  const trimmed = value.trim().toLowerCase()
+  return ['subtitles', 'captions', 'descriptions', 'chapters', 'metadata'].includes(trimmed)
+    ? trimmed
+    : null
+}
+
+function sanitizeTrackLanguage(value: string) {
+  const trimmed = value.trim()
+  return /^[a-z0-9-]+$/i.test(trimmed) ? trimmed : null
+}
+
+function sanitizeMimeType(value: string) {
+  const trimmed = value.trim()
+  return /^[a-z0-9!#$&^_.+-]+\/[a-z0-9!#$&^_.+-]+$/i.test(trimmed) ? trimmed : null
+}
+
+function sanitizeIframeAllow(value: string) {
+  const tokens = value
+    .split(/[;,\s]+/)
+    .map((token) => token.trim().toLowerCase())
+    .filter((token) => SAFE_IFRAME_ALLOW_TOKENS.has(token))
+
+  return tokens.length > 0 ? Array.from(new Set(tokens)).join('; ') : null
+}
+
+function sanitizeIframeSandbox(value: string | null) {
+  if (!value) {
+    return DEFAULT_IFRAME_SANDBOX
+  }
+
+  const tokens = value
+    .split(/\s+/)
+    .map((token) => token.trim().toLowerCase())
+    .filter((token) => token === 'allow-scripts' || token === 'allow-presentation')
+
+  return tokens.length > 0 ? Array.from(new Set(tokens)).join(' ') : DEFAULT_IFRAME_SANDBOX
+}
+
+function sanitizeAttribute(tagName: string, attrName: string, attrValue: string) {
+  if (attrName.startsWith('on')) {
+    return null
+  }
+
+  const allowedAttributes = TAG_ALLOWED_ATTRIBUTES[tagName]
+  if (!allowedAttributes?.has(attrName)) {
+    return null
+  }
+
+  if (BOOLEAN_ATTRIBUTES.has(attrName)) {
+    return { name: attrName, value: '' }
+  }
+
+  if (attrName === 'src') {
+    const protocols = tagName === 'iframe'
+      ? new Set(['http', 'https'])
+      : new Set(['http', 'https', 'file', 'blob'])
+    const sanitized = sanitizeUrl(attrValue, protocols)
+    return sanitized ? { name: attrName, value: sanitized } : null
+  }
+
+  if (attrName === 'poster') {
+    const sanitized = sanitizeUrl(attrValue, new Set(['http', 'https', 'file', 'blob']))
+    return sanitized ? { name: attrName, value: sanitized } : null
+  }
+
+  if (attrName === 'type') {
+    const sanitized = sanitizeMimeType(attrValue)
+    return sanitized ? { name: attrName, value: sanitized } : null
+  }
+
+  if (attrName === 'width' || attrName === 'height') {
+    const sanitized = sanitizeDimension(attrValue)
+    return sanitized ? { name: attrName, value: sanitized } : null
+  }
+
+  if (attrName === 'preload') {
+    const sanitized = sanitizePreload(attrValue)
+    return sanitized ? { name: attrName, value: sanitized } : null
+  }
+
+  if (attrName === 'allow') {
+    const sanitized = sanitizeIframeAllow(attrValue)
+    return sanitized ? { name: attrName, value: sanitized } : null
+  }
+
+  if (attrName === 'loading') {
+    const sanitized = attrValue.trim().toLowerCase()
+    return sanitized === 'lazy' || sanitized === 'eager'
+      ? { name: attrName, value: sanitized }
+      : null
+  }
+
+  if (attrName === 'sandbox') {
+    return { name: attrName, value: sanitizeIframeSandbox(attrValue) }
+  }
+
+  if (attrName === 'title') {
+    const sanitized = attrValue.trim()
+    return sanitized ? { name: attrName, value: sanitized } : null
+  }
+
+  if (attrName === 'kind') {
+    const sanitized = sanitizeTrackKind(attrValue)
+    return sanitized ? { name: attrName, value: sanitized } : null
+  }
+
+  if (attrName === 'srclang') {
+    const sanitized = sanitizeTrackLanguage(attrValue)
+    return sanitized ? { name: attrName, value: sanitized } : null
+  }
+
+  if (attrName === 'label') {
+    const sanitized = attrValue.trim()
+    return sanitized ? { name: attrName, value: sanitized } : null
+  }
+
+  return null
+}
 
 function sanitizeHtml(html: string): string {
   const template = document.createElement('template')
@@ -36,17 +215,33 @@ function sanitizeHtml(html: string): string {
       const el = node as Element
       const tagName = el.tagName.toLowerCase()
       if (!ALLOWED_TAGS.has(tagName)) {
+        if (STRIP_CONTENT_TAGS.has(tagName)) {
+          el.remove()
+          return
+        }
         // Replace disallowed element with its text content
         const text = document.createTextNode(el.textContent ?? '')
         el.replaceWith(text)
         return
       }
-      // Remove all attributes (keep it simple and safe)
+
+      const nextAttributes = Array.from(el.attributes)
+        .map((attr) => sanitizeAttribute(tagName, attr.name.toLowerCase(), attr.value))
+        .filter((attr): attr is { name: string; value: string } => attr !== null)
+
       const attrNames = Array.from(el.attributes).map((a) => a.name)
-      for (const attr of attrNames) {
-        el.removeAttribute(attr)
+      for (const attrName of attrNames) {
+        el.removeAttribute(attrName)
       }
-      // Recurse into children
+
+      for (const attr of nextAttributes) {
+        el.setAttribute(attr.name, attr.value)
+      }
+
+      if (tagName === 'iframe' && !el.hasAttribute('sandbox')) {
+        el.setAttribute('sandbox', DEFAULT_IFRAME_SANDBOX)
+      }
+
       Array.from(el.childNodes).forEach(sanitizeNode)
     }
   }

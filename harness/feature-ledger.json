@@ -1501,7 +1501,7 @@
       "category": "phase-2-functional",
       "area": "@markflow/editor",
       "priority": 3,
-      "status": "planned",
+      "status": "ready",
       "passes": false,
       "lastVerifiedAt": null,
       "dependsOn": [
@@ -2511,7 +2511,7 @@
       "category": "phase-2-functional",
       "area": "@markflow/editor",
       "priority": 3,
-      "status": "planned",
+      "status": "ready",
       "passes": false,
       "lastVerifiedAt": null,
       "dependsOn": [
@@ -2524,13 +2524,15 @@
       ],
       "verification": {
         "automated": [
-        "Extend `inlineHtmlDecoration` coverage to prove the sanitizer preserves supported media tags and safe attributes, keeps script/event-handler filtering, and renders iframe embeds in a sandboxed container."
+          "pnpm --filter @markflow/editor exec vitest run src/editor/__tests__/inlineHtmlDecoration.test.ts",
+          "pnpm --filter @markflow/editor lint -- src/editor/decorations/inlineHtmlDecoration.ts src/editor/__tests__/inlineHtmlDecoration.test.ts",
+          "pnpm --filter @markflow/editor build"
         ],
         "manual": [
-        "Render one local video, one local audio clip, and one remote iframe embed; confirm playback/loading works while the editor window itself never navigates away."
+          "Render one local video, one local audio clip, and one remote iframe embed; confirm playback/loading works while the editor window itself never navigates away."
         ]
       },
-      "notes": "Typora's current HTML and Media docs explicitly support `<video>`, `<audio>`, and `<iframe>` embeds, including drag-and-drop video insertion and sandboxed iframe/script handling. MarkFlow's `packages/editor/src/editor/decorations/inlineHtmlDecoration.ts` currently allows only a small tag set (`details`, `summary`, `div`, `span`, `p`, `br`, `strong`, `em`, `b`, `i`, `ul`, `ol`, `li`) and strips all attributes, so media tags and their required attributes are lost entirely. Sources: https://support.typora.io/HTML/ and https://support.typora.io/Media/."
+      "notes": "Typora's current HTML and Media docs explicitly support `<video>`, `<audio>`, and `<iframe>` embeds, including drag-and-drop video insertion and sandboxed iframe/script handling. MarkFlow now preserves those tags in `packages/editor/src/editor/decorations/inlineHtmlDecoration.ts` with a small safe attribute allowlist, iframe sandboxing, and script/event-handler stripping, covered by `packages/editor/src/editor/__tests__/inlineHtmlDecoration.test.ts`. Manual local media/embed playback validation is still pending before this can move to `verified`. Sources: https://support.typora.io/HTML/ and https://support.typora.io/Media/."
     },
     {
       "id": "MF-098",
