@@ -1399,3 +1399,32 @@
   - none
 - Next recommended feature:
   - `MF-060` - on a GUI session with direct human control or reliable macOS accessibility automation, relaunch MarkFlow, accept the recovery prompt, confirm the restored content, and only then update the ledger fields
+
+### 2026-04-16 - MF-060 automated recovery evidence refreshed, manual proof still blocked by missing accessibility trust
+
+- Author: Codex (Dispatcher)
+- Focus: follow the required `MF-060` session-start protocol again, rerun the feature's automated verification, and determine whether this terminal-controlled macOS session can finally complete the remaining crash/relaunch recovery proof without fabricating a pass.
+- What changed:
+  - re-ran `pnpm harness:start` and `./harness/init.sh --smoke`, then re-read the existing `MF-060` ledger entry plus the already-landed recovery flow in `packages/desktop/src/main/fileManager.ts`, `packages/desktop/src/main/index.ts`, `packages/desktop/src/preload/index.ts`, `packages/editor/src/App.tsx`, `packages/desktop/src/main/fileManager.test.ts`, and `packages/editor/src/__tests__/App.test.tsx`.
+  - re-ran the required automated verification command `pnpm --filter @markflow/desktop test:run -- --grep auto-save`, plus the two feature-focused recovery suites `pnpm --filter @markflow/desktop exec vitest run src/main/fileManager.test.ts -t "auto-save recovery checkpoints"` and `pnpm --filter @markflow/editor exec vitest run src/__tests__/App.test.tsx -t "App auto-save"`.
+  - updated `harness/feature-ledger.json` notes with the latest truthful verification date and the current environment blocker, while keeping `status=planned`, `passes=false`, and `lastVerifiedAt=null`.
+  - did not change production code because the repository already contains the `MF-060` implementation and this session did not uncover a new defect that justified even a minimal prerequisite fix.
+  - ran the smallest useful macOS GUI-capability probe set: `osascript -e 'return 1'` succeeded, `osascript -e 'tell application "System Events" to return UI elements enabled'` timed out after 5 seconds, and `swift -e 'import ApplicationServices; print(AXIsProcessTrusted())'` returned `false`.
+- Simplifications made:
+  - kept the session scoped to verification and truthful state capture only; no debug-only hooks, no recovery-dialog instrumentation, and no unrelated desktop work were introduced.
+  - used direct accessibility probes instead of repeating the heavier Electron CDP experiments that had already failed in earlier `MF-060` sessions.
+- Verification:
+  - `pnpm harness:start` (passes)
+  - `./harness/init.sh --smoke` (passes; workspace smoke path re-ran successfully in this worktree)
+  - `pnpm --filter @markflow/desktop test:run -- --grep auto-save` (passes; the desktop package script still executes the full desktop suite rather than narrowing to the grep)
+  - `pnpm --filter @markflow/desktop exec vitest run src/main/fileManager.test.ts -t "auto-save recovery checkpoints"` (passes; 2 focused recovery tests)
+  - `pnpm --filter @markflow/editor exec vitest run src/__tests__/App.test.tsx -t "App auto-save"` (passes; 5 focused app auto-save tests)
+  - macOS GUI/accessibility probes (blocked): plain `osascript` works, but `System Events` control still hangs and `AXIsProcessTrusted()` is `false`, so this session still cannot truthfully drive the recovery prompt or confirm restored editor contents after relaunch.
+- Review / risks:
+  - `MF-060` still cannot move to `status=verified`, `passes=true`, or receive a `lastVerifiedAt` timestamp until a GUI session can actually kill MarkFlow after a 35-second dirty idle period, relaunch it, accept the recovery prompt, and confirm the restored checkpoint content.
+  - this session refreshed all relevant automated evidence and produced a cleaner blocker signal than the previous stalled probes, but it still did not add the required manual crash/relaunch acceptance proof.
+  - because the remaining gap is manual and environment-specific, the ledger must stay truthful: `status=planned`, `passes=false`, and `lastVerifiedAt=null`.
+- Newly verified features:
+  - none
+- Next recommended feature:
+  - `MF-060` - on a GUI session with direct human control or working Accessibility permission, complete the crash/relaunch recovery flow and only then update the ledger fields
