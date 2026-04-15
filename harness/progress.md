@@ -1168,3 +1168,30 @@
   - none
 - Next recommended feature:
   - `MF-060` - run the manual desktop crash/relaunch recovery flow on a real GUI session, then update the ledger only if the prompt and restored content truly pass
+
+### 2026-04-15 - MF-060 verification refresh with ledger notes updated
+
+- Author: Codex (Dispatcher)
+- Focus: execute the required `MF-060` session-start protocol, re-run the feature's automated verification, and write back the current implementation/verification state without widening beyond this one recovery feature.
+- What changed:
+  - updated `harness/feature-ledger.json` so `MF-060` now records the already-landed implementation files and today's automated verification evidence while keeping `status`, `passes`, and `lastVerifiedAt` unchanged.
+  - appended this handoff to `harness/progress.md`.
+  - left product code unchanged because the existing recovery-checkpoint implementation already passed the required focused verification in this session.
+- Simplifications made:
+  - kept this session as a bookkeeping-and-verification pass instead of perturbing the shipped recovery path.
+  - supplemented the listed desktop `--grep auto-save` command with exact Vitest test-name runs rather than broadening into unrelated build-script cleanup.
+- Verification:
+  - `pnpm harness:start` (passes)
+  - `./harness/init.sh --smoke` (passes)
+  - `pnpm --filter @markflow/desktop test:run -- --grep auto-save` (passes; the package script still runs the full desktop suite instead of narrowing to the grep)
+  - `pnpm --filter @markflow/desktop exec vitest run src/main/fileManager.test.ts -t "auto-save recovery checkpoints"` (passes)
+  - `pnpm --filter @markflow/editor exec vitest run src/__tests__/App.test.tsx -t "App auto-save"` (passes)
+  - `pnpm harness:verify` (passes; 102 total | verified=60 | ready=9 | planned=33 | blocked=0)
+- Review / risks:
+  - the required manual desktop proof is still outstanding: wait at least 35 seconds, kill MarkFlow, relaunch it, accept the recovery prompt, and confirm the restored content.
+  - because that GUI flow was not completed in this CLI session, `MF-060` must remain `status=planned`, `passes=false`, and `lastVerifiedAt=null`.
+  - the listed desktop verification command still does not narrow by grep through the current package script; this session compensated with direct Vitest invocations but did not widen scope to fix the script plumbing.
+- Newly verified features:
+  - none
+- Next recommended feature:
+  - `MF-060` - run the manual desktop crash/relaunch recovery flow on a real GUI session, then update the ledger only if the prompt and restored content truly pass
