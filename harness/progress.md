@@ -1515,3 +1515,32 @@
   - none
 - Next recommended feature:
   - `MF-060` - on a GUI session with direct human control or working Accessibility permission, complete the crash/relaunch recovery flow and only then update the ledger fields
+
+### 2026-04-16 - MF-060 automated evidence rerun reconfirmed the live recovery blocker
+
+- Author: Codex (Dispatcher)
+- Focus: execute the required `MF-060` session-start protocol, rerun the mandated automated verification, and determine whether this terminal-controlled macOS session can truthfully finish the remaining crash/relaunch recovery proof.
+- What changed:
+  - re-ran `pnpm harness:start` and `./harness/init.sh --smoke`, then re-read the current `MF-060` ledger entry plus the existing recovery implementation in `packages/desktop/src/main/fileManager.ts`, `packages/desktop/src/preload/index.ts`, `packages/editor/src/App.tsx`, `packages/desktop/src/main/fileManager.test.ts`, and `packages/editor/src/__tests__/App.test.tsx`.
+  - re-ran the feature's required automated verification command `pnpm --filter @markflow/desktop test:run -- --grep auto-save`, the focused recovery suites `pnpm --filter @markflow/desktop exec vitest run src/main/fileManager.test.ts -t "auto-save recovery checkpoints"` and `pnpm --filter @markflow/editor exec vitest run src/__tests__/App.test.tsx -t "App auto-save"`, and `pnpm harness:verify`.
+  - left production code and `harness/feature-ledger.json` unchanged because the repository already contains the `MF-060` implementation and this session still could not truthfully complete the required manual recovery prompt acceptance/readback step.
+  - re-checked the current GUI-control boundary with the smallest useful probes: `swift -e 'import ApplicationServices; print(AXIsProcessTrusted())'` returned `false`, `osascript -e 'return 1'` succeeded, and a timed `System Events` process query still timed out after 5 seconds.
+- Simplifications made:
+  - kept the session strictly inside `MF-060`; no unrelated feature work, debug hooks, or recovery-dialog instrumentation were introduced.
+  - used the lightest useful macOS capability probes after the required automated checks instead of repeating another large Electron/CDP attempt that earlier sessions had already shown would not close the remaining manual-verification gap here.
+- Verification:
+  - `pnpm harness:start` (passes)
+  - `./harness/init.sh --smoke` (passes; workspace smoke path re-ran successfully in this worktree)
+  - `pnpm --filter @markflow/desktop test:run -- --grep auto-save` (passes; the desktop package script still executes the full desktop suite rather than narrowing to the grep)
+  - `pnpm --filter @markflow/desktop exec vitest run src/main/fileManager.test.ts -t "auto-save recovery checkpoints"` (passes; 2 focused recovery tests)
+  - `pnpm --filter @markflow/editor exec vitest run src/__tests__/App.test.tsx -t "App auto-save"` (passes; 5 focused app auto-save tests)
+  - `pnpm harness:verify` (passes; 103 total | verified=60 | ready=11 | planned=32 | blocked=0)
+  - manual-verification capability probes (blocked): `AXIsProcessTrusted()` remains `false`, plain `osascript` works, and `System Events` automation still times out, so this environment still cannot truthfully accept the recovery prompt and confirm restored editor content after relaunch.
+- Review / risks:
+  - `MF-060` still cannot move to `status=verified`, `passes=true`, or receive a `lastVerifiedAt` timestamp until a GUI session can really kill MarkFlow after a 35-second dirty idle period, relaunch it, accept the recovery prompt, and verify the restored checkpoint content.
+  - this session refreshed all required automated evidence again, but it did not add new manual crash/relaunch recovery proof.
+  - because the remaining gap is still manual and environment-specific, `harness/feature-ledger.json` must stay truthful at `status=planned`, `passes=false`, and `lastVerifiedAt=null`.
+- Newly verified features:
+  - none
+- Next recommended feature:
+  - `MF-060` - on a GUI session with direct human control or working Accessibility permission, complete the crash/relaunch recovery flow and only then update the ledger fields
