@@ -2,13 +2,14 @@ import type { MenuItemConstructorOptions } from 'electron'
 import { describe, expect, it, vi } from 'vitest'
 import { createApplicationMenuTemplate } from './menu'
 
-function getFileMenuItem(
+function getMenuItem(
   template: MenuItemConstructorOptions[],
-  label: string,
+  menuLabel: string,
+  itemLabel: string,
 ): MenuItemConstructorOptions | undefined {
-  const fileMenu = template.find((item) => item.label === 'File')
-  const submenu = Array.isArray(fileMenu?.submenu) ? fileMenu.submenu : []
-  return submenu.find((item) => item.label === label)
+  const menu = template.find((item) => item.label === menuLabel)
+  const submenu = Array.isArray(menu?.submenu) ? menu.submenu : []
+  return submenu.find((item) => item.label === itemLabel)
 }
 
 describe('createApplicationMenuTemplate', () => {
@@ -20,7 +21,7 @@ describe('createApplicationMenuTemplate', () => {
       platform: 'darwin',
     })
 
-    expect(getFileMenuItem(template, 'Reveal in Finder')).toEqual(
+    expect(getMenuItem(template, 'File', 'Reveal in Finder')).toEqual(
       expect.objectContaining({
         enabled: false,
       }),
@@ -35,7 +36,7 @@ describe('createApplicationMenuTemplate', () => {
       sendMenuAction: vi.fn(),
       platform: 'linux',
     })
-    const revealItem = getFileMenuItem(template, 'Show in Folder')
+    const revealItem = getMenuItem(template, 'File', 'Show in Folder')
 
     revealItem?.click?.({} as never, {} as never, {} as never)
 
@@ -45,5 +46,28 @@ describe('createApplicationMenuTemplate', () => {
       }),
     )
     expect(revealCurrentFileInFolder).toHaveBeenCalledTimes(1)
+  })
+
+  it('routes copy actions through explicit renderer menu events', () => {
+    const sendMenuAction = vi.fn()
+    const template = createApplicationMenuTemplate({
+      canRevealCurrentFile: () => true,
+      revealCurrentFileInFolder: vi.fn(() => true),
+      sendMenuAction,
+      platform: 'linux',
+    })
+    const copyItem = getMenuItem(template, 'Edit', 'Copy')
+    const copyAsMarkdownItem = getMenuItem(template, 'Edit', 'Copy as Markdown')
+    const copyAsHtmlCodeItem = getMenuItem(template, 'Edit', 'Copy as HTML Code')
+
+    copyItem?.click?.({} as never, {} as never, {} as never)
+    copyAsMarkdownItem?.click?.({} as never, {} as never, {} as never)
+    copyAsHtmlCodeItem?.click?.({} as never, {} as never, {} as never)
+
+    expect(sendMenuAction.mock.calls).toEqual([
+      ['copy'],
+      ['copy-as-markdown'],
+      ['copy-as-html-code'],
+    ])
   })
 })

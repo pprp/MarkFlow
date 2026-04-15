@@ -9,6 +9,50 @@
 
 ## Session Log
 
+### 2026-04-16 - MF-075 clipboard copy parity landed while manual cross-app validation remains pending
+
+- Author: Codex (Dispatcher)
+- Focus: close one Typora parity loop around clipboard copy behavior without widening into unrelated editor or desktop work.
+- Research updates:
+  - Researcher compared Typora's `Copy and Paste`, `Quick Start`, and `Shortcut Keys` docs against the current repo and confirmed no ledger addition was needed; the existing `MF-075` entry already described the strongest bounded gap for this run.
+- What changed:
+  - replaced the plain Edit > Copy menu role with explicit `copy`, `copy-as-markdown`, and `copy-as-html-code` renderer actions in `packages/shared/src/index.ts`, `packages/desktop/src/main/menu.ts`, and `packages/desktop/src/preload/index.ts`
+  - added `packages/editor/src/editor/clipboard.ts` so markdown selections can serialize into bounded semantic clipboard HTML and rendered plaintext for paragraphs, line breaks, bold, emphasis, links, and inline code
+  - updated `packages/editor/src/App.tsx` to write rich HTML + rendered plaintext for editor `Copy`, markdown source for `Copy as Markdown`, and HTML fragment source for `Copy as HTML Code`
+  - fixed two reviewer-found regressions before acceptance: non-editor `Copy` now falls back to native document copy, and `copy-as-markdown` / `copy-as-html-code` now no-op outside editor context instead of leaking stale editor selections
+  - expanded `packages/editor/src/__tests__/App.test.tsx` and `packages/desktop/src/main/menu.test.ts` to cover happy-path clipboard writes, menu routing, native non-editor fallback, and stale-selection guards
+  - updated `harness/feature-ledger.json` so `MF-075` is truthfully `status=ready`, `passes=false`, and `lastVerifiedAt=null` with the exact automated verification commands that passed
+- Changed files:
+  - `harness/feature-ledger.json`
+  - `packages/shared/src/index.ts`
+  - `packages/desktop/src/main/menu.ts`
+  - `packages/desktop/src/main/menu.test.ts`
+  - `packages/desktop/src/preload/index.ts`
+  - `packages/editor/src/App.tsx`
+  - `packages/editor/src/editor/clipboard.ts`
+  - `packages/editor/src/__tests__/App.test.tsx`
+- Simplifications made:
+  - kept clipboard serialization intentionally narrow instead of introducing a full markdown-to-HTML export pipeline just for copy
+  - reused a preload clipboard bridge instead of adding new main-process IPC handlers
+  - stayed inside `MF-075`; no unrelated feature work or progress-file rewrites from subagents were allowed
+- Verification:
+  - `pnpm harness:start` (passes)
+  - `./harness/init.sh --smoke` (passes)
+  - `pnpm --filter @markflow/editor exec vitest run src/__tests__/App.test.tsx` (passes; 24 tests)
+  - `pnpm --filter @markflow/desktop exec vitest run src/main/menu.test.ts` (passes; 3 tests)
+  - `pnpm --filter @markflow/shared build` (passes)
+  - `pnpm --filter @markflow/editor build` (passes)
+  - `pnpm --filter @markflow/desktop build` (passes)
+  - `pnpm harness:verify` (passes; 106 total | verified=62 | ready=14 | planned=30 | blocked=0)
+- Review / risks:
+  - Reviewer accepted the final scoped diff after both stale-selection regressions were fixed in `packages/editor/src/App.tsx`
+  - `MF-075` still cannot move to `status=verified`, `passes=true`, or receive `lastVerifiedAt` until a real desktop session pastes the three clipboard paths into both a rich-text target and a plain-text/code editor
+  - `packages/editor/src/editor/clipboard.ts` is intentionally narrow; richer block-level markdown serialization remains out of scope for this run
+- Newly verified features:
+  - none
+- Next recommended feature:
+  - if a GUI operator can do the cross-app clipboard acceptance, finish `MF-075`; otherwise continue with `MF-061` - lazy image loading defers off-screen image decoding until the image enters the viewport
+
 ### 2026-04-16 - MF-060 rerun kept the feature truthful while manual recovery acceptance stayed blocked here
 
 - Author: Codex

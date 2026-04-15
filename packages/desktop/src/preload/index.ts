@@ -1,4 +1,4 @@
-import { contextBridge, ipcRenderer } from 'electron'
+import { clipboard, contextBridge, ipcRenderer } from 'electron'
 import type {
   MarkFlowAppearance,
   MarkFlowDesktopAPI,
@@ -53,6 +53,17 @@ const api: MarkFlowDesktopAPI = {
   renameFile: (oldPath: string, newPath: string) => ipcRenderer.invoke('rename-file', oldPath, newPath),
   deleteFile: (filePath: string) => ipcRenderer.invoke('delete-file', filePath),
   searchFiles: (folderPath: string, query: string) => ipcRenderer.invoke('search-files', folderPath, query) as Promise<SearchResult[]>,
+  writeClipboard: (payload) => {
+    if (typeof payload.html === 'string' && payload.html.length > 0) {
+      clipboard.write({
+        html: payload.html,
+        text: payload.text,
+      })
+      return
+    }
+
+    clipboard.writeText(payload.text)
+  },
 
   onFileOpened: (cb: (data: MarkFlowFilePayload) => void) => subscribe('file-opened', cb),
   onFileLoadingProgress: (cb: (data: MarkFlowFileLoadProgressPayload) => void) =>

@@ -66,6 +66,7 @@ class MockMarkFlowAPI implements MarkFlowDesktopAPI {
   renameFile: MarkFlowDesktopAPI['renameFile'] = vi.fn(async () => {})
   deleteFile: MarkFlowDesktopAPI['deleteFile'] = vi.fn(async () => {})
   searchFiles: MarkFlowDesktopAPI['searchFiles'] = vi.fn(async () => [])
+  writeClipboard: MarkFlowDesktopAPI['writeClipboard'] = vi.fn(async () => {})
 
   getThemes: MarkFlowDesktopAPI['getThemes'] = vi.fn(async () => this.themes)
   getThemeState: MarkFlowDesktopAPI['getThemeState'] = vi.fn(async () => this.themeState)
@@ -343,6 +344,157 @@ describe('App desktop integration', () => {
     expect(screen.getByText('Untitled')).toBeInTheDocument()
     expect(getEditorView(container).state.doc.toString()).toBe('')
     expect(container.querySelector('.mf-titlebar-dirty-dot')).not.toBeInTheDocument()
+  })
+
+  it('writes rich and source clipboard variants for the current selection', async () => {
+    const api = new MockMarkFlowAPI()
+    window.markflow = api
+
+    const content = 'Before **bold** [link](https://example.com) and `code`'
+    const { container } = render(<App />)
+
+    await act(async () => {
+      api.emitFileOpened({ filePath: '/tmp/copy.md', content })
+    })
+
+    const view = getEditorView(container)
+
+    act(() => {
+      view.dispatch({
+        selection: { anchor: 0, head: content.length },
+      })
+    })
+
+    view.contentDOM.focus()
+
+    await waitFor(() => {
+      expect(screen.getByText(/sel: 4w \/ 54c/)).toBeInTheDocument()
+    })
+
+    await act(async () => {
+      api.emitMenuAction('copy')
+    })
+
+    await waitFor(() => {
+      expect(api.writeClipboard).toHaveBeenNthCalledWith(1, {
+        html: '<p>Before <strong>bold</strong> <a href="https://example.com">link</a> and <code>code</code></p>',
+        text: 'Before bold link and code',
+      })
+    })
+
+    await act(async () => {
+      api.emitMenuAction('copy-as-markdown')
+      api.emitMenuAction('copy-as-html-code')
+    })
+
+    await waitFor(() => {
+      expect(api.writeClipboard).toHaveBeenNthCalledWith(2, {
+        text: content,
+      })
+      expect(api.writeClipboard).toHaveBeenNthCalledWith(3, {
+        text: '<p>Before <strong>bold</strong> <a href="https://example.com">link</a> and <code>code</code></p>',
+      })
+    })
+  })
+
+  it('falls back to native copy when a non-editor input is focused', async () => {
+    const api = new MockMarkFlowAPI()
+    window.markflow = api
+
+    const originalExecCommand = document.execCommand
+    const execCommand = vi.fn(() => true)
+    Object.defineProperty(document, 'execCommand', {
+      configurable: true,
+      value: execCommand,
+    })
+
+    try {
+      const content = 'Before **bold** [link](https://example.com) and `code`'
+      const { container } = render(<App />)
+
+      await act(async () => {
+        api.emitFileOpened({ filePath: '/tmp/copy.md', content })
+      })
+
+      const view = getEditorView(container)
+
+      act(() => {
+        view.dispatch({
+          selection: { anchor: 0, head: content.length },
+        })
+      })
+
+      fireEvent.keyDown(document, { key: 'l', ctrlKey: true })
+
+      const lineInput = (await screen.findByLabelText('Line number')) as HTMLInputElement
+      await waitFor(() => {
+        expect(lineInput).toHaveFocus()
+      })
+
+      lineInput.focus()
+      lineInput.select()
+
+      await act(async () => {
+        api.emitMenuAction('copy')
+      })
+
+      expect(execCommand).toHaveBeenCalledWith('copy')
+      expect(api.writeClipboard).not.toHaveBeenCalled()
+    } finally {
+      Object.defineProperty(document, 'execCommand', {
+        configurable: true,
+        value: originalExecCommand,
+      })
+    }
+  })
+
+  it('does not use stale editor selection for source copy actions outside the editor', async () => {
+    const api = new MockMarkFlowAPI()
+    window.markflow = api
+
+    const originalExecCommand = document.execCommand
+    const execCommand = vi.fn(() => true)
+    Object.defineProperty(document, 'execCommand', {
+      configurable: true,
+      value: execCommand,
+    })
+
+    try {
+      const content = 'Before **bold** [link](https://example.com) and `code`'
+      const { container } = render(<App />)
+
+      await act(async () => {
+        api.emitFileOpened({ filePath: '/tmp/copy.md', content })
+      })
+
+      const view = getEditorView(container)
+
+      act(() => {
+        view.dispatch({
+          selection: { anchor: 0, head: content.length },
+        })
+      })
+
+      fireEvent.keyDown(document, { key: 'l', ctrlKey: true })
+
+      const lineInput = (await screen.findByLabelText('Line number')) as HTMLInputElement
+      await waitFor(() => {
+        expect(lineInput).toHaveFocus()
+      })
+
+      await act(async () => {
+        api.emitMenuAction('copy-as-markdown')
+        api.emitMenuAction('copy-as-html-code')
+      })
+
+      expect(api.writeClipboard).not.toHaveBeenCalled()
+      expect(execCommand).not.toHaveBeenCalled()
+    } finally {
+      Object.defineProperty(document, 'execCommand', {
+        configurable: true,
+        value: originalExecCommand,
+      })
+    }
   })
 
   it('wires editor shortcut toggling and document filePath-based image resolution through App', async () => {

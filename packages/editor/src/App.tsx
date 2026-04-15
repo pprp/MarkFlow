@@ -7,6 +7,7 @@ import { QuickOpen } from './components/QuickOpen'
 import { VaultSidebar } from './components/VaultSidebar'
 import { GlobalSearch } from './components/GlobalSearch'
 import { GoToLine } from './components/GoToLine'
+import { serializeMarkdownSelectionForClipboard } from './editor/clipboard'
 import { createExternalLinkBadgePlugin } from './plugins/externalLinkBadgePlugin'
 import {
   MarkFlowPluginHost,
@@ -23,6 +24,7 @@ import {
 } from '@markflow/shared'
 
 const THEME_STYLE_ELEMENT_ID = 'mf-theme-overrides'
+const EDITOR_ROOT_SELECTOR = '.cm-editor'
 
 function formatLoadingBytes(bytes: number) {
   if (bytes >= 1024 * 1024) {
@@ -132,6 +134,30 @@ function formatAppearanceLabel(appearance: MarkFlowAppearance) {
   return appearance === 'dark' ? 'Dark' : 'Light'
 }
 
+function isEditorCopyContext() {
+  const activeElement = document.activeElement
+
+  if (activeElement instanceof Element) {
+    if (activeElement.closest(EDITOR_ROOT_SELECTOR)) {
+      return true
+    }
+
+    if (activeElement !== document.body) {
+      return false
+    }
+  }
+
+  const selectionAnchor = document.getSelection()?.anchorNode
+  if (!selectionAnchor) {
+    return false
+  }
+
+  const selectionElement =
+    selectionAnchor instanceof Element ? selectionAnchor : selectionAnchor.parentElement
+
+  return selectionElement?.closest(EDITOR_ROOT_SELECTOR) != null
+}
+
 function getLineStartPosition(content: string, requestedLineNumber: number) {
   const totalLines = content.length === 0 ? 1 : content.split('\n').length
   const clampedLineNumber = Math.max(1, Math.min(requestedLineNumber, totalLines))
@@ -184,6 +210,7 @@ export function App() {
   const [loadingFile, setLoadingFile] = useState<MarkFlowFileLoadProgressPayload | null>(null)
   const persistedContentRef = useRef(INITIAL_CONTENT)
   const latestContentRef = useRef(INITIAL_CONTENT)
+  const selectionTextRef = useRef('')
   const currentFilePathRef = useRef<string | null>(null)
   const editorNavigationKeyRef = useRef(0)
   const pluginHostRef = useRef<MarkFlowPluginHost | null>(null)
@@ -225,6 +252,8 @@ export function App() {
       setCursorPosition(0)
       setViewportPosition(null)
       setSymbolTable(createEmptySymbolTable())
+      selectionTextRef.current = ''
+      setSelectionText('')
       setEditorNavigationRequest(null)
       setIsGoToLineOpen(false)
       currentFilePathRef.current = filePath
@@ -245,6 +274,8 @@ export function App() {
       setCursorPosition(0)
       setViewportPosition(null)
       setSymbolTable(createEmptySymbolTable())
+      selectionTextRef.current = ''
+      setSelectionText('')
       setEditorNavigationRequest(null)
       setIsGoToLineOpen(false)
       currentFilePathRef.current = checkpoint.filePath
@@ -268,6 +299,11 @@ export function App() {
           break
         case 'save-file-as':
           await api.saveFileAs(latestContentRef.current)
+          break
+        case 'copy':
+        case 'copy-as-markdown':
+        case 'copy-as-html-code':
+          await handleCopyAction(action)
           break
         case 'export-html':
           await handleExport('html')
@@ -529,6 +565,45 @@ export function App() {
       content,
       isDirty: content !== persistedContentRef.current,
     }))
+  }
+
+  function handleSelectionChange(nextSelectionText: string) {
+    selectionTextRef.current = nextSelectionText
+    setSelectionText(nextSelectionText)
+  }
+
+  async function handleCopyAction(action: 'copy' | 'copy-as-markdown' | 'copy-as-html-code') {
+    const api = window.markflow
+    if (!api) return
+
+    if (!isEditorCopyContext()) {
+      if (action === 'copy' && typeof document.execCommand === 'function') {
+        document.execCommand('copy')
+      }
+      return
+    }
+
+    const markdownSelection = selectionTextRef.current
+    if (markdownSelection.length === 0) {
+      return
+    }
+
+    if (action === 'copy-as-markdown') {
+      await api.writeClipboard({ text: markdownSelection })
+      return
+    }
+
+    const serializedSelection = serializeMarkdownSelectionForClipboard(markdownSelection)
+
+    if (action === 'copy') {
+      await api.writeClipboard({
+        html: serializedSelection.html,
+        text: serializedSelection.text,
+      })
+      return
+    }
+
+    await api.writeClipboard({ text: serializedSelection.html })
   }
 
   async function handleOpenPath(filePath: string) {
@@ -804,7 +879,7 @@ export function App() {
               onNavigationHandled={() => setEditorNavigationRequest(null)}
               onOpenPath={handleOpenPath}
               onToggleMode={toggleViewMode}
-              onSelectionChange={setSelectionText}
+              onSelectionChange={handleSelectionChange}
               onToggleFocusMode={toggleFocusMode}
               onToggleTypewriterMode={toggleTypewriterMode}
               focusMode={focusMode}

@@ -55,7 +55,24 @@ export interface MarkFlowThemeState {
   activeTheme: MarkFlowThemePayload | null
 }
 
-export type MarkFlowMenuAction = 'new-file' | 'open-file' | 'save-file' | 'save-file-as' | 'export-html' | 'export-pdf' | 'export-docx' | 'export-epub' | 'export-latex'
+export type MarkFlowMenuAction =
+  | 'new-file'
+  | 'open-file'
+  | 'save-file'
+  | 'save-file-as'
+  | 'copy'
+  | 'copy-as-markdown'
+  | 'copy-as-html-code'
+  | 'export-html'
+  | 'export-pdf'
+  | 'export-docx'
+  | 'export-epub'
+  | 'export-latex'
+
+export interface MarkFlowClipboardPayload {
+  text: string
+  html?: string
+}
 
 export interface MarkFlowMenuActionPayload {
   action: MarkFlowMenuAction
@@ -265,6 +282,7 @@ export interface MarkFlowDesktopAPI {
   renameFile: (oldPath: string, newPath: string) => Promise<void>
   deleteFile: (filePath: string) => Promise<void>
   searchFiles: (folderPath: string, query: string) => Promise<SearchResult[]>
+  writeClipboard: (payload: MarkFlowClipboardPayload) => Promise<void> | void
   onFileOpened: (cb: (data: MarkFlowFilePayload) => void) => () => void
   onFileLoadingProgress: (cb: (data: MarkFlowFileLoadProgressPayload) => void) => () => void
   onFileSaved: (cb: (data: MarkFlowSavePayload) => void) => () => void

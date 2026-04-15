@@ -1960,7 +1960,7 @@
       "category": "phase-2-functional",
       "area": "@markflow/editor",
       "priority": 2,
-      "status": "planned",
+      "status": "ready",
       "passes": false,
       "lastVerifiedAt": null,
       "dependsOn": [],
@@ -1971,13 +1971,16 @@
       ],
       "verification": {
         "automated": [
-        "Add editor and desktop clipboard tests that assert default copy writes rich clipboard payloads, `Copy as Markdown` writes markdown plaintext, and `Copy as HTML Code` writes HTML source into plaintext."
+          "pnpm --filter @markflow/editor exec vitest run src/__tests__/App.test.tsx",
+          "pnpm --filter @markflow/desktop exec vitest run src/main/menu.test.ts",
+          "pnpm --filter @markflow/editor build",
+          "pnpm harness:verify"
         ],
         "manual": [
-        "Paste the same selection into a rich-text app and a plain-text/code editor to confirm all three copy paths behave like Typora."
+          "Paste the same selection into a rich-text app and a plain-text/code editor to confirm all three copy paths behave like Typora."
         ]
       },
-      "notes": "Typora's current Copy and Paste docs say normal Copy already stores HTML, RTF, and plain text on the clipboard simultaneously; the explicit source-oriented actions are `Copy as Markdown` and `Copy as HTML Code`, plus an optional 'Copy Markdown source as plain text' preference. Repo search still shows only Electron's default `{ role: 'copy' }` menu path and no MarkFlow clipboard serializer or dedicated copy-as-markdown / copy-as-HTML command wiring. Sources: https://support.typora.io/Copy-and-Paste/ and https://support.typora.io/Shortcut-Keys/."
+      "notes": "Implemented with explicit `copy`, `copy-as-markdown`, and `copy-as-html-code` menu actions, a bounded preload clipboard bridge, and a minimal renderer-side markdown selection serializer for bold, emphasis, links, inline code, and paragraph/line-break structure. Automated coverage now asserts default copy writes `text/html` plus rendered plaintext, while the source-oriented actions write markdown text or HTML fragment text through `packages/editor/src/__tests__/App.test.tsx` and `packages/desktop/src/main/menu.test.ts`. `passes` remains false until a manual cross-app clipboard check confirms real Electron clipboard behavior in both rich-text and plain-text targets. Sources: https://support.typora.io/Copy-and-Paste/ and https://support.typora.io/Shortcut-Keys/."
     },
     {
       "id": "MF-076",
