@@ -1062,7 +1062,7 @@
           "Open a folder with at least 20 markdown files, verify the tree is navigable, and confirm sidebar file operations match the OS filesystem."
         ]
       },
-      "notes": "Typora's current file-management docs describe a broader folder surface including File Tree and File List views, open/switch folder, refresh, sorting, move via drag and drop, recent locations, and pinned folders. MF-041 intentionally tracks the minimum parity slice MarkFlow still lacks before those extensions: loading a folder, browsing it in a sidebar, and performing basic open/rename/delete actions. Repo search still shows no folder sidebar or recent-location infrastructure beyond the current single-document shell. Sources: https://support.typora.io/File-Management/ and https://support.typora.io/Quick-Start/."
+      "notes": "Verified minimum file-sidebar parity: MarkFlow can open a folder, show a file tree, and perform open/rename/delete actions from the sidebar. Typora's current file-management docs still describe broader folder-side capabilities that remain outside this verified slice, including File List view, auto/manual refresh, sorting/grouping controls, drag-move, recent-location pinning, and open-in-new-window behavior. Sources: https://support.typora.io/File-Management/ and https://support.typora.io/Quick-Start/."
     },
     {
       "id": "MF-042",
@@ -2745,6 +2745,35 @@
         ]
       },
       "notes": "Typora's Markdown Reference and Line Break docs explicitly distinguish `Return` for a new paragraph from `Shift+Return` for a single line break, with source mode showing a blank line between paragraphs. This run adds WYSIWYG-only plain-paragraph Enter/Shift+Enter handling in `packages/editor/src/editor/extensions/smartInput.ts`, keeps list continuation/exit intact, and adds focused editor tests covering WYSIWYG markdown output, source-mode persistence after rerender, and raw Enter behavior in source/split. Automated verification passed (`pnpm --filter @markflow/editor exec vitest run src/editor/__tests__/smartInput.test.ts src/editor/__tests__/MarkFlowEditor.test.tsx`, `pnpm --filter @markflow/editor lint`, `pnpm --filter @markflow/editor build`), but the listed interactive desktop check is still pending, so `passes` remains false. Sources: https://support.typora.io/Markdown-Reference/ and https://support.typora.io/Line-Break/."
+    },
+    {
+      "id": "MF-106",
+      "title": "Paragraph shortcuts insert table, code fence, and math block scaffolds without raw markdown typing",
+      "category": "phase-1-functional",
+      "area": "@markflow/editor",
+      "priority": 2,
+      "status": "ready",
+      "passes": false,
+      "lastVerifiedAt": null,
+      "dependsOn": [
+        "MF-003",
+        "MF-013",
+        "MF-014"
+      ],
+      "steps": [
+        "Place the caret on a plain paragraph and press `Ctrl+T` on Windows/Linux or `Cmd+Opt+T` on macOS; confirm MarkFlow inserts a valid markdown table scaffold with a header row, separator row, and one body row, then places the caret inside the first editable cell.",
+        "Press `Ctrl+Shift+K` on Windows/Linux or `Cmd+Opt+C` on macOS; confirm a fenced code block scaffold is inserted at the current block and the caret lands inside the fence body.",
+        "Press `Ctrl+Shift+M` on Windows/Linux or `Cmd+Opt+B` on macOS; confirm a `$$` math block scaffold is inserted at the current block and the caret lands inside the math body without corrupting surrounding markdown."
+      ],
+      "verification": {
+        "automated": [
+          "Add shortcut coverage in `packages/editor/src/editor/__tests__/smartInput.test.ts` and `packages/editor/src/editor/__tests__/MarkFlowEditor.test.tsx` for `Ctrl+T`, `Ctrl+Shift+K`, and `Ctrl+Shift+M`, while asserting the macOS overrides `Cmd+Opt+T`, `Cmd+Opt+C`, and `Cmd+Opt+B`, including inserted scaffold text and caret placement."
+        ],
+        "manual": [
+          "Trigger each shortcut in the desktop editor with the platform-correct bindings and confirm the inserted scaffolds stay editable in both WYSIWYG and source modes without regressing existing heading/list paragraph shortcuts."
+        ]
+      },
+      "notes": "Updated on 2026-04-16: `packages/editor/src/editor/extensions/smartInput.ts` now inserts table, fenced code block, and math block markdown scaffolds only when the active selection is a plain paragraph in WYSIWYG mode, using Typora-aligned bindings (`Ctrl+T`, `Ctrl+Shift+K`, `Ctrl+Shift+M` on Windows/Linux; `Cmd+Opt+T`, `Cmd+Opt+C`, `Cmd+Opt+B` on macOS). Automated coverage in `packages/editor/src/editor/__tests__/smartInput.test.ts` and `packages/editor/src/editor/__tests__/MarkFlowEditor.test.tsx` verifies the key mapping constants, inserted scaffold text, caret placement, source-mode no-op behavior, and no-op behavior for representative non-paragraph blocks while keeping surrounding lines intact. Manual desktop verification across WYSIWYG/source is still pending, so `status` remains `ready`, `passes` remains `false`, and `lastVerifiedAt` stays `null`. Source: https://support.typora.io/Shortcut-Keys/."
     }
   ]
 }

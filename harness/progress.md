@@ -9,6 +9,43 @@
 
 ## Session Log
 
+### 2026-04-16 - MF-106 paragraph shortcuts landed with reviewer-accepted paragraph guards
+
+- Author: Codex (Dispatcher)
+- Focus: run the required startup sequence, refresh the Typora parity ledger, implement one newly confirmed editor shortcut gap, and keep the ledger truthful when desktop-only parity still needs manual proof.
+- Research updates:
+  - tightened `MF-041` so its notes now reflect the verified sidebar slice MarkFlow already ships versus Typora's broader file-management surface
+  - added `MF-106` from Typora's `Shortcut Keys`, `Quick Start`, and `File Management` docs for paragraph shortcuts that insert table, code fence, and math block scaffolds
+- What changed:
+  - updated `packages/editor/src/editor/extensions/smartInput.ts` so Typora-style paragraph shortcuts now insert table, fenced code block, and math block scaffolds with platform-correct bindings: `Ctrl+T` / `Cmd+Opt+T`, `Ctrl+Shift+K` / `Cmd+Opt+C`, and `Ctrl+Shift+M` / `Cmd+Opt+B`
+  - kept the implementation constrained to WYSIWYG plain paragraphs by routing the new shortcuts through a shared paragraph guard instead of letting them rewrite headings, quotes, lists, task items, code fences, or source-mode lines
+  - expanded `packages/editor/src/editor/__tests__/smartInput.test.ts` and `packages/editor/src/editor/__tests__/MarkFlowEditor.test.tsx` with scaffold text, caret placement, source-mode no-op, and representative non-paragraph no-op coverage
+  - updated `MF-106` in `harness/feature-ledger.json` to stay truthful at `status=ready`, `passes=false`, and `lastVerifiedAt=null` while recording the landed shortcut mapping and automated evidence
+- Changed files:
+  - `harness/feature-ledger.json`
+  - `packages/editor/src/editor/extensions/smartInput.ts`
+  - `packages/editor/src/editor/__tests__/smartInput.test.ts`
+  - `packages/editor/src/editor/__tests__/MarkFlowEditor.test.tsx`
+  - `harness/progress.md`
+- Simplifications made:
+  - reused the existing paragraph-shortcut framework and `isPlainParagraphSelection()` check instead of adding a separate command palette or desktop command layer
+  - kept the diff scoped to one new feature, one ledger addition, and the minimum regression coverage needed for reviewer acceptance
+- Verification:
+  - `pnpm harness:start` (passes)
+  - `./harness/init.sh --smoke` (passes; reran workspace smoke tests)
+  - `pnpm --filter @markflow/editor test:run -- src/editor/__tests__/smartInput.test.ts src/editor/__tests__/MarkFlowEditor.test.tsx` (passes; the editor package script still executes the full editor suite, now 27 files / 316 tests)
+  - `pnpm --filter @markflow/editor lint` (passes)
+  - `pnpm --filter @markflow/editor build` (passes; existing Vite chunk-size warnings only)
+  - `node scripts/harness/verify.mjs` (passes; 106 total | verified=60 | ready=14 | planned=32 | blocked=0)
+- Review / risks:
+  - Reviewer initially blocked `MF-106` because the first patch rewrote any active line; the follow-up guard fix and added no-op coverage were accepted
+  - `MF-106` must remain `status=ready`, `passes=false`, and `lastVerifiedAt=null` until a real desktop session confirms the shortcuts behave correctly in both WYSIWYG and source mode
+  - the remaining parity risk is narrow but real: manual desktop validation still needs to confirm whether Typora preserves or discards existing paragraph text when these shortcuts fire on a plain paragraph
+- Newly verified features:
+  - none
+- Next recommended feature:
+  - `MF-106` - run the interactive desktop shortcut check for table, code fence, and math block insertion, then flip the ledger only if the live behavior matches the recorded steps
+
 ### 2026-04-16 - MF-060 rerun kept the ledger truthful after another recovery verification pass
 
 - Author: Codex (Dispatcher)

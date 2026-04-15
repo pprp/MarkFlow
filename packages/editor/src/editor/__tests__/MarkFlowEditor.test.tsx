@@ -499,6 +499,79 @@ describe('MarkFlowEditor', () => {
     expect(view.state.doc.toString()).toBe('- Plain paragraph\n- ')
   })
 
+  it('inserts Typora-style table, code fence, and math block scaffolds on the active line only', () => {
+    const content = ['Before', 'Target paragraph', 'After'].join('\n')
+    const { container } = render(
+      <MarkFlowEditor content={content} viewMode="wysiwyg" onChange={vi.fn()} />,
+    )
+
+    const view = getEditorView(container)
+    const middleLineAnchor = view.state.doc.line(2).from + 3
+    const selectMiddleLine = () => {
+      view.dispatch({ selection: { anchor: middleLineAnchor } })
+    }
+
+    selectMiddleLine()
+    dispatchEditorShortcut(view, { key: 't', code: 'KeyT', keyCode: 84, ctrlKey: true })
+    expect(view.state.doc.toString()).toBe(
+      ['Before', '|  |  |', '| --- | --- |', '|  |  |', 'After'].join('\n'),
+    )
+    expect(view.state.selection.main.from).toBe(view.state.doc.line(2).from + 2)
+
+    view.dispatch({
+      changes: { from: 0, to: view.state.doc.length, insert: content },
+      selection: { anchor: middleLineAnchor },
+    })
+
+    dispatchEditorShortcut(view, {
+      key: 'K',
+      code: 'KeyK',
+      keyCode: 75,
+      ctrlKey: true,
+      shiftKey: true,
+    })
+    expect(view.state.doc.toString()).toBe(['Before', '```', '', '```', 'After'].join('\n'))
+    expect(view.state.selection.main.from).toBe(view.state.doc.line(3).from)
+
+    view.dispatch({
+      changes: { from: 0, to: view.state.doc.length, insert: content },
+      selection: { anchor: middleLineAnchor },
+    })
+
+    dispatchEditorShortcut(view, {
+      key: 'M',
+      code: 'KeyM',
+      keyCode: 77,
+      ctrlKey: true,
+      shiftKey: true,
+    })
+    expect(view.state.doc.toString()).toBe(['Before', '$$', '', '$$', 'After'].join('\n'))
+    expect(view.state.selection.main.from).toBe(view.state.doc.line(3).from)
+  })
+
+  it('ignores table/code fence/math block shortcuts in source mode and on non-paragraph blocks', () => {
+    const headingContent = ['# Heading', 'Paragraph'].join('\n')
+    const { container, rerender } = render(
+      <MarkFlowEditor content="Plain paragraph" viewMode="source" onChange={vi.fn()} />,
+    )
+
+    const sourceView = getEditorView(container)
+    sourceView.dispatch({ selection: { anchor: 6 } })
+
+    fireEvent.keyDown(sourceView.contentDOM, { key: 't', ctrlKey: true })
+    expect(sourceView.state.doc.toString()).toBe('Plain paragraph')
+    expect(sourceView.state.selection.main.from).toBe(6)
+
+    rerender(<MarkFlowEditor content={headingContent} viewMode="wysiwyg" onChange={vi.fn()} />)
+
+    const wysiwygView = getEditorView(container)
+    wysiwygView.dispatch({ selection: { anchor: wysiwygView.state.doc.line(1).from + 2 } })
+
+    fireEvent.keyDown(wysiwygView.contentDOM, { key: 't', ctrlKey: true })
+    expect(wysiwygView.state.doc.toString()).toBe(headingContent)
+    expect(wysiwygView.state.selection.main.from).toBe(wysiwygView.state.doc.line(1).from + 2)
+  })
+
   it('creates a blank-line paragraph break on Enter in wysiwyg and preserves it after toggling to source', () => {
     const firstParagraph = 'First paragraph'
     const secondParagraph = 'Second paragraph'

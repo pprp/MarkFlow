@@ -34,6 +34,21 @@ interface SmartInputOptions {
   isWysiwygMode?: () => boolean
 }
 
+export const PARAGRAPH_INSERT_SHORTCUTS = {
+  table: {
+    key: 'Ctrl-t',
+    mac: 'Cmd-Alt-t',
+  },
+  codeFence: {
+    key: 'Ctrl-Shift-k',
+    mac: 'Cmd-Alt-c',
+  },
+  mathBlock: {
+    key: 'Ctrl-Shift-m',
+    mac: 'Cmd-Alt-b',
+  },
+} as const
+
 /** Auto-close paired delimiters */
 function handlePairInput(view: EditorView, char: string): boolean {
   const close = AUTO_CLOSE_PAIRS[char]
@@ -251,6 +266,14 @@ function handleShiftEnter(view: EditorView, options?: SmartInputOptions): boolea
   return insertSelectionBreak(view, '\n')
 }
 
+function canInsertParagraphScaffold(view: EditorView, options?: SmartInputOptions): boolean {
+  if (!options?.isWysiwygMode?.()) {
+    return false
+  }
+
+  return isPlainParagraphSelection(view)
+}
+
 function replaceCurrentLine(view: EditorView, nextText: string): boolean {
   const { state } = view
   const line = state.doc.lineAt(state.selection.main.head)
@@ -261,6 +284,23 @@ function replaceCurrentLine(view: EditorView, nextText: string): boolean {
 
   view.dispatch({
     changes: { from: line.from, to: line.to, insert: nextText },
+  })
+
+  return true
+}
+
+function replaceCurrentLineWithScaffold(
+  view: EditorView,
+  buildScaffold: (indent: string) => { text: string; selectionOffset: number },
+): boolean {
+  const { state } = view
+  const line = state.doc.lineAt(state.selection.main.head)
+  const [, indent] = line.text.match(LEADING_WHITESPACE_RE) ?? ['', '']
+  const { text, selectionOffset } = buildScaffold(indent)
+
+  view.dispatch({
+    changes: { from: line.from, to: line.to, insert: text },
+    selection: { anchor: line.from + selectionOffset },
   })
 
   return true
@@ -361,6 +401,38 @@ function toggleCurrentLineUnorderedList(view: EditorView): boolean {
   return toggleCurrentLineBlock(view, UNORDERED_LIST_RE, (match) => `${match[1]}${match[3]}`, '- ')
 }
 
+function insertTableScaffold(view: EditorView, options?: SmartInputOptions): boolean {
+  if (!canInsertParagraphScaffold(view, options)) {
+    return false
+  }
+
+  return replaceCurrentLineWithScaffold(view, (indent) => ({
+    text: [`${indent}|  |  |`, `${indent}| --- | --- |`, `${indent}|  |  |`].join('\n'),
+    selectionOffset: indent.length + 2,
+  }))
+}
+
+function insertCodeFenceScaffold(view: EditorView, options?: SmartInputOptions): boolean {
+  if (!canInsertParagraphScaffold(view, options)) {
+    return false
+  }
+
+  return replaceCurrentLineWithScaffold(view, (indent) => ({
+    text: [`${indent}\`\`\``, indent, `${indent}\`\`\``].join('\n'),
+    selectionOffset: indent.length * 2 + 4,
+  }))
+}
+
+function insertMathBlockScaffold(view: EditorView, options?: SmartInputOptions): boolean {
+  if (!canInsertParagraphScaffold(view, options)) {
+    return false
+  }
+
+  return replaceCurrentLineWithScaffold(view, (indent) => ({
+    text: [`${indent}$$`, indent, `${indent}$$`].join('\n'),
+    selectionOffset: indent.length * 2 + 3,
+  }))
+}
 
 export function wrapSelectionOrInsert(
   view: EditorView,
@@ -447,6 +519,18 @@ function buildSmartInputKeymap(options?: SmartInputOptions): KeyBinding[] {
     key: 'Mod--',
     preventDefault: true,
     run: (view: EditorView) => adjustCurrentLineHeadingLevel(view, -1),
+  },
+  {
+    ...PARAGRAPH_INSERT_SHORTCUTS.table,
+    run: (view: EditorView) => insertTableScaffold(view, options),
+  },
+  {
+    ...PARAGRAPH_INSERT_SHORTCUTS.codeFence,
+    run: (view: EditorView) => insertCodeFenceScaffold(view, options),
+  },
+  {
+    ...PARAGRAPH_INSERT_SHORTCUTS.mathBlock,
+    run: (view: EditorView) => insertMathBlockScaffold(view, options),
   },
   {
     key: 'Ctrl-Shift-q',

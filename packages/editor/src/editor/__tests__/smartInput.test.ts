@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest'
-import { applyBold, applyItalic, applyUnderline, applyLink } from '../extensions/smartInput'
+import {
+  applyBold,
+  applyItalic,
+  applyUnderline,
+  applyLink,
+  PARAGRAPH_INSERT_SHORTCUTS,
+} from '../extensions/smartInput'
 import { EditorState } from '@codemirror/state'
 import { EditorView, runScopeHandlers } from '@codemirror/view'
 import { smartInput } from '../extensions/smartInput'
@@ -36,6 +42,23 @@ function dispatchEditorKey(view: EditorView, key: string, init: KeyboardEventIni
     key,
     ...init,
   })
+
+  return runScopeHandlers(view, event, 'editor')
+}
+
+function dispatchEditorShortcut(
+  view: EditorView,
+  init: KeyboardEventInit & { key: string; keyCode?: number },
+) {
+  const event = new KeyboardEvent('keydown', {
+    bubbles: true,
+    cancelable: true,
+    ...init,
+  })
+
+  if (typeof init.keyCode === 'number') {
+    Object.defineProperty(event, 'keyCode', { configurable: true, get: () => init.keyCode })
+  }
 
   return runScopeHandlers(view, event, 'editor')
 }
@@ -223,6 +246,116 @@ describe('smartInput — list continuation', () => {
     expect(view.state.doc.toString()).toBe('1. first item\n2. ')
     view.destroy()
   })
+})
+
+describe('smartInput — paragraph block insertion shortcuts', () => {
+  it('keeps the Typora block shortcut mapping aligned with the current official docs', () => {
+    expect(PARAGRAPH_INSERT_SHORTCUTS).toEqual({
+      table: { key: 'Ctrl-t', mac: 'Cmd-Alt-t' },
+      codeFence: { key: 'Ctrl-Shift-k', mac: 'Cmd-Alt-c' },
+      mathBlock: { key: 'Ctrl-Shift-m', mac: 'Cmd-Alt-b' },
+    })
+  })
+
+  it('replaces the current paragraph with a table scaffold and moves the caret into the first cell', () => {
+    const view = makeView('Plain paragraph', 6, { isWysiwygMode: () => true })
+
+    expect(
+      dispatchEditorShortcut(view, {
+        key: 't',
+        code: 'KeyT',
+        keyCode: 84,
+        ctrlKey: true,
+      }),
+    ).toBe(true)
+    expect(view.state.doc.toString()).toBe(['|  |  |', '| --- | --- |', '|  |  |'].join('\n'))
+    expect(view.state.selection.main.from).toBe(2)
+    expect(view.state.selection.main.to).toBe(2)
+
+    view.destroy()
+  })
+
+  it('replaces the current paragraph with a fenced code block scaffold and moves the caret into the body', () => {
+    const view = makeView('Plain paragraph', 6, { isWysiwygMode: () => true })
+
+    expect(
+      dispatchEditorShortcut(view, {
+        key: 'K',
+        code: 'KeyK',
+        keyCode: 75,
+        ctrlKey: true,
+        shiftKey: true,
+      }),
+    ).toBe(true)
+    expect(view.state.doc.toString()).toBe(['```', '', '```'].join('\n'))
+    expect(view.state.selection.main.from).toBe(4)
+    expect(view.state.selection.main.to).toBe(4)
+
+    view.destroy()
+  })
+
+  it('replaces the current paragraph with a math block scaffold and moves the caret into the body', () => {
+    const view = makeView('Plain paragraph', 6, { isWysiwygMode: () => true })
+
+    expect(
+      dispatchEditorShortcut(view, {
+        key: 'M',
+        code: 'KeyM',
+        keyCode: 77,
+        ctrlKey: true,
+        shiftKey: true,
+      }),
+    ).toBe(true)
+    expect(view.state.doc.toString()).toBe(['$$', '', '$$'].join('\n'))
+    expect(view.state.selection.main.from).toBe(3)
+    expect(view.state.selection.main.to).toBe(3)
+
+    view.destroy()
+  })
+
+  it('does nothing for block insertion shortcuts outside WYSIWYG mode', () => {
+    const doc = 'Plain paragraph'
+    const view = makeView(doc, 6, { isWysiwygMode: () => false })
+
+    expect(
+      dispatchEditorShortcut(view, {
+        key: 't',
+        code: 'KeyT',
+        keyCode: 84,
+        ctrlKey: true,
+      }),
+    ).toBe(false)
+    expect(view.state.doc.toString()).toBe(doc)
+    expect(view.state.selection.main.from).toBe(6)
+
+    view.destroy()
+  })
+
+  it.each([
+    ['# Heading', 3],
+    ['> Quote', 3],
+    ['- list item', 4],
+    ['- [ ] task item', 6],
+    ['```\\ncode\\n```'.replace(/\\n/g, '\n'), 5],
+  ])(
+    'does nothing for block insertion shortcuts in non-paragraph content: %s',
+    (doc, cursor) => {
+      const view = makeView(doc, cursor, { isWysiwygMode: () => true })
+
+      expect(
+        dispatchEditorShortcut(view, {
+          key: 't',
+          code: 'KeyT',
+          keyCode: 84,
+          ctrlKey: true,
+        }),
+      ).toBe(false)
+      expect(view.state.doc.toString()).toBe(doc)
+      expect(view.state.selection.main.from).toBe(cursor)
+
+      view.destroy()
+    },
+  )
 })
 
 describe('smartInput — paragraph line breaks', () => {
