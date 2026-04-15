@@ -1112,3 +1112,29 @@
   - none
 - Next recommended feature:
   - `MF-060` - run the manual desktop crash/relaunch recovery flow on a real GUI session, then update the ledger only if the prompt and restored content truly pass
+
+### 2026-04-15 - MF-060 session protocol rerun with truthful verification state retained
+
+- Author: Codex (Dispatcher)
+- Focus: execute the required session-start commands for `MF-060`, re-run the feature's required automated verification, and record the current blockers without widening scope beyond this one desktop recovery feature.
+- What changed:
+  - re-ran `pnpm harness:start`, `./harness/init.sh --smoke`, `pnpm --filter @markflow/desktop test:run -- --grep auto-save`, and `pnpm harness:verify` against the existing `MF-060` recovery-checkpoint implementation.
+  - re-read the shipped recovery flow in `packages/desktop/src/main/fileManager.ts`, `packages/desktop/src/main/index.ts`, `packages/desktop/src/preload/index.ts`, `packages/shared/src/index.ts`, `packages/editor/src/App.tsx`, `packages/desktop/src/main/fileManager.test.ts`, and `packages/editor/src/__tests__/App.test.tsx` to confirm this session did not need a code change to satisfy the feature scope.
+  - left `harness/feature-ledger.json` unchanged because this CLI session still cannot truthfully complete the required manual crash/relaunch acceptance flow.
+- Simplifications made:
+  - kept the session as a verification-only pass because commit `517805b` already landed the main-process debounce, recovery checkpoint persistence, and renderer recovery prompt path.
+  - did not touch unrelated dirty worktree files under `packages/editor/src/editor/` even though they currently affect broad editor smoke coverage.
+- Verification:
+  - `pnpm harness:start` (passes)
+  - `./harness/init.sh --smoke` (fails in current worktree because `packages/editor/src/editor/__tests__/inlineHtmlDecoration.test.ts` has unrelated failing inline-HTML expectations)
+  - `pnpm --filter @markflow/desktop test:run -- --grep auto-save` (passes; current desktop suite still reports 5 files / 22 tests for this filtered command)
+  - `pnpm --filter @markflow/editor test:run -- src/__tests__/App.test.tsx --grep "App auto-save"` (fails because the package script still executes the broader editor suite, which currently includes unrelated inline-HTML failures from dirty worktree changes in `packages/editor/src/editor/decorations/inlineHtmlDecoration.ts` and its test file)
+  - `pnpm harness:verify` (passes; 102 total | verified=60 | ready=7 | planned=35 | blocked=0)
+- Review / risks:
+  - `MF-060` still cannot move to `passes=true` until someone performs the real GUI flow: edit, wait at least 35 seconds, kill the process, relaunch MarkFlow, accept the recovery prompt, and confirm restored content.
+  - the repo is currently dirty outside this feature in `packages/editor/src/editor/decorations/inlineHtmlDecoration.ts` and `packages/editor/src/editor/__tests__/inlineHtmlDecoration.test.ts`; those changes are out of scope here but they currently make the smoke init command and broad editor test invocations noisy.
+  - because the manual recovery proof remains absent, `MF-060` must stay `status=planned`, `passes=false`, and `lastVerifiedAt=null`.
+- Newly verified features:
+  - none
+- Next recommended feature:
+  - `MF-060` - run the manual desktop crash/relaunch recovery flow on a real GUI session, then update the ledger only if the prompt and restored content truly pass
