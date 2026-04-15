@@ -3045,3 +3045,29 @@
   - none
 - Next recommended feature:
   - `MF-060` - complete the crash/relaunch recovery flow in a GUI session with direct human control or working Accessibility permission, then update the ledger only if the prompt and restored content truly pass
+
+### 2026-04-16 - MF-060 final rerun stayed truthful on top of the new `HEAD`
+
+- Author: Codex (Dispatcher)
+- Focus: re-anchor `MF-060` on the current branch head after an unrelated concurrent commit advanced the repository during this session.
+- What changed:
+  - re-ran the required `MF-060` automated verification on the current `HEAD`: `pnpm --filter @markflow/desktop test:run -- --grep auto-save`, `pnpm --filter @markflow/desktop exec vitest run src/main/fileManager.test.ts -t "auto-save recovery checkpoints"`, `pnpm --filter @markflow/editor exec vitest run src/__tests__/App.test.tsx -t "App auto-save"`, and `pnpm harness:verify`
+  - re-ran the direct manual-path capability probes with `swift -e 'import ApplicationServices; print(AXIsProcessTrusted())'`, `osascript -e 'return 1'`, and a timed `System Events` query
+  - kept `MF-060` production files and `harness/feature-ledger.json` unchanged because the feature still passes automation while the required GUI acceptance step remains blocked in this environment
+- Changed files:
+  - `harness/progress.md`
+- Simplifications made:
+  - avoided any further code or ledger churn once the only remaining gap was the blocked manual recovery prompt
+- Verification:
+  - `pnpm --filter @markflow/desktop test:run -- --grep auto-save` (passes; 6 files / 25 tests)
+  - `pnpm --filter @markflow/desktop exec vitest run src/main/fileManager.test.ts -t "auto-save recovery checkpoints"` (passes; 2 focused recovery tests)
+  - `pnpm --filter @markflow/editor exec vitest run src/__tests__/App.test.tsx -t "App auto-save"` (passes; 5 focused renderer recovery tests)
+  - `pnpm harness:verify` (passes; 106 total | verified=62 | ready=12 | planned=32 | blocked=0)
+  - manual-verification capability probes (blocked): `swift -e 'import ApplicationServices; print(AXIsProcessTrusted())'` returned `false`, `osascript -e 'return 1'` returned `1`, and the timed `System Events` query returned `timeout`
+- Review / risks:
+  - `MF-060` still must remain `status=planned`, `passes=false`, and `lastVerifiedAt=null` until a real GUI session kills MarkFlow after a 35-second dirty idle period, relaunches it, accepts the recovery prompt, and confirms the restored checkpoint content
+  - the remaining blocker is still environment-specific: this terminal session cannot truthfully accept the recovery dialog because Accessibility trust is absent and `System Events` does not respond
+- Newly verified features:
+  - none
+- Next recommended feature:
+  - `MF-060` - complete the crash/relaunch recovery flow in a GUI session with direct human control or working Accessibility permission, then update the ledger only if the prompt and restored content truly pass
