@@ -1143,6 +1143,35 @@
 - Next recommended feature:
   - `MF-060` - run the manual desktop crash/relaunch recovery flow on a real GUI session, then update the ledger only if the prompt and restored content truly pass
 
+### 2026-04-15 - MF-060 live crash-relaunch proof advanced, recovery acceptance still blocked
+
+- Author: Codex (Dispatcher)
+- Focus: execute the required `MF-060` session-start protocol, re-run the mandated automated verification, and push the pending desktop manual proof as far as the current terminal-controlled Electron environment would truthfully allow.
+- What changed:
+  - re-ran `pnpm harness:start`, `./harness/init.sh --smoke`, `pnpm --filter @markflow/desktop test:run -- --grep auto-save`, `pnpm --filter @markflow/desktop exec vitest run src/main/fileManager.test.ts -t "auto-save recovery checkpoints"`, `pnpm --filter @markflow/editor exec vitest run src/__tests__/App.test.tsx -t "App auto-save"`, and `pnpm harness:verify` against the already-landed `MF-060` implementation.
+  - re-read the existing recovery flow in `packages/desktop/src/main/fileManager.ts`, `packages/desktop/src/preload/index.ts`, `packages/desktop/src/main/index.ts`, `packages/shared/src/index.ts`, `packages/editor/src/App.tsx`, and the paired desktop/editor tests; no product-code change was needed for this feature in this session.
+  - appended this handoff and left `harness/feature-ledger.json` unchanged because the full recovery-prompt acceptance path still could not be closed with terminal-only GUI control.
+- Simplifications made:
+  - kept the repository diff to session bookkeeping only instead of perturbing shipped recovery code that already satisfies the automated scope.
+  - used a single live Electron probe string (`RECOVERY_PROBE`) to verify checkpoint persistence rather than widening into extra fixture or script work.
+- Verification:
+  - `pnpm harness:start` (passes)
+  - `./harness/init.sh --smoke` (passes)
+  - `pnpm --filter @markflow/desktop test:run -- --grep auto-save` (passes; current desktop package still runs the 5 desktop test files / 22 tests)
+  - `pnpm --filter @markflow/desktop exec vitest run src/main/fileManager.test.ts -t "auto-save recovery checkpoints"` (passes; 2 focused recovery tests)
+  - `pnpm --filter @markflow/editor exec vitest run src/__tests__/App.test.tsx -t "App auto-save"` (passes; 5 focused app auto-save tests)
+  - `pnpm harness:verify` (passes; 102 total | verified=60 | ready=9 | planned=33 | blocked=0)
+  - live Electron probe (partial pass): launched a real desktop instance, inserted `RECOVERY_PROBE` into the editor buffer through the running renderer, waited 35 seconds, confirmed `/var/folders/dl/qdq_vh116gl1yjbd8pxk_bd00000gn/T/.markflow-recovery` was written with the probe content, then killed the Electron process with `SIGKILL` and confirmed `/Users/pprp/Library/Application Support/@markflow/desktop/.markflow-recovery-session.json` still contained `{"cleanExit":false}`.
+  - live Electron recovery acceptance (blocked): relaunching the real app succeeded, but the current terminal-controlled environment could not reliably accept and then read back through the recovery confirmation dialog; repeated CDP attempts stalled once the dialog gate was active, so the final “accept recovery and confirm restored content” step remains unproven here.
+- Review / risks:
+  - `MF-060` still cannot move to `status=verified`, `passes=true`, or receive a `lastVerifiedAt` timestamp until someone completes the last live step: relaunch MarkFlow, accept the recovery prompt, and confirm the restored document still includes the checkpointed content.
+  - the remaining gap is no longer “did a checkpoint get written?” or “did crash state survive?”; it is specifically the interactive recovery-prompt acceptance/readback proof in a GUI session with reliable dialog control.
+  - because the live recovery acceptance remained blocked, the ledger must stay truthful at `status=planned`, `passes=false`, and `lastVerifiedAt=null`.
+- Newly verified features:
+  - none
+- Next recommended feature:
+  - `MF-060` - finish the real desktop recovery prompt acceptance/readback step on a GUI session with reliable dialog control, then update the ledger only if the restored content truly matches the checkpoint
+
 ### 2026-04-15 - MF-060 session protocol rerun with truthful verification state retained
 
 - Author: Codex (Dispatcher)
