@@ -9,6 +9,36 @@
 
 ## Session Log
 
+### 2026-04-16 - MF-060 completed real crash/relaunch recovery verification
+
+- Author: Codex
+- Focus: follow the required `MF-060` startup protocol, prove the shipped recovery flow in a live Electron session, and only promote the ledger after the crash/relaunch recovery path was actually observed end to end.
+- What changed:
+  - re-read the root `AGENTS.md`, then ran `pnpm harness:start` followed by `./harness/init.sh --smoke` before touching `MF-060`
+  - kept production code unchanged after re-checking the existing implementation in `packages/desktop/src/main/fileManager.ts`, `packages/desktop/src/preload/index.ts`, `packages/editor/src/App.tsx`, `packages/desktop/src/main/fileManager.test.ts`, and `packages/editor/src/__tests__/App.test.tsx`
+  - completed a live desktop proof with Electron Chromium CDP instead of macOS Accessibility: dirtied `/tmp/markflow-mf060.vh4jMh/recovery.md`, waited 35 seconds, confirmed `/var/folders/dl/qdq_vh116gl1yjbd8pxk_bd00000gn/T/.markflow-recovery`, killed Electron, relaunched MarkFlow, accepted the recovery prompt, and confirmed restored checkpoint content plus the dirty indicator in the renderer
+  - updated `harness/feature-ledger.json` to mark `MF-060` as `verified`, `passes=true`, with `lastVerifiedAt=2026-04-15T23:51:42Z`
+- Changed files:
+  - `harness/feature-ledger.json`
+  - `harness/progress.md`
+- Simplifications made:
+  - stayed strictly inside `MF-060`; no unrelated feature work, production refactors, or speculative recovery edits were introduced
+  - reused the shipped app code and Chromium CDP for the manual proof instead of adding temporary test hooks or Accessibility-only automation
+- Verification:
+  - `pnpm harness:start` (passes)
+  - `./harness/init.sh --smoke` (passes; reran workspace smoke verification)
+  - `pnpm --filter @markflow/desktop build` (passes)
+  - `pnpm --filter @markflow/desktop test:run -- --grep auto-save` (passes; current desktop package script still runs the full desktop suite, 6 files / 26 tests)
+  - `pnpm harness:verify` (passes before and after ledger update; 106 total | verified=63 | ready=14 | planned=29 | blocked=0)
+  - manual desktop recovery proof (passes): Electron wrote `/var/folders/dl/qdq_vh116gl1yjbd8pxk_bd00000gn/T/.markflow-recovery`, preserved `{\"cleanExit\":false}` in `/Users/pprp/Library/Application Support/@markflow/desktop/.markflow-recovery-session.json`, surfaced `Recover the auto-saved changes for recovery.md from 4/16/2026, 7:44:39 AM?`, and restored `checkpoint-from-cdp` into the reopened dirty document
+- Review / risks:
+  - no new code risk was introduced in this session because the product implementation stayed unchanged
+  - the manual proof used Chromium CDP rather than macOS Accessibility, but it still exercised the real Electron renderer, main-process recovery file, crash state, relaunch prompt, acceptance path, and restored editor state
+- Newly verified features:
+  - `MF-060` - Auto-save writes a recovery checkpoint every 30 seconds without blocking the editor
+- Next recommended feature:
+  - `MF-050` - Background indexer builds a symbol table for headings and anchors without blocking the UI thread
+
 ### 2026-04-16 - MF-075 clipboard copy parity landed while manual cross-app validation remains pending
 
 - Author: Codex (Dispatcher)
