@@ -1085,3 +1085,30 @@
   - none
 - Next recommended feature:
   - `MF-060` - run the manual crash/relaunch recovery flow on a real desktop session, then update the ledger only if it truly passes
+
+### 2026-04-15 - MF-060 verification rerun, manual desktop recovery still pending
+
+- Author: Codex (Dispatcher)
+- Focus: re-run the required `MF-060` session-start and verification flow against the already-landed recovery-checkpoint implementation, and keep the ledger truthful while the desktop crash/relaunch proof remains unavailable in this CLI session.
+- What changed:
+  - re-read the current `MF-060` implementation in `packages/desktop/src/main/fileManager.ts`, `packages/desktop/src/main/index.ts`, `packages/desktop/src/preload/index.ts`, `packages/shared/src/index.ts`, `packages/editor/src/App.tsx`, and the paired desktop/editor tests to confirm the shipped scope still matches the feature contract.
+  - re-ran the required startup flow with `pnpm harness:start` and `./harness/init.sh --smoke`, then re-ran the feature's automated verification plus the renderer-side recovery regression.
+  - left production code unchanged because the repository already contains the full recovery-checkpoint implementation from commit `517805b`, and this session did not uncover a new `MF-060` defect that justified widening the diff.
+  - left `harness/feature-ledger.json` unchanged because the required manual kill/relaunch recovery check could not be completed here.
+- Simplifications made:
+  - kept the session scoped to `MF-060` validation only instead of perturbing working recovery code or widening into unrelated desktop polish.
+  - treated the existing desktop and renderer recovery tests as the automation boundary, with no speculative refactor on top.
+- Verification:
+  - `pnpm harness:start` (passes)
+  - `./harness/init.sh --smoke` (passes)
+  - `pnpm --filter @markflow/desktop test:run -- --grep auto-save` (passes; current desktop package still executes 5 files / 22 tests for this filtered command)
+  - `pnpm --filter @markflow/editor test:run -- --grep "App auto-save"` (passes; current editor package still executes 27 files / 297 tests for this filtered command)
+  - `pnpm harness:verify` (passes; 102 total | verified=60 | ready=7 | planned=35 | blocked=0)
+- Review / risks:
+  - this CLI session still cannot perform the required interactive desktop proof: wait 35 seconds, kill the Electron process, relaunch MarkFlow, accept the recovery prompt, and visually confirm restored content.
+  - because that manual proof is still missing, `MF-060` must remain `status=planned`, `passes=false`, and `lastVerifiedAt=null` even though the implementation and automated tests are present in the repo.
+  - the current recovery prompt remains `window.confirm`; that is sufficient for the acceptance path already implemented, but it is still plain shell UX rather than a desktop-native dialog.
+- Newly verified features:
+  - none
+- Next recommended feature:
+  - `MF-060` - run the manual desktop crash/relaunch recovery flow on a real GUI session, then update the ledger only if the prompt and restored content truly pass
