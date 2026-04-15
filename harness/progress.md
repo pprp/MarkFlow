@@ -1863,6 +1863,43 @@
 - Next recommended feature:
   - `MF-060` - complete the crash/relaunch recovery flow in a GUI session with direct human control or working Accessibility permission, then update the ledger only if the prompt and restored content truly pass
 
+### 2026-04-16 - MF-105 mapped WYSIWYG Enter and Shift+Enter to Typora-style paragraph breaks
+
+- Author: Codex (Dispatcher)
+- Focus: follow the required startup protocol, implement only `MF-105`, and leave ledger state truthful while terminal-only manual verification remains unavailable.
+- What changed:
+  - re-ran `pnpm harness:start` and `./harness/init.sh --smoke`, then read the `MF-105` ledger entry plus the current editor input path in `packages/editor/src/editor/extensions/smartInput.ts`, `packages/editor/src/editor/MarkFlowEditor.tsx`, and the related editor tests
+  - updated `packages/editor/src/editor/extensions/smartInput.ts` so `smartInput` now runs at highest keymap precedence, keeps list continuation/exit behavior, and adds WYSIWYG-only top-level plain-paragraph handling: `Enter` inserts `\n\n`, while `Shift+Enter` inserts a single `\n`
+  - threaded the live `viewMode` into `packages/editor/src/editor/MarkFlowEditor.tsx` so the same persistent editor view applies Typora-style paragraph breaks only in `wysiwyg`, while `source` and `split` keep raw single-newline Enter behavior
+  - added regression coverage in `packages/editor/src/editor/__tests__/smartInput.test.ts` and `packages/editor/src/editor/__tests__/MarkFlowEditor.test.tsx` for plain-paragraph Enter, Shift+Enter, source/split Enter fallback, and markdown persistence after toggling between WYSIWYG and source mode
+  - updated `harness/feature-ledger.json` to keep `MF-105` truthful as `status=ready`, `passes=false`, and `lastVerifiedAt=null` because automated verification passed but the required interactive desktop check did not run in this session
+- Changed files:
+  - `harness/feature-ledger.json`
+  - `harness/progress.md`
+  - `packages/editor/src/editor/extensions/smartInput.ts`
+  - `packages/editor/src/editor/MarkFlowEditor.tsx`
+  - `packages/editor/src/editor/__tests__/smartInput.test.ts`
+  - `packages/editor/src/editor/__tests__/MarkFlowEditor.test.tsx`
+- Simplifications made:
+  - scoped the new paragraph-break behavior to top-level plain paragraphs in `wysiwyg`, leaving list, quote, code, source, and split-mode Enter behavior on the existing paths
+  - reused the existing `smartInput` extension and persistent `MarkFlowEditor` instance instead of introducing a separate command layer or mode-specific editor recreation
+- Verification:
+  - `pnpm harness:start` (passes)
+  - `./harness/init.sh --smoke` (passes; reran workspace smoke tests plus `pnpm harness:verify`)
+  - `pnpm --filter @markflow/editor exec vitest run src/editor/__tests__/MarkFlowEditor.test.tsx src/editor/__tests__/smartInput.test.ts` (passes; 2 files / 76 tests)
+  - `pnpm --filter @markflow/editor test:run -- src/editor/__tests__/MarkFlowEditor.test.tsx src/editor/__tests__/smartInput.test.ts` (passes; the package script still executes the full editor suite, currently 27 files / 304 tests)
+  - `pnpm --filter @markflow/editor lint -- src/editor/extensions/smartInput.ts src/editor/MarkFlowEditor.tsx src/editor/__tests__/smartInput.test.ts src/editor/__tests__/MarkFlowEditor.test.tsx` (passes)
+  - `pnpm --filter @markflow/editor build` (passes)
+  - `pnpm harness:verify` (passes)
+  - manual verification not run: this terminal session did not provide a truthful interactive desktop check for the listed Electron acceptance steps
+- Review / risks:
+  - `MF-105` should not move to `passes=true` or receive `lastVerifiedAt` until a real desktop session confirms WYSIWYG `Enter`, WYSIWYG `Shift+Enter`, and existing list-continuation Enter behavior together
+  - the new paragraph-break path intentionally applies only when the markdown parser still sees a top-level plain paragraph; richer contexts continue to follow existing behavior and may need separate features if Typora parity is later extended there
+- Newly verified features:
+  - none
+- Next recommended feature:
+  - `MF-105` - run the interactive desktop check for WYSIWYG Enter, Shift+Enter, and list continuation, then flip the ledger to `passes=true` only if all three behaviors match the manual acceptance steps
+
 ### 2026-04-16 - MF-060 rerun kept the blocker documented while required verification stayed green
 
 - Author: Codex (Dispatcher)

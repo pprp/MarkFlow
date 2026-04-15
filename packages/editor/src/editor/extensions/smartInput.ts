@@ -1,3 +1,5 @@
+import { ensureSyntaxTree, syntaxTree } from '@codemirror/language'
+import { Prec } from '@codemirror/state'
 import { EditorView, KeyBinding, keymap } from '@codemirror/view'
 
 const STRUCTURAL_PAIRS: Record<string, string> = {
@@ -27,6 +29,10 @@ const BLOCKQUOTE_RE = /^(\s*)>\s?(.*)$/
 const TASK_LIST_RE = /^(\s*)([-*+])\s\[[ xX]\]\s(.*)$/
 const ORDERED_LIST_RE = /^(\s*)(\d+)\.\s(.*)$/
 const UNORDERED_LIST_RE = /^(\s*)([-*+])\s(?!\[[ xX]\]\s)(.*)$/
+
+interface SmartInputOptions {
+  isWysiwygMode?: () => boolean
+}
 
 /** Auto-close paired delimiters */
 function handlePairInput(view: EditorView, char: string): boolean {
@@ -121,8 +127,45 @@ function handleBackspace(view: EditorView): boolean {
   return false
 }
 
+function isPlainParagraphSelection(view: EditorView): boolean {
+  const { state } = view
+  const sel = state.selection.main
+  if (!sel.empty) return false
+
+  const tree = ensureSyntaxTree(state, sel.from, 50) ?? syntaxTree(state)
+  const positions =
+    state.doc.length === 0 ? [0] : Array.from(new Set([sel.from, Math.max(0, sel.from - 1)]))
+
+  for (const position of positions) {
+    let node = tree.resolveInner(position, -1)
+    while (true) {
+      if (node.name === 'Paragraph') {
+        return node.parent?.name === 'Document'
+      }
+
+      const parent = node.parent
+      if (!parent) {
+        break
+      }
+
+      node = parent
+    }
+  }
+
+  return false
+}
+
+function insertSelectionBreak(view: EditorView, text: string): boolean {
+  const { from, to } = view.state.selection.main
+  view.dispatch({
+    changes: { from, to, insert: text },
+    selection: { anchor: from + text.length },
+  })
+  return true
+}
+
 /** Continue list items on Enter, or exit empty list item */
-function handleEnter(view: EditorView): boolean {
+function handleEnter(view: EditorView, options?: SmartInputOptions): boolean {
   const { state } = view
   const sel = state.selection.main
   if (!sel.empty) return false
@@ -189,7 +232,23 @@ function handleEnter(view: EditorView): boolean {
     return true
   }
 
+  if (options?.isWysiwygMode?.() && isPlainParagraphSelection(view)) {
+    return insertSelectionBreak(view, '\n\n')
+  }
+
   return false
+}
+
+function handleShiftEnter(view: EditorView, options?: SmartInputOptions): boolean {
+  if (!options?.isWysiwygMode?.()) {
+    return false
+  }
+
+  if (!isPlainParagraphSelection(view)) {
+    return false
+  }
+
+  return insertSelectionBreak(view, '\n')
 }
 
 function replaceCurrentLine(view: EditorView, nextText: string): boolean {
@@ -367,7 +426,8 @@ export function applyLink(view: EditorView): boolean {
   return true
 }
 
-const smartInputKeymap: KeyBinding[] = [
+function buildSmartInputKeymap(options?: SmartInputOptions): KeyBinding[] {
+  return [
   ...Array.from({ length: 6 }, (_, index) => ({
     key: `Mod-${index + 1}`,
     preventDefault: true,
@@ -437,8 +497,12 @@ const smartInputKeymap: KeyBinding[] = [
     run: applyLink,
   },
   {
+    key: 'Shift-Enter',
+    run: (view: EditorView) => handleShiftEnter(view, options),
+  },
+  {
     key: 'Enter',
-    run: handleEnter,
+    run: (view: EditorView) => handleEnter(view, options),
   },
   {
     key: 'Backspace',
@@ -453,7 +517,8 @@ const smartInputKeymap: KeyBinding[] = [
     run: (view: EditorView) => handleMarkdownDelimiterInput(view, char),
   })),
 ]
+}
 
-export function smartInput() {
-  return keymap.of(smartInputKeymap)
+export function smartInput(options?: SmartInputOptions) {
+  return Prec.highest(keymap.of(buildSmartInputKeymap(options)))
 }

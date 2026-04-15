@@ -2717,6 +2717,34 @@
         ]
       },
       "notes": "Typora documents separate light and dark theme behavior that follows system appearance automatically. This run extends `packages/desktop/src/main/themeManager.ts`, `packages/desktop/src/preload/index.ts`, `packages/shared/src/index.ts`, and `packages/editor/src/App.tsx` so MarkFlow persists independent light/dark theme ids, exposes them to the renderer, and updates the active theme on Electron `nativeTheme` changes; focused desktop and renderer tests were added, but manual OS-level verification is still pending so `passes` remains false. Sources: https://support.typora.io/Dark-Mode/ and https://support.typora.io/."
+    },
+    {
+      "id": "MF-105",
+      "title": "Enter creates a new paragraph while Shift+Enter inserts a single line break with Typora-style source mapping",
+      "category": "phase-1-functional",
+      "area": "@markflow/editor",
+      "priority": 1,
+      "status": "ready",
+      "passes": false,
+      "lastVerifiedAt": null,
+      "dependsOn": [
+        "MF-004",
+        "MF-006"
+      ],
+      "steps": [
+        "In WYSIWYG mode, place the caret at the end of a plain paragraph and press Enter; confirm the editor starts a new paragraph instead of inserting a lone source newline.",
+        "Switch to source mode after that edit and confirm the markdown now contains a blank line between the two paragraphs.",
+        "In WYSIWYG mode, press Shift+Enter inside a paragraph and confirm the editor inserts a single visible line break while keeping the text in the same paragraph when rendered."
+      ],
+      "verification": {
+        "automated": [
+          "Add editor tests for plain-paragraph Enter and Shift+Enter handling outside lists, including the resulting markdown after toggling between WYSIWYG and source modes."
+        ],
+        "manual": [
+          "Interactive desktop check: verify Enter creates a new paragraph, Shift+Enter creates a single line break, and existing list-continuation Enter behavior still works."
+        ]
+      },
+      "notes": "Typora's Markdown Reference and Line Break docs explicitly distinguish `Return` for a new paragraph from `Shift+Return` for a single line break, with source mode showing a blank line between paragraphs. This run adds WYSIWYG-only plain-paragraph Enter/Shift+Enter handling in `packages/editor/src/editor/extensions/smartInput.ts`, keeps list continuation/exit intact, and adds focused editor tests covering WYSIWYG markdown output, source-mode persistence after rerender, and raw Enter behavior in source/split. Automated verification passed (`pnpm --filter @markflow/editor exec vitest run src/editor/__tests__/smartInput.test.ts src/editor/__tests__/MarkFlowEditor.test.tsx`, `pnpm --filter @markflow/editor lint`, `pnpm --filter @markflow/editor build`), but the listed interactive desktop check is still pending, so `passes` remains false. Sources: https://support.typora.io/Markdown-Reference/ and https://support.typora.io/Line-Break/."
     }
   ]
 }

@@ -14,22 +14,27 @@ const STRUCTURAL_PAIRS = [
   ['`', '`'],
 ] as const
 
-function makeView(doc: string, cursor: number) {
+function makeView(
+  doc: string,
+  cursor: number,
+  options?: Parameters<typeof smartInput>[0],
+) {
   const state = EditorState.create({
     doc,
     selection: { anchor: cursor },
-    extensions: [markdown({ base: markdownLanguage }), smartInput()],
+    extensions: [markdown({ base: markdownLanguage }), smartInput(options)],
   })
   const parent = document.createElement('div')
   document.body.appendChild(parent)
   return new EditorView({ state, parent })
 }
 
-function dispatchEditorKey(view: EditorView, key: string) {
+function dispatchEditorKey(view: EditorView, key: string, init: KeyboardEventInit = {}) {
   const event = new KeyboardEvent('keydown', {
     bubbles: true,
     cancelable: true,
     key,
+    ...init,
   })
 
   return runScopeHandlers(view, event, 'editor')
@@ -162,7 +167,6 @@ describe('smartInput — list continuation', () => {
     const doc = '- item one'
     const view = makeView(doc, doc.length)
 
-    // Simulate Enter by dispatching the transaction our handler would produce
     const line = view.state.doc.lineAt(view.state.selection.main.from)
     const lineText = line.text
     const bulletMatch = lineText.match(/^(\s*)([-*+])\s(.*)$/)
@@ -217,6 +221,42 @@ describe('smartInput — list continuation', () => {
     })
 
     expect(view.state.doc.toString()).toBe('1. first item\n2. ')
+    view.destroy()
+  })
+})
+
+describe('smartInput — paragraph line breaks', () => {
+  it('creates a new paragraph on Enter in WYSIWYG mode', () => {
+    const doc = 'Alpha'
+    const view = makeView(doc, doc.length, { isWysiwygMode: () => true })
+
+    expect(dispatchEditorKey(view, 'Enter')).toBe(true)
+    expect(view.state.doc.toString()).toBe('Alpha\n\n')
+    expect(view.state.selection.main.from).toBe(7)
+    expect(view.state.selection.main.to).toBe(7)
+
+    view.destroy()
+  })
+
+  it('inserts a single line break on Shift+Enter in WYSIWYG mode', () => {
+    const doc = 'Alpha'
+    const view = makeView(doc, doc.length, { isWysiwygMode: () => true })
+
+    expect(dispatchEditorKey(view, 'Enter', { shiftKey: true })).toBe(true)
+    expect(view.state.doc.toString()).toBe('Alpha\n')
+    expect(view.state.selection.main.from).toBe(6)
+    expect(view.state.selection.main.to).toBe(6)
+
+    view.destroy()
+  })
+
+  it('leaves plain-paragraph Enter untouched outside WYSIWYG mode', () => {
+    const doc = 'Alpha'
+    const view = makeView(doc, doc.length, { isWysiwygMode: () => false })
+
+    expect(dispatchEditorKey(view, 'Enter')).toBe(false)
+    expect(view.state.doc.toString()).toBe(doc)
+
     view.destroy()
   })
 })

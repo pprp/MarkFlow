@@ -499,6 +499,65 @@ describe('MarkFlowEditor', () => {
     expect(view.state.doc.toString()).toBe('- Plain paragraph\n- ')
   })
 
+  it('creates a blank-line paragraph break on Enter in wysiwyg and preserves it after toggling to source', () => {
+    const firstParagraph = 'First paragraph'
+    const secondParagraph = 'Second paragraph'
+    const markdown = `${firstParagraph}\n\n${secondParagraph}`
+    const { container, rerender } = render(
+      <MarkFlowEditor content={firstParagraph} viewMode="wysiwyg" onChange={vi.fn()} />,
+    )
+
+    const view = getEditorView(container)
+    view.dispatch({ selection: { anchor: view.state.doc.length } })
+
+    dispatchEditorShortcut(view, { key: 'Enter', code: 'Enter', keyCode: 13 })
+    expect(view.state.doc.toString()).toBe(`${firstParagraph}\n\n`)
+
+    view.dispatch(view.state.replaceSelection(secondParagraph))
+    expect(view.state.doc.toString()).toBe(markdown)
+
+    rerender(<MarkFlowEditor content={markdown} viewMode="source" onChange={vi.fn()} />)
+
+    const sourceView = getEditorView(container)
+    expect(sourceView).toBe(view)
+    expect(sourceView.state.doc.toString()).toBe(markdown)
+  })
+
+  it('inserts a single line break on Shift+Enter in wysiwyg and keeps the markdown as one paragraph after toggling', () => {
+    const firstLine = 'First line'
+    const secondLine = 'Second line'
+    const markdown = `${firstLine}\n${secondLine}`
+    const { container, rerender } = render(
+      <MarkFlowEditor content={firstLine} viewMode="wysiwyg" onChange={vi.fn()} />,
+    )
+
+    const view = getEditorView(container)
+    view.dispatch({ selection: { anchor: view.state.doc.length } })
+
+    dispatchEditorShortcut(view, { key: 'Enter', code: 'Enter', keyCode: 13, shiftKey: true })
+    expect(view.state.doc.toString()).toBe(`${firstLine}\n`)
+
+    view.dispatch(view.state.replaceSelection(secondLine))
+    expect(view.state.doc.toString()).toBe(markdown)
+
+    rerender(<MarkFlowEditor content={markdown} viewMode="source" onChange={vi.fn()} />)
+
+    const sourceView = getEditorView(container)
+    expect(sourceView).toBe(view)
+    expect(sourceView.state.doc.toString()).toBe(markdown)
+  })
+
+  it.each(['source', 'split'] as const)('keeps %s mode Enter as a raw single newline', (viewMode) => {
+    const { container } = render(<MarkFlowEditor content="Alpha" viewMode={viewMode} onChange={vi.fn()} />)
+
+    const view = getEditorView(container)
+    view.dispatch({ selection: { anchor: view.state.doc.length } })
+
+    fireEvent.keyDown(view.contentDOM, { key: 'Enter' })
+
+    expect(view.state.doc.toString()).toBe('Alpha\n')
+  })
+
   it('does not rewrite existing task list lines when paragraph shortcuts run', () => {
     const { container } = render(
       <MarkFlowEditor content="- [ ] Task item" viewMode="wysiwyg" onChange={vi.fn()} />,

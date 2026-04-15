@@ -160,6 +160,7 @@ function getEditorExtensions(
   onToggleModeRef: React.MutableRefObject<MarkFlowEditorProps['onToggleMode']>,
   onToggleFocusModeRef: React.MutableRefObject<MarkFlowEditorProps['onToggleFocusMode']>,
   onToggleTypewriterModeRef: React.MutableRefObject<MarkFlowEditorProps['onToggleTypewriterMode']>,
+  viewModeRef: React.MutableRefObject<ViewMode>,
   pruneHistoryRef: React.MutableRefObject<((view: EditorView) => void) | null>,
   viewModeCompartment: Compartment,
   focusModeCompartment: Compartment,
@@ -230,7 +231,7 @@ function getEditorExtensions(
     ]),
     EditorView.clickAddsSelectionRange.of((event) => event.altKey),
     smartTypographyExtension(),
-    smartInput(),
+    smartInput({ isWysiwygMode: () => viewModeRef.current === 'wysiwyg' }),
     smartPasteExtension(),
     headingFoldExtension(),
     spellCheckExtension(),
@@ -299,6 +300,7 @@ export function MarkFlowEditor({
   const onToggleFocusModeRef = useRef(onToggleFocusMode)
   const onToggleTypewriterModeRef = useRef(onToggleTypewriterMode)
   const filePathRef = useRef(filePath)
+  const viewModeRef = useRef(viewMode)
   const pruneHistoryRef = useRef<((view: EditorView) => void) | null>(null)
   const viewModeCompartmentRef = useRef(new Compartment())
   const focusModeCompartmentRef = useRef(new Compartment())
@@ -349,6 +351,10 @@ export function MarkFlowEditor({
     filePathRef.current = filePath
   }, [filePath])
 
+  useEffect(() => {
+    viewModeRef.current = viewMode
+  }, [viewMode])
+
   pruneHistoryRef.current = (view: EditorView) => {
     if (undoDepth(view.state) <= MAX_UNDO_HISTORY_EVENTS) {
       return
@@ -368,6 +374,7 @@ export function MarkFlowEditor({
       onToggleModeRef,
       onToggleFocusModeRef,
       onToggleTypewriterModeRef,
+      viewModeRef,
       pruneHistoryRef,
       viewModeCompartmentRef.current,
       focusModeCompartmentRef.current,
@@ -398,6 +405,7 @@ export function MarkFlowEditor({
         onToggleModeRef,
         onToggleFocusModeRef,
         onToggleTypewriterModeRef,
+        viewModeRef,
         pruneHistoryRef,
         viewModeCompartmentRef.current,
         focusModeCompartmentRef.current,
