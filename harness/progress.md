@@ -3071,3 +3071,36 @@
   - none
 - Next recommended feature:
   - `MF-060` - complete the crash/relaunch recovery flow in a GUI session with direct human control or working Accessibility permission, then update the ledger only if the prompt and restored content truly pass
+
+### 2026-04-16 - MF-060 rerun confirmed the feature remains blocked only on truthful GUI recovery acceptance
+
+- Author: Codex (Dispatcher)
+- Focus: follow the ordered `MF-060` session-start protocol again, re-run the required verification, and only record repository state this terminal session can still prove.
+- What changed:
+  - re-read the root `AGENTS.md`, then re-ran `pnpm harness:start` followed by `./harness/init.sh --smoke` before touching `MF-060`
+  - re-checked the existing `MF-060` implementation and regression coverage in `packages/desktop/src/main/fileManager.ts`, `packages/desktop/src/preload/index.ts`, `packages/desktop/src/main/index.ts`, `packages/editor/src/App.tsx`, `packages/desktop/src/main/fileManager.test.ts`, and `packages/editor/src/__tests__/App.test.tsx`
+  - re-ran the required automated verification command `pnpm --filter @markflow/desktop test:run -- --grep auto-save`, the focused recovery suites `pnpm --filter @markflow/desktop exec vitest run src/main/fileManager.test.ts -t "auto-save recovery checkpoints"` and `pnpm --filter @markflow/editor exec vitest run src/__tests__/App.test.tsx -t "App auto-save"`, plus `pnpm harness:verify`
+  - re-ran the smallest direct macOS capability probes that can explain whether this session can truthfully accept the recovery prompt: `swift -e 'import ApplicationServices; print(AXIsProcessTrusted())'`, `osascript -e 'return 1'`, and a 5-second timed `System Events` query
+  - confirmed there is still no repo-supported desktop e2e automation path that can replace the missing GUI acceptance step: `harness/project-spec.md` still says the harness relies on schema validation, unit tests, and manual smoke steps
+  - left production code and `harness/feature-ledger.json` unchanged because this rerun still exposed no new `MF-060` defect and still could not truthfully complete the crash/relaunch recovery acceptance proof
+- Changed files:
+  - `harness/progress.md`
+- Simplifications made:
+  - stayed strictly inside `MF-060`; no unrelated feature work, recovery instrumentation, or speculative desktop patches were introduced
+  - avoided churn in `harness/feature-ledger.json` because the only remaining gap is still the blocked manual acceptance path
+- Verification:
+  - `pnpm harness:start` (passes)
+  - `./harness/init.sh --smoke` (passes; reran workspace smoke tests)
+  - `pnpm --filter @markflow/desktop test:run -- --grep auto-save` (passes; the current desktop package script still runs the full desktop suite, 6 files / 25 tests)
+  - `pnpm --filter @markflow/desktop exec vitest run src/main/fileManager.test.ts -t "auto-save recovery checkpoints"` (passes; 2 focused recovery tests)
+  - `pnpm --filter @markflow/editor exec vitest run src/__tests__/App.test.tsx -t "App auto-save"` (passes; 5 focused renderer recovery tests)
+  - `pnpm harness:verify` (passes; 106 total | verified=62 | ready=12 | planned=32 | blocked=0)
+  - manual-verification capability probes (blocked): `swift -e 'import ApplicationServices; print(AXIsProcessTrusted())'` returned `false`, `osascript -e 'return 1'` returned `1`, and the timed `System Events` query returned `timeout`
+- Review / risks:
+  - `MF-060` still cannot move to `status=verified`, `passes=true`, or receive a `lastVerifiedAt` timestamp until a GUI session really edits a dirty document, waits 35 seconds, kills MarkFlow, relaunches it, accepts the recovery prompt, and confirms the restored checkpoint content
+  - because this environment still cannot truthfully drive the recovery prompt, `harness/feature-ledger.json` must remain `status=planned`, `passes=false`, and `lastVerifiedAt=null`
+  - the remaining blocker is environment-specific rather than code-specific: this terminal session still lacks the trustworthy Accessibility / `System Events` control path required for the manual recovery-acceptance proof
+- Newly verified features:
+  - none
+- Next recommended feature:
+  - `MF-060` - complete the crash/relaunch recovery flow in a GUI session with direct human control or working Accessibility permission, then update the ledger only if the prompt and restored content truly pass
