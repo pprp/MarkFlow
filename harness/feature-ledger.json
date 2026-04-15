@@ -1953,7 +1953,7 @@
     },
     {
       "id": "MF-075",
-      "title": "Copy as HTML and Copy as Markdown actions export the selection without leaving the document",
+      "title": "Copy writes rich clipboard formats, while Copy as Markdown and Copy as HTML Code expose source formats",
       "category": "phase-2-functional",
       "area": "@markflow/editor",
       "priority": 2,
@@ -1962,19 +1962,19 @@
       "lastVerifiedAt": null,
       "dependsOn": [],
       "steps": [
-        "Select a block containing formatting, a link, and inline code.",
-        "Run `Copy as HTML` from the palette/menu and paste into a plain-text target to confirm the clipboard now carries fully rendered HTML.",
-        "Run `Copy as Markdown` on the same selection and confirm the clipboard holds raw markdown source without decorations."
+        "Select text containing bold, a link, and inline code.",
+        "Run the normal `Copy` action and paste into both a rich-text target and a plain-text target; confirm the default clipboard payload carries rendered rich content.",
+        "Run `Copy as Markdown` and confirm a plain-text paste contains raw markdown source, then run `Copy as HTML Code` and confirm a plain-text paste contains HTML source."
       ],
       "verification": {
         "automated": [
-          "Add editor tests that stub `navigator.clipboard.write` and assert both HTML and plaintext mime types are written with the expected payload."
+        "Add editor and desktop clipboard tests that assert default copy writes rich clipboard payloads, `Copy as Markdown` writes markdown plaintext, and `Copy as HTML Code` writes HTML source into plaintext."
         ],
         "manual": [
-          "Paste the HTML into a rich-text target (email/WYSIWYG editor) and verify fidelity."
+        "Paste the same selection into a rich-text app and a plain-text/code editor to confirm all three copy paths behave like Typora."
         ]
       },
-      "notes": "Typora exposes Copy as HTML / Copy as Markdown actions in the Edit menu. Sources: https://support.typora.io/Copy-Paste/ and https://support.typora.io/Shortcut-Keys/."
+      "notes": "Typora's current Copy and Paste docs say normal Copy already stores HTML, RTF, and plain text on the clipboard simultaneously; the explicit source-oriented actions are `Copy as Markdown` and `Copy as HTML Code`, plus an optional 'Copy Markdown source as plain text' preference. Repo search still shows only Electron's default `{ role: 'copy' }` menu path and no MarkFlow clipboard serializer or dedicated copy-as-markdown / copy-as-HTML command wiring. Sources: https://support.typora.io/Copy-and-Paste/ and https://support.typora.io/Shortcut-Keys/."
     },
     {
       "id": "MF-076",
@@ -2332,7 +2332,7 @@
     },
     {
       "id": "MF-090",
-      "title": "Recent files menu lists last opened documents with pin and clear actions",
+      "title": "Open Recent tracks recent files and folders, with clear-history and pinned-location behavior",
       "category": "phase-1-functional",
       "area": "@markflow/desktop",
       "priority": 3,
@@ -2341,19 +2341,19 @@
       "lastVerifiedAt": null,
       "dependsOn": ["MF-007"],
       "steps": [
-        "Open several files over multiple sessions and confirm the File > Open Recent submenu lists them most-recent-first.",
-        "Pin a file and confirm it survives the 'Clear Recents' action while unpinned entries are removed.",
-        "Click an entry whose file has been deleted and confirm a graceful not-found prompt rather than a crash."
+        "Open several files and at least one folder across multiple sessions and confirm `File` -> `Open Recent` lists them most-recent-first.",
+        "Pin a recent folder/location, clear recent items, and confirm pinned entries follow Typora's clear-options behavior while unpinned history is removed.",
+        "Click an entry whose file or folder is missing and confirm MarkFlow reports the error gracefully instead of crashing."
       ],
       "verification": {
         "automated": [
-          "Add desktop tests for recents persistence (add, pin, clear, missing-file handling)."
+        "Add desktop tests for recent-file and recent-folder persistence, menu serialization, pin/clear flows, and missing-path handling."
         ],
         "manual": [
-          "Verify OS-native recents integration (macOS Dock Recent Documents, Windows Jump List)."
+        "Verify `Open Recent`, Quick Open, and OS-native recents all reflect the same saved history after restarting the app."
         ]
       },
-      "notes": "Typora ships an Open Recent list. Source: https://support.typora.io/Menu/."
+      "notes": "Typora's File Management doc says recent files and folders are recorded in `File` -> `Open Recent`, Open Quickly, sidebar actions, and OS Dock/Taskbar integrations, with folder pinning plus `Clear Items` / `Clear Recent and Pinned Folders / Files` flows. MarkFlow currently only keeps an in-memory `recentFiles` array inside `packages/desktop/src/main/fileManager.ts` for `getQuickOpenList()`, with no persisted history, no `Open Recent` submenu, and no pin or clear behavior. Source: https://support.typora.io/File-Management/."
     },
     {
       "id": "MF-091",
@@ -2518,19 +2518,19 @@
         "MF-038"
       ],
       "steps": [
-        "Insert raw HTML media tags such as `<video controls src='sample.mp4'></video>`, `<audio controls src='sample.mp3'></audio>`, and `<iframe src='https://example.com/embed'></iframe>` into a markdown document.",
-        "Render in WYSIWYG mode and confirm the media/embed element appears instead of being stripped to plain text while preserving the underlying markdown source.",
-        "Move the caret back into the raw HTML and confirm the source remains editable without corrupting surrounding blocks."
+        "Insert raw HTML media tags such as `<video controls src='sample.mp4'></video>`, `<audio controls src='sample.mp3'></audio>`, and an embeddable `<iframe ... allowfullscreen></iframe>` snippet into a markdown document.",
+        "Render in WYSIWYG mode and confirm the media/embed element appears, required safe attributes (`src`, `controls`, `width`/`height`, `allowfullscreen`, etc.) survive, and the underlying markdown source is preserved.",
+        "Move the caret back into the HTML block and confirm the raw source becomes editable again without corrupting surrounding blocks or letting the embed navigate the editor shell."
       ],
       "verification": {
         "automated": [
-          "Extend `inlineHtmlDecoration` coverage to prove the sanitizer preserves the supported media tags plus their safe attributes while still blocking unsafe script/event-handler content."
+        "Extend `inlineHtmlDecoration` coverage to prove the sanitizer preserves supported media tags and safe attributes, keeps script/event-handler filtering, and renders iframe embeds in a sandboxed container."
         ],
         "manual": [
-          "Render one local media embed and one remote iframe embed; confirm playback or frame loading works without the editor navigating away."
+        "Render one local video, one local audio clip, and one remote iframe embed; confirm playback/loading works while the editor window itself never navigates away."
         ]
       },
-      "notes": "Typora documents embedded media support for HTML tags such as `<video>`, `<audio>`, and `<iframe>`, while MarkFlow's current HTML decoration sanitizer strips those tags entirely. Sources: https://support.typora.io/Media/ and https://support.typora.io/Markdown-Reference/."
+      "notes": "Typora's current HTML and Media docs explicitly support `<video>`, `<audio>`, and `<iframe>` embeds, including drag-and-drop video insertion and sandboxed iframe/script handling. MarkFlow's `packages/editor/src/editor/decorations/inlineHtmlDecoration.ts` currently allows only a small tag set (`details`, `summary`, `div`, `span`, `p`, `br`, `strong`, `em`, `b`, `i`, `ul`, `ol`, `li`) and strips all attributes, so media tags and their required attributes are lost entirely. Sources: https://support.typora.io/HTML/ and https://support.typora.io/Media/."
     },
     {
       "id": "MF-098",
