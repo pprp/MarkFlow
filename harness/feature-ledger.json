@@ -2557,6 +2557,107 @@
         "manual": []
       },
       "notes": "Typora documents support for HTML comments and HTML entities, and MarkFlow now preserves that behavior in `packages/editor/src/editor/decorations/inlineHtmlDecoration.ts` by extending the existing HTML replacement path to markdown `CommentBlock`, inline `Comment`, and `Entity` nodes. Focused regression coverage in `packages/editor/src/editor/__tests__/inlineHtmlDecoration.test.ts` verifies block comments stay hidden away from the caret, inline comments do not leak raw markup, entities render as decoded characters, and each range reveals its original source when the caret enters it. Verified on 2026-04-15 with `pnpm --filter @markflow/editor test:run -- src/editor/__tests__/inlineHtmlDecoration.test.ts` plus `node scripts/harness/verify.mjs`. Sources: https://support.typora.io/HTML/ and https://support.typora.io/Markdown-Reference/."
+    },
+    {
+      "id": "MF-099",
+      "title": "Auto pair brackets, quotes, and markdown delimiters wrap selections and preserve typing context",
+      "category": "phase-1-functional",
+      "area": "@markflow/editor",
+      "priority": 2,
+      "status": "verified",
+      "passes": true,
+      "lastVerifiedAt": "2026-04-15",
+      "dependsOn": [],
+      "steps": [
+        "Type structural delimiters such as `(`, `[`, `{`, `\"`, `'`, and backticks in the editor and confirm MarkFlow inserts the matching closer with the caret placed inside.",
+        "Select a word and type `(`, `*`, or `_`; confirm the selection is wrapped rather than replaced, and typing `*` at the start of a line still begins a list while `_` inside identifiers remains literal text.",
+        "Press Backspace inside an empty auto-inserted pair and confirm both sides are removed atomically without disturbing surrounding markdown."
+      ],
+      "verification": {
+        "automated": [
+          "pnpm --filter @markflow/editor exec vitest run src/editor/__tests__/smartInput.test.ts",
+          "pnpm --filter @markflow/editor build",
+          "pnpm harness:verify"
+        ],
+        "manual": []
+      },
+      "notes": "Verified on 2026-04-15. `packages/editor/src/editor/extensions/smartInput.ts` already covered structural pairs plus context-aware `*`/`_` pairing and atomic backspace; this run expanded `packages/editor/src/editor/__tests__/smartInput.test.ts` to cover structural-pair selection wrapping and atomic deletion alongside the existing prose, unordered-list, and `snake_case` typing-context checks, so the listed automated commands fully prove the shipped scope. Typora's broader auto-pair parity for `~`, `=`, `$`, `^`, and a preference toggle remain separate gaps outside MF-099. Sources: https://support.typora.io/Auto-Pair/ and https://support.typora.io/Markdown-Reference/."
+    },
+    {
+      "id": "MF-100",
+      "title": "Strict mode enforces GFM-style heading whitespace and list indentation rules",
+      "category": "phase-2-functional",
+      "area": "@markflow/editor",
+      "priority": 3,
+      "status": "planned",
+      "passes": false,
+      "lastVerifiedAt": null,
+      "dependsOn": [],
+      "steps": [
+        "Enable strict mode from a settings surface, restart if required, and type `###Header`; confirm it is not treated as a heading until a whitespace is added after the `#` characters.",
+        "Create ordered-list paragraphs and sublists with insufficient indentation and confirm strict mode follows GFM-style indentation instead of Typora's tolerant behavior.",
+        "Disable strict mode and confirm the same fixture returns to the more forgiving parsing behavior."
+      ],
+      "verification": {
+        "automated": [
+          "Add parser/editor tests that run the same heading and list-indent fixtures under strict and tolerant modes.",
+          "Add settings-persistence coverage if the toggle is stored outside the editor state."
+        ],
+        "manual": [
+          "Toggle strict mode on the same markdown fixture, restart, and verify heading/list parsing changes exactly as expected."
+        ]
+      },
+      "notes": "Typora exposes a strict mode that follows GFM more closely, including mandatory whitespace after heading markers and stricter list-paragraph indentation, and applies the setting after restart. Repo search found no strict/tolerant parser toggle or persisted markdown-mode setting in MarkFlow yet. Sources: https://support.typora.io/Strict-Mode/ and https://support.typora.io/Markdown-Reference/."
+    },
+    {
+      "id": "MF-101",
+      "title": "Delete range commands remove word, sentence or line, block, and styled scope with Typora-style semantics",
+      "category": "phase-2-functional",
+      "area": "@markflow/editor",
+      "priority": 3,
+      "status": "planned",
+      "passes": false,
+      "lastVerifiedAt": null,
+      "dependsOn": [],
+      "steps": [
+        "Trigger delete-word with the caret inside a word and confirm the current word is removed without corrupting adjacent markdown.",
+        "Trigger delete line or sentence inside prose, code blocks, math blocks, and tables and confirm the deletion respects the current block type instead of blindly deleting raw lines.",
+        "Trigger delete block or styled-scope on headings, list items, or inline styled spans and confirm only the intended markdown scope is removed."
+      ],
+      "verification": {
+        "automated": [
+          "Add command-level tests for delete-word, delete-line-or-sentence, delete-block, and delete-styled-scope behavior across paragraph, list, code, math, and table fixtures."
+        ],
+        "manual": [
+          "Exercise the delete-range shortcuts in a mixed markdown document and confirm each command removes the same scope Typora would remove."
+        ]
+      },
+      "notes": "Typora documents block-aware delete commands for paragraph or block, sentence or line, styled scope, and word. MarkFlow currently relies on default CodeMirror deletion behavior, and repo search found no Typora-style delete-range command layer or shortcut wiring. Sources: https://support.typora.io/Delete-Range/ and https://support.typora.io/Shortcut-Keys/."
+    },
+    {
+      "id": "MF-102",
+      "title": "Zoom in, zoom out, and reset zoom adjust the window scale without disturbing document state",
+      "category": "phase-2-functional",
+      "area": "@markflow/desktop",
+      "priority": 3,
+      "status": "ready",
+      "passes": false,
+      "lastVerifiedAt": null,
+      "dependsOn": [],
+      "steps": [
+        "Use View > Zoom In / Zoom Out or the matching shortcuts and confirm the window scale changes while the current document content, selection, and scroll position remain intact.",
+        "Trigger Actual Size / Reset Zoom and confirm the scale returns to baseline without recreating the editor view.",
+        "Continue editing after zooming and confirm typing, toolbar actions, and file save behavior still match the unzoomed editor."
+      ],
+      "verification": {
+        "automated": [
+          "Add a desktop test that asserts the View menu exposes `resetZoom`, `zoomIn`, and `zoomOut` roles or equivalent BrowserWindow zoom commands."
+        ],
+        "manual": [
+          "Interactive desktop check: zoom in, zoom out, and reset on a live document while watching selection and scroll stability."
+        ]
+      },
+      "notes": "Typora exposes zoom from the View menu plus shortcut-driven reset or actual-size flows. MarkFlow already wires Electron `resetZoom`, `zoomIn`, and `zoomOut` roles in `packages/desktop/src/main/index.ts`, but the capability had no ledger entry, no explicit verification, and no Typora-like zoom state affordance yet. Sources: https://support.typora.io/Zoom/ and https://support.typora.io/Shortcut-Keys/."
     }
   ]
 }

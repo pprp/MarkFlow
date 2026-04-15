@@ -1021,3 +1021,33 @@
   - `MF-098`
 - Next recommended feature:
   - `MF-050` - Background indexer builds a symbol table for headings and anchors without blocking the UI thread
+
+### 2026-04-15 - MF-099 auto-pair parity verified, ledger expanded through MF-102
+
+- Author: Codex (Dispatcher)
+- Focus: refresh the Typora parity ledger, close the smallest newly discovered gap, and keep the run scoped to one editor feature.
+- Research updates:
+  - Researcher added `MF-099` auto pair, `MF-100` strict mode, `MF-101` delete range commands, and `MF-102` zoom controls after checking Typora docs against current MarkFlow coverage.
+  - No existing ledger entries were deleted or reordered.
+- What changed:
+  - strengthened `packages/editor/src/editor/__tests__/smartInput.test.ts` so every structural pair wraps selections and empty structural pairs delete atomically on Backspace, alongside the existing prose, unordered-list, and `snake_case` typing-context checks.
+  - left `packages/editor/src/editor/extensions/smartInput.ts` unchanged because the shipped behavior already satisfied the scoped `MF-099` feature.
+  - updated `harness/feature-ledger.json` to append `MF-099` through `MF-102`, mark `MF-099` as `verified` / `passes=true`, and keep `MF-078` truthfully at `ready` / `passes=false`.
+- Simplifications made:
+  - reused the existing smart-input extension instead of widening scope into new auto-pair symbols or a preference toggle.
+  - removed the manual verification step from `MF-099` because focused automated coverage now proves the shipped scope.
+  - reverted accidental out-of-scope recovery-checkpoint edits so the final diff stayed within the one-feature automation contract.
+- Verification:
+  - `pnpm harness:start` (passes)
+  - `./harness/init.sh --smoke` (passes)
+  - `pnpm --filter @markflow/editor exec vitest run src/editor/__tests__/smartInput.test.ts` (passes; 1 file / 39 tests)
+  - `pnpm --filter @markflow/editor build` (passes; existing Vite chunk-size warnings only)
+  - `pnpm harness:verify` (passes; 102 total | verified=60 | ready=7 | planned=35 | blocked=0)
+- Review / risks:
+  - Reviewer accepted `MF-099` after the ledger state was corrected to match the passing verification.
+  - Residual risk is low: acceptance is test-backed rather than interactive, and broader Typora auto-pair parity for `~`, `=`, `$`, `^`, plus a preference toggle remains outside `MF-099`.
+  - unrelated out-of-scope edits discovered during coordination were reverted before closeout, so the final repo diff is limited to the active feature and ledger refresh.
+- Newly verified features:
+  - `MF-099`
+- Next recommended feature:
+  - `MF-102` - Zoom in, zoom out, and reset zoom adjust the window scale without disturbing document state

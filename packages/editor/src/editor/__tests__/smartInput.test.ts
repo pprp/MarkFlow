@@ -58,12 +58,12 @@ describe('smartInput — auto-pairs', () => {
     view.destroy()
   })
 
-  it('continues to wrap a selection with parentheses', () => {
+  it.each(STRUCTURAL_PAIRS)('wraps the current selection when typing %s', (open, close) => {
     const view = makeView('word', 0)
     view.dispatch({ selection: { anchor: 0, head: 4 } })
 
-    expect(dispatchEditorKey(view, '(')).toBe(true)
-    expect(view.state.doc.toString()).toBe('(word)')
+    expect(dispatchEditorKey(view, open)).toBe(true)
+    expect(view.state.doc.toString()).toBe(`${open}word${close}`)
     expect(view.state.selection.main.from).toBe(1)
     expect(view.state.selection.main.to).toBe(5)
 
@@ -86,6 +86,19 @@ describe('smartInput — auto-pairs', () => {
     const view = makeView('Hello ', 6)
 
     expect(dispatchEditorKey(view, delimiter)).toBe(true)
+    expect(dispatchEditorKey(view, 'Backspace')).toBe(true)
+    expect(view.state.doc.toString()).toBe('Hello ')
+    expect(view.state.selection.main.from).toBe(6)
+    expect(view.state.selection.main.to).toBe(6)
+
+    view.destroy()
+  })
+
+  it.each(STRUCTURAL_PAIRS)('removes an empty %s%s pair atomically on Backspace', (open, close) => {
+    const view = makeView('Hello ', 6)
+
+    expect(`${open}${close}`).toHaveLength(2)
+    expect(dispatchEditorKey(view, open)).toBe(true)
     expect(dispatchEditorKey(view, 'Backspace')).toBe(true)
     expect(view.state.doc.toString()).toBe('Hello ')
     expect(view.state.selection.main.from).toBe(6)
