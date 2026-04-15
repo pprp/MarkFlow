@@ -40,6 +40,37 @@
 - Next recommended feature:
   - `MF-060` - complete the crash/relaunch recovery flow in a GUI session with direct human control or working Accessibility permission, then update the ledger only if the prompt and restored content truly pass
 
+### 2026-04-16 - MF-060 rerun kept the ledger unchanged after focused recovery verification
+
+- Author: Codex (Dispatcher)
+- Focus: follow the required `MF-060` startup protocol again, rerun the feature's automated verification, and record the remaining manual blocker without widening beyond this one desktop recovery feature.
+- What changed:
+  - re-ran `pnpm harness:start` and `./harness/init.sh --smoke`, then re-read the current `MF-060` ledger entry plus the landed recovery implementation in `packages/desktop/src/main/fileManager.ts`, `packages/desktop/src/preload/index.ts`, `packages/editor/src/App.tsx`, `packages/desktop/src/main/fileManager.test.ts`, and `packages/editor/src/__tests__/App.test.tsx`
+  - re-ran the required automated verification command `pnpm --filter @markflow/desktop test:run -- --grep auto-save`, the focused recovery suites `pnpm --filter @markflow/desktop exec vitest run src/main/fileManager.test.ts -t "auto-save recovery checkpoints"` and `pnpm --filter @markflow/editor exec vitest run src/__tests__/App.test.tsx -t "App auto-save"`, plus `pnpm harness:verify`
+  - re-checked the manual-verification boundary with the same smallest direct macOS probes: `swift -e 'import ApplicationServices; print(AXIsProcessTrusted())'`, `osascript -e 'return 1'`, and a 5-second timed `System Events` query
+  - left production code and `harness/feature-ledger.json` unchanged because this session still did not uncover a new `MF-060` defect and still could not truthfully complete the crash/relaunch recovery acceptance proof
+- Changed files:
+  - `harness/progress.md`
+- Simplifications made:
+  - kept the session strictly inside `MF-060`; no unrelated feature work, recovery instrumentation, or speculative desktop changes were introduced
+  - reused the existing focused recovery suites and the smallest capability probes instead of widening into heavier GUI automation that still would not count as truthful manual recovery acceptance
+- Verification:
+  - `pnpm harness:start` (passes)
+  - `./harness/init.sh --smoke` (passes; reran workspace smoke tests plus `pnpm harness:verify`)
+  - `pnpm --filter @markflow/desktop test:run -- --grep auto-save` (passes; the desktop package script still executes the full desktop suite, currently 6 files / 25 tests)
+  - `pnpm --filter @markflow/desktop exec vitest run src/main/fileManager.test.ts -t "auto-save recovery checkpoints"` (passes; 2 focused recovery tests)
+  - `pnpm --filter @markflow/editor exec vitest run src/__tests__/App.test.tsx -t "App auto-save"` (passes; 5 focused renderer recovery tests)
+  - `pnpm harness:verify` (passes; 105 total | verified=60 | ready=13 | planned=32 | blocked=0)
+  - manual-verification capability probes (blocked): `swift -e 'import ApplicationServices; print(AXIsProcessTrusted())'` returned `false`, `osascript -e 'return 1'` returned `1`, and the timed `System Events` query returned `System Events got an error: AppleEvent timed out. (-1712)`
+- Review / risks:
+  - `MF-060` still cannot move to `status=verified`, `passes=true`, or receive a `lastVerifiedAt` timestamp until a GUI session can really kill MarkFlow after a 35-second dirty idle period, relaunch it, accept the recovery prompt, and confirm the restored checkpoint content
+  - because the environment still cannot truthfully drive the recovery prompt, `harness/feature-ledger.json` must remain `status=planned`, `passes=false`, and `lastVerifiedAt=null`
+  - the remaining risk is environment-specific rather than code-specific: this session still lacks trusted Accessibility / `System Events` control for the final manual proof
+- Newly verified features:
+  - none
+- Next recommended feature:
+  - `MF-060` - complete the crash/relaunch recovery flow in a GUI session with direct human control or working Accessibility permission, then update the ledger only if the prompt and restored content truly pass
+
 ### 2026-04-16 - MF-054 find-and-replace shortcut aligned, manual regex fixture validation pending
 
 - Author: Codex (Dispatcher)
