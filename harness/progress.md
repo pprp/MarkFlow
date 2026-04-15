@@ -40,6 +40,38 @@
 - Next recommended feature:
   - `MF-060` - complete the crash/relaunch recovery flow in a GUI session with direct human control or working Accessibility permission, then update the ledger only if the prompt and restored content truly pass
 
+### 2026-04-16 - MF-060 session protocol rerun kept the recovery ledger truthful
+
+- Author: Codex (Dispatcher)
+- Focus: follow the required startup protocol for `MF-060`, rerun the mandated verification, and only record outcomes this terminal session can actually prove.
+- What changed:
+  - re-read the root `AGENTS.md`, then ran `pnpm harness:start` followed by `./harness/init.sh --smoke` before touching the feature
+  - re-checked the existing `MF-060` ledger entry and the already-implemented recovery coverage points in `packages/desktop/src/main/fileManager.ts`, `packages/desktop/src/preload/index.ts`, `packages/desktop/src/main/index.ts`, `packages/editor/src/App.tsx`, `packages/desktop/src/main/fileManager.test.ts`, and `packages/editor/src/__tests__/App.test.tsx`
+  - re-ran the required automated verification `pnpm --filter @markflow/desktop test:run -- --grep auto-save`, the focused recovery suites `pnpm --filter @markflow/desktop exec vitest run src/main/fileManager.test.ts -t "auto-save recovery checkpoints"` and `pnpm --filter @markflow/editor exec vitest run src/__tests__/App.test.tsx -t "App auto-save"`, plus `pnpm harness:verify`
+  - re-ran the smallest macOS capability probes that decide whether this session can truthfully accept the recovery dialog: `swift -e 'import ApplicationServices; print(AXIsProcessTrusted())'`, `osascript -e 'return 1'`, and a timed `System Events` query
+  - left production code and `harness/feature-ledger.json` unchanged because automation still passes and the only missing proof is the blocked manual recovery-acceptance step
+- Changed files:
+  - `harness/progress.md`
+- Simplifications made:
+  - stayed strictly inside `MF-060`; no unrelated feature work, speculative recovery patches, or ledger promotion were introduced
+  - avoided churn in `harness/feature-ledger.json` because this environment still cannot truthfully satisfy the manual verification requirement
+- Verification:
+  - `pnpm harness:start` (passes)
+  - `./harness/init.sh --smoke` (passes; reran harness verification plus the workspace smoke test suite)
+  - `pnpm --filter @markflow/desktop test:run -- --grep auto-save` (passes; the current desktop package script still runs the full desktop suite, 6 files / 25 tests)
+  - `pnpm --filter @markflow/desktop exec vitest run src/main/fileManager.test.ts -t "auto-save recovery checkpoints"` (passes; 2 focused recovery tests)
+  - `pnpm --filter @markflow/editor exec vitest run src/__tests__/App.test.tsx -t "App auto-save"` (passes; 5 focused renderer recovery tests)
+  - `pnpm harness:verify` (passes; 106 total | verified=62 | ready=12 | planned=32 | blocked=0)
+  - manual-verification capability probes (blocked): `swift -e 'import ApplicationServices; print(AXIsProcessTrusted())'` returned `false`, `osascript -e 'return 1'` returned `1`, and the timed `System Events` query returned `timeout`
+- Review / risks:
+  - `MF-060` still cannot move to `status=verified`, `passes=true`, or receive a `lastVerifiedAt` timestamp until a GUI session really edits a dirty document, waits 35 seconds, kills MarkFlow, relaunches it, accepts the recovery prompt, and confirms the restored checkpoint content
+  - because this terminal session still cannot truthfully drive the recovery prompt, `harness/feature-ledger.json` must remain `status=planned`, `passes=false`, and `lastVerifiedAt=null`
+  - the remaining blocker is environment-specific rather than code-specific: Accessibility trust is absent and `System Events` does not respond inside this session
+- Newly verified features:
+  - none
+- Next recommended feature:
+  - `MF-060` - complete the crash/relaunch recovery flow in a GUI session with direct human control or working Accessibility permission, then update the ledger only if the prompt and restored content truly pass
+
 ### 2026-04-16 - MF-106 verified with platform-aware paragraph scaffold shortcut proof
 
 - Author: Codex (Dispatcher)
