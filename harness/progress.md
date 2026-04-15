@@ -1721,3 +1721,38 @@
   - none
 - Next recommended feature:
   - `MF-060` - complete the crash/relaunch recovery proof in a GUI session with working Accessibility access, then update the ledger fields
+
+### 2026-04-16 - MF-060 verification command was repaired without overstating manual recovery proof
+
+- Author: Codex (Dispatcher)
+- Focus: follow the required `MF-060` startup protocol, keep the session scoped to this feature, and make only the smallest prerequisite fix needed for the mandated automated verification command to pass truthfully.
+- What changed:
+  - re-ran `pnpm harness:start` and `./harness/init.sh --smoke`, then re-read the current `MF-060` ledger entry plus the landed recovery implementation in `packages/desktop/src/main/fileManager.ts`, `packages/desktop/src/preload/index.ts`, `packages/editor/src/App.tsx`, `packages/desktop/src/main/fileManager.test.ts`, and `packages/editor/src/__tests__/App.test.tsx`
+  - found that the required verification command `pnpm --filter @markflow/desktop test:run -- --grep auto-save` was failing before `MF-060` assertions because the full desktop suite still ran and `packages/desktop/src/main/themeManager.test.ts` inherited an `electron` mock shape without `nativeTheme`
+  - applied the minimal prerequisite fix in `packages/desktop/src/main/fileManager.test.ts`, `packages/desktop/src/main/search.test.ts`, and `packages/desktop/src/main/vault.test.ts` by adding a no-op `nativeTheme` stub so the desktop suite can coexist with `themeManager.test.ts` when the required command runs
+  - kept production code and `harness/feature-ledger.json` unchanged because this session fixed only the test harness needed to verify `MF-060`, and the required manual crash/relaunch acceptance proof is still not truthfully completable here
+- Changed files:
+  - `packages/desktop/src/main/fileManager.test.ts`
+  - `packages/desktop/src/main/search.test.ts`
+  - `packages/desktop/src/main/vault.test.ts`
+  - `harness/progress.md`
+- Simplifications made:
+  - kept the scope on `MF-060` only; the only non-feature edit was the minimum desktop test-mock repair required to make the mandated verification command pass again
+  - reused the existing recovery-focused desktop/editor suites instead of adding heavier launch automation that still would not count as manual recovery acceptance
+- Verification:
+  - `pnpm harness:start` (passes)
+  - `./harness/init.sh --smoke` (passes; reran harness verification plus workspace smoke tests)
+  - `pnpm --filter @markflow/desktop test:run -- --grep auto-save` (passes after the mock-shape fix; still runs the full desktop suite, currently 6 files / 25 tests)
+  - `pnpm --filter @markflow/desktop exec vitest run src/main/themeManager.test.ts` (passes; confirms the previously failing suite is green in isolation too)
+  - `pnpm --filter @markflow/desktop exec vitest run src/main/fileManager.test.ts -t "auto-save recovery checkpoints"` (passes; 2 focused recovery tests)
+  - `pnpm --filter @markflow/editor exec vitest run src/__tests__/App.test.tsx -t "App auto-save"` (passes; 5 focused app auto-save tests)
+  - `pnpm harness:verify` (passes; 103 total | verified=60 | ready=11 | planned=32 | blocked=0)
+  - manual-verification capability probes (blocked): `swift -e 'import ApplicationServices; print(AXIsProcessTrusted())'` returned `false`, `osascript -e 'return 1'` returned `1`, and a timed `System Events` process query returned `timeout`
+- Review / risks:
+  - `MF-060` still cannot move to `status=verified`, `passes=true`, or receive a `lastVerifiedAt` timestamp until a GUI session can kill MarkFlow after a 35-second dirty idle period, relaunch it, accept the recovery prompt, and confirm the restored checkpoint content
+  - this session restored the required automated verification path, but it did not produce the required manual crash/relaunch proof
+  - because the environment still cannot truthfully drive the recovery prompt, `harness/feature-ledger.json` must remain `status=planned`, `passes=false`, and `lastVerifiedAt=null`
+- Newly verified features:
+  - none
+- Next recommended feature:
+  - `MF-060` - complete the crash/relaunch recovery flow in a GUI session with working Accessibility permission, then update the ledger fields

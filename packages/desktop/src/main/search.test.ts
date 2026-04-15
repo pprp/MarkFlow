@@ -3,12 +3,22 @@ import * as path from 'path'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { FileManager } from './fileManager'
 
-const { appGetPathMock, handleMock, removeHandlerMock, showSaveDialogMock, showOpenDialogMock } = vi.hoisted(() => ({
+const {
+  appGetPathMock,
+  handleMock,
+  removeHandlerMock,
+  showSaveDialogMock,
+  showOpenDialogMock,
+  nativeThemeOnMock,
+  nativeThemeRemoveListenerMock,
+} = vi.hoisted(() => ({
   appGetPathMock: vi.fn(() => '/tmp'),
   handleMock: vi.fn(),
   removeHandlerMock: vi.fn(),
   showSaveDialogMock: vi.fn(),
   showOpenDialogMock: vi.fn(),
+  nativeThemeOnMock: vi.fn(),
+  nativeThemeRemoveListenerMock: vi.fn(),
 }))
 
 vi.mock('electron', () => ({
@@ -22,6 +32,11 @@ vi.mock('electron', () => ({
   ipcMain: {
     handle: handleMock,
     removeHandler: removeHandlerMock,
+  },
+  nativeTheme: {
+    shouldUseDarkColors: false,
+    on: nativeThemeOnMock,
+    removeListener: nativeThemeRemoveListenerMock,
   },
 }))
 
@@ -50,6 +65,8 @@ describe('FileManager global search integration', () => {
     appGetPathMock.mockImplementation(() => '/tmp')
     handleMock.mockReset()
     removeHandlerMock.mockReset()
+    nativeThemeOnMock.mockReset()
+    nativeThemeRemoveListenerMock.mockReset()
     vi.mocked(fs.readdirSync).mockReset()
     vi.mocked(fs.readFileSync).mockReset()
     vi.restoreAllMocks()

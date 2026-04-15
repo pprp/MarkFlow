@@ -13,6 +13,8 @@ const {
   appGetPathMock,
   execFileMock,
   showItemInFolderMock,
+  nativeThemeOnMock,
+  nativeThemeRemoveListenerMock,
 } = vi.hoisted(() => ({
   handleMock: vi.fn(),
   onMock: vi.fn(),
@@ -24,6 +26,8 @@ const {
     if (callback) callback(null, '', '')
   }),
   showItemInFolderMock: vi.fn(),
+  nativeThemeOnMock: vi.fn(),
+  nativeThemeRemoveListenerMock: vi.fn(),
 }))
 
 vi.mock('child_process', () => ({
@@ -42,6 +46,11 @@ vi.mock('electron', () => ({
     on: onMock,
     removeAllListeners: removeAllListenersMock,
     removeHandler: removeHandlerMock,
+  },
+  nativeTheme: {
+    shouldUseDarkColors: false,
+    on: nativeThemeOnMock,
+    removeListener: nativeThemeRemoveListenerMock,
   },
   shell: {
     showItemInFolder: showItemInFolderMock,
@@ -68,6 +77,8 @@ describe('FileManager async saves', () => {
     appGetPathMock.mockReset()
     appGetPathMock.mockImplementation(() => '/tmp')
     showItemInFolderMock.mockReset()
+    nativeThemeOnMock.mockReset()
+    nativeThemeRemoveListenerMock.mockReset()
     vi.restoreAllMocks()
   })
 
