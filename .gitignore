@@ -71,6 +71,7 @@ electron-builder-effective-config.yaml
 
 # ─── AI agent workspace (internal tooling, not part of the project) ──────────
 .omx/
+.codex-loop/
 
 # ─── Harness-generated verification fixtures ─────────────────────────────────
 harness/fixtures/
