@@ -2916,3 +2916,35 @@
   - none
 - Next recommended feature:
   - `MF-060` - complete the crash/relaunch recovery flow in a GUI session with direct human control or working Accessibility permission, then update the ledger only if the prompt and restored content truly pass
+
+### 2026-04-16 - MF-060 startup rerun kept the ledger truthful after another blocked GUI recovery check
+
+- Author: Codex (Dispatcher)
+- Focus: read the root `AGENTS.md`, rerun the required session-start sequence in order, re-verify `MF-060`, and only record repository state this terminal session can still prove.
+- What changed:
+  - re-ran `pnpm harness:start` and then `./harness/init.sh --smoke` in the required order before touching `MF-060`
+  - re-read the existing `MF-060` ledger entry and confirmed the shipped recovery implementation still lives in `packages/desktop/src/main/fileManager.ts`, `packages/desktop/src/preload/index.ts`, `packages/editor/src/App.tsx`, `packages/desktop/src/main/fileManager.test.ts`, and `packages/editor/src/__tests__/App.test.tsx`
+  - re-ran the required automated verification command `pnpm --filter @markflow/desktop test:run -- --grep auto-save`, the focused recovery suites `pnpm --filter @markflow/desktop exec vitest run src/main/fileManager.test.ts -t "auto-save recovery checkpoints"` and `pnpm --filter @markflow/editor exec vitest run src/__tests__/App.test.tsx -t "App auto-save"`, plus `pnpm harness:verify`
+  - re-ran the smallest direct macOS capability probes that can explain whether this session can truthfully accept the recovery prompt: `swift -e 'import ApplicationServices; print(AXIsProcessTrusted())'`, `osascript -e 'return 1'`, and a 5-second timed `System Events` query
+  - left production code and `harness/feature-ledger.json` unchanged because this rerun still did not expose a new `MF-060` defect and still could not truthfully complete the crash/relaunch recovery acceptance proof
+- Changed files:
+  - `harness/progress.md`
+- Simplifications made:
+  - kept the session strictly inside `MF-060`; no unrelated feature work, recovery instrumentation, or speculative desktop changes were introduced
+  - reused the existing focused recovery suites plus the smallest direct Accessibility probes instead of widening into heavier GUI automation that still would not count as truthful manual recovery acceptance
+- Verification:
+  - `pnpm harness:start` (passes)
+  - `./harness/init.sh --smoke` (passes; reran workspace smoke tests)
+  - `pnpm --filter @markflow/desktop test:run -- --grep auto-save` (passes; the current desktop package script still runs the full desktop suite, 6 files / 25 tests)
+  - `pnpm --filter @markflow/desktop exec vitest run src/main/fileManager.test.ts -t "auto-save recovery checkpoints"` (passes; 2 focused recovery tests)
+  - `pnpm --filter @markflow/editor exec vitest run src/__tests__/App.test.tsx -t "App auto-save"` (passes; 5 focused renderer recovery tests)
+  - `pnpm harness:verify` (passes; 106 total | verified=61 | ready=13 | planned=32 | blocked=0)
+  - manual-verification capability probes (blocked): `swift -e 'import ApplicationServices; print(AXIsProcessTrusted())'` returned `false`, `osascript -e 'return 1'` returned `1`, and the timed `System Events` query failed with `AppleEvent timed out (-1712)`
+- Review / risks:
+  - `MF-060` still cannot move to `status=verified`, `passes=true`, or receive a `lastVerifiedAt` timestamp until a GUI session can really kill MarkFlow after a 35-second dirty idle period, relaunch it, accept the recovery prompt, and confirm the restored checkpoint content
+  - because the environment still cannot truthfully drive the recovery prompt, `harness/feature-ledger.json` must remain `status=planned`, `passes=false`, and `lastVerifiedAt=null`
+  - the remaining risk is environment-specific rather than code-specific: this session still lacks the trustworthy Accessibility / `System Events` control path needed for the manual proof
+- Newly verified features:
+  - none
+- Next recommended feature:
+  - `MF-060` - complete the crash/relaunch recovery flow in a GUI session with direct human control or working Accessibility permission, then update the ledger only if the prompt and restored content truly pass
