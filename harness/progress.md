@@ -3327,3 +3327,31 @@
   - none
 - Next recommended feature:
   - `MF-060` - complete the crash/relaunch recovery flow in a GUI session with direct human control or working Accessibility permission, then update the ledger only if the prompt and restored content truly pass
+
+### 2026-04-16 - MF-050 rerun kept the feature truthful while the 180k-line manual proof stayed pending
+
+- Author: Codex
+- Focus: follow the session-start protocol for `MF-050`, confirm the existing background indexer still passes the required automated verification on the current tree, and avoid promoting the ledger without the required large-document manual proof.
+- What changed:
+  - re-read the root `AGENTS.md`, then ran `pnpm harness:start` followed by `./harness/init.sh --smoke` before touching `MF-050`
+  - re-checked the shipped `MF-050` implementation in `packages/editor/src/editor/indexer.ts`, `packages/editor/src/editor/MarkFlowEditor.tsx`, `packages/editor/src/App.tsx`, and `packages/editor/src/editor/outline.ts`, plus the existing fixture helper in `scripts/harness/generate-large-markdown.mjs`
+  - re-ran the required automated verification command `pnpm --filter @markflow/editor test:run -- src/editor/__tests__/indexer.test.ts src/editor/__tests__/outline.test.ts src/editor/__tests__/MarkFlowEditor.test.tsx src/__tests__/App.test.tsx` and `pnpm harness:verify`
+  - left production code and `harness/feature-ledger.json` unchanged because the remaining acceptance gap is still the manual 180k-line typing/no-lag check
+- Changed files:
+  - `harness/progress.md`
+- Simplifications made:
+  - stayed strictly inside `MF-050`; no unrelated feature work, speculative refactors, or ledger promotion were introduced
+  - reused the existing implementation and test coverage instead of reopening already-landed editor changes without new failure evidence
+- Verification:
+  - `pnpm harness:start` (passes)
+  - `./harness/init.sh --smoke` (passes; reran workspace smoke tests)
+  - `pnpm --filter @markflow/editor test:run -- src/editor/__tests__/indexer.test.ts src/editor/__tests__/outline.test.ts src/editor/__tests__/MarkFlowEditor.test.tsx src/__tests__/App.test.tsx` (passes; current package script still executes the full editor Vitest suite, 28 files / 327 tests with 3 skipped)
+  - `pnpm harness:verify` (passes; 106 total | verified=62 | ready=13 | planned=31 | blocked=0)
+- Review / risks:
+  - `MF-050` still cannot move to `passes=true` or receive a `lastVerifiedAt` timestamp until someone opens a real 180k-line document, types continuously during load, and directly confirms there is no input lag while the outline populates asynchronously
+  - this terminal session can re-run automation and inspect the shipped fixture helper, but it cannot truthfully substitute for the required human judgement about desktop typing responsiveness
+  - because the manual acceptance proof is still pending, `harness/feature-ledger.json` must remain truthful for `MF-050` with `status=planned`, `passes=false`, and `lastVerifiedAt=null`
+- Newly verified features:
+  - none
+- Next recommended feature:
+  - `MF-050` - run the pending GUI/manual 180k-line verification with `harness/fixtures/mf-large-180k.md` or `pnpm harness:fixture:large`, then update the ledger only if outline population stays under 5 seconds, anchor navigation resolves correctly, and typing remains visibly lag-free
