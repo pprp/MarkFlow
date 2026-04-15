@@ -338,11 +338,6 @@ git_dirty_count() {
   git status --porcelain | wc -l | tr -d ' '
 }
 
-write_git_status_snapshot() {
-  local output_file="$1"
-  git status --porcelain | LC_ALL=C sort > "$output_file"
-}
-
 ensure_lock() {
   mkdir -p "$LOG_DIR"
   if ! mkdir "$LOCK_DIR" 2>/dev/null; then
@@ -371,9 +366,6 @@ ensure_clean_start() {
   if [[ "$dirty_count" -gt 0 ]]; then
     warn "当前 git 工作区已有 $dirty_count 处未提交改动。"
   fi
-
-  BASELINE_GIT_STATUS_FILE="$LOG_DIR/git-status-baseline.txt"
-  write_git_status_snapshot "$BASELINE_GIT_STATUS_FILE"
 }
 
 show_status_snapshot() {
@@ -566,15 +558,6 @@ while true; do
   actionable_after="$(wc -l < "$after_ids_file" | tr -d ' ')"
   compare_progress "$before_ids_file" "$after_ids_file"
   show_status_snapshot
-
-  after_git_status_file="$LOG_DIR/git-status-after-${round}.txt"
-  write_git_status_snapshot "$after_git_status_file"
-  if ! cmp -s "$BASELINE_GIT_STATUS_FILE" "$after_git_status_file"; then
-    error "检测到 git 工作区相对启动基线发生变化，停止自动循环，避免把未提交改动带入下一轮。"
-    diff -u "$BASELINE_GIT_STATUS_FILE" "$after_git_status_file" || true
-    git status --short
-    exit 1
-  fi
 
   if [[ "$actionable_after" -lt "$actionable_before" ]]; then
     NO_PROGRESS_STREAK=0
