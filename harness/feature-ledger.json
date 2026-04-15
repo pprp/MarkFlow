@@ -2034,24 +2034,26 @@
       "category": "phase-1-functional",
       "area": "@markflow/editor",
       "priority": 2,
-      "status": "planned",
+      "status": "ready",
       "passes": false,
       "lastVerifiedAt": null,
       "dependsOn": [],
       "steps": [
-        "Place caret on a line and press Cmd/Ctrl+Shift+Up — confirm the line swaps with the line above.",
-        "Select three lines and press Cmd/Ctrl+Shift+Down — confirm the selection moves down as a block preserving selection state.",
+        "Place the caret on a line and press Alt+Up or Alt+Down — confirm the line swaps with the adjacent line while the caret stays on the moved line.",
+        "Select three lines and press Alt+Up or Alt+Down — confirm the selection moves as a contiguous block while preserving the moved selection state.",
         "Verify undo/redo returns the document to the prior state atomically."
       ],
       "verification": {
         "automated": [
-          "Add keymap-level tests asserting single- and multi-line move semantics in `MarkFlowEditor.test.tsx`."
+          "pnpm --filter @markflow/editor exec vitest run src/editor/__tests__/MarkFlowEditor.test.tsx",
+          "pnpm --filter @markflow/editor lint -- src/editor/MarkFlowEditor.tsx src/editor/__tests__/MarkFlowEditor.test.tsx",
+          "pnpm --filter @markflow/editor build"
         ],
         "manual": [
-          "Reorder a list of 10 items using only the keyboard shortcut and confirm ordering + numbering remains valid."
+          "Reorder a numbered markdown list with Alt+Up/Down in the desktop editor and confirm the list structure/numbering still matches the intended order."
         ]
       },
-      "notes": "Typora release notes document move-line shortcuts; CodeMirror ships `moveLineUp`/`moveLineDown` commands that need to be wired into the keymap. Sources: https://support.typora.io/Shortcut-Keys/ and https://support.typora.io/What%27s-New-1.11/."
+      "notes": "Implemented and tightened on 2026-04-15. Typora 1.11 documents Alt+Up/Down for moving paragraphs or rows. MarkFlow inherits CodeMirror's default `Alt-ArrowUp` / `Alt-ArrowDown` `moveLineUp` and `moveLineDown` bindings through `packages/editor/src/editor/MarkFlowEditor.tsx`, and `packages/editor/src/editor/__tests__/MarkFlowEditor.test.tsx` now directly covers single-line moves, contiguous block moves in both directions, and undo/redo atomicity. Automated verification passed with `pnpm --filter @markflow/editor exec vitest run src/editor/__tests__/MarkFlowEditor.test.tsx`, `pnpm --filter @markflow/editor lint -- src/editor/MarkFlowEditor.tsx src/editor/__tests__/MarkFlowEditor.test.tsx`, and `pnpm --filter @markflow/editor build`. `passes` remains false because desktop validation for real numbered-list reordering is still pending. Sources: https://support.typora.io/Shortcut-Keys/ and https://support.typora.io/What%27s-New-1.11/."
     },
     {
       "id": "MF-079",

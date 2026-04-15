@@ -1,5 +1,5 @@
 import { fireEvent, render } from '@testing-library/react'
-import { isolateHistory, undo, undoDepth } from '@codemirror/commands'
+import { isolateHistory, redo, undo, undoDepth } from '@codemirror/commands'
 import { EditorSelection, Transaction } from '@codemirror/state'
 import { EditorView, runScopeHandlers } from '@codemirror/view'
 import { describe, expect, it, vi } from 'vitest'
@@ -141,6 +141,101 @@ describe('MarkFlowEditor', () => {
     fireEvent.keyDown(view.contentDOM, { key: '/', ctrlKey: true })
 
     expect(handleToggleMode).toHaveBeenCalledTimes(1)
+  })
+
+  it('moves the active line up and down with Alt+Arrow shortcuts', () => {
+    const content = ['alpha', 'beta', 'gamma'].join('\n')
+    const { container } = render(
+      <MarkFlowEditor content={content} viewMode="wysiwyg" onChange={vi.fn()} />,
+    )
+
+    const view = getEditorView(container)
+    view.dispatch({ selection: { anchor: view.state.doc.line(2).from + 2 } })
+
+    dispatchEditorShortcut(view, {
+      key: 'ArrowDown',
+      code: 'ArrowDown',
+      keyCode: 40,
+      altKey: true,
+    })
+    expect(view.state.doc.toString()).toBe(['alpha', 'gamma', 'beta'].join('\n'))
+    expect(view.state.doc.lineAt(view.state.selection.main.head).text).toBe('beta')
+
+    dispatchEditorShortcut(view, {
+      key: 'ArrowUp',
+      code: 'ArrowUp',
+      keyCode: 38,
+      altKey: true,
+    })
+    expect(view.state.doc.toString()).toBe(content)
+    expect(view.state.doc.lineAt(view.state.selection.main.head).text).toBe('beta')
+  })
+
+  it('moves a multi-line selection as a block while preserving the moved selection', () => {
+    const content = ['one', 'two', 'three', 'four'].join('\n')
+    const { container } = render(
+      <MarkFlowEditor content={content} viewMode="wysiwyg" onChange={vi.fn()} />,
+    )
+
+    const view = getEditorView(container)
+    view.dispatch({
+      selection: EditorSelection.range(view.state.doc.line(2).from, view.state.doc.line(3).to),
+    })
+
+    dispatchEditorShortcut(view, {
+      key: 'ArrowDown',
+      code: 'ArrowDown',
+      keyCode: 40,
+      altKey: true,
+    })
+
+    expect(view.state.doc.toString()).toBe(['one', 'four', 'two', 'three'].join('\n'))
+
+    const selection = view.state.selection.main
+    expect(view.state.sliceDoc(selection.from, selection.to)).toBe(['two', 'three'].join('\n'))
+    expect(selection.anchor).toBe(view.state.doc.line(3).from)
+    expect(selection.head).toBe(view.state.doc.line(4).to)
+
+    dispatchEditorShortcut(view, {
+      key: 'ArrowUp',
+      code: 'ArrowUp',
+      keyCode: 38,
+      altKey: true,
+    })
+
+    expect(view.state.doc.toString()).toBe(content)
+
+    const restoredSelection = view.state.selection.main
+    expect(view.state.sliceDoc(restoredSelection.from, restoredSelection.to)).toBe(['two', 'three'].join('\n'))
+    expect(restoredSelection.anchor).toBe(view.state.doc.line(2).from)
+    expect(restoredSelection.head).toBe(view.state.doc.line(3).to)
+  })
+
+  it('treats Alt+Arrow line moves as a single undoable history step', () => {
+    const content = ['start', 'middle', 'end'].join('\n')
+    const movedContent = ['start', 'end', 'middle'].join('\n')
+    const { container } = render(
+      <MarkFlowEditor content={content} viewMode="wysiwyg" onChange={vi.fn()} />,
+    )
+
+    const view = getEditorView(container)
+    view.dispatch({ selection: { anchor: view.state.doc.line(2).from + 2 } })
+
+    dispatchEditorShortcut(view, {
+      key: 'ArrowDown',
+      code: 'ArrowDown',
+      keyCode: 40,
+      altKey: true,
+    })
+    expect(view.state.doc.toString()).toBe(movedContent)
+
+    expect(undo(view)).toBe(true)
+    expect(view.state.doc.toString()).toBe(content)
+    expect(view.state.doc.lineAt(view.state.selection.main.head).text).toBe('middle')
+
+    expect(redo(view)).toBe(true)
+    expect(view.state.doc.toString()).toBe(movedContent)
+    expect(view.state.doc.lineAt(view.state.selection.main.head).text).toBe('middle')
   })
 
   it('converts the current line between paragraph and heading with Cmd/Ctrl+1 and Cmd/Ctrl+0', () => {

@@ -9,6 +9,35 @@
 
 ## Session Log
 
+### 2026-04-15 - MF-078 Alt+Up/Down parity tightened, manual numbered-list validation pending
+
+- Author: Codex (Dispatcher)
+- Focus: Align MarkFlow's move-line behavior and ledger truth with current Typora docs without widening scope beyond one feature slice.
+- Research updates:
+  - No new Typora ledger entries were added this run.
+  - Confirmed from Typora's `Shortcut Keys` and `What's New 1.11` docs that paragraph/row movement uses `Alt+Up/Down`, not `Cmd/Ctrl+Shift+Up/Down`.
+- What changed:
+  - confirmed `packages/editor/src/editor/MarkFlowEditor.tsx` already inherits CodeMirror's default `Alt-ArrowUp` / `Alt-ArrowDown` move-line bindings, so no product-code patch was needed
+  - extended `packages/editor/src/editor/__tests__/MarkFlowEditor.test.tsx` with Alt+Arrow coverage for single-line movement, contiguous multi-line block movement in both directions, and undo/redo atomicity
+  - updated `MF-078` in `harness/feature-ledger.json` to the truthful `ready` / `passes=false` state, corrected the shortcut steps, restored the pending manual numbered-list check, and recorded the exact automated verification commands that passed
+- Simplifications made:
+  - reused CodeMirror's existing keymap instead of introducing duplicate shortcut bindings
+  - kept the implementation scope to tests plus ledger corrections for the active feature only
+- Verification:
+  - `pnpm harness:start` (passes)
+  - `./harness/init.sh --smoke` (passes; includes `pnpm test` and `pnpm harness:verify`)
+  - `pnpm --filter @markflow/editor exec vitest run src/editor/__tests__/MarkFlowEditor.test.tsx` (passes; 1 file / 29 tests)
+  - `pnpm --filter @markflow/editor lint -- src/editor/MarkFlowEditor.tsx src/editor/__tests__/MarkFlowEditor.test.tsx` (passes)
+  - `pnpm --filter @markflow/editor build` (passes; existing Vite chunk-size warnings only)
+  - `pnpm harness:verify` (passes; 98 total | verified=59 | ready=6 | planned=33 | blocked=0)
+- Review / risks:
+  - Reviewer accepted `MF-078` in its current `ready` state after the bidirectional block-move test and ledger correction landed
+  - residual risk is intentionally narrow: real desktop numbered-list reordering with `Alt+Up/Down` still needs the manual parity check before `MF-078` can move to `verified`
+- Newly verified features:
+  - none
+- Next recommended feature:
+  - if a human can perform the desktop numbered-list check, clear `MF-078`; otherwise continue with `MF-060` as the next automatable gap
+
 ### 2026-04-15 - MF-076 plain-text paste shortcut implemented, manual clipboard validation pending
 
 - Author: Codex (Dispatcher)
