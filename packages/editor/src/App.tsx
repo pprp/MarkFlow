@@ -10,12 +10,13 @@ import { GoToLine } from './components/GoToLine'
 import { createExternalLinkBadgePlugin } from './plugins/externalLinkBadgePlugin'
 import {
   MarkFlowPluginHost,
+  type MarkFlowAppearance,
   type MarkFlowQuickOpenItem,
   type MarkFlowDocument,
   type MarkFlowFileLoadProgressPayload,
   type MarkFlowMenuAction,
   type MarkFlowRecoveryCheckpoint,
-  type MarkFlowThemePayload,
+  type MarkFlowThemeState,
   type MarkFlowThemeSummary,
   type ViewMode,
   type SearchResult,
@@ -127,6 +128,10 @@ function getLineNumberAtPosition(content: string, position: number) {
   return lineNumber
 }
 
+function formatAppearanceLabel(appearance: MarkFlowAppearance) {
+  return appearance === 'dark' ? 'Dark' : 'Light'
+}
+
 function getLineStartPosition(content: string, requestedLineNumber: number) {
   const totalLines = content.length === 0 ? 1 : content.split('\n').length
   const clampedLineNumber = Math.max(1, Math.min(requestedLineNumber, totalLines))
@@ -158,7 +163,7 @@ export function App() {
   const [isGlobalSearchOpen, setIsGlobalSearchOpen] = useState(false)
   const [isGoToLineOpen, setIsGoToLineOpen] = useState(false)
   const [themes, setThemes] = useState<MarkFlowThemeSummary[]>([])
-  const [activeThemeId, setActiveThemeId] = useState<string>('')
+  const [themeState, setThemeState] = useState<MarkFlowThemeState | null>(null)
   const [cursorPosition, setCursorPosition] = useState(0)
   const [viewportPosition, setViewportPosition] = useState<number | null>(null)
   const [editorNavigationRequest, setEditorNavigationRequest] = useState<{
@@ -196,7 +201,7 @@ export function App() {
     pluginHostRef.current?.dispose()
   }, [])
 
-  function applyTheme(theme: MarkFlowThemePayload | null) {
+  function applyThemeState(nextThemeState: MarkFlowThemeState | null) {
     const existing = document.getElementById(THEME_STYLE_ELEMENT_ID) as HTMLStyleElement | null
     const style = existing ?? document.createElement('style')
 
@@ -205,8 +210,8 @@ export function App() {
       document.head.appendChild(style)
     }
 
-    style.textContent = theme?.cssText ?? ''
-    setActiveThemeId(theme?.id ?? '')
+    style.textContent = nextThemeState?.activeTheme?.cssText ?? ''
+    setThemeState(nextThemeState)
   }
 
   useEffect(() => {
@@ -293,7 +298,7 @@ export function App() {
     const unsubscribeMenuAction = api.onMenuAction((payload) => {
       void handleMenuAction(payload)
     })
-    const unsubscribeThemeUpdated = api.onThemeUpdated(applyTheme)
+    const unsubscribeThemeUpdated = api.onThemeUpdated(applyThemeState)
 
     void (async () => {
       const currentDocument = await api.getCurrentDocument()
@@ -322,8 +327,8 @@ export function App() {
       applyRecoveredDocument(recoveryCheckpoint, persistedContent)
     })()
     void api.getThemes().then(setThemes)
-    void api.getCurrentTheme().then((theme) => {
-      applyTheme(theme)
+    void api.getThemeState().then((nextThemeState) => {
+      applyThemeState(nextThemeState)
     })
 
     return () => {
@@ -530,12 +535,14 @@ export function App() {
     await window.markflow?.openPath(filePath)
   }
 
-  async function handleThemeChange(event: ChangeEvent<HTMLSelectElement>) {
-    const nextTheme = await window.markflow?.setTheme(event.target.value)
-    if (nextTheme) {
-      applyTheme(nextTheme)
+  async function handleThemeChange(appearance: MarkFlowAppearance, event: ChangeEvent<HTMLSelectElement>) {
+    const nextThemeState = await window.markflow?.setThemeForAppearance(appearance, event.target.value)
+    if (nextThemeState) {
+      applyThemeState(nextThemeState)
     }
   }
+
+  const activeAppearance = themeState?.activeAppearance ?? 'light'
 
   const outlineHeadings = symbolTable.headings
 
@@ -612,14 +619,46 @@ export function App() {
           </span>
         </div>
         <div className="mf-titlebar-right">
-          {themes.length > 0 ? (
-            <select className="mf-theme-select" value={activeThemeId} onChange={handleThemeChange} aria-label="Theme">
-              {themes.map((theme) => (
-                <option key={theme.id} value={theme.id}>
-                  {theme.name}
-                </option>
-              ))}
-            </select>
+          {themes.length > 0 && themeState ? (
+            <div className="mf-theme-controls" aria-label="Theme preferences">
+              <span className="mf-theme-appearance-pill" aria-live="polite">
+                {formatAppearanceLabel(activeAppearance)} mode
+              </span>
+              <label
+                className={`mf-theme-select-group${activeAppearance === 'light' ? ' mf-theme-select-group-active' : ''}`}
+              >
+                <span className="mf-theme-select-label">Light</span>
+                <select
+                  className="mf-theme-select"
+                  value={themeState.lightThemeId}
+                  onChange={(event) => void handleThemeChange('light', event)}
+                  aria-label="Light theme"
+                >
+                  {themes.map((theme) => (
+                    <option key={theme.id} value={theme.id}>
+                      {theme.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label
+                className={`mf-theme-select-group${activeAppearance === 'dark' ? ' mf-theme-select-group-active' : ''}`}
+              >
+                <span className="mf-theme-select-label">Dark</span>
+                <select
+                  className="mf-theme-select"
+                  value={themeState.darkThemeId}
+                  onChange={(event) => void handleThemeChange('dark', event)}
+                  aria-label="Dark theme"
+                >
+                  {themes.map((theme) => (
+                    <option key={theme.id} value={theme.id}>
+                      {theme.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
           ) : null}
           <button
             className={`mf-mode-toggle${typewriterMode ? ' mf-mode-active' : ''}`}

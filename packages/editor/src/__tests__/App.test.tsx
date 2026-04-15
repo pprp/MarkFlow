@@ -4,6 +4,7 @@ import { act } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { App } from '../App'
 import type {
+  MarkFlowAppearance,
   MarkFlowDesktopAPI,
   MarkFlowFileLoadProgressPayload,
   MarkFlowFilePayload,
@@ -12,6 +13,7 @@ import type {
   MarkFlowRecoveryCheckpoint,
   MarkFlowSavePayload,
   MarkFlowThemePayload,
+  MarkFlowThemeState,
   MarkFlowThemeSummary,
 } from '@markflow/shared'
 
@@ -28,8 +30,20 @@ function getEditorView(container: HTMLElement) {
 class MockMarkFlowAPI implements MarkFlowDesktopAPI {
   private themes: MarkFlowThemeSummary[] = [
     { id: 'paper', name: 'Paper' },
+    { id: 'github', name: 'GitHub' },
     { id: 'midnight', name: 'Midnight' },
+    { id: 'night', name: 'Night' },
   ]
+  private themeState: MarkFlowThemeState = {
+    activeAppearance: 'light',
+    lightThemeId: 'paper',
+    darkThemeId: 'midnight',
+    activeTheme: {
+      id: 'paper',
+      name: 'Paper',
+      cssText: ':root { --mf-accent: #9c5f2f; }',
+    },
+  }
   openFile: MarkFlowDesktopAPI['openFile'] = vi.fn(async () => null)
   openPath: MarkFlowDesktopAPI['openPath'] = vi.fn(async () => null)
   saveFile: MarkFlowDesktopAPI['saveFile'] = vi.fn(async () => ({ success: true }))
@@ -54,20 +68,35 @@ class MockMarkFlowAPI implements MarkFlowDesktopAPI {
   searchFiles: MarkFlowDesktopAPI['searchFiles'] = vi.fn(async () => [])
 
   getThemes: MarkFlowDesktopAPI['getThemes'] = vi.fn(async () => this.themes)
-  getCurrentTheme: MarkFlowDesktopAPI['getCurrentTheme'] = vi.fn(async () => this.buildThemePayload('paper'))
+  getThemeState: MarkFlowDesktopAPI['getThemeState'] = vi.fn(async () => this.themeState)
+  getCurrentTheme: MarkFlowDesktopAPI['getCurrentTheme'] = vi.fn(async () => this.themeState.activeTheme)
   setTheme: MarkFlowDesktopAPI['setTheme'] = vi.fn(async (themeId: string) => {
-    const theme = this.buildThemePayload(themeId)
-    if (theme) {
-      this.emitThemeUpdated(theme)
-    }
-    return theme
+    const nextState = await this.setThemeForAppearance(this.themeState.activeAppearance, themeId)
+    return nextState?.activeTheme ?? null
   })
+  setThemeForAppearance: MarkFlowDesktopAPI['setThemeForAppearance'] = vi.fn(
+    async (appearance: MarkFlowAppearance, themeId: string) => {
+      const theme = this.buildThemePayload(themeId)
+      if (!theme) {
+        return null
+      }
+
+      const nextState: MarkFlowThemeState = {
+        ...this.themeState,
+        lightThemeId: appearance === 'light' ? themeId : this.themeState.lightThemeId,
+        darkThemeId: appearance === 'dark' ? themeId : this.themeState.darkThemeId,
+        activeTheme: appearance === this.themeState.activeAppearance ? theme : this.themeState.activeTheme,
+      }
+      this.emitThemeUpdated(nextState)
+      return nextState
+    },
+  )
 
   private fileOpenedListeners = new Set<(data: MarkFlowFilePayload) => void>()
   private fileLoadingProgressListeners = new Set<(data: MarkFlowFileLoadProgressPayload) => void>()
   private fileSavedListeners = new Set<(data: MarkFlowSavePayload) => void>()
   private menuActionListeners = new Set<(data: MarkFlowMenuActionPayload) => void>()
-  private themeUpdatedListeners = new Set<(data: MarkFlowThemePayload) => void>()
+  private themeUpdatedListeners = new Set<(data: MarkFlowThemeState) => void>()
 
   private buildThemePayload(themeId: string): MarkFlowThemePayload | null {
     if (themeId === 'paper') {
@@ -86,7 +115,37 @@ class MockMarkFlowAPI implements MarkFlowDesktopAPI {
       }
     }
 
+    if (themeId === 'github') {
+      return {
+        id: 'github',
+        name: 'GitHub',
+        cssText: ':root { --mf-accent: #0366d6; }',
+      }
+    }
+
+    if (themeId === 'night') {
+      return {
+        id: 'night',
+        name: 'Night',
+        cssText: ':root { --mf-bg: #1d1f21; }',
+      }
+    }
+
     return null
+  }
+
+  setSystemAppearance(appearance: MarkFlowAppearance) {
+    const themeId = appearance === 'dark' ? this.themeState.darkThemeId : this.themeState.lightThemeId
+    const activeTheme = this.buildThemePayload(themeId)
+    if (!activeTheme) {
+      throw new Error(`Unknown theme: ${themeId}`)
+    }
+
+    this.emitThemeUpdated({
+      ...this.themeState,
+      activeAppearance: appearance,
+      activeTheme,
+    })
   }
 
   onFileOpened(cb: (data: MarkFlowFilePayload) => void) {
@@ -109,7 +168,7 @@ class MockMarkFlowAPI implements MarkFlowDesktopAPI {
     return () => this.menuActionListeners.delete(cb)
   }
 
-  onThemeUpdated(cb: (data: MarkFlowThemePayload) => void) {
+  onThemeUpdated(cb: (data: MarkFlowThemeState) => void) {
     this.themeUpdatedListeners.add(cb)
     return () => this.themeUpdatedListeners.delete(cb)
   }
@@ -130,7 +189,8 @@ class MockMarkFlowAPI implements MarkFlowDesktopAPI {
     for (const listener of this.menuActionListeners) listener({ action })
   }
 
-  emitThemeUpdated(data: MarkFlowThemePayload) {
+  emitThemeUpdated(data: MarkFlowThemeState) {
+    this.themeState = data
     for (const listener of this.themeUpdatedListeners) listener(data)
   }
 }
@@ -371,25 +431,49 @@ describe('App desktop integration', () => {
     })
   })
 
-  it('loads desktop themes, applies the current theme CSS, and switches themes through the bridge', async () => {
+  it('manages separate light and dark themes and reflects runtime appearance switches', async () => {
     const api = new MockMarkFlowAPI()
     window.markflow = api
 
     render(<App />)
 
-    const select = (await screen.findByLabelText('Theme')) as HTMLSelectElement
-    expect(select.value).toBe('paper')
+    const lightSelect = (await screen.findByLabelText('Light theme')) as HTMLSelectElement
+    const darkSelect = (await screen.findByLabelText('Dark theme')) as HTMLSelectElement
+
+    expect(screen.getByText('Light mode')).toBeInTheDocument()
+    expect(lightSelect.value).toBe('paper')
+    expect(darkSelect.value).toBe('midnight')
     expect(document.getElementById('mf-theme-overrides')).toHaveTextContent('--mf-accent: #9c5f2f')
 
-    fireEvent.change(select, { target: { value: 'midnight' } })
+    fireEvent.change(lightSelect, { target: { value: 'github' } })
 
     await waitFor(() => {
-      expect(api.setTheme).toHaveBeenCalledWith('midnight')
+      expect(api.setThemeForAppearance).toHaveBeenCalledWith('light', 'github')
     })
 
     await waitFor(() => {
-      expect(document.getElementById('mf-theme-overrides')).toHaveTextContent('--mf-bg: #111827')
-      expect(select.value).toBe('midnight')
+      expect(document.getElementById('mf-theme-overrides')).toHaveTextContent('--mf-accent: #0366d6')
+      expect(lightSelect.value).toBe('github')
+      expect(darkSelect.value).toBe('midnight')
+    })
+
+    fireEvent.change(darkSelect, { target: { value: 'night' } })
+
+    await waitFor(() => {
+      expect(api.setThemeForAppearance).toHaveBeenCalledWith('dark', 'night')
+      expect(darkSelect.value).toBe('night')
+      expect(document.getElementById('mf-theme-overrides')).toHaveTextContent('--mf-accent: #0366d6')
+    })
+
+    act(() => {
+      api.setSystemAppearance('dark')
+    })
+
+    await waitFor(() => {
+      expect(screen.getByText('Dark mode')).toBeInTheDocument()
+      expect(document.getElementById('mf-theme-overrides')).toHaveTextContent('--mf-bg: #1d1f21')
+      expect(lightSelect.value).toBe('github')
+      expect(darkSelect.value).toBe('night')
     })
   })
 

@@ -274,6 +274,46 @@ body {
 }
 
 /* ── Theme picker ───────────────────────────────────────────── */
+.mf-theme-controls {
+  -webkit-app-region: no-drag;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.mf-theme-appearance-pill {
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 8px;
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--mf-accent);
+  background: var(--mf-accent-light);
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.mf-theme-select-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 4px;
+  border-radius: var(--mf-radius-sm);
+  transition: background-color var(--mf-transition-fast);
+}
+
+.mf-theme-select-group-active {
+  background: var(--mf-fill-secondary);
+}
+
+.mf-theme-select-label {
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--mf-fg-muted);
+  white-space: nowrap;
+}
+
 .mf-theme-select {
   -webkit-app-region: no-drag;
   appearance: none;

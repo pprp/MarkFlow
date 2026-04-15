@@ -4,16 +4,44 @@ import * as path from 'path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ThemeManager } from './themeManager'
 
-const { handleMock, removeHandlerMock } = vi.hoisted(() => ({
-  handleMock: vi.fn(),
-  removeHandlerMock: vi.fn(),
-}))
+const { handleMock, removeHandlerMock, nativeThemeMock, emitNativeThemeUpdated, resetNativeThemeMock } = vi.hoisted(
+  () => {
+    const updatedListeners = new Set<() => void>()
+    const nativeThemeMock = {
+      shouldUseDarkColors: false,
+      on: vi.fn((_event: string, listener: () => void) => {
+        updatedListeners.add(listener)
+      }),
+      removeListener: vi.fn((_event: string, listener: () => void) => {
+        updatedListeners.delete(listener)
+      }),
+    }
+
+    return {
+      handleMock: vi.fn(),
+      removeHandlerMock: vi.fn(),
+      nativeThemeMock,
+      emitNativeThemeUpdated: () => {
+        for (const listener of [...updatedListeners]) {
+          listener()
+        }
+      },
+      resetNativeThemeMock: () => {
+        updatedListeners.clear()
+        nativeThemeMock.shouldUseDarkColors = false
+        nativeThemeMock.on.mockClear()
+        nativeThemeMock.removeListener.mockClear()
+      },
+    }
+  },
+)
 
 vi.mock('electron', () => ({
   ipcMain: {
     handle: handleMock,
     removeHandler: removeHandlerMock,
   },
+  nativeTheme: nativeThemeMock,
 }))
 
 function createWindowStub() {
@@ -47,6 +75,7 @@ describe('ThemeManager', () => {
   beforeEach(() => {
     handleMock.mockReset()
     removeHandlerMock.mockReset()
+    resetNativeThemeMock()
     tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'markflow-theme-'))
   })
 
@@ -54,7 +83,7 @@ describe('ThemeManager', () => {
     fs.rmSync(tempDir, { recursive: true, force: true })
   })
 
-  it('bootstraps built-in themes and persists theme switches', async () => {
+  it('persists separate light and dark themes and switches when the system appearance changes', async () => {
     const window = createWindowStub()
     const manager = new ThemeManager(window as never, tempDir)
 
@@ -67,37 +96,86 @@ describe('ThemeManager', () => {
       ]),
     )
     expect(manager.getThemes().length).toBeGreaterThanOrEqual(2)
-    expect(manager.getCurrentTheme()).toEqual(
+    expect(manager.getThemeState()).toEqual(
       expect.objectContaining({
-        id: 'paper',
-        name: 'Paper',
+        activeAppearance: 'light',
+        lightThemeId: 'paper',
+        darkThemeId: 'midnight',
+        activeTheme: expect.objectContaining({
+          id: 'paper',
+          name: 'Paper',
+        }),
       }),
     )
 
-    const theme = await manager.setTheme('midnight')
-    expect(theme).toEqual(
+    const lightState = await manager.setThemeForAppearance('light', 'github')
+    expect(lightState).toEqual(
       expect.objectContaining({
-        id: 'midnight',
-        name: 'Midnight',
+        activeAppearance: 'light',
+        lightThemeId: 'github',
+        darkThemeId: 'midnight',
+        activeTheme: expect.objectContaining({
+          id: 'github',
+          name: 'GitHub',
+        }),
       }),
     )
     expect(window.webContents.send).toHaveBeenCalledWith(
       'theme-updated',
-      expect.objectContaining({ id: 'midnight' }),
+      expect.objectContaining({
+        activeAppearance: 'light',
+        lightThemeId: 'github',
+        darkThemeId: 'midnight',
+        activeTheme: expect.objectContaining({ id: 'github' }),
+      }),
+    )
+
+    const darkState = await manager.setThemeForAppearance('dark', 'night')
+    expect(darkState).toEqual(
+      expect.objectContaining({
+        activeAppearance: 'light',
+        lightThemeId: 'github',
+        darkThemeId: 'night',
+        activeTheme: expect.objectContaining({ id: 'github' }),
+      }),
     )
 
     const persisted = JSON.parse(
       fs.readFileSync(path.join(tempDir, 'themes', 'theme-state.json'), 'utf8'),
-    ) as { themeId: string }
-    expect(persisted.themeId).toBe('midnight')
+    ) as { lightThemeId: string; darkThemeId: string }
+    expect(persisted).toEqual({
+      lightThemeId: 'github',
+      darkThemeId: 'night',
+    })
+
+    nativeThemeMock.shouldUseDarkColors = true
+    window.webContents.send.mockClear()
+    emitNativeThemeUpdated()
+
+    await waitForExpectation(() => {
+      expect(window.webContents.send).toHaveBeenCalledWith(
+        'theme-updated',
+        expect.objectContaining({
+          activeAppearance: 'dark',
+          lightThemeId: 'github',
+          darkThemeId: 'night',
+          activeTheme: expect.objectContaining({ id: 'night' }),
+        }),
+      )
+    })
 
     await manager.dispose()
 
     const restored = new ThemeManager(createWindowStub() as never, tempDir)
     await restored.initialize()
-    expect(restored.getCurrentTheme()).toEqual(
+    expect(restored.getThemeState()).toEqual(
       expect.objectContaining({
-        id: 'midnight',
+        activeAppearance: 'dark',
+        lightThemeId: 'github',
+        darkThemeId: 'night',
+        activeTheme: expect.objectContaining({
+          id: 'night',
+        }),
       }),
     )
     await restored.dispose()
@@ -118,8 +196,10 @@ describe('ThemeManager', () => {
       expect(window.webContents.send).toHaveBeenCalledWith(
         'theme-updated',
         expect.objectContaining({
-          id: 'paper',
-          cssText: expect.stringContaining('#ff0055'),
+          activeTheme: expect.objectContaining({
+            id: 'paper',
+            cssText: expect.stringContaining('#ff0055'),
+          }),
         }),
       )
     })

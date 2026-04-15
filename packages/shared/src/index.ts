@@ -46,6 +46,15 @@ export interface MarkFlowThemePayload extends MarkFlowThemeSummary {
   cssText: string
 }
 
+export type MarkFlowAppearance = 'light' | 'dark'
+
+export interface MarkFlowThemeState {
+  activeAppearance: MarkFlowAppearance
+  lightThemeId: string
+  darkThemeId: string
+  activeTheme: MarkFlowThemePayload | null
+}
+
 export type MarkFlowMenuAction = 'new-file' | 'open-file' | 'save-file' | 'save-file-as' | 'export-html' | 'export-pdf' | 'export-docx' | 'export-epub' | 'export-latex'
 
 export interface MarkFlowMenuActionPayload {
@@ -244,8 +253,13 @@ export interface MarkFlowDesktopAPI {
   getQuickOpenList: () => Promise<MarkFlowQuickOpenItem[]>
   getCurrentDocument: () => Promise<MarkFlowFilePayload | null>
   getThemes: () => Promise<MarkFlowThemeSummary[]>
+  getThemeState: () => Promise<MarkFlowThemeState | null>
   getCurrentTheme: () => Promise<MarkFlowThemePayload | null>
   setTheme: (themeId: string) => Promise<MarkFlowThemePayload | null>
+  setThemeForAppearance: (
+    appearance: MarkFlowAppearance,
+    themeId: string,
+  ) => Promise<MarkFlowThemeState | null>
   openFolder: () => Promise<{ folderPath: string } | null>
   getVaultFiles: (folderPath: string) => Promise<string[]>
   renameFile: (oldPath: string, newPath: string) => Promise<void>
@@ -255,5 +269,5 @@ export interface MarkFlowDesktopAPI {
   onFileLoadingProgress: (cb: (data: MarkFlowFileLoadProgressPayload) => void) => () => void
   onFileSaved: (cb: (data: MarkFlowSavePayload) => void) => () => void
   onMenuAction: (cb: (data: MarkFlowMenuActionPayload) => void) => () => void
-  onThemeUpdated: (cb: (data: MarkFlowThemePayload) => void) => () => void
+  onThemeUpdated: (cb: (data: MarkFlowThemeState) => void) => () => void
 }

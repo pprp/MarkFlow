@@ -1757,35 +1757,47 @@
 - Next recommended feature:
   - `MF-060` - complete the crash/relaunch recovery flow in a GUI session with working Accessibility permission, then update the ledger fields
 
-### 2026-04-16 - MF-060 rerun kept the recovery ledger truthful while GUI proof stayed blocked
+### 2026-04-16 - MF-104 now persists separate light and dark themes and follows system appearance
 
 - Author: Codex (Dispatcher)
-- Focus: rerun the required `MF-060` startup and verification flow, confirm whether any new code change was warranted, and record only evidence that stays truthful in this CLI session.
+- Focus: close the newly researched Typora parity gap around dark mode by persisting separate light/dark theme choices and applying the matching theme when the OS appearance changes.
+- Research updates:
+  - Researcher added `MF-104` to `harness/feature-ledger.json` from Typora's `Dark Mode` docs and support index.
 - What changed:
-  - re-ran `pnpm harness:start` and `./harness/init.sh --smoke`, then re-read the current `MF-060` ledger entry plus the landed recovery implementation in `packages/desktop/src/main/fileManager.ts`, `packages/desktop/src/preload/index.ts`, `packages/editor/src/App.tsx`, `packages/desktop/src/main/fileManager.test.ts`, and `packages/editor/src/__tests__/App.test.tsx`
-  - observed `./harness/init.sh --smoke` fail during the workspace `pnpm test` phase because `packages/desktop/src/main/themeManager.test.ts` in the current dirty worktree asserted `darkThemeId: "midnight"` while the persisted value was `"night"`; kept that unrelated theme work out of scope instead of widening this `MF-060` session
-  - re-ran the required automated verification command `pnpm --filter @markflow/desktop test:run -- --grep auto-save`, the focused recovery suites `pnpm --filter @markflow/desktop exec vitest run src/main/fileManager.test.ts -t "auto-save recovery checkpoints"` and `pnpm --filter @markflow/editor exec vitest run src/__tests__/App.test.tsx -t "App auto-save"`, and `pnpm harness:verify`
-  - left production code and `harness/feature-ledger.json` unchanged because `MF-060` already matches the feature notes and the only remaining truthful blocker is the still-manual recovery prompt acceptance/readback proof
-  - re-checked GUI automation capability with `swift -e 'import ApplicationServices; print(AXIsProcessTrusted())'`, `osascript -e 'return 1'`, and a timed `System Events` process query
+  - updated `packages/desktop/src/main/themeManager.ts` to persist `lightThemeId` / `darkThemeId`, migrate legacy single-theme state toward the current appearance, listen to Electron `nativeTheme` updates, and expose `getThemeState` / `setThemeForAppearance`
+  - extended `packages/shared/src/index.ts` and `packages/desktop/src/preload/index.ts` with `MarkFlowThemeState`, `MarkFlowAppearance`, and the new desktop bridge methods
+  - updated `packages/editor/src/App.tsx` and `packages/editor/src/styles/global.css` so the titlebar exposes separate Light/Dark theme selectors plus a live appearance pill that follows passive OS theme changes
+  - extended `packages/desktop/src/main/themeManager.test.ts` and `packages/editor/src/__tests__/App.test.tsx` to cover persisted split theme ids, runtime native-theme switching, and renderer updates when the active appearance flips
+  - kept `MF-104` truthful at `status=ready`, `passes=false`, and `lastVerifiedAt=null` while recording the exact automated verification commands that passed
 - Changed files:
-  - `harness/progress.md`
+  - `harness/feature-ledger.json`
+  - `packages/desktop/src/main/themeManager.ts`
+  - `packages/desktop/src/main/themeManager.test.ts`
+  - `packages/desktop/src/preload/index.ts`
+  - `packages/shared/src/index.ts`
+  - `packages/editor/src/App.tsx`
+  - `packages/editor/src/__tests__/App.test.tsx`
+  - `packages/editor/src/styles/global.css`
 - Simplifications made:
-  - kept the session strictly scoped to `MF-060`; did not fold the unrelated theme/ledger worktree changes into this commit
-  - reused the existing desktop/editor recovery suites instead of adding more launch instrumentation that still would not satisfy the required manual recovery acceptance proof
+  - reused the existing titlebar theme control instead of building a new preferences dialog
+  - kept the existing `setTheme()` bridge as a wrapper around the active appearance so older callers still work
 - Verification:
   - `pnpm harness:start` (passes)
-  - `./harness/init.sh --smoke` (fails in the workspace `pnpm test` phase on `packages/desktop/src/main/themeManager.test.ts`; the current dirty worktree persisted `darkThemeId` as `"night"` while the test still expected `"midnight"`)
-  - `pnpm --filter @markflow/desktop test:run -- --grep auto-save` (passes; current run completed all 6 desktop suites / 25 tests)
-  - `pnpm --filter @markflow/desktop exec vitest run src/main/fileManager.test.ts -t "auto-save recovery checkpoints"` (passes; 2 focused recovery tests)
-  - `pnpm --filter @markflow/editor exec vitest run src/__tests__/App.test.tsx -t "App auto-save"` (passes; 5 focused app auto-save tests)
+  - `pnpm --filter @markflow/desktop exec vitest run src/main/themeManager.test.ts` (passes; 1 file / 2 tests)
+  - `pnpm --filter @markflow/editor exec vitest run src/__tests__/App.test.tsx -t "manages separate light and dark themes and reflects runtime appearance switches"` (passes; 1 test)
+  - `pnpm --filter @markflow/shared lint` (passes)
+  - `pnpm --filter @markflow/shared build` (passes)
+  - `pnpm --filter @markflow/desktop lint` (passes)
+  - `pnpm --filter @markflow/editor lint` (passes)
+  - `pnpm --filter @markflow/desktop build` (passes)
+  - `pnpm --filter @markflow/editor build` (passes; existing Vite chunk-size warnings only)
+  - `./harness/init.sh --smoke` (passes; workspace `pnpm test` plus `pnpm harness:verify`)
   - `pnpm harness:verify` (passes; 104 total | verified=60 | ready=12 | planned=32 | blocked=0)
-  - manual-verification capability probes (blocked): `AXIsProcessTrusted()` returned `false`, `osascript -e 'return 1'` returned `1`, and the timed `System Events` query returned `timeout`
 - Review / risks:
-  - `MF-060` still cannot move to `status=verified`, `passes=true`, or receive a `lastVerifiedAt` timestamp until a GUI session can kill MarkFlow after a 35-second dirty idle period, relaunch it, accept the recovery prompt, and confirm the restored checkpoint content
-  - this session added no production diff because the recovery implementation and its automated coverage were already present, and the remaining gap is still the blocked manual proof
-  - the workspace also currently contains unrelated uncommitted theme/ledger changes; this session intentionally did not verify or commit that separate work as part of `MF-060`
-  - because the environment still cannot truthfully accept the recovery prompt, `harness/feature-ledger.json` must remain `status=planned`, `passes=false`, and `lastVerifiedAt=null`
+  - Reviewer accepted the final diff after re-review with no remaining findings
+  - residual risk is limited to real OS-level `nativeTheme` behavior and the manual check that switching macOS/Windows appearance updates the live app without losing editor state
+  - because that manual check is still pending, `MF-104` must stay `status=ready`, `passes=false`, and `lastVerifiedAt=null`
 - Newly verified features:
   - none
 - Next recommended feature:
-  - `MF-060` - complete the crash/relaunch recovery flow in a GUI session with working Accessibility permission, then update the ledger fields only if the full flow truly passes
+  - if a human can do the OS appearance toggle check, finish `MF-104`; otherwise continue with `MF-050` as the next automatable ready feature

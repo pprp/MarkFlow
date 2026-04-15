@@ -1,5 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import type {
+  MarkFlowAppearance,
   MarkFlowDesktopAPI,
   MarkFlowFileLoadProgressPayload,
   MarkFlowFilePayload,
@@ -8,8 +9,8 @@ import type {
   MarkFlowRecoveryDraft,
   MarkFlowSavePayload,
   MarkFlowSaveResult,
-  MarkFlowThemePayload,
   SearchResult,
+  MarkFlowThemeState,
 } from '@markflow/shared'
 
 function subscribe<T>(channel: string, cb: (data: T) => void) {
@@ -42,8 +43,11 @@ const api: MarkFlowDesktopAPI = {
   getQuickOpenList: () => ipcRenderer.invoke('get-quick-open-list'),
   getCurrentDocument: () => ipcRenderer.invoke('get-current-document'),
   getThemes: () => ipcRenderer.invoke('get-themes'),
+  getThemeState: () => ipcRenderer.invoke('get-theme-state'),
   getCurrentTheme: () => ipcRenderer.invoke('get-current-theme'),
   setTheme: (themeId: string) => ipcRenderer.invoke('set-theme', themeId),
+  setThemeForAppearance: (appearance: MarkFlowAppearance, themeId: string) =>
+    ipcRenderer.invoke('set-theme-for-appearance', appearance, themeId),
   openFolder: () => ipcRenderer.invoke('open-folder'),
   getVaultFiles: (folderPath: string) => ipcRenderer.invoke('get-vault-files', folderPath) as Promise<string[]>,
   renameFile: (oldPath: string, newPath: string) => ipcRenderer.invoke('rename-file', oldPath, newPath),
@@ -55,7 +59,7 @@ const api: MarkFlowDesktopAPI = {
     subscribe('file-loading-progress', cb),
   onFileSaved: (cb: (data: MarkFlowSavePayload) => void) => subscribe('file-saved', cb),
   onMenuAction: (cb: (data: MarkFlowMenuActionPayload) => void) => subscribe('menu-action', cb),
-  onThemeUpdated: (cb: (data: MarkFlowThemePayload) => void) => subscribe('theme-updated', cb),
+  onThemeUpdated: (cb: (data: MarkFlowThemeState) => void) => subscribe('theme-updated', cb),
 }
 
 contextBridge.exposeInMainWorld('markflow', api)

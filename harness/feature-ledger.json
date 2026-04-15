@@ -2688,6 +2688,35 @@
         ]
       },
       "notes": "Typora documents launch options for reopening the last file/folder or opening a specified folder on startup. MarkFlow currently only handles a CLI-passed markdown path and has no persisted startup preference or folder-restore flow. Sources: https://support.typora.io/File-Management/ and https://support.typora.io/Launch-Options/."
+    },
+    {
+      "id": "MF-104",
+      "title": "System dark mode applies separate light and dark themes automatically",
+      "category": "phase-2-functional",
+      "area": "@markflow/desktop",
+      "priority": 2,
+      "status": "ready",
+      "passes": false,
+      "lastVerifiedAt": null,
+      "dependsOn": [
+        "MF-012"
+      ],
+      "steps": [
+        "Choose different light and dark themes from the app theme controls and relaunch MarkFlow; confirm both theme mappings persist.",
+        "While MarkFlow is running, switch the OS appearance between light and dark and confirm the matching theme applies immediately without restart.",
+        "Return to each appearance mode and confirm the previously selected light and dark theme ids are still preserved."
+      ],
+      "verification": {
+        "automated": [
+          "pnpm --filter @markflow/desktop exec vitest run src/main/themeManager.test.ts",
+          "pnpm --filter @markflow/editor exec vitest run src/__tests__/App.test.tsx -t \"manages separate light and dark themes and reflects runtime appearance switches\"",
+          "pnpm harness:verify"
+        ],
+        "manual": [
+          "Open the desktop app, set distinct light and dark themes, switch the macOS or Windows appearance while the app stays open, and confirm the rendered theme and the active appearance indicator update immediately."
+        ]
+      },
+      "notes": "Typora documents separate light and dark theme behavior that follows system appearance automatically. This run extends `packages/desktop/src/main/themeManager.ts`, `packages/desktop/src/preload/index.ts`, `packages/shared/src/index.ts`, and `packages/editor/src/App.tsx` so MarkFlow persists independent light/dark theme ids, exposes them to the renderer, and updates the active theme on Electron `nativeTheme` changes; focused desktop and renderer tests were added, but manual OS-level verification is still pending so `passes` remains false. Sources: https://support.typora.io/Dark-Mode/ and https://support.typora.io/."
     }
   ]
 }

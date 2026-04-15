@@ -1,18 +1,38 @@
 import * as fs from 'fs'
 import * as path from 'path'
-import { ipcMain, type BrowserWindow } from 'electron'
+import { ipcMain, nativeTheme, type BrowserWindow } from 'electron'
 import chokidar, { type FSWatcher } from 'chokidar'
-import type { MarkFlowThemePayload, MarkFlowThemeSummary } from '@markflow/shared'
+import type {
+  MarkFlowAppearance,
+  MarkFlowThemePayload,
+  MarkFlowThemeState,
+  MarkFlowThemeSummary,
+} from '@markflow/shared'
 
 interface ThemeFile extends MarkFlowThemeSummary {
   filePath: string
 }
 
 interface ThemeState {
-  themeId: string
+  themeId?: string
+  lightThemeId?: string
+  darkThemeId?: string
 }
 
-const DEFAULT_THEME_ID = 'paper'
+interface ResolvedThemeState {
+  lightThemeId: string
+  darkThemeId: string
+}
+
+const DEFAULT_THEME_IDS: Record<MarkFlowAppearance, string> = {
+  light: 'paper',
+  dark: 'midnight',
+}
+
+const DEFAULT_THEME_STATE: ResolvedThemeState = {
+  lightThemeId: DEFAULT_THEME_IDS.light,
+  darkThemeId: DEFAULT_THEME_IDS.dark,
+}
 
 const BUILTIN_THEMES: Array<{ id: string; name: string; cssText: string }> = [
   {
@@ -247,8 +267,12 @@ function formatThemeName(themeId: string) {
 export class ThemeManager {
   private readonly themeDir: string
   private readonly statePath: string
-  private currentThemeId = DEFAULT_THEME_ID
+  private currentThemeId = DEFAULT_THEME_IDS.light
+  private themeState: ResolvedThemeState = { ...DEFAULT_THEME_STATE }
   private watcher: FSWatcher | null = null
+  private readonly handleNativeThemeUpdated = () => {
+    void this.applyThemeForAppearance(this.getCurrentAppearance(), { emit: true })
+  }
 
   constructor(
     private window: BrowserWindow,
@@ -260,21 +284,32 @@ export class ThemeManager {
 
   registerIpcHandlers() {
     ipcMain.removeHandler('get-themes')
+    ipcMain.removeHandler('get-theme-state')
     ipcMain.removeHandler('get-current-theme')
     ipcMain.removeHandler('set-theme')
+    ipcMain.removeHandler('set-theme-for-appearance')
 
     ipcMain.handle('get-themes', () => this.getThemes())
+    ipcMain.handle('get-theme-state', () => this.getThemeState())
     ipcMain.handle('get-current-theme', () => this.getCurrentTheme())
     ipcMain.handle('set-theme', async (_event, themeId: string) => this.setTheme(themeId))
+    ipcMain.handle('set-theme-for-appearance', async (_event, appearance: MarkFlowAppearance, themeId: string) =>
+      this.setThemeForAppearance(appearance, themeId),
+    )
   }
 
   async initialize() {
     this.ensureThemeFiles()
-    this.currentThemeId = this.readPersistedThemeId()
+    this.themeState = this.readPersistedThemeState()
+    this.currentThemeId = this.getThemeIdForAppearance(this.getCurrentAppearance())
     await this.watchThemeFile(this.currentThemeId)
+    nativeTheme.removeListener('updated', this.handleNativeThemeUpdated)
+    nativeTheme.on('updated', this.handleNativeThemeUpdated)
   }
 
   async dispose() {
+    nativeTheme.removeListener('updated', this.handleNativeThemeUpdated)
+
     if (!this.watcher) {
       return
     }
@@ -289,29 +324,53 @@ export class ThemeManager {
   }
 
   getCurrentTheme(): MarkFlowThemePayload | null {
-    this.ensureThemeFiles()
-    const theme = this.findTheme(this.currentThemeId) ?? this.findTheme(DEFAULT_THEME_ID)
-    if (!theme) {
-      return null
-    }
+    return this.getThemeState()?.activeTheme ?? null
+  }
 
-    return this.readThemePayload(theme)
+  getThemeState(): MarkFlowThemeState | null {
+    this.ensureThemeFiles()
+    const theme =
+      this.findTheme(this.currentThemeId) ?? this.findTheme(DEFAULT_THEME_IDS[this.getCurrentAppearance()])
+
+    return {
+      activeAppearance: this.getCurrentAppearance(),
+      lightThemeId: this.themeState.lightThemeId,
+      darkThemeId: this.themeState.darkThemeId,
+      activeTheme: theme ? this.readThemePayload(theme) : null,
+    }
   }
 
   async setTheme(themeId: string): Promise<MarkFlowThemePayload | null> {
+    const state = await this.setThemeForAppearance(this.getCurrentAppearance(), themeId)
+    return state?.activeTheme ?? null
+  }
+
+  async setThemeForAppearance(
+    appearance: MarkFlowAppearance,
+    themeId: string,
+  ): Promise<MarkFlowThemeState | null> {
     this.ensureThemeFiles()
     const theme = this.findTheme(themeId)
     if (!theme) {
       return null
     }
 
-    this.currentThemeId = theme.id
-    this.persistThemeId(theme.id)
-    await this.watchThemeFile(theme.id)
+    this.themeState = {
+      ...this.themeState,
+      [this.getStateKeyForAppearance(appearance)]: theme.id,
+    }
+    this.persistThemeState()
 
-    const payload = this.readThemePayload(theme)
-    this.emitTheme(payload)
-    return payload
+    if (appearance === this.getCurrentAppearance()) {
+      await this.applyThemeById(theme.id, { emit: true })
+      return this.getThemeState()
+    }
+
+    const state = this.getThemeState()
+    if (state) {
+      this.emitThemeState(state)
+    }
+    return state
   }
 
   private ensureThemeFiles() {
@@ -325,7 +384,7 @@ export class ThemeManager {
     }
 
     if (!fs.existsSync(this.statePath)) {
-      this.persistThemeId(DEFAULT_THEME_ID)
+      this.persistThemeState()
     }
   }
 
@@ -356,18 +415,80 @@ export class ThemeManager {
     }
   }
 
-  private readPersistedThemeId() {
+  private readPersistedThemeState(): ResolvedThemeState {
     try {
       const raw = fs.readFileSync(this.statePath, 'utf8')
       const state = JSON.parse(raw) as ThemeState
-      return this.findTheme(state.themeId)?.id ?? DEFAULT_THEME_ID
+
+      const legacyThemeId = this.findTheme(state.themeId ?? '')?.id ?? null
+      if (legacyThemeId && !state.lightThemeId && !state.darkThemeId) {
+        const currentAppearance = this.getCurrentAppearance()
+        return {
+          lightThemeId: currentAppearance === 'light' ? legacyThemeId : DEFAULT_THEME_IDS.light,
+          darkThemeId: currentAppearance === 'dark' ? legacyThemeId : DEFAULT_THEME_IDS.dark,
+        }
+      }
+
+      return {
+        lightThemeId: this.resolvePersistedThemeId(state.lightThemeId, 'light'),
+        darkThemeId: this.resolvePersistedThemeId(state.darkThemeId, 'dark'),
+      }
     } catch {
-      return DEFAULT_THEME_ID
+      return { ...DEFAULT_THEME_STATE }
     }
   }
 
-  private persistThemeId(themeId: string) {
-    fs.writeFileSync(this.statePath, JSON.stringify({ themeId }, null, 2), 'utf8')
+  private resolvePersistedThemeId(themeId: string | null | undefined, appearance: MarkFlowAppearance) {
+    return this.findTheme(themeId ?? '')?.id ?? DEFAULT_THEME_IDS[appearance]
+  }
+
+  private getCurrentAppearance(): MarkFlowAppearance {
+    return nativeTheme.shouldUseDarkColors ? 'dark' : 'light'
+  }
+
+  private getStateKeyForAppearance(appearance: MarkFlowAppearance): keyof ResolvedThemeState {
+    return appearance === 'dark' ? 'darkThemeId' : 'lightThemeId'
+  }
+
+  private getThemeIdForAppearance(appearance: MarkFlowAppearance) {
+    return this.themeState[this.getStateKeyForAppearance(appearance)]
+  }
+
+  private persistThemeState() {
+    fs.writeFileSync(this.statePath, JSON.stringify(this.themeState, null, 2), 'utf8')
+  }
+
+  private async applyThemeForAppearance(
+    appearance: MarkFlowAppearance,
+    options: { emit: boolean },
+  ): Promise<MarkFlowThemePayload | null> {
+    return this.applyThemeById(this.getThemeIdForAppearance(appearance), options)
+  }
+
+  private async applyThemeById(
+    themeId: string,
+    options: { emit: boolean },
+  ): Promise<MarkFlowThemePayload | null> {
+    const theme =
+      this.findTheme(themeId) ??
+      this.findTheme(DEFAULT_THEME_IDS[this.getCurrentAppearance()]) ??
+      this.findTheme(DEFAULT_THEME_IDS.light)
+    if (!theme) {
+      return null
+    }
+
+    this.currentThemeId = theme.id
+    await this.watchThemeFile(theme.id)
+
+    const payload = this.readThemePayload(theme)
+    if (options.emit) {
+      const state = this.getThemeState()
+      if (state) {
+        this.emitThemeState(state)
+      }
+    }
+
+    return payload
   }
 
   private async watchThemeFile(themeId: string) {
@@ -386,14 +507,14 @@ export class ThemeManager {
     })
 
     this.watcher.on('change', () => {
-      const payload = this.getCurrentTheme()
-      if (payload) {
-        this.emitTheme(payload)
+      const state = this.getThemeState()
+      if (state) {
+        this.emitThemeState(state)
       }
     })
   }
 
-  private emitTheme(theme: MarkFlowThemePayload) {
-    this.window.webContents.send('theme-updated', theme)
+  private emitThemeState(state: MarkFlowThemeState) {
+    this.window.webContents.send('theme-updated', state)
   }
 }
