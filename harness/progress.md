@@ -1253,3 +1253,34 @@
   - none
 - Next recommended feature:
   - `MF-060` - on a GUI session with working macOS accessibility or direct human control, relaunch MarkFlow, accept the recovery prompt, confirm `RECOVERY_PROBE_1776265358675` is restored, then update the ledger only if that full flow truly passes
+
+### 2026-04-15 - MF-083 reveal-in-folder desktop action added, cross-platform manual check pending
+
+- Author: Codex (Dispatcher)
+- Focus: use the Researcher handoff to close one narrow Typora desktop gap by wiring a truthful `MF-083` reveal-in-folder action without widening into startup preferences, tabs, or palette work.
+- Research updates:
+  - refined `MF-083` so the ledger now describes the real gap: no `shell.showItemInFolder` wiring, no dedicated desktop menu action, and no reveal command surface yet.
+  - appended `MF-103` for Typora-style launch behavior that can reopen the last file/folder or a configured default folder on startup.
+- What changed:
+  - added `packages/desktop/src/main/menu.ts` plus `packages/desktop/src/main/menu.test.ts` so the desktop application menu is built from a shared template with a platform-specific reveal label and disabled state for untitled documents.
+  - updated `packages/desktop/src/main/fileManager.ts` and `packages/desktop/src/main/fileManager.test.ts` so the main process can reveal the active saved file through `shell.showItemInFolder`, report whether the action is currently allowed, and rebuild the menu after open/new/Save As path changes.
+  - updated `packages/desktop/src/main/index.ts` to rebuild the application menu from the shared template whenever the tracked current file path changes.
+  - updated `harness/feature-ledger.json` so `MF-083` now records the shipped implementation, exact automated verification command, and honest `ready` / `passes=false` state while preserving the pending manual gate.
+- Simplifications made:
+  - kept the feature desktop-only and menu-driven; no renderer IPC, command palette, or preferences work was added.
+  - reused the existing tracked current-file path instead of introducing a second document-state source just for menu enablement.
+- Verification:
+  - `pnpm harness:start` (passes)
+  - `./harness/init.sh --smoke` (passes; 103 total features after the new ledger entry)
+  - `pnpm --filter @markflow/desktop exec vitest run src/main/fileManager.test.ts src/main/menu.test.ts` (passes; 2 files / 12 tests)
+  - `pnpm --filter @markflow/desktop lint` (passes)
+  - `pnpm --filter @markflow/desktop build` (passes)
+  - `pnpm harness:verify` (passes; 103 total | verified=60 | ready=10 | planned=33 | blocked=0)
+- Review / risks:
+  - Reviewer accepted the scoped `MF-083` diff and confirmed the ledger does not overclaim completion.
+  - `MF-083` must remain `status=ready`, `passes=false`, and `lastVerifiedAt=null` until someone exercises the reveal action on real macOS, Windows, and Linux builds.
+  - the Windows-specific label branch is covered by code inspection rather than a dedicated platform-parametrized test, so the remaining risk is limited to that UI label plus the real OS file-manager invocation.
+- Newly verified features:
+  - none
+- Next recommended feature:
+  - if a GUI session is available, run the manual `MF-083` cross-platform reveal check and only then move it to `verified`; otherwise continue with `MF-102` as the next small desktop-only parity gap

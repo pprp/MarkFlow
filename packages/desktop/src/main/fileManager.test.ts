@@ -4,7 +4,16 @@ import * as path from 'path'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { FileManager } from './fileManager'
 
-const { handleMock, onMock, removeAllListenersMock, removeHandlerMock, showSaveDialogMock, appGetPathMock, execFileMock } = vi.hoisted(() => ({
+const {
+  handleMock,
+  onMock,
+  removeAllListenersMock,
+  removeHandlerMock,
+  showSaveDialogMock,
+  appGetPathMock,
+  execFileMock,
+  showItemInFolderMock,
+} = vi.hoisted(() => ({
   handleMock: vi.fn(),
   onMock: vi.fn(),
   removeAllListenersMock: vi.fn(),
@@ -14,6 +23,7 @@ const { handleMock, onMock, removeAllListenersMock, removeHandlerMock, showSaveD
   execFileMock: vi.fn((file: string, args: string[], callback: (err: Error | null, stdout: string, stderr: string) => void) => {
     if (callback) callback(null, '', '')
   }),
+  showItemInFolderMock: vi.fn(),
 }))
 
 vi.mock('child_process', () => ({
@@ -32,6 +42,9 @@ vi.mock('electron', () => ({
     on: onMock,
     removeAllListeners: removeAllListenersMock,
     removeHandler: removeHandlerMock,
+  },
+  shell: {
+    showItemInFolder: showItemInFolderMock,
   },
 }))
 
@@ -54,6 +67,7 @@ describe('FileManager async saves', () => {
     showSaveDialogMock.mockReset()
     appGetPathMock.mockReset()
     appGetPathMock.mockImplementation(() => '/tmp')
+    showItemInFolderMock.mockReset()
     vi.restoreAllMocks()
   })
 
@@ -129,6 +143,33 @@ describe('FileManager async saves', () => {
     expect(result).toEqual({ success: false, error: 'disk full' })
     expect(window.webContents.send).not.toHaveBeenCalledWith('file-saved', expect.anything())
     expect(((manager as unknown) as { currentFilePath: string | null }).currentFilePath).toBeNull()
+  })
+
+  it('reveals only saved files and uses the post-save-as path', async () => {
+    vi.spyOn(fs.promises, 'writeFile').mockResolvedValue()
+    const window = createWindowStub()
+    const manager = new FileManager(window as never)
+
+    expect(manager.canRevealCurrentFile()).toBe(false)
+    expect(manager.revealCurrentFileInFolder()).toBe(false)
+    expect(showItemInFolderMock).not.toHaveBeenCalled()
+
+    showSaveDialogMock.mockResolvedValue({
+      canceled: false,
+      filePath: '/tmp/notes-copy.md',
+    })
+
+    await manager.saveFileAs('# Copy')
+
+    expect(manager.canRevealCurrentFile()).toBe(true)
+    expect(manager.revealCurrentFileInFolder()).toBe(true)
+    expect(showItemInFolderMock).toHaveBeenCalledWith('/tmp/notes-copy.md')
+
+    await manager.newFile()
+
+    expect(manager.canRevealCurrentFile()).toBe(false)
+    expect(manager.revealCurrentFileInFolder()).toBe(false)
+    expect(showItemInFolderMock).toHaveBeenCalledTimes(1)
   })
 })
 

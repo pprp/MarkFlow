@@ -2161,7 +2161,7 @@
       "category": "phase-1-functional",
       "area": "@markflow/desktop",
       "priority": 3,
-      "status": "planned",
+      "status": "ready",
       "passes": false,
       "lastVerifiedAt": null,
       "dependsOn": ["MF-007"],
@@ -2172,13 +2172,13 @@
       ],
       "verification": {
         "automated": [
-          "Add a desktop test stubbing `shell.showItemInFolder` and asserting it is called with the resolved path when a file is active and skipped otherwise."
+          "pnpm --filter @markflow/desktop exec vitest run src/main/fileManager.test.ts src/main/menu.test.ts"
         ],
         "manual": [
           "Exercise the action on macOS, Windows, and Linux builds."
         ]
       },
-      "notes": "Typora exposes a 'Show in Finder' / 'Show in File Explorer' menu item. Source: https://support.typora.io/Shortcut-Keys/."
+      "notes": "Implemented on 2026-04-15 in `packages/desktop/src/main/fileManager.ts`, `packages/desktop/src/main/index.ts`, `packages/desktop/src/main/menu.ts`, `packages/desktop/src/main/fileManager.test.ts`, and `packages/desktop/src/main/menu.test.ts`. The desktop File menu now exposes `Reveal in Finder` on macOS, `Show in File Explorer` on Windows, and `Show in Folder` elsewhere; it stays disabled until the current document has a saved path, rebuilds after open/new/Save As path transitions, and reveals the latest saved path through `shell.showItemInFolder`. Automated verification passed on 2026-04-15 with `pnpm --filter @markflow/desktop exec vitest run src/main/fileManager.test.ts src/main/menu.test.ts`, `pnpm --filter @markflow/desktop lint`, `pnpm --filter @markflow/desktop build`, and `pnpm harness:verify`. `passes` remains false because the required manual cross-platform OS file-manager verification is still pending. Sources: https://support.typora.io/File-Management/ and https://support.typora.io/Shortcut-Keys/."
     },
     {
       "id": "MF-084",
@@ -2660,6 +2660,34 @@
         ]
       },
       "notes": "Typora exposes zoom from the View menu plus shortcut-driven reset or actual-size flows. MarkFlow already wires Electron `resetZoom`, `zoomIn`, and `zoomOut` roles in `packages/desktop/src/main/index.ts`, but the capability had no ledger entry, no explicit verification, and no Typora-like zoom state affordance yet. Sources: https://support.typora.io/Zoom/ and https://support.typora.io/Shortcut-Keys/."
+    },
+    {
+      "id": "MF-103",
+      "title": "Launch behavior can reopen the last file/folder or open a configured default folder on startup",
+      "category": "phase-2-functional",
+      "area": "@markflow/desktop",
+      "priority": 3,
+      "status": "planned",
+      "passes": false,
+      "lastVerifiedAt": null,
+      "dependsOn": [
+        "MF-007",
+        "MF-041"
+      ],
+      "steps": [
+        "Quit with a file or folder open and relaunch; confirm startup follows the selected launch option.",
+        "Switch to a default-folder launch option and confirm that folder opens on startup.",
+        "If the remembered/default path is missing, confirm MarkFlow falls back cleanly instead of crashing."
+      ],
+      "verification": {
+        "automated": [
+          "Add desktop persistence tests for launch-option state and startup path selection."
+        ],
+        "manual": [
+          "Verify clean relaunch behavior on macOS and Windows."
+        ]
+      },
+      "notes": "Typora documents launch options for reopening the last file/folder or opening a specified folder on startup. MarkFlow currently only handles a CLI-passed markdown path and has no persisted startup preference or folder-restore flow. Sources: https://support.typora.io/File-Management/ and https://support.typora.io/Launch-Options/."
     }
   ]
 }

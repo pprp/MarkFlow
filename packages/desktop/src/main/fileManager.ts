@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, ipcMain } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron'
 import * as fs from 'fs'
 import { execFile } from 'child_process'
 import { promisify } from 'util'
@@ -34,7 +34,10 @@ export class FileManager {
   private readonly recoveryCheckpointPath = path.join(app.getPath('temp'), RECOVERY_CHECKPOINT_FILE_NAME)
   private readonly sessionStatePath = path.join(app.getPath('userData'), SESSION_STATE_FILE_NAME)
 
-  constructor(private window: BrowserWindow) {}
+  constructor(
+    private window: BrowserWindow,
+    private onCurrentFilePathChanged?: () => void,
+  ) {}
 
   registerIpcHandlers() {
     ipcMain.removeHandler('open-file')
@@ -194,6 +197,7 @@ export class FileManager {
 
   async newFile() {
     this.currentFilePath = null
+    this.onCurrentFilePathChanged?.()
     this.window.webContents.send('file-opened', { filePath: null, content: '' })
     this.updateTitle()
   }
@@ -248,6 +252,7 @@ export class FileManager {
     if (saveResult.success) {
       this.currentFilePath = result.filePath
       this.addToRecent(result.filePath)
+      this.onCurrentFilePathChanged?.()
       await this.discardRecoveryCheckpoint()
       this.emitFileSaved(result.filePath)
     }
@@ -258,9 +263,23 @@ export class FileManager {
     const content = await this.readFileForOpen(filePath)
     this.currentFilePath = filePath
     this.addToRecent(filePath)
+    this.onCurrentFilePathChanged?.()
     this.window.webContents.send('file-opened', { filePath, content })
     this.updateTitle()
     return { filePath, content }
+  }
+
+  canRevealCurrentFile(): boolean {
+    return this.currentFilePath !== null
+  }
+
+  revealCurrentFileInFolder(): boolean {
+    if (!this.currentFilePath) {
+      return false
+    }
+
+    shell.showItemInFolder(this.currentFilePath)
+    return true
   }
 
   getCurrentDocument(): MarkFlowFilePayload | null {
