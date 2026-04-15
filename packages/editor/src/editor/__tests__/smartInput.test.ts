@@ -186,64 +186,63 @@ describe('smartInput — auto-pairs', () => {
 })
 
 describe('smartInput — list continuation', () => {
-  it('continues an unordered list on Enter', () => {
+  it('continues an unordered list on Enter before paragraph breaks in WYSIWYG mode', () => {
     const doc = '- item one'
-    const view = makeView(doc, doc.length)
+    const view = makeView(doc, doc.length, { isWysiwygMode: () => true })
 
-    const line = view.state.doc.lineAt(view.state.selection.main.from)
-    const lineText = line.text
-    const bulletMatch = lineText.match(/^(\s*)([-*+])\s(.*)$/)
-    expect(bulletMatch).not.toBeNull()
-
-    const [, indent, bullet] = bulletMatch!
-    const continuation = `\n${indent}${bullet} `
-    view.dispatch({
-      changes: { from: view.state.selection.main.from, insert: continuation },
-      selection: { anchor: view.state.selection.main.from + continuation.length },
-    })
-
+    expect(dispatchEditorKey(view, 'Enter')).toBe(true)
     expect(view.state.doc.toString()).toBe('- item one\n- ')
+    expect(view.state.selection.main.from).toBe(doc.length + 3)
     view.destroy()
   })
 
-  it('exits unordered list on Enter in empty item', () => {
+  it('exits an empty unordered list item on Enter instead of inserting a paragraph break', () => {
     const doc = '- item\n- '
-    const view = makeView(doc, doc.length)
+    const view = makeView(doc, doc.length, { isWysiwygMode: () => true })
 
-    const line = view.state.doc.lineAt(view.state.selection.main.from)
-    const lineText = line.text
-    const bulletMatch = lineText.match(/^(\s*)([-*+])\s(.*)$/)
-    expect(bulletMatch).not.toBeNull()
-
-    const content = bulletMatch![3]
-    expect(content.trim()).toBe('')
-
-    view.dispatch({
-      changes: { from: line.from, to: line.to, insert: '' },
-      selection: { anchor: line.from },
-    })
-
+    expect(dispatchEditorKey(view, 'Enter')).toBe(true)
     expect(view.state.doc.toString()).toBe('- item\n')
+    expect(view.state.selection.main.from).toBe(doc.length - 2)
     view.destroy()
   })
 
-  it('continues an ordered list on Enter', () => {
+  it('continues an ordered list on Enter before paragraph breaks in WYSIWYG mode', () => {
     const doc = '1. first item'
-    const view = makeView(doc, doc.length)
+    const view = makeView(doc, doc.length, { isWysiwygMode: () => true })
 
-    const line = view.state.doc.lineAt(view.state.selection.main.from)
-    const orderedMatch = line.text.match(/^(\s*)(\d+)\.\s(.*)$/)
-    expect(orderedMatch).not.toBeNull()
-
-    const [, indent, num] = orderedMatch!
-    const next = parseInt(num, 10) + 1
-    const continuation = `\n${indent}${next}. `
-    view.dispatch({
-      changes: { from: view.state.selection.main.from, insert: continuation },
-      selection: { anchor: view.state.selection.main.from + continuation.length },
-    })
-
+    expect(dispatchEditorKey(view, 'Enter')).toBe(true)
     expect(view.state.doc.toString()).toBe('1. first item\n2. ')
+    expect(view.state.selection.main.from).toBe(doc.length + 4)
+    view.destroy()
+  })
+
+  it('exits an empty ordered list item on Enter instead of inserting a paragraph break', () => {
+    const doc = '1. first item\n2. '
+    const view = makeView(doc, doc.length, { isWysiwygMode: () => true })
+
+    expect(dispatchEditorKey(view, 'Enter')).toBe(true)
+    expect(view.state.doc.toString()).toBe('1. first item\n')
+    expect(view.state.selection.main.from).toBe(doc.length - 3)
+    view.destroy()
+  })
+
+  it('continues a task list on Enter before paragraph breaks in WYSIWYG mode', () => {
+    const doc = '- [ ] item one'
+    const view = makeView(doc, doc.length, { isWysiwygMode: () => true })
+
+    expect(dispatchEditorKey(view, 'Enter')).toBe(true)
+    expect(view.state.doc.toString()).toBe('- [ ] item one\n- [ ] ')
+    expect(view.state.selection.main.from).toBe(doc.length + 7)
+    view.destroy()
+  })
+
+  it('exits an empty task list item on Enter instead of inserting a paragraph break', () => {
+    const doc = '- [ ] item one\n- [ ] '
+    const view = makeView(doc, doc.length, { isWysiwygMode: () => true })
+
+    expect(dispatchEditorKey(view, 'Enter')).toBe(true)
+    expect(view.state.doc.toString()).toBe('- [ ] item one\n')
+    expect(view.state.selection.main.from).toBe(doc.length - 6)
     view.destroy()
   })
 })

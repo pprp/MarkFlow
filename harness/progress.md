@@ -40,6 +40,39 @@
 - Next recommended feature:
   - `MF-060` - complete the crash/relaunch recovery flow in a GUI session with direct human control or working Accessibility permission, then update the ledger only if the prompt and restored content truly pass
 
+### 2026-04-16 - MF-105 verified with real Enter and Shift+Enter keypath coverage
+
+- Author: Codex (Dispatcher)
+- Focus: refresh Typora parity research, finish one editor-only feature end to end, and promote the ledger only if automated evidence fully covered the real WYSIWYG key path.
+- Research updates:
+  - checked Typora's `Markdown Reference`, `Line Break`, `Quick Start`, and `Shortcut Keys` docs and found no non-duplicative backlog addition worth displacing the current highest-priority unpassed item
+  - kept the research phase ledger-neutral; the only ledger change this run was the active-feature update for `MF-105`
+- What changed:
+  - strengthened `packages/editor/src/editor/__tests__/smartInput.test.ts` so Enter-driven unordered, ordered, and task-list continuation and empty-item exit all run through the actual smart-input key handler in WYSIWYG mode instead of direct text-dispatch shortcuts
+  - strengthened `packages/editor/src/editor/__tests__/MarkFlowEditor.test.tsx` so plain-paragraph `Enter`, plain-paragraph `Shift+Enter`, and unordered/ordered/task-list continuation plus exit all run through `fireEvent.keyDown(view.contentDOM, ...)` on the real `MarkFlowEditor` DOM path
+  - updated `harness/feature-ledger.json` to mark `MF-105` as `verified`, `passes=true`, `lastVerifiedAt=2026-04-16`, replace the placeholder verification text with the actual commands that passed, and remove the stale manual gate because the DOM-path tests plus source-mode toggle assertions now fully cover the feature
+- Changed files:
+  - `harness/feature-ledger.json`
+  - `packages/editor/src/editor/__tests__/smartInput.test.ts`
+  - `packages/editor/src/editor/__tests__/MarkFlowEditor.test.tsx`
+- Simplifications made:
+  - kept the production implementation in `packages/editor/src/editor/extensions/smartInput.ts` unchanged because the shipped behavior was already correct; this run only closed the evidence gap
+  - kept the scope inside one feature and one parity claim instead of widening into other shortcut or desktop behaviors discovered during research
+- Verification:
+  - `pnpm harness:start` (passes)
+  - `./harness/init.sh --smoke` (passes)
+  - `pnpm --filter @markflow/editor exec vitest run src/editor/__tests__/smartInput.test.ts src/editor/__tests__/MarkFlowEditor.test.tsx` (passes; 2 files / 93 tests)
+  - `pnpm --filter @markflow/editor lint` (passes)
+  - `pnpm --filter @markflow/editor build` (passes; existing Vite chunk-size warnings only)
+  - `pnpm harness:verify` (passes; 106 total | verified=61 | ready=13 | planned=32 | blocked=0)
+- Review / risks:
+  - Reviewer accepted the verified promotion because the new DOM-path tests now directly prove plain-paragraph `Enter`, plain-paragraph `Shift+Enter`, source-mode markdown mapping, and list continuation/exit regression guards on unordered, ordered, and task lists
+  - residual risk is narrow: this still does not prove OS-native key-event quirks outside the editor/web runtime, but for `MF-105` the MarkFlowEditor DOM path is sufficient evidence for truthful verification
+- Newly verified features:
+  - `MF-105` - Enter creates a new paragraph while Shift+Enter inserts a single line break with Typora-style source mapping
+- Next recommended feature:
+  - `MF-050` - Background indexer builds a symbol table for headings and anchors without blocking the UI thread
+
 ### 2026-04-16 - MF-060 rerun reconfirmed automation while Accessibility still blocks truthful recovery acceptance
 
 - Author: Codex (Dispatcher)

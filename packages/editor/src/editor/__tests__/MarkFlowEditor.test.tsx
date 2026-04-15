@@ -482,7 +482,7 @@ describe('MarkFlowEditor', () => {
     expect(view.state.doc.toString()).toBe(['Quoted line', 'Ordered line', 'Bullet line'].join('\n'))
   })
 
-  it('keeps Enter-driven list continuation working after converting a paragraph into a list item', () => {
+  it('keeps Enter-driven unordered list continuation and exit working after converting a paragraph into a list item', () => {
     const { container } = render(
       <MarkFlowEditor content="Plain paragraph" viewMode="wysiwyg" onChange={vi.fn()} />,
     )
@@ -497,6 +497,40 @@ describe('MarkFlowEditor', () => {
     fireEvent.keyDown(view.contentDOM, { key: 'Enter' })
 
     expect(view.state.doc.toString()).toBe('- Plain paragraph\n- ')
+
+    fireEvent.keyDown(view.contentDOM, { key: 'Enter' })
+
+    expect(view.state.doc.toString()).toBe('- Plain paragraph\n')
+    expect(view.state.selection.main.head).toBe(view.state.doc.length)
+  })
+
+  it.each([
+    {
+      label: 'ordered lists',
+      initialDoc: '1. Ordered item',
+      continuedDoc: '1. Ordered item\n2. ',
+      exitedDoc: '1. Ordered item\n',
+    },
+    {
+      label: 'task lists',
+      initialDoc: '- [ ] Task item',
+      continuedDoc: '- [ ] Task item\n- [ ] ',
+      exitedDoc: '- [ ] Task item\n',
+    },
+  ])('keeps Enter-driven $label continuation and exit on the real DOM key path', ({ initialDoc, continuedDoc, exitedDoc }) => {
+    const { container } = render(
+      <MarkFlowEditor content={initialDoc} viewMode="wysiwyg" onChange={vi.fn()} />,
+    )
+
+    const view = getEditorView(container)
+    view.dispatch({ selection: { anchor: view.state.doc.length } })
+
+    fireEvent.keyDown(view.contentDOM, { key: 'Enter' })
+    expect(view.state.doc.toString()).toBe(continuedDoc)
+
+    fireEvent.keyDown(view.contentDOM, { key: 'Enter' })
+    expect(view.state.doc.toString()).toBe(exitedDoc)
+    expect(view.state.selection.main.head).toBe(view.state.doc.length)
   })
 
   it('inserts Typora-style table, code fence, and math block scaffolds on the active line only', () => {
@@ -583,7 +617,7 @@ describe('MarkFlowEditor', () => {
     const view = getEditorView(container)
     view.dispatch({ selection: { anchor: view.state.doc.length } })
 
-    dispatchEditorShortcut(view, { key: 'Enter', code: 'Enter', keyCode: 13 })
+    fireEvent.keyDown(view.contentDOM, { key: 'Enter' })
     expect(view.state.doc.toString()).toBe(`${firstParagraph}\n\n`)
 
     view.dispatch(view.state.replaceSelection(secondParagraph))
@@ -607,7 +641,7 @@ describe('MarkFlowEditor', () => {
     const view = getEditorView(container)
     view.dispatch({ selection: { anchor: view.state.doc.length } })
 
-    dispatchEditorShortcut(view, { key: 'Enter', code: 'Enter', keyCode: 13, shiftKey: true })
+    fireEvent.keyDown(view.contentDOM, { key: 'Enter', shiftKey: true })
     expect(view.state.doc.toString()).toBe(`${firstLine}\n`)
 
     view.dispatch(view.state.replaceSelection(secondLine))
