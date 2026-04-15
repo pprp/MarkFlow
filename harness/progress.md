@@ -15,6 +15,7 @@
 - Focus: Align MarkFlow's move-line behavior and ledger truth with current Typora docs without widening scope beyond one feature slice.
 - Research updates:
   - No new Typora ledger entries were added this run.
+  - Researcher corrected `MF-067` from `planned` to `ready` after confirming the alternate LaTeX delimiter support already exists in the repo and still needs only its pending manual desktop verification.
   - Confirmed from Typora's `Shortcut Keys` and `What's New 1.11` docs that paragraph/row movement uses `Alt+Up/Down`, not `Cmd/Ctrl+Shift+Up/Down`.
 - What changed:
   - confirmed `packages/editor/src/editor/MarkFlowEditor.tsx` already inherits CodeMirror's default `Alt-ArrowUp` / `Alt-ArrowDown` move-line bindings, so no product-code patch was needed
@@ -53,10 +54,11 @@
   - reused the existing text insertion path so plain-text paste and smart paste still share the same selection replacement behavior
 - Verification:
   - `pnpm harness:start` (passes)
-  - `pnpm --filter @markflow/editor test:run -- src/editor/__tests__/smartPaste.test.ts` (passes; current package behavior ran 27 files / 281 tests)
+  - `pnpm --filter @markflow/editor exec vitest run src/editor/__tests__/smartPaste.test.ts` (passes; 1 file / 4 tests)
   - `pnpm --filter @markflow/editor lint` (passes)
   - `pnpm --filter @markflow/editor build` (passes; existing Vite chunk-size warnings only)
   - `./harness/init.sh --smoke` (passes; includes `pnpm test` and `pnpm harness:verify`)
+  - `pnpm harness:verify` (passes; 98 total | verified=59 | ready=4 | planned=35 | blocked=0)
 - Review / risks:
   - Reviewer accepted the scoped `MF-076` diff and agreed the ledger truthfully stays `ready` / `passes=false` until manual clipboard-source validation is completed
   - the implementation uses a 1-second shortcut-intent window, so pressing `Cmd/Ctrl+Shift+V` without pasting can make the next immediate paste use plain text
