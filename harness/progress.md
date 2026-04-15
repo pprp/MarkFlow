@@ -1312,3 +1312,33 @@
   - none
 - Next recommended feature:
   - `MF-060` - on a GUI session with direct human control or working macOS accessibility automation, relaunch MarkFlow, accept the recovery prompt, confirm `RECOVERY_PROBE_1776266402` is restored, then update the ledger only if that full flow truly passes
+
+### 2026-04-15 - MF-060 live crash probe rerun, recovery acceptance still blocked by modal automation
+
+- Author: Codex (Dispatcher)
+- Focus: follow the required `MF-060` session-start protocol again, rerun the mandated automated verification, and determine whether the remaining manual recovery acceptance step could be completed truthfully in the current terminal-controlled macOS session.
+- What changed:
+  - re-ran `pnpm harness:start` and `./harness/init.sh --smoke`, then re-read the existing `MF-060` implementation and tests in `packages/desktop/src/main/fileManager.ts`, `packages/desktop/src/preload/index.ts`, `packages/desktop/src/main/index.ts`, `packages/editor/src/App.tsx`, `packages/desktop/src/main/fileManager.test.ts`, and `packages/editor/src/__tests__/App.test.tsx`.
+  - left production code and `harness/feature-ledger.json` unchanged because the repository already contains the `MF-060` implementation and this session did not uncover a new defect that justified even a minimal prerequisite code fix.
+  - launched real Electron desktop instances on `--remote-debugging-port=9226` and `--remote-debugging-port=9227`, inserted `RECOVERY_PROBE_1776267455411` into the unsaved starter document through the live renderer, waited 35 seconds, confirmed `/var/folders/dl/qdq_vh116gl1yjbd8pxk_bd00000gn/T/.markflow-recovery` contained the probe content, force-killed the main process, and confirmed `/Users/pprp/Library/Application Support/@markflow/desktop/.markflow-recovery-session.json` still contained `{"cleanExit":false}` after the real `SIGKILL`.
+  - updated `harness/progress.md` only, to record the latest live verification evidence, the still-failing manual recovery acceptance attempts, and the next truthful handoff.
+- Simplifications made:
+  - reused the existing built desktop artifacts plus a live Vite renderer instead of widening scope with product instrumentation or new debug-only hooks.
+  - used one unique probe string and a small set of browser-level CDP plus macOS automation attempts instead of adding any helper code to the product.
+- Verification:
+  - `pnpm harness:start` (passes)
+  - `./harness/init.sh --smoke` (passes; full workspace smoke/test path remained green in this worktree)
+  - `pnpm --filter @markflow/desktop test:run -- --grep auto-save` (passes; the desktop package script still executes the full desktop suite rather than narrowing to the grep)
+  - `pnpm --filter @markflow/desktop exec vitest run src/main/fileManager.test.ts -t "auto-save recovery checkpoints"` (passes)
+  - `pnpm --filter @markflow/editor exec vitest run src/__tests__/App.test.tsx -t "App auto-save"` (passes)
+  - `pnpm harness:verify` (passes; 103 total | verified=60 | ready=10 | planned=33 | blocked=0)
+  - live desktop checkpoint probe (partial pass): after 35 seconds, `/var/folders/dl/qdq_vh116gl1yjbd8pxk_bd00000gn/T/.markflow-recovery` contained `RECOVERY_PROBE_1776267455411`, and after `SIGKILL` the session-state file still reported `{"cleanExit":false}`.
+  - live desktop recovery acceptance (blocked): after relaunch, page-level CDP again stalled (`Runtime.enable` / `Runtime.evaluate` timed out), browser-level `Page.handleJavaScriptDialog` returned `No dialog is showing`, raw `Input.dispatchKeyEvent` Enter injection did not unstick the renderer, and both timed macOS `osascript` attempts (`activate + Enter`, `System Events` button click) hung until timeout.
+- Review / risks:
+  - `MF-060` still cannot move to `status=verified`, `passes=true`, or receive a `lastVerifiedAt` timestamp until a GUI session can actually accept the recovery prompt and confirm the restored document still contains `RECOVERY_PROBE_1776267455411`.
+  - this session reconfirmed the first three manual steps with live evidence, but it still did not truthfully complete the fourth step.
+  - because the manual recovery acceptance/readback proof remains incomplete, `harness/feature-ledger.json` must stay `status=planned`, `passes=false`, and `lastVerifiedAt=null`.
+- Newly verified features:
+  - none
+- Next recommended feature:
+  - `MF-060` - on a GUI session with direct human control or working macOS accessibility permissions, relaunch MarkFlow, accept the recovery prompt, confirm `RECOVERY_PROBE_1776267455411` is restored, then update the ledger only if that full flow truly passes
