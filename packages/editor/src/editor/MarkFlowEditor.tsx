@@ -10,7 +10,7 @@ import {
   bracketMatching,
   indentOnInput,
 } from '@codemirror/language'
-import { searchKeymap, highlightSelectionMatches } from '@codemirror/search'
+import { searchKeymap, highlightSelectionMatches, openSearchPanel } from '@codemirror/search'
 import { closeBrackets, closeBracketsKeymap } from '@codemirror/autocomplete'
 import {
   type MarkFlowPluginHost,
@@ -113,6 +113,27 @@ function findRenderedLink(target: EventTarget | null) {
   return link instanceof HTMLAnchorElement ? link : null
 }
 
+function focusSearchPanelField(view: EditorView, selector: string) {
+  const field = view.dom.querySelector(selector)
+  if (!(field instanceof HTMLInputElement)) {
+    return false
+  }
+
+  field.focus()
+  field.select()
+  return true
+}
+
+function openReplacePanel(view: EditorView) {
+  openSearchPanel(view)
+  if (!focusSearchPanelField(view, '.cm-search input[name="replace"]')) {
+    queueMicrotask(() => {
+      focusSearchPanelField(view, '.cm-search input[name="replace"]')
+    })
+  }
+  return true
+}
+
 function getViewModeExtensions(viewMode: ViewMode, filePath?: string, pluginHost?: MarkFlowPluginHost) {
   if (viewMode === 'wysiwyg') {
     return getRenderedExtensions('wysiwyg', filePath, pluginHost)
@@ -179,6 +200,11 @@ function getEditorExtensions(
           onToggleModeRef.current?.()
           return true
         },
+      },
+      {
+        key: 'Mod-h',
+        preventDefault: true,
+        run: openReplacePanel,
       },
       {
         key: 'Mod-Shift-f',

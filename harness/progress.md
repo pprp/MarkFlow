@@ -9,6 +9,35 @@
 
 ## Session Log
 
+### 2026-04-16 - MF-054 find-and-replace shortcut aligned, manual regex fixture validation pending
+
+- Author: Codex (Dispatcher)
+- Focus: Close the concrete Typora parity gap where MarkFlow already inherited CodeMirror's replace/toggle mechanics but still lacked Typora's explicit `Cmd/Ctrl+H` find-and-replace entry point and truthful regression coverage.
+- Research updates:
+  - No new Typora ledger entries were added this run.
+  - The Researcher lane did not return a usable ledger patch in time, so the Dispatcher used Typora's official `Search` and `Shortcut Keys` docs directly to confirm that Typora exposes Find and Replace via `Cmd/Ctrl+H` and supports regexp, match-case, and whole-word toggles.
+  - Refined the existing `MF-054` ledger entry instead of adding a duplicate feature.
+- What changed:
+  - updated `packages/editor/src/editor/MarkFlowEditor.tsx` so `Cmd/Ctrl+H` opens CodeMirror's existing search panel and focuses the replace field immediately
+  - extended `packages/editor/src/editor/__tests__/MarkFlowEditor.test.tsx` with a shortcut regression that proves the replace panel opens from the editor and lands focus on the replace input
+  - rewrote `packages/editor/src/editor/__tests__/findReplace.test.ts` into focused coverage for live panel controls, query-toggle commits, match navigation, regex capture-group replace-all, exact-case replacement, and whole-word replacement
+  - updated `MF-054` in `harness/feature-ledger.json` from `planned` to the truthful `ready` / `passes=false` state, recorded the exact automated verification command, and tightened the notes with official Typora sources
+- Simplifications made:
+  - reused CodeMirror's built-in search panel and toggle controls instead of building a custom find-and-replace UI
+  - kept the implementation scope to one shortcut entry point, two focused editor test files, and the active ledger entry only
+- Verification:
+  - `pnpm harness:start` (passes)
+  - `./harness/init.sh --smoke` (passes; includes `pnpm test` and `pnpm harness:verify`)
+  - `pnpm --filter @markflow/editor exec vitest run src/editor/__tests__/findReplace.test.ts src/editor/__tests__/MarkFlowEditor.test.tsx` (passes; 2 files / 37 tests)
+  - `pnpm harness:verify` (passes; 103 total | verified=60 | ready=11 | planned=32 | blocked=0)
+- Review / risks:
+  - Reviewer accepted the scoped `MF-054` diff with no blocking findings
+  - residual risk is narrow: the automated tests validate CodeMirror search state and replacement behavior plus the `Ctrl` shortcut path, but the manual fixture-based regex replace acceptance is still needed before `MF-054` can move to `verified`
+- Newly verified features:
+  - none
+- Next recommended feature:
+  - if a human can run the manual regex replace fixture check, clear `MF-054`; otherwise continue with `MF-050` as the next automatable ready feature
+
 ### 2026-04-15 - MF-097 HTML media embeds now render safely, manual playback validation pending
 
 - Author: Codex (Dispatcher)

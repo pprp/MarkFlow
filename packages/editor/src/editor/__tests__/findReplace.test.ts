@@ -1,14 +1,26 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
 import { EditorState } from '@codemirror/state'
 import { EditorView, keymap } from '@codemirror/view'
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown'
-import { searchKeymap, highlightSelectionMatches, openSearchPanel, SearchQuery, setSearchQuery } from '@codemirror/search'
+import {
+  findNext,
+  getSearchQuery,
+  highlightSelectionMatches,
+  openSearchPanel,
+  replaceAll,
+  search,
+  searchKeymap,
+  searchPanelOpen,
+  SearchQuery,
+  setSearchQuery,
+} from '@codemirror/search'
 
 function makeView(doc: string) {
   const state = EditorState.create({
     doc,
     extensions: [
       markdown({ base: markdownLanguage }),
+      search({ top: true }),
       keymap.of(searchKeymap),
       highlightSelectionMatches(),
     ],
@@ -18,106 +30,148 @@ function makeView(doc: string) {
   return new EditorView({ state, parent })
 }
 
-describe('find and replace — keymap registration', () => {
-  beforeEach(() => {
-    document.body.innerHTML = ''
-  })
+function getSearchPanel(view: EditorView) {
+  const panel = view.dom.querySelector('.cm-search')
+  expect(panel).not.toBeNull()
+  return panel as HTMLElement
+}
 
-  it('searchKeymap includes Mod-f binding', () => {
-    const hasModF = searchKeymap.some((binding) => binding.key === 'Mod-f')
-    expect(hasModF).toBe(true)
-  })
+function getPanelField(view: EditorView, name: string) {
+  const field = getSearchPanel(view).querySelector(`input[name="${name}"]`)
+  expect(field).not.toBeNull()
+  return field as HTMLInputElement
+}
 
-  it('searchKeymap includes find-next binding (Mod-g or F3)', () => {
-    const keys = searchKeymap.map((b) => b.key)
-    expect(keys.some((k) => k === 'Mod-g' || k === 'F3')).toBe(true)
-  })
+function setTextFieldValue(field: HTMLInputElement, value: string) {
+  field.value = value
+  field.dispatchEvent(new Event('keyup', { bubbles: true }))
+}
 
-  it('searchKeymap includes close-panel binding (Escape)', () => {
-    const keys = searchKeymap.map((b) => b.key)
-    expect(keys.some((k) => k === 'Escape')).toBe(true)
-  })
+function setCheckboxValue(field: HTMLInputElement, checked: boolean) {
+  field.checked = checked
+  field.dispatchEvent(new Event('change', { bubbles: true }))
+}
 
-  it('searchKeymap includes select-occurrences binding', () => {
-    const keys = searchKeymap.map((b) => b.key)
-    expect(keys.some((k) => k === 'Mod-Shift-l' || k === 'Mod-d')).toBe(true)
-  })
+afterEach(() => {
+  document.body.innerHTML = ''
 })
 
-describe('find and replace — panel lifecycle', () => {
-  beforeEach(() => {
-    document.body.innerHTML = ''
+describe('find and replace', () => {
+  it('keeps CodeMirror find-next bindings registered', () => {
+    const keys = searchKeymap.map((binding) => binding.key)
+    expect(keys).toContain('Mod-f')
+    expect(keys.some((key) => key === 'Mod-g' || key === 'F3')).toBe(true)
+    expect(keys).toContain('Escape')
   })
 
-  it('openSearchPanel dispatches without throwing', () => {
+  it('opens a search panel with replace and toggle controls', () => {
     const view = makeView('Hello world. Hello again.')
-    expect(() => openSearchPanel(view)).not.toThrow()
+
+    expect(openSearchPanel(view)).toBe(true)
+    expect(searchPanelOpen(view.state)).toBe(true)
+    expect(getPanelField(view, 'search')).toBeInstanceOf(HTMLInputElement)
+    expect(getPanelField(view, 'replace')).toBeInstanceOf(HTMLInputElement)
+    expect(getPanelField(view, 'case').type).toBe('checkbox')
+    expect(getPanelField(view, 're').type).toBe('checkbox')
+    expect(getPanelField(view, 'word').type).toBe('checkbox')
+
     view.destroy()
   })
 
-  it('document content is preserved after search panel opens', () => {
-    const doc = 'Hello world. Hello again.'
-    const view = makeView(doc)
+  it('commits regex, case-sensitive, and whole-word toggles from the panel into search state', () => {
+    const view = makeView('cat Cat catfish')
+
     openSearchPanel(view)
-    expect(view.state.doc.toString()).toBe(doc)
+
+    setTextFieldValue(getPanelField(view, 'search'), '(cat)')
+    setTextFieldValue(getPanelField(view, 'replace'), '<$1>')
+    setCheckboxValue(getPanelField(view, 'case'), true)
+    setCheckboxValue(getPanelField(view, 're'), true)
+    setCheckboxValue(getPanelField(view, 'word'), true)
+
+    const query = getSearchQuery(view.state)
+    expect(query.search).toBe('(cat)')
+    expect(query.replace).toBe('<$1>')
+    expect(query.caseSensitive).toBe(true)
+    expect(query.regexp).toBe(true)
+    expect(query.wholeWord).toBe(true)
+
     view.destroy()
   })
-})
 
-describe('find and replace — SearchQuery', () => {
-  beforeEach(() => {
-    document.body.innerHTML = ''
-  })
-
-  it('SearchQuery finds a simple substring', () => {
-    const doc = 'Hello world. Hello again.'
+  it('navigates between live-document matches with findNext', () => {
+    const doc = 'Alpha beta Alpha'
     const view = makeView(doc)
-    const query = new SearchQuery({ search: 'Hello' })
-    const cursor = query.getCursor(view.state.doc)
-    const first = cursor.next()
-    expect(first.done).toBe(false)
-    expect(first.value.from).toBe(0)
-    view.destroy()
-  })
 
-  it('SearchQuery with caseSensitive=false matches both cases', () => {
-    const doc = 'hello HELLO'
-    const view = makeView(doc)
-    const query = new SearchQuery({ search: 'hello', caseSensitive: false })
-    const cursor = query.getCursor(view.state.doc)
-    const first = cursor.next()
-    expect(first.done).toBe(false)
-    view.destroy()
-  })
-
-  it('SearchQuery with caseSensitive=true does not match wrong case', () => {
-    const doc = 'HELLO world'
-    const view = makeView(doc)
-    const query = new SearchQuery({ search: 'hello', caseSensitive: true })
-    const cursor = query.getCursor(view.state.doc)
-    const first = cursor.next()
-    // Cursor should be done (no matches) when case doesn't match
-    expect(first.done).toBe(true)
-    view.destroy()
-  })
-
-  it('setSearchQuery dispatches without throwing', () => {
-    const view = makeView('Hello world')
-    const query = new SearchQuery({ search: 'Hello' })
-    expect(() => {
-      view.dispatch({ effects: setSearchQuery.of(query) })
-    }).not.toThrow()
-    view.destroy()
-  })
-
-  it('replace modifies matched text', () => {
-    const doc = 'Hello world'
-    const view = makeView(doc)
-    // Manually replace "Hello" with "Goodbye"
     view.dispatch({
-      changes: { from: 0, to: 5, insert: 'Goodbye' },
+      effects: setSearchQuery.of(new SearchQuery({ search: 'Alpha' })),
     })
-    expect(view.state.doc.toString()).toBe('Goodbye world')
+
+    expect(findNext(view)).toBe(true)
+    expect(view.state.sliceDoc(view.state.selection.main.from, view.state.selection.main.to)).toBe('Alpha')
+    expect(view.state.selection.main.from).toBe(0)
+
+    expect(findNext(view)).toBe(true)
+    expect(view.state.selection.main.from).toBe(doc.lastIndexOf('Alpha'))
+    expect(view.state.sliceDoc(view.state.selection.main.from, view.state.selection.main.to)).toBe('Alpha')
+
+    view.destroy()
+  })
+
+  it('supports regexp replace-all with capture groups', () => {
+    const view = makeView('alpha-01 beta-02')
+
+    view.dispatch({
+      effects: setSearchQuery.of(
+        new SearchQuery({
+          search: '(\\w+)-(\\d+)',
+          regexp: true,
+          replace: '$2:$1',
+        }),
+      ),
+    })
+
+    expect(replaceAll(view)).toBe(true)
+    expect(view.state.doc.toString()).toBe('01:alpha 02:beta')
+
+    view.destroy()
+  })
+
+  it('limits case-sensitive replacements to exact-case matches', () => {
+    const view = makeView('cat Cat cAt cat')
+
+    view.dispatch({
+      effects: setSearchQuery.of(
+        new SearchQuery({
+          search: 'cat',
+          caseSensitive: true,
+          replace: 'dog',
+        }),
+      ),
+    })
+
+    expect(replaceAll(view)).toBe(true)
+    expect(view.state.doc.toString()).toBe('dog Cat cAt dog')
+
+    view.destroy()
+  })
+
+  it('limits whole-word replacements to standalone matches', () => {
+    const view = makeView('cat scatter catfish cat')
+
+    view.dispatch({
+      effects: setSearchQuery.of(
+        new SearchQuery({
+          search: 'cat',
+          wholeWord: true,
+          replace: 'dog',
+        }),
+      ),
+    })
+
+    expect(replaceAll(view)).toBe(true)
+    expect(view.state.doc.toString()).toBe('dog scatter catfish dog')
+
     view.destroy()
   })
 })

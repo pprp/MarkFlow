@@ -143,6 +143,22 @@ describe('MarkFlowEditor', () => {
     expect(handleToggleMode).toHaveBeenCalledTimes(1)
   })
 
+  it('opens the find-and-replace panel and focuses the replace field on Cmd/Ctrl+H', async () => {
+    const { container } = render(
+      <MarkFlowEditor content="Alpha beta Alpha" viewMode="wysiwyg" onChange={vi.fn()} />,
+    )
+
+    const view = getEditorView(container)
+
+    fireEvent.keyDown(view.contentDOM, { key: 'h', ctrlKey: true })
+
+    await waitFor(() => {
+      const replaceField = container.querySelector('.cm-search input[name="replace"]')
+      expect(replaceField).not.toBeNull()
+      expect(view.root.activeElement).toBe(replaceField)
+    })
+  })
+
   it('moves the active line up and down with Alt+Arrow shortcuts', () => {
     const content = ['alpha', 'beta', 'gamma'].join('\n')
     const { container } = render(
