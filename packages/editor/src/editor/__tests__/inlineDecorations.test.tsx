@@ -151,6 +151,16 @@ describe('wysiwygDecorations — highlights', () => {
     destroyView(view)
   })
 
+  it('treats a caret at the closing boundary as outside the highlight span', () => {
+    const doc = '==omega=='
+    const view = makeView(doc)
+
+    expect(view.dom.querySelector('.mf-highlight')?.textContent).toBe('omega')
+    expect(lineText(view, 0)).toBe('omega')
+
+    destroyView(view)
+  })
+
   it('keeps highlight syntax raw inside inline code and fenced code blocks', () => {
     const doc = ['Use `==literal==` and ==real==', '', '```', '==block==', '```'].join('\n')
     const view = makeView(doc)

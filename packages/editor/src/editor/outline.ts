@@ -54,6 +54,15 @@ export function normalizeHeadingAnchor(value: string) {
     .replace(/\s+/g, '-')
 }
 
+export function normalizeHeadingHref(href: string) {
+  if (!href.startsWith('#')) {
+    return null
+  }
+
+  const targetAnchor = normalizeHeadingAnchor(decodeURIComponent(href.slice(1)))
+  return targetAnchor || null
+}
+
 export function extractOutlineHeadings(content: string): OutlineHeading[] {
   const headings: OutlineHeading[] = []
   const seenAnchors = new Map<string, number>()
@@ -88,14 +97,18 @@ export function extractOutlineHeadings(content: string): OutlineHeading[] {
   return headings
 }
 
-export function findHeadingAnchorPosition(content: string, href: string) {
-  if (!href.startsWith('#')) {
+export function findHeadingAnchorPosition(
+  content: string,
+  href: string,
+  anchorLookup?: ReadonlyMap<string, number>,
+) {
+  const targetAnchor = normalizeHeadingHref(href)
+  if (!targetAnchor) {
     return null
   }
 
-  const targetAnchor = normalizeHeadingAnchor(decodeURIComponent(href.slice(1)))
-  if (!targetAnchor) {
-    return null
+  if (anchorLookup) {
+    return anchorLookup.get(targetAnchor) ?? null
   }
 
   return extractOutlineHeadings(content).find((heading) => heading.anchor === targetAnchor)?.from ?? null

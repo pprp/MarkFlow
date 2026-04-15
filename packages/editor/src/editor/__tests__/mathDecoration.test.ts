@@ -24,6 +24,17 @@ function makeView(doc: string, cursor?: number) {
   return new EditorView({ state, parent })
 }
 
+function mathWidgetClasses(view: EditorView): string[] {
+  const classes: string[] = []
+  const decoSet = buildMathDecorations(view)
+  decoSet.between(0, view.state.doc.length, (_from, _to, deco) => {
+    const widget = (deco.spec as { widget?: { toDOM: (view: EditorView) => HTMLElement } }).widget
+    const className = widget?.toDOM(view).className
+    if (className) classes.push(className)
+  })
+  return classes
+}
+
 describe('mathDecorations — inline math $...$', () => {
   it('mounts without throwing for a line with inline math', () => {
     const view = makeView('The formula $E = mc^2$ is famous.')
@@ -103,6 +114,61 @@ describe('mathDecorations — block math $$...$$', () => {
     const doc = 'Formula: $$x^2$$'
     const view = makeView(doc)
     expect(view.state.doc.toString()).toBe(doc)
+    view.destroy()
+  })
+})
+
+describe('mathDecorations — alternate LaTeX delimiters', () => {
+  it('renders \\(...\\) through the inline math widget when the cursor is outside', () => {
+    const view = makeView('Value: \\(x + y\\) done')
+    const classes = mathWidgetClasses(view)
+    expect(classes).toContain('mf-math-inline')
+    view.destroy()
+  })
+
+  it('reveals \\(...\\) source when the cursor is inside the expression', () => {
+    const doc = 'Value: \\(x + y\\)'
+    const view = makeView(doc, doc.indexOf('x'))
+    const classes = mathWidgetClasses(view)
+    expect(classes).not.toContain('mf-math-inline')
+    view.destroy()
+  })
+
+  it('renders \\[...\\] through the block math widget when the cursor is outside', () => {
+    const view = makeView('Formula: \\[x^2 + y^2\\] done')
+    const classes = mathWidgetClasses(view)
+    expect(classes).toContain('mf-math-block')
+    view.destroy()
+  })
+
+  it('renders multi-line \\[...\\] through the block math widget', () => {
+    const view = makeView('Before\n\\[\n\\int_0^1 x^2 dx\n\\]\nAfter', 0)
+    const classes = mathWidgetClasses(view)
+    expect(classes).toContain('mf-math-block')
+    view.destroy()
+  })
+
+  it('reveals \\[...\\] source when the cursor is inside the expression', () => {
+    const doc = 'Formula: \\[x^2 + y^2\\]'
+    const view = makeView(doc, doc.indexOf('x'))
+    const classes = mathWidgetClasses(view)
+    expect(classes).not.toContain('mf-math-block')
+    view.destroy()
+  })
+
+  it('does not apply alternate delimiters inside fenced code blocks', () => {
+    const doc = '```\n\\(x + y\\)\n\\[z^2\\]\n```'
+    const view = makeView(doc)
+    const classes = mathWidgetClasses(view)
+    expect(classes).toHaveLength(0)
+    view.destroy()
+  })
+
+  it('does not apply alternate delimiters inside inline code', () => {
+    const doc = 'Use `\\(x + y\\)` and `\\[z^2\\]` literally.'
+    const view = makeView(doc)
+    const classes = mathWidgetClasses(view)
+    expect(classes).toHaveLength(0)
     view.destroy()
   })
 })

@@ -1,5 +1,15 @@
 import { EditorView } from '@codemirror/view'
 
+const PLAIN_TEXT_PASTE_SHORTCUT_WINDOW_MS = 1000
+
+function isPlainTextPasteShortcut(event: KeyboardEvent) {
+  return !event.altKey && (event.metaKey || event.ctrlKey) && event.shiftKey && event.key.toLowerCase() === 'v'
+}
+
+function hasClipboardType(event: ClipboardEvent, type: string) {
+  return event.clipboardData?.types.includes(type) ?? false
+}
+
 function htmlToMarkdown(html: string): string {
   const parser = new DOMParser()
   const doc = parser.parseFromString(html, 'text/html')
@@ -74,8 +84,33 @@ function insertTextAtCursor(view: EditorView, text: string) {
 }
 
 export function smartPasteExtension() {
+  let plainTextPasteShortcutExpiresAt = 0
+
   return EditorView.domEventHandlers({
+    keydown(event) {
+      if (isPlainTextPasteShortcut(event)) {
+        plainTextPasteShortcutExpiresAt = Date.now() + PLAIN_TEXT_PASTE_SHORTCUT_WINDOW_MS
+      }
+
+      return false
+    },
+    blur() {
+      plainTextPasteShortcutExpiresAt = 0
+      return false
+    },
     paste(event, view) {
+      const shouldPastePlainText = Date.now() <= plainTextPasteShortcutExpiresAt
+      plainTextPasteShortcutExpiresAt = 0
+
+      if (shouldPastePlainText) {
+        if (hasClipboardType(event, 'text/plain')) {
+          event.preventDefault()
+          insertTextAtCursor(view, event.clipboardData?.getData('text/plain') ?? '')
+          return true
+        }
+        return false
+      }
+
       // Handle image paste (MF-029)
       const files = event.clipboardData?.files
       if (files && files.length > 0) {
@@ -98,8 +133,8 @@ export function smartPasteExtension() {
       }
 
       // Handle HTML paste (MF-026)
-      if (event.clipboardData?.types.includes('text/html')) {
-        const html = event.clipboardData.getData('text/html')
+      if (hasClipboardType(event, 'text/html')) {
+        const html = event.clipboardData?.getData('text/html') ?? ''
         if (html) {
           event.preventDefault()
           const markdown = htmlToMarkdown(html)

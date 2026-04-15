@@ -107,6 +107,21 @@ interface DecoEntry {
   deco: Decoration
 }
 
+const multiLineBlockDelimiters = [
+  { open: '$$', close: '$$' },
+  { open: '\\[', close: '\\]' },
+] as const
+
+const singleLineBlockMathPatterns = [
+  /\$\$([^$\n]+?)\$\$/g,
+  /(?<!\\)\\\[([^\n]+?)\\\]/g,
+]
+
+const inlineMathPatterns = [
+  /(?<!\$)\$(?!\$)([^$\n]+?)\$(?!\$)/g,
+  /(?<!\\)\\\(([^$\n]+?)\\\)/g,
+]
+
 export function buildMathDecorations(view: EditorView): DecorationSet {
   const builder = new RangeSetBuilder<Decoration>()
   const doc = view.state.doc
@@ -120,24 +135,23 @@ export function buildMathDecorations(view: EditorView): DecorationSet {
 
   // ── Multi-line block math: $$\n…\n$$ ─────────────────────────────────────
   // A line whose trimmed content is exactly "$$" acts as open/close delimiter.
-  let openBlock: { lineNum: number; lineFrom: number } | null = null
+  let openBlock: { lineNum: number; lineFrom: number; closeDelimiter: string } | null = null
   const contentBuf: string[] = []
 
   for (let i = startLine; i <= endLine; i++) {
     const line = doc.line(i)
+    const trimmed = line.text.trim()
 
-    if (line.text.trim() !== '$$') {
-      if (openBlock) contentBuf.push(line.text)
+    if (!openBlock) {
+      const delimiter = multiLineBlockDelimiters.find(({ open }) => trimmed === open)
+      if (delimiter && !overlapsAny(line.from, line.to, codeRanges)) {
+        openBlock = { lineNum: i, lineFrom: line.from, closeDelimiter: delimiter.close }
+        contentBuf.length = 0
+      }
       continue
     }
 
-    if (!openBlock) {
-      // Opening delimiter — only if not inside a code block
-      if (!overlapsAny(line.from, line.to, codeRanges)) {
-        openBlock = { lineNum: i, lineFrom: line.from }
-        contentBuf.length = 0
-      }
-    } else {
+    if (trimmed === openBlock.closeDelimiter) {
       // Closing delimiter
       const closeLine = line
       const source = contentBuf.join('\n')
@@ -165,49 +179,53 @@ export function buildMathDecorations(view: EditorView): DecorationSet {
 
       openBlock = null
       contentBuf.length = 0
+      continue
     }
+
+    contentBuf.push(line.text)
   }
 
   // ── Single-line display math: $$expr$$ within a line ─────────────────────
-  // Pattern: $$…$$ where content has no newline and is non-empty.
-  const displayRe = /\$\$([^$\n]+?)\$\$/g
   for (let i = startLine; i <= endLine; i++) {
     const line = doc.line(i)
     // Skip lines inside already-processed multi-line blocks or code.
     if (overlapsAny(line.from, line.to, blockMathRanges)) continue
     if (overlapsAny(line.from, line.to, codeRanges)) continue
 
-    displayRe.lastIndex = 0
-    let m: RegExpExecArray | null
-    while ((m = displayRe.exec(line.text)) !== null) {
-      const from = line.from + m.index
-      const to = from + m[0].length
-      const source = m[1]
-      if (!source.trim()) continue
-      if (cursor >= from && cursor <= to) continue
-      entries.push({ from, to, deco: Decoration.replace({ widget: new BlockMathWidget(source) }) })
-      // Record so inline scan won't also touch this range.
-      blockMathRanges.push({ from, to })
+    for (const displayRe of singleLineBlockMathPatterns) {
+      displayRe.lastIndex = 0
+      let m: RegExpExecArray | null
+      while ((m = displayRe.exec(line.text)) !== null) {
+        const from = line.from + m.index
+        const to = from + m[0].length
+        const source = m[1]
+        if (!source.trim()) continue
+        if (cursor >= from && cursor <= to) continue
+        entries.push({ from, to, deco: Decoration.replace({ widget: new BlockMathWidget(source) }) })
+        // Record so inline scan won't also touch this range.
+        blockMathRanges.push({ from, to })
+      }
     }
   }
 
   // ── Inline math: $expr$ per line ─────────────────────────────────────────
   // Opening/closing $ must not be adjacent to another $.
-  const inlineRe = /(?<!\$)\$(?!\$)([^$\n]+?)\$(?!\$)/g
   for (let i = startLine; i <= endLine; i++) {
     const line = doc.line(i)
     if (overlapsAny(line.from, line.to, blockMathRanges)) continue
     if (overlapsAny(line.from, line.to, codeRanges)) continue
 
-    inlineRe.lastIndex = 0
-    let m: RegExpExecArray | null
-    while ((m = inlineRe.exec(line.text)) !== null) {
-      const from = line.from + m.index
-      const to = from + m[0].length
-      const source = m[1]
-      if (!source.trim()) continue
-      if (cursor >= from && cursor <= to) continue
-      entries.push({ from, to, deco: Decoration.replace({ widget: new InlineMathWidget(source) }) })
+    for (const inlineRe of inlineMathPatterns) {
+      inlineRe.lastIndex = 0
+      let m: RegExpExecArray | null
+      while ((m = inlineRe.exec(line.text)) !== null) {
+        const from = line.from + m.index
+        const to = from + m[0].length
+        const source = m[1]
+        if (!source.trim()) continue
+        if (cursor >= from && cursor <= to) continue
+        entries.push({ from, to, deco: Decoration.replace({ widget: new InlineMathWidget(source) }) })
+      }
     }
   }
 

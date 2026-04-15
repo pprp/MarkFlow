@@ -1,6 +1,6 @@
 import { EditorView, KeyBinding, keymap } from '@codemirror/view'
 
-const PAIRS: Record<string, string> = {
+const STRUCTURAL_PAIRS: Record<string, string> = {
   '(': ')',
   '[': ']',
   '{': '}',
@@ -9,6 +9,18 @@ const PAIRS: Record<string, string> = {
   '`': '`',
 }
 
+const MARKDOWN_DELIMITER_PAIRS: Record<'*' | '_', '*' | '_'> = {
+  '*': '*',
+  _: '_',
+}
+
+const AUTO_CLOSE_PAIRS: Record<string, string> = {
+  ...STRUCTURAL_PAIRS,
+  ...MARKDOWN_DELIMITER_PAIRS,
+}
+
+const IDENTIFIER_CHAR_RE = /[A-Za-z0-9_]/
+
 const LEADING_WHITESPACE_RE = /^(\s*)(.*)$/
 const HEADING_RE = /^(\s{0,3})(#{1,6})\s+(.*)$/
 const BLOCKQUOTE_RE = /^(\s*)>\s?(.*)$/
@@ -16,9 +28,9 @@ const TASK_LIST_RE = /^(\s*)([-*+])\s\[[ xX]\]\s(.*)$/
 const ORDERED_LIST_RE = /^(\s*)(\d+)\.\s(.*)$/
 const UNORDERED_LIST_RE = /^(\s*)([-*+])\s(?!\[[ xX]\]\s)(.*)$/
 
-/** Auto-close brackets and quotes */
+/** Auto-close paired delimiters */
 function handlePairInput(view: EditorView, char: string): boolean {
-  const close = PAIRS[char]
+  const close = AUTO_CLOSE_PAIRS[char]
   if (!close) return false
 
   const { state } = view
@@ -51,6 +63,45 @@ function handlePairInput(view: EditorView, char: string): boolean {
   return true
 }
 
+function shouldAutoPairMarkdownDelimiter(view: EditorView, char: '*' | '_'): boolean {
+  const { state } = view
+  const sel = state.selection.main
+
+  if (!sel.empty) {
+    return true
+  }
+
+  const nextChar = state.doc.sliceString(sel.from, sel.from + 1)
+  if (nextChar === char) {
+    return true
+  }
+
+  const beforeChar = state.doc.sliceString(sel.from - 1, sel.from)
+  if (IDENTIFIER_CHAR_RE.test(beforeChar) || IDENTIFIER_CHAR_RE.test(nextChar)) {
+    return false
+  }
+
+  if (char === '*') {
+    const line = state.doc.lineAt(sel.from)
+    const linePrefix = state.doc.sliceString(line.from, sel.from)
+
+    // Preserve `* ` unordered-list entry at the start of a line or after indentation.
+    if (linePrefix.trim().length === 0) {
+      return false
+    }
+  }
+
+  return true
+}
+
+function handleMarkdownDelimiterInput(view: EditorView, char: '*' | '_'): boolean {
+  if (!shouldAutoPairMarkdownDelimiter(view, char)) {
+    return false
+  }
+
+  return handlePairInput(view, char)
+}
+
 /** Smart backspace: delete pair together when cursor sits inside */
 function handleBackspace(view: EditorView): boolean {
   const { state } = view
@@ -60,7 +111,7 @@ function handleBackspace(view: EditorView): boolean {
   const before = state.doc.sliceString(sel.from - 1, sel.from)
   const after = state.doc.sliceString(sel.from, sel.from + 1)
 
-  if (PAIRS[before] === after) {
+  if (AUTO_CLOSE_PAIRS[before] === after) {
     view.dispatch({
       changes: { from: sel.from - 1, to: sel.from + 1 },
       selection: { anchor: sel.from - 1 },
@@ -393,9 +444,13 @@ const smartInputKeymap: KeyBinding[] = [
     key: 'Backspace',
     run: handleBackspace,
   },
-  ...Object.keys(PAIRS).map((char) => ({
+  ...Object.keys(STRUCTURAL_PAIRS).map((char) => ({
     key: char,
     run: (view: EditorView) => handlePairInput(view, char),
+  })),
+  ...(['*', '_'] as const).map((char) => ({
+    key: char,
+    run: (view: EditorView) => handleMarkdownDelimiterInput(view, char),
   })),
 ]
 

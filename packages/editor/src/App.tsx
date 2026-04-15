@@ -1,6 +1,7 @@
 import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { MarkFlowEditor } from './editor/MarkFlowEditor'
-import { extractOutlineHeadings, findActiveHeadingAnchor } from './editor/outline'
+import { createEmptySymbolTable, type SymbolTable } from './editor/indexer'
+import { findActiveHeadingAnchor } from './editor/outline'
 import { computeStats } from './editor/wordCount'
 import { QuickOpen } from './components/QuickOpen'
 import { VaultSidebar } from './components/VaultSidebar'
@@ -159,11 +160,13 @@ export function App() {
   const [themes, setThemes] = useState<MarkFlowThemeSummary[]>([])
   const [activeThemeId, setActiveThemeId] = useState<string>('')
   const [cursorPosition, setCursorPosition] = useState(0)
+  const [viewportPosition, setViewportPosition] = useState<number | null>(null)
   const [editorNavigationRequest, setEditorNavigationRequest] = useState<{
     key: number
     position: number
   } | null>(null)
   const [outlineCollapsed, setOutlineCollapsed] = useState(false)
+  const [symbolTable, setSymbolTable] = useState<SymbolTable>(() => createEmptySymbolTable())
   const [selectionText, setSelectionText] = useState('')
   const [isQuickOpenOpen, setIsQuickOpenOpen] = useState(false)
   const [isExporting, setIsExporting] = useState(false)
@@ -215,6 +218,8 @@ export function App() {
       persistedContentRef.current = content
       latestContentRef.current = content
       setCursorPosition(0)
+      setViewportPosition(null)
+      setSymbolTable(createEmptySymbolTable())
       setEditorNavigationRequest(null)
       setIsGoToLineOpen(false)
       currentFilePathRef.current = filePath
@@ -496,17 +501,16 @@ export function App() {
     }
   }
 
-  const outlineHeadings = useMemo(
-    () => extractOutlineHeadings(documentState.content),
-    [documentState.content],
-  )
+  const outlineHeadings = symbolTable.headings
 
   const activeOutlineAnchor = useMemo(
-    () => findActiveHeadingAnchor(outlineHeadings, cursorPosition),
-    [cursorPosition, outlineHeadings],
+    () => findActiveHeadingAnchor(outlineHeadings, viewportPosition ?? cursorPosition),
+    [cursorPosition, outlineHeadings, viewportPosition],
   )
 
   const handleOutlineNavigate = useCallback((position: number) => {
+    setViewportPosition(null)
+    setCursorPosition(position)
     editorNavigationKeyRef.current += 1
     setEditorNavigationRequest({
       key: editorNavigationKeyRef.current,
@@ -525,6 +529,14 @@ export function App() {
     },
     [documentState.content],
   )
+
+  const handleSymbolTableChange = useCallback((table: SymbolTable, content: string) => {
+    if (content !== latestContentRef.current) {
+      return
+    }
+
+    setSymbolTable(table)
+  }, [])
 
   const docStats = useMemo(
     () => computeStats(documentState.content, selectionText),
@@ -712,6 +724,8 @@ export function App() {
               viewMode={viewMode}
               onChange={handleContentChange}
               onCursorPositionChange={setCursorPosition}
+              onViewportPositionChange={setViewportPosition}
+              onSymbolTableChange={handleSymbolTableChange}
               onNavigationHandled={() => setEditorNavigationRequest(null)}
               onOpenPath={handleOpenPath}
               onToggleMode={toggleViewMode}
@@ -815,6 +829,8 @@ export function App() {
             viewMode="wysiwyg"
             onChange={() => {}}
             onCursorPositionChange={() => {}}
+            onViewportPositionChange={() => {}}
+            onSymbolTableChange={() => {}}
             onNavigationHandled={() => {}}
             onOpenPath={async () => {}}
             onToggleMode={() => {}}

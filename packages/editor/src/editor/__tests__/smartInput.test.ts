@@ -1,9 +1,18 @@
 import { describe, it, expect } from 'vitest'
 import { applyBold, applyItalic, applyUnderline, applyLink } from '../extensions/smartInput'
 import { EditorState } from '@codemirror/state'
-import { EditorView } from '@codemirror/view'
+import { EditorView, runScopeHandlers } from '@codemirror/view'
 import { smartInput } from '../extensions/smartInput'
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown'
+
+const STRUCTURAL_PAIRS = [
+  ['(', ')'],
+  ['[', ']'],
+  ['{', '}'],
+  ['"', '"'],
+  ["'", "'"],
+  ['`', '`'],
+] as const
 
 function makeView(doc: string, cursor: number) {
   const state = EditorState.create({
@@ -16,16 +25,121 @@ function makeView(doc: string, cursor: number) {
   return new EditorView({ state, parent })
 }
 
+function dispatchEditorKey(view: EditorView, key: string) {
+  const event = new KeyboardEvent('keydown', {
+    bubbles: true,
+    cancelable: true,
+    key,
+  })
+
+  return runScopeHandlers(view, event, 'editor')
+}
+
 describe('smartInput — auto-pairs', () => {
-  it('inserts closing paren and places cursor inside', () => {
+  it.each(STRUCTURAL_PAIRS)('inserts %s%s and places the cursor inside', (open, close) => {
     const view = makeView('', 0)
-    view.dispatch(view.state.replaceSelection('('))
-    // The smart input fires on key, but in tests we simulate via dispatch
-    // Verify the mechanism: check doc and cursor
-    const doc = view.state.doc.toString()
-    // When triggered properly the pair would produce "()" — in unit tests
-    // we assert the extension is registered without crashing
-    expect(doc).toBeTruthy()
+
+    expect(dispatchEditorKey(view, open)).toBe(true)
+    expect(view.state.doc.toString()).toBe(`${open}${close}`)
+    expect(view.state.selection.main.from).toBe(1)
+    expect(view.state.selection.main.to).toBe(1)
+
+    view.destroy()
+  })
+
+  it.each(['*', '_'] as const)('auto-pairs %s in emphasis-friendly text context', (delimiter) => {
+    const view = makeView('Hello ', 6)
+
+    expect(dispatchEditorKey(view, delimiter)).toBe(true)
+    expect(view.state.doc.toString()).toBe(`Hello ${delimiter}${delimiter}`)
+    expect(view.state.selection.main.from).toBe(7)
+    expect(view.state.selection.main.to).toBe(7)
+
+    view.destroy()
+  })
+
+  it('continues to wrap a selection with parentheses', () => {
+    const view = makeView('word', 0)
+    view.dispatch({ selection: { anchor: 0, head: 4 } })
+
+    expect(dispatchEditorKey(view, '(')).toBe(true)
+    expect(view.state.doc.toString()).toBe('(word)')
+    expect(view.state.selection.main.from).toBe(1)
+    expect(view.state.selection.main.to).toBe(5)
+
+    view.destroy()
+  })
+
+  it.each(['*', '_'] as const)('wraps the current selection when typing %s', (delimiter) => {
+    const view = makeView('word', 0)
+    view.dispatch({ selection: { anchor: 0, head: 4 } })
+
+    expect(dispatchEditorKey(view, delimiter)).toBe(true)
+    expect(view.state.doc.toString()).toBe(`${delimiter}word${delimiter}`)
+    expect(view.state.selection.main.from).toBe(1)
+    expect(view.state.selection.main.to).toBe(5)
+
+    view.destroy()
+  })
+
+  it.each(['*', '_'] as const)('removes an empty %s pair atomically on Backspace', (delimiter) => {
+    const view = makeView('Hello ', 6)
+
+    expect(dispatchEditorKey(view, delimiter)).toBe(true)
+    expect(dispatchEditorKey(view, 'Backspace')).toBe(true)
+    expect(view.state.doc.toString()).toBe('Hello ')
+    expect(view.state.selection.main.from).toBe(6)
+    expect(view.state.selection.main.to).toBe(6)
+
+    view.destroy()
+  })
+
+  it('does not intercept `*` at the start of a line, preserving unordered-list entry', () => {
+    const view = makeView('', 0)
+
+    expect(dispatchEditorKey(view, '*')).toBe(false)
+
+    view.dispatch(view.state.replaceSelection('*'))
+    view.dispatch(view.state.replaceSelection(' '))
+
+    expect(view.state.doc.toString()).toBe('* ')
+    expect(view.state.selection.main.from).toBe(2)
+
+    view.destroy()
+  })
+
+  it('does not intercept `_` inside identifiers, preserving literal underscore typing', () => {
+    const view = makeView('snakecase', 5)
+
+    expect(dispatchEditorKey(view, '_')).toBe(false)
+
+    view.dispatch(view.state.replaceSelection('_'))
+
+    expect(view.state.doc.toString()).toBe('snake_case')
+    expect(view.state.selection.main.from).toBe(6)
+
+    view.destroy()
+  })
+
+  it('preserves skip-over behavior for an existing closing quote', () => {
+    const view = makeView('""', 1)
+
+    expect(dispatchEditorKey(view, '"')).toBe(true)
+    expect(view.state.doc.toString()).toBe('""')
+    expect(view.state.selection.main.from).toBe(2)
+    expect(view.state.selection.main.to).toBe(2)
+
+    view.destroy()
+  })
+
+  it.each(['*', '_'] as const)('preserves skip-over behavior for an existing closing %s', (delimiter) => {
+    const view = makeView(`${delimiter}${delimiter}`, 1)
+
+    expect(dispatchEditorKey(view, delimiter)).toBe(true)
+    expect(view.state.doc.toString()).toBe(`${delimiter}${delimiter}`)
+    expect(view.state.selection.main.from).toBe(2)
+    expect(view.state.selection.main.to).toBe(2)
+
     view.destroy()
   })
 })

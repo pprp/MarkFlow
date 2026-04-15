@@ -38,6 +38,7 @@ import { markdownPostProcessorExtension } from './extensions/markdownPostProcess
 import { readingModeExtension } from './extensions/readingMode'
 import { tocDecorations } from './decorations/tocDecoration'
 import { findHeadingAnchorPosition } from './outline'
+import { indexerExtension, symbolTableField, type SymbolTable } from './indexer'
 import { FloatingToolbar } from '../components/FloatingToolbar'
 import { MAX_UNDO_HISTORY_EVENTS, pruneHistoryState } from './historyLimit'
 
@@ -46,6 +47,8 @@ export interface MarkFlowEditorProps {
   viewMode: ViewMode
   onChange?: (content: string) => void
   onCursorPositionChange?: (position: number) => void
+  onViewportPositionChange?: (position: number) => void
+  onSymbolTableChange?: (table: SymbolTable, content: string) => void
   onNavigationHandled?: () => void
   onOpenPath?: (filePath: string) => void | Promise<unknown>
   onToggleMode?: () => void
@@ -130,6 +133,8 @@ function getEditorExtensions(
   pluginHost: MarkFlowPluginHost | undefined,
   onChangeRef: React.MutableRefObject<MarkFlowEditorProps['onChange']>,
   onCursorPositionChangeRef: React.MutableRefObject<MarkFlowEditorProps['onCursorPositionChange']>,
+  onViewportPositionChangeRef: React.MutableRefObject<MarkFlowEditorProps['onViewportPositionChange']>,
+  onSymbolTableChangeRef: React.MutableRefObject<MarkFlowEditorProps['onSymbolTableChange']>,
   onSelectionChangeRef: React.MutableRefObject<MarkFlowEditorProps['onSelectionChange']>,
   onToggleModeRef: React.MutableRefObject<MarkFlowEditorProps['onToggleMode']>,
   onToggleFocusModeRef: React.MutableRefObject<MarkFlowEditorProps['onToggleFocusMode']>,
@@ -203,11 +208,15 @@ function getEditorExtensions(
     smartPasteExtension(),
     headingFoldExtension(),
     spellCheckExtension(),
+    indexerExtension(),
     EditorView.lineWrapping,
     EditorView.updateListener.of((update) => {
       if (update.docChanged) {
         onChangeRef.current?.(update.state.doc.toString())
         pruneHistoryRef.current?.(update.view)
+      }
+      if (update.viewportChanged) {
+        onViewportPositionChangeRef.current?.(update.view.viewport.from)
       }
       if (update.selectionSet || update.docChanged) {
         const selection = update.state.selection.main
@@ -216,6 +225,12 @@ function getEditorExtensions(
           : update.state.doc.sliceString(selection.from, selection.to)
         onSelectionChangeRef.current?.(selectedText)
         onCursorPositionChangeRef.current?.(selection.head)
+      }
+
+      const nextTable = update.state.field(symbolTableField)
+      const previousTable = update.startState.field(symbolTableField)
+      if (nextTable !== previousTable) {
+        onSymbolTableChangeRef.current?.(nextTable, update.state.doc.toString())
       }
     }),
     viewModeCompartment.of(getViewModeExtensions(viewMode, filePath, pluginHost)),
@@ -229,6 +244,8 @@ export function MarkFlowEditor({
   viewMode,
   onChange,
   onCursorPositionChange,
+  onViewportPositionChange,
+  onSymbolTableChange,
   onNavigationHandled,
   onOpenPath,
   onToggleMode,
@@ -247,6 +264,8 @@ export function MarkFlowEditor({
   const viewRef = useRef<EditorView | null>(null)
   const onChangeRef = useRef(onChange)
   const onCursorPositionChangeRef = useRef(onCursorPositionChange)
+  const onViewportPositionChangeRef = useRef(onViewportPositionChange)
+  const onSymbolTableChangeRef = useRef(onSymbolTableChange)
   const onNavigationHandledRef = useRef(onNavigationHandled)
   const onOpenPathRef = useRef(onOpenPath)
   const onToggleModeRef = useRef(onToggleMode)
@@ -267,6 +286,14 @@ export function MarkFlowEditor({
   useEffect(() => {
     onCursorPositionChangeRef.current = onCursorPositionChange
   }, [onCursorPositionChange])
+
+  useEffect(() => {
+    onViewportPositionChangeRef.current = onViewportPositionChange
+  }, [onViewportPositionChange])
+
+  useEffect(() => {
+    onSymbolTableChangeRef.current = onSymbolTableChange
+  }, [onSymbolTableChange])
 
   useEffect(() => {
     onNavigationHandledRef.current = onNavigationHandled
@@ -309,6 +336,8 @@ export function MarkFlowEditor({
       pluginHost,
       onChangeRef,
       onCursorPositionChangeRef,
+      onViewportPositionChangeRef,
+      onSymbolTableChangeRef,
       onSelectionChangeRef,
       onToggleModeRef,
       onToggleFocusModeRef,
@@ -337,6 +366,8 @@ export function MarkFlowEditor({
         pluginHost,
         onChangeRef,
         onCursorPositionChangeRef,
+        onViewportPositionChangeRef,
+        onSymbolTableChangeRef,
         onSelectionChangeRef,
         onToggleModeRef,
         onToggleFocusModeRef,
@@ -382,7 +413,11 @@ export function MarkFlowEditor({
       event.stopPropagation()
 
       const href = resolveLinkHref(rawHref, filePathRef.current)
-      const headingPosition = findHeadingAnchorPosition(view.state.doc.toString(), href)
+      const doc = view.state.doc.toString()
+      const anchorLookup = view.state.field(symbolTableField).anchors
+      const headingPosition = anchorLookup.size > 0
+        ? findHeadingAnchorPosition(doc, href, anchorLookup) ?? findHeadingAnchorPosition(doc, href)
+        : findHeadingAnchorPosition(doc, href)
       if (headingPosition !== null) {
         view.dispatch({
           selection: EditorSelection.cursor(headingPosition),
@@ -443,14 +478,20 @@ export function MarkFlowEditor({
 
     view.dom.addEventListener('click', handleClick)
     view.dom.addEventListener('drop', handleDrop)
+    const handleViewportScroll = () => {
+      onViewportPositionChangeRef.current?.(view.viewport.from)
+    }
+    view.scrollDOM.addEventListener('scroll', handleViewportScroll, { passive: true })
 
     viewRef.current = view
     setEditorView(view)
     onCursorPositionChangeRef.current?.(view.state.selection.main.head)
+    onSymbolTableChangeRef.current?.(view.state.field(symbolTableField), view.state.doc.toString())
 
     return () => {
       view.dom.removeEventListener('click', handleClick)
       view.dom.removeEventListener('drop', handleDrop)
+      view.scrollDOM.removeEventListener('scroll', handleViewportScroll)
       view.destroy()
       viewRef.current = null
       setEditorView(null)

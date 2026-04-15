@@ -528,9 +528,11 @@ describe('App desktop integration', () => {
       })
     })
 
-    expect(within(screen.getByRole('navigation', { name: 'Outline' })).getAllByRole('button').map(
-      (button) => button.textContent,
-    )).toEqual(['Alpha', 'Beta'])
+    const outline = await screen.findByRole('navigation', { name: 'Outline' })
+    expect(within(outline).getAllByRole('button').map((button) => button.textContent)).toEqual([
+      'Alpha',
+      'Beta',
+    ])
 
     act(() => {
       const view = getEditorView(container)

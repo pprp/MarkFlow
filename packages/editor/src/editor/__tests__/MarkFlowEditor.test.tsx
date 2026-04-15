@@ -6,6 +6,8 @@ import { describe, expect, it, vi } from 'vitest'
 import { waitFor } from '@testing-library/react'
 import { MarkFlowEditor } from '../MarkFlowEditor'
 import { MAX_UNDO_HISTORY_EVENTS } from '../historyLimit'
+import { symbolTableField } from '../indexer'
+import * as outline from '../outline'
 
 interface PointerEventInitWithId extends MouseEventInit {
   pointerId?: number
@@ -78,6 +80,49 @@ describe('MarkFlowEditor', () => {
     expect(updatedView).toBe(view)
     expect(updatedView.state.doc.toString()).toBe('# Opened file')
     expect(updatedView.state.selection.main.head).toBe(0)
+  })
+
+  it('publishes symbol table updates from the background indexer', async () => {
+    const handleSymbolTableChange = vi.fn()
+    render(
+      <MarkFlowEditor
+        content={['# Intro', '', '## Setup'].join('\n')}
+        viewMode="wysiwyg"
+        onChange={vi.fn()}
+        onSymbolTableChange={handleSymbolTableChange}
+      />,
+    )
+
+    await waitFor(() => {
+      const latestTable = handleSymbolTableChange.mock.calls.at(-1)?.[0]
+      expect(latestTable?.headings.map((heading: { text: string }) => heading.text)).toEqual([
+        'Intro',
+        'Setup',
+      ])
+      expect(latestTable?.anchors.get('intro')).toBe(0)
+      expect(latestTable?.anchors.get('setup')).toBe(9)
+    })
+  })
+
+  it('reports viewport updates when the editor scroll container scrolls', async () => {
+    const handleViewportPositionChange = vi.fn()
+    const { container } = render(
+      <MarkFlowEditor
+        content={['# Intro', '', '## Setup', '', '## Details'].join('\n')}
+        viewMode="wysiwyg"
+        onChange={vi.fn()}
+        onViewportPositionChange={handleViewportPositionChange}
+      />,
+    )
+
+    handleViewportPositionChange.mockClear()
+
+    const view = getEditorView(container)
+    fireEvent.scroll(view.scrollDOM)
+
+    await waitFor(() => {
+      expect(handleViewportPositionChange).toHaveBeenCalledWith(view.viewport.from)
+    })
   })
 
   it('calls onToggleMode when Cmd/Ctrl+/ is pressed inside the editor', () => {
@@ -372,6 +417,34 @@ describe('MarkFlowEditor', () => {
     expect(view.state.selection.main.head).toBe(content.indexOf('# Details'))
     expect(openSpy).not.toHaveBeenCalled()
 
+    openSpy.mockRestore()
+  })
+
+  it('resolves internal anchors through the symbol table lookup on Cmd/Ctrl+Click', async () => {
+    const content = ['Intro [Jump](#details)', '', '# Details'].join('\n')
+    const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null)
+    const headingSpy = vi.spyOn(outline, 'findHeadingAnchorPosition')
+    const { container } = render(<MarkFlowEditor content={content} viewMode="wysiwyg" onChange={vi.fn()} />)
+
+    const view = getEditorView(container)
+    await waitFor(() => {
+      expect(view.state.field(symbolTableField).anchors.get('details')).toBe(content.indexOf('# Details'))
+    })
+
+    const link = container.querySelector('a.mf-link')
+    expect(link).not.toBeNull()
+
+    headingSpy.mockClear()
+    fireEvent.click(link as Element, { ctrlKey: true })
+
+    expect(headingSpy).toHaveBeenCalledTimes(1)
+    expect(headingSpy.mock.calls[0]?.[0]).toBe(content)
+    expect(headingSpy.mock.calls[0]?.[1]).toBe('#details')
+    expect(headingSpy.mock.calls[0]?.[2]).toBe(view.state.field(symbolTableField).anchors)
+    expect(view.state.selection.main.head).toBe(content.indexOf('# Details'))
+    expect(openSpy).not.toHaveBeenCalled()
+
+    headingSpy.mockRestore()
     openSpy.mockRestore()
   })
 

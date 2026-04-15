@@ -9,6 +9,63 @@
 
 ## Session Log
 
+### 2026-04-15 - MF-076 plain-text paste shortcut implemented, manual clipboard validation pending
+
+- Author: Codex (Dispatcher)
+- Focus: Add Typora-style plain-text paste without regressing the existing smart HTML→Markdown paste or image-paste behavior.
+- Research updates:
+  - No new Typora ledger entries were needed this run; the existing `MF-076` entry already matched the documented gap in Typora's `Copy and Paste` and `Shortcut Keys` docs.
+- What changed:
+  - updated `packages/editor/src/editor/extensions/smartPaste.ts` so `Cmd/Ctrl+Shift+V` arms a short-lived plain-text paste intent for the next paste event, bypassing HTML→Markdown conversion while preserving normal rich-text paste and image-paste priority
+  - added `packages/editor/src/editor/__tests__/smartPaste.test.ts` to cover default rich-text conversion, plain-text shortcut bypass, one-shot shortcut reset, and image-paste precedence
+  - updated the `MF-076` ledger entry in `harness/feature-ledger.json` to `ready` / `passes=false` with the actual automated verification commands and implementation notes
+- Simplifications made:
+  - kept the shortcut handling inside the existing `smartPasteExtension()` instead of introducing a second paste command surface
+  - reused the existing text insertion path so plain-text paste and smart paste still share the same selection replacement behavior
+- Verification:
+  - `pnpm harness:start` (passes)
+  - `pnpm --filter @markflow/editor test:run -- src/editor/__tests__/smartPaste.test.ts` (passes; current package behavior ran 27 files / 281 tests)
+  - `pnpm --filter @markflow/editor lint` (passes)
+  - `pnpm --filter @markflow/editor build` (passes; existing Vite chunk-size warnings only)
+  - `./harness/init.sh --smoke` (passes; includes `pnpm test` and `pnpm harness:verify`)
+- Review / risks:
+  - Reviewer accepted the scoped `MF-076` diff and agreed the ledger truthfully stays `ready` / `passes=false` until manual clipboard-source validation is completed
+  - the implementation uses a 1-second shortcut-intent window, so pressing `Cmd/Ctrl+Shift+V` without pasting can make the next immediate paste use plain text
+  - clipboard payload differences across Word, webpages, and VS Code remain unverified until the listed manual check is run
+- Newly verified features:
+  - none
+- Next recommended feature:
+  - if a human can do clipboard validation, clear `MF-076`; otherwise continue with `MF-060` as the next priority-2 automatable gap
+
+### 2026-04-15 - MF-050 anchor navigation now consults the symbol table safely
+
+- Author: Codex (Dispatcher)
+- Focus: Close the concrete `MF-050` integration gap where rendered internal heading links still fell back to full-document parsing instead of using the background symbol table when it was already available.
+- Research updates:
+  - Researcher reviewed current public Typora docs and found no new ledger delta worth writing this run, so `harness/feature-ledger.json` stayed unchanged.
+  - Sources reviewed this run: `Copy and Paste`, `Word Count`, `Search`, `File Management`, `What's New 1.8`, and `Markdown Reference` on `support.typora.io`.
+- What changed:
+  - updated `packages/editor/src/editor/MarkFlowEditor.tsx` so Cmd/Ctrl-clicked internal heading links now consult `symbolTableField.anchors` first and only fall back to direct document parsing if the async indexer has not populated the lookup yet or if the lookup misses
+  - extended `packages/editor/src/editor/__tests__/MarkFlowEditor.test.tsx` with a regression that waits for the symbol table, asserts the internal-anchor click path passes the anchor map into `findHeadingAnchorPosition`, and keeps the pre-index click behavior working
+- Simplifications made:
+  - reused the existing optional anchor-lookup parameter on `findHeadingAnchorPosition` instead of introducing a second anchor resolver
+  - kept the fallback local to the click handler so the indexer and outline helpers did not need another API branch
+- Verification:
+  - `pnpm harness:start` (passes)
+  - `./harness/init.sh --smoke` (passes)
+  - `pnpm --filter @markflow/editor test:run -- src/editor/__tests__/indexer.test.ts src/editor/__tests__/outline.test.ts src/editor/__tests__/MarkFlowEditor.test.tsx src/__tests__/App.test.tsx` (passes; 26 files / 277 tests)
+  - `pnpm --filter @markflow/editor lint` (passes)
+  - `pnpm --filter @markflow/editor build` (passes; existing Vite chunk-size warnings only)
+  - `pnpm harness:verify` (passes; 98 total | verified=59 | ready=3 | planned=36 | blocked=0)
+- Review / risks:
+  - reviewer acceptance criteria were established, but the reviewer subagent timed out before returning a final verdict; a local read-only review found no blocking issues in the scoped `MF-050` diff
+  - `MF-050` still needs the manual 180k-line typing/no-lag verification before it can move from `ready` to `verified`
+  - immediately after heading edits, a click can still take the one-off direct-parse fallback until the async symbol table catches up; that keeps behavior correct, but it means the large-file no-lag claim still depends on the pending manual check
+- Newly verified features:
+  - none
+- Next recommended feature:
+  - if a human can perform desktop validation, clear the pending `MF-050` 180k-line typing/no-lag check; otherwise continue with `MF-053` while leaving `MF-050` truthfully at `ready` / `passes=false`
+
 ### 2026-04-12 - MF-059 undo history capped at 500 events, pending manual memory verification
 
 - Author: Codex
@@ -183,6 +240,34 @@
   - `MF-021`
 - Next recommended feature:
   - `MF-048` — Virtual rendering limits DOM nodes to a viewport window for files over 5 000 lines
+
+### 2026-04-15 - MF-080 context-sensitive auto-pair completed and verified
+
+- Author: Codex (Dispatcher)
+- Focus: Close Typora's auto-pair gap without regressing markdown list entry or literal underscore typing in common text/identifier contexts.
+- Research updates:
+  - refined `MF-038` notes so the ledger now reflects the actual verified HTML slice: sanitized safe-tag rendering only, not full Typora media/embed parity
+  - added `MF-097` for preserved `<video>`, `<audio>`, and `<iframe>` HTML media embeds, which Typora documents but MarkFlow still strips
+- What changed:
+  - updated `packages/editor/src/editor/extensions/smartInput.ts` to keep unconditional pairing for structural delimiters while routing `*` and `_` through context-sensitive markdown heuristics
+  - preserved `*` fallthrough at line start / indentation for unordered-list entry and `_` fallthrough inside identifier-style text such as `snake_case`
+  - extended `packages/editor/src/editor/__tests__/smartInput.test.ts` to drive the real editor keymap for structural pairs, context-sensitive `*` / `_` auto-pairing, selection wrapping, skip-over, empty-pair backspace, start-of-line `*`, and identifier underscore fallthrough
+  - updated the `MF-080` ledger entry to the verified state with the narrower context-sensitive behavior, real verification commands, and no manual follow-up requirement
+- Verification:
+  - `pnpm harness:start` (passes)
+  - `./harness/init.sh --smoke` (passes)
+  - `pnpm --filter @markflow/editor test:run -- src/editor/__tests__/smartInput.test.ts` (passes; current package behavior runs 25 files / 273 tests)
+  - `pnpm --filter @markflow/editor lint -- src/editor/extensions/smartInput.ts src/editor/__tests__/smartInput.test.ts` (passes)
+  - `pnpm --filter @markflow/editor build` (passes; only existing Vite chunk-size warnings)
+  - `pnpm harness:verify` (passes; 97 total | verified=58 | ready=3 | planned=36 | blocked=0)
+- Review / risks:
+  - Reviewer initially rejected the first `MF-080` attempt because global `*` / `_` pairing regressed unordered-list entry and literal underscore typing; the accepted second pass fixed those heuristics and added explicit regression coverage before `verified` was kept
+  - residual risk remains around untested edge contexts such as indented `*` list prefixes and leading-underscore identifier starts, but the reviewed regression scope is covered and no open issue blocks the verified state
+  - unrelated in-flight workspace edits outside `MF-080` were left untouched
+- Newly verified features:
+  - `MF-080`
+- Next recommended feature:
+  - `MF-050` - Background indexer builds a symbol table for headings and anchors without blocking the UI thread
 
 ### 2026-04-09 - Harness bootstrap
 
@@ -792,3 +877,116 @@
   - none
 - Next recommended feature:
   - `MF-048` - Virtual rendering limits DOM nodes to a viewport window for files over 5 000 lines (once MF-065 receives manual desktop confirmation, or while it remains queued for that check)
+
+### 2026-04-15 - MF-050 background indexer implemented, automated tests pass
+
+- Author: Claude (Sonnet 4.6)
+- Focus: Implement a debounced, microtask-scheduled background indexer that builds a symbol table for headings and anchors without blocking the UI thread.
+- What changed:
+  - `packages/editor/src/editor/indexer.ts` — new module with:
+    - `buildSymbolTable(content)`: pure function wrapping `extractOutlineHeadings` to produce `{ headings, anchors }` with an O(1) `Map<string, number>` for anchor lookup
+    - `DocumentIndexer` class: debounced (default 300 ms) async coordinator using a swappable `schedule` function (defaults to `Promise.resolve().then(fn)` — microtask queue, keeps UI responsive); exposes `index()` for simple runs and `indexBatched()` for large documents with intermediate partial results
+    - `INDEXER_BATCH_SIZE = 500` lines per batch
+    - CodeMirror integration: `setSymbolTable` StateEffect, `symbolTableField` StateField, `indexerExtension()` ViewPlugin that kicks off an initial batched index and re-indexes on every `docChanged` update
+  - `packages/editor/src/editor/__tests__/indexer.test.ts` — 11 new tests across three suites:
+    - `indexer: buildSymbolTable` (5 tests): empty doc, heading extraction with anchor map, duplicate de-duplication, large doc position ordering, fenced-code exclusion
+    - `indexer: DocumentIndexer` (4 tests): debounce collapses rapid calls, async delivery, batched intermediate + final results, dispose cancels pending run
+    - `indexer: CodeMirror extension` (2 tests): symbolTableField populated after indexing, table updates on doc change
+  - `harness/feature-ledger.json` — MF-050 updated from `planned` → `ready`; notes updated
+- Verification:
+  - `./harness/init.sh --smoke` (passes; 234 tests before adding indexer)
+  - `pnpm --filter @markflow/editor test:run -- --grep indexer` (passes; 11/11 tests)
+  - Full suite: 25 test files / 245 tests pass
+- Review / risks:
+  - The scheduler defaults to microtask queue (Promise), not a true Web Worker; this is sufficient to avoid blocking the main thread for the scanner work, and keeps the design testable in jsdom without Worker mocking
+  - Manual desktop verification (typing continuously during a 180k-line load) still required before `passes` can be set to `true`
+- Newly verified features:
+  - none (MF-050 is `ready`, `passes=false` pending manual desktop check)
+- Next recommended feature:
+  - `MF-051` - Outline panel lists all headings with live scroll-sync and click-to-jump navigation
+
+### 2026-04-15 - MF-050 integrated into the live outline path; MF-051 implemented with async outline sync
+
+- Author: Codex
+- Focus: Finish the in-progress background indexer by wiring it into the shipped editor/app flow, then use that indexed data to ship outline live-sync without synchronous full-document reparses.
+- What changed:
+  - `packages/editor/src/editor/indexer.ts` now exposes `createEmptySymbolTable()`, runs the initial document scan immediately but off the current call stack, and tags async work so stale symbol-table results are dropped when the active document changes mid-index
+  - `packages/editor/src/editor/MarkFlowEditor.tsx` now mounts `indexerExtension()` in the real editor, publishes `symbolTableField` changes back to React, and reports scroll-driven viewport updates without re-parsing the document on every render
+  - `packages/editor/src/App.tsx` now treats the indexed symbol table as the outline source of truth, ignores callbacks from superseded document snapshots, and makes outline clicks update the active section immediately before the editor finishes the actual jump
+  - `packages/editor/src/editor/outline.ts` now accepts a prebuilt anchor lookup map so internal heading links can resolve through the symbol table instead of re-running a full heading parse
+  - `packages/editor/src/editor/__tests__/indexer.test.ts`, `packages/editor/src/editor/__tests__/outline.test.ts`, `packages/editor/src/editor/__tests__/MarkFlowEditor.test.tsx`, and `packages/editor/src/__tests__/App.test.tsx` now cover stale async-result suppression, symbol-table publication, async outline rendering, and outline navigation/highlight behavior
+  - `harness/feature-ledger.json` now records `MF-050` and `MF-051` with the truthful implemented state: shipped code + automated verification complete, manual desktop checks still pending
+- Simplifications made:
+  - reused the existing CodeMirror `symbolTableField` as the single source of truth for outline data instead of keeping a second synchronous parser path in `App`
+  - switched internal anchor resolution to the symbol-table map so heading jumps no longer need repeated full-document scans
+  - kept active-outline sync on the lighter scroll-event / explicit-navigation path instead of introducing a separate DOM observer layer
+- Verification:
+  - `pnpm --filter @markflow/editor test:run -- src/editor/__tests__/indexer.test.ts src/editor/__tests__/outline.test.ts src/editor/__tests__/MarkFlowEditor.test.tsx src/__tests__/App.test.tsx` (passes; editor suite reports 25 files / 249 tests)
+  - `pnpm --filter @markflow/editor lint` (passes)
+  - `pnpm --filter @markflow/editor build` (passes)
+  - `pnpm harness:verify` (passes)
+- Review / risks:
+  - `MF-050` still needs the manual 180k-line typing/no-lag check before it can move from `ready` to `verified`
+  - `MF-051` still needs the manual multi-section desktop scroll-sync check before it can move from `ready` to `verified`
+  - the workspace still contains unrelated pre-existing dirty files outside these two features, which were left untouched
+- Newly verified features:
+  - none
+- Next recommended feature:
+  - run the pending desktop checks for `MF-050` and `MF-051`, then continue with `MF-053` once the large-document outline path is confirmed
+
+### 2026-04-15 - MF-067 alternate LaTeX delimiters implemented, automated checks pass
+
+- Author: Codex (Dispatcher)
+- Focus: Close Typora's alternate math delimiter gap with a low-conflict editor-only change that reuses the existing KaTeX rendering path.
+- Research updates:
+  - Researcher compared Typora's public math and release-note docs against the current working-tree ledger and confirmed `MF-067`, `MF-068`, and `MF-069` already cover the strongest credible gaps in this slice, so no new ledger entries were needed.
+- What changed:
+  - `packages/editor/src/editor/decorations/mathDecoration.ts` now recognizes inline `\(...\)`, single-line `\[...\]`, and multi-line `\[` / `\]` display blocks through the existing KaTeX widget path while preserving caret-reveal and code-range exclusion behavior.
+  - `packages/editor/src/editor/__tests__/mathDecoration.test.ts` now covers alternate-delimiter rendering, caret-inside source reveal, multi-line display blocks, and fenced/inline-code exclusion.
+  - `harness/feature-ledger.json` now records `MF-067` with the truthful implemented state: `ready`, `passes=false`, `lastVerifiedAt=null`, and the actual automated verification commands.
+- Verification:
+  - `pnpm harness:start` (passes)
+  - `./harness/init.sh --smoke` (passes)
+  - `pnpm --filter @markflow/editor exec vitest run src/editor/__tests__/mathDecoration.test.ts` (passes; 1 file / 20 tests)
+  - `pnpm --filter @markflow/editor lint` (passes)
+  - `pnpm --filter @markflow/editor build` (passes)
+  - `pnpm harness:verify` (passes; 96 total | verified=57 | ready=3 | planned=36 | blocked=0)
+- Review / risks:
+  - Reviewer subagent found no issues and accepted `ready` / `passes=false` as the honest state until manual desktop verification is completed.
+  - `MF-067` still needs the manual desktop mixed-delimiter check before it can move from `ready` to `verified`.
+  - Existing behavior is unchanged for lines that contain display math: other inline math decorations on that same line are still skipped wholesale.
+- Newly verified features:
+  - none
+- Next recommended feature:
+  - if a human can perform desktop checks, clear the pending manual validation for `MF-067`, `MF-050`, and `MF-051`; otherwise continue with `MF-068` as the next automatable Typora gap
+
+### 2026-04-15 - MF-098 HTML comments/entities verified
+
+- Author: Codex (Dispatcher)
+- Focus: Close a newly discovered Typora HTML-parity gap with a minimal editor-only change that reuses the existing HTML decoration path.
+- Research updates:
+  - Researcher tightened `MF-038` so it no longer implies attribute-bearing HTML currently works in MarkFlow.
+  - Researcher added `MF-098` for Typora-style HTML comments and HTML entities after confirming the gap against Typora's HTML support docs and local parser behavior.
+- What changed:
+  - `packages/editor/src/editor/decorations/inlineHtmlDecoration.ts` now extends the existing HTML replacement path to markdown `CommentBlock`, inline `Comment`, and `Entity` nodes while preserving the prior `HTMLBlock` / `HTMLTag` cursor-boundary behavior.
+  - `packages/editor/src/editor/__tests__/inlineHtmlDecoration.test.ts` now covers block comments, inline comments, decoded entity rendering, and source reveal when the caret enters those ranges.
+  - `harness/feature-ledger.json` now records `MF-098` as `verified` / `passes=true` with only the automated verification that actually ran, and `MF-038` wording now matches the current supported safe-tag subset.
+- Simplifications made:
+  - reused the existing `HtmlBlockWidget` sanitizer/render path instead of adding a second comment/entity-specific decoration system
+  - centralized node handling behind a small node-config map so the new parser cases did not fork the existing HTML logic
+  - kept verification focused on a dedicated decoration test file plus harness validation rather than widening scope to unrelated editor suites
+- Verification:
+  - `pnpm harness:start` (passes)
+  - `./harness/init.sh --smoke` (passes)
+  - `pnpm --filter @markflow/editor exec vitest run src/editor/__tests__/inlineHtmlDecoration.test.ts` (passes; 1 file / 3 tests)
+  - `pnpm --filter @markflow/editor lint` (passes)
+  - `pnpm --filter @markflow/editor build` (passes)
+  - `pnpm harness:verify` (passes; 98 total | verified=59 | ready=3 | planned=36 | blocked=0)
+- Review / risks:
+  - Reviewer accepted the scoped `MF-098` diff with no blocking findings after the ledger evidence was tightened to match the verification actually run.
+  - Residual risk is narrow: mouse-entry ergonomics at decoration boundaries are only covered indirectly via programmatic selection changes, and block-comment spacing still rides on the shared `.mf-html-block` widget path.
+  - unrelated pre-existing workspace edits outside `MF-098` were left untouched
+- Newly verified features:
+  - `MF-098`
+- Next recommended feature:
+  - `MF-050` - Background indexer builds a symbol table for headings and anchors without blocking the UI thread

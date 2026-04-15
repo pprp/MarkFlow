@@ -35,4 +35,14 @@ describe('outline helpers', () => {
     expect(findActiveHeadingAnchor(headings, doc.indexOf('## Second'))).toBe('second')
     expect(findActiveHeadingAnchor(headings, doc.length)).toBe('third')
   })
+
+  it('prefers a prebuilt anchor lookup when resolving internal heading links', () => {
+    const doc = ['# First', '', '## Second'].join('\n')
+    const secondHeadingStart = doc.indexOf('## Second')
+    const anchors = new Map([
+      ['second', secondHeadingStart],
+    ])
+
+    expect(findHeadingAnchorPosition(doc, '#second', anchors)).toBe(secondHeadingStart)
+  })
 })

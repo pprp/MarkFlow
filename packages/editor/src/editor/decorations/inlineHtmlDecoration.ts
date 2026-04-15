@@ -91,6 +91,29 @@ interface DecorationEntry {
   order: number
 }
 
+const HTML_LIKE_NODE_CONFIG: Record<
+  string,
+  {
+    isInline: boolean
+    includeEndBoundary: boolean
+  }
+> = {
+  HTMLBlock: { isInline: false, includeEndBoundary: true },
+  HTMLTag: { isInline: true, includeEndBoundary: true },
+  CommentBlock: { isInline: false, includeEndBoundary: true },
+  Comment: { isInline: true, includeEndBoundary: false },
+  Entity: { isInline: true, includeEndBoundary: false },
+}
+
+function isCursorInsideNode(
+  cursorHead: number,
+  from: number,
+  to: number,
+  includeEndBoundary: boolean,
+) {
+  return cursorHead >= from && (includeEndBoundary ? cursorHead <= to : cursorHead < to)
+}
+
 function buildDecorations(view: EditorView): DecorationSet {
   const builder = new RangeSetBuilder<Decoration>()
   const cursorHead = view.state.selection.main.head
@@ -108,27 +131,21 @@ function buildDecorations(view: EditorView): DecorationSet {
     to: maxTo,
     enter(node) {
       const { from, to } = node
-      const cursorInside = cursorHead >= from && cursorHead <= to
+      const nodeConfig = HTML_LIKE_NODE_CONFIG[node.name]
+      if (nodeConfig) {
+        const cursorInside = isCursorInsideNode(
+          cursorHead,
+          from,
+          to,
+          nodeConfig.includeEndBoundary,
+        )
 
-      if (node.name === 'HTMLBlock') {
         if (!cursorInside) {
           const html = doc.sliceString(from, to)
           addDecoration(
             from,
             to,
-            Decoration.replace({ widget: new HtmlBlockWidget(html, false) }),
-          )
-        }
-        return false
-      }
-
-      if (node.name === 'HTMLTag') {
-        if (!cursorInside) {
-          const html = doc.sliceString(from, to)
-          addDecoration(
-            from,
-            to,
-            Decoration.replace({ widget: new HtmlBlockWidget(html, true) }),
+            Decoration.replace({ widget: new HtmlBlockWidget(html, nodeConfig.isInline) }),
           )
         }
         return false
