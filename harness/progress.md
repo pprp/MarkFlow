@@ -3355,3 +3355,39 @@
   - none
 - Next recommended feature:
   - `MF-050` - run the pending GUI/manual 180k-line verification with `harness/fixtures/mf-large-180k.md` or `pnpm harness:fixture:large`, then update the ledger only if outline population stays under 5 seconds, anchor navigation resolves correctly, and typing remains visibly lag-free
+
+### 2026-04-16 - MF-073 landed emoji shortcode autocomplete as a truthful ready-state Typora parity slice
+
+- Author: Codex (Dispatcher)
+- Focus: follow the automation startup protocol, tighten the Typora-backed ledger entry for `MF-073`, implement a bounded emoji shortcode autocomplete slice, and keep the ledger truthful about the remaining manual acceptance gap.
+- What changed:
+  - ran `pnpm harness:start` and `./harness/init.sh --smoke` before feature work, then re-read `harness/agent-team.md`, `harness/feature-ledger.json`, and `harness/progress.md`
+  - Researcher refreshed `MF-073` in `harness/feature-ledger.json` with official Typora evidence from the Markdown Reference and Shortcut Keys docs, confirming the repo already had `@codemirror/autocomplete` installed but no emoji completion source or shortcode dataset
+  - added `packages/editor/src/editor/extensions/emojiAutocomplete.ts` and wired it through `packages/editor/src/editor/MarkFlowEditor.tsx` so typing `:` plus a known shortcode prefix opens a completion list with glyph previews, accepting a suggestion inserts the Unicode glyph, and unknown shortcodes dismiss without mutating the document
+  - added `packages/editor/src/editor/__tests__/emojiAutocomplete.test.ts` to cover shortcode matching, glyph insertion, unknown-shortcode dismissal, and the MarkFlowEditor integration path
+  - updated the `MF-073` ledger entry to `status=ready`, kept `passes=false`, and recorded the exact automated verification commands that passed in this run
+  - Reviewer initially rejected the patch because of accidental unrelated ledger status churn, then accepted after those stray `MF-051` / `MF-055` changes were removed and the final diff was limited to `MF-073`
+- Changed files:
+  - `harness/feature-ledger.json`
+  - `packages/editor/src/editor/MarkFlowEditor.tsx`
+  - `packages/editor/src/editor/extensions/emojiAutocomplete.ts`
+  - `packages/editor/src/editor/__tests__/emojiAutocomplete.test.ts`
+  - `harness/progress.md`
+- Simplifications made:
+  - kept the feature inside one self-contained CodeMirror autocomplete source instead of adding a new dependency or a broader command/palette layer
+  - shipped a curated starter set of common emoji shortcodes and recorded that scope explicitly in the ledger instead of overstating full Typora parity
+- Verification:
+  - `pnpm harness:start` (passes)
+  - `./harness/init.sh --smoke` (passes)
+  - `pnpm --filter @markflow/editor exec vitest run src/editor/__tests__/emojiAutocomplete.test.ts` (passes; 1 file / 4 tests)
+  - `pnpm --filter @markflow/editor lint -- src/editor/MarkFlowEditor.tsx src/editor/extensions/emojiAutocomplete.ts src/editor/__tests__/emojiAutocomplete.test.ts` (passes)
+  - `pnpm --filter @markflow/editor build` (passes; existing Vite chunk-size warnings only)
+  - `pnpm harness:verify` (passes; 106 total | verified=62 | ready=13 | planned=31 | blocked=0)
+- Review / risks:
+  - Reviewer accepted the final `MF-073` scope after the unrelated ledger churn was removed
+  - `MF-073` must remain `passes=false` and `lastVerifiedAt=null` until someone performs the live prose caret-position acceptance check in the desktop editor
+  - the shipped shortcode catalog is intentionally a bounded starter set, so future Typora-parity work may want a broader emoji list or a composable completion registry before claiming full coverage
+- Newly verified features:
+  - none
+- Next recommended feature:
+  - `MF-061` - lazy image loading defers off-screen image decoding until the image enters the viewport
