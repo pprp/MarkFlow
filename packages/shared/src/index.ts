@@ -257,6 +257,8 @@ export interface MarkFlowDesktopAPI {
   openPath: (filePath: string) => Promise<MarkFlowFilePayload | null>
   saveFile: (content: string) => Promise<MarkFlowSaveResult | null>
   saveFileAs: (content: string) => Promise<MarkFlowSaveResult | null>
+  getFoldState: (filePath: string) => Promise<number[]>
+  saveFoldState: (filePath: string, ranges: number[]) => Promise<void>
   scheduleRecoveryCheckpoint: (draft: MarkFlowRecoveryDraft) => void
   getRecoveryCheckpoint: () => Promise<MarkFlowRecoveryCheckpoint | null>
   discardRecoveryCheckpoint: () => Promise<void>

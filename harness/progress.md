@@ -9,6 +9,54 @@
 
 ## Session Log
 
+### 2026-04-16 - MF-062 folding now survives save and reopen
+
+- Author: Codex
+- Focus: implement only `MF-062`, keep the session protocol honest, and prove both the fold-range behavior and the save/reopen persistence path before touching the ledger.
+- What changed:
+  - re-read the root `AGENTS.md`, then reran `pnpm harness:start` followed by `./harness/init.sh --smoke` in the required order before changing code
+  - extended `packages/editor/src/editor/extensions/headingFold.ts` so the fold gutter now exposes heading-section folds through the next same-level heading plus multiline list and fenced-code folds
+  - added `packages/editor/src/editor/foldingState.ts` and threaded `collapsedRanges` through `packages/editor/src/editor/MarkFlowEditor.tsx` and `packages/editor/src/App.tsx` so fold state can be observed, restored, and persisted without recreating the editor view
+  - added a narrow desktop bridge in `packages/shared/src/index.ts`, `packages/desktop/src/preload/index.ts`, and `packages/desktop/src/main/fileManager.ts` that stores folded ranges in a `*.folds` sidecar on successful save and reloads that sidecar on reopen
+  - added focused coverage in `packages/editor/src/editor/__tests__/folding.test.tsx`, `packages/editor/src/__tests__/App.test.tsx`, and `packages/desktop/src/main/fileManager.test.ts`
+  - updated `harness/feature-ledger.json` only for `MF-062`, marking it `verified`, `passes=true`, and `lastVerifiedAt=2026-04-16` after both automated and live desktop verification succeeded
+- Changed files:
+  - `harness/feature-ledger.json`
+  - `harness/progress.md`
+  - `packages/shared/src/index.ts`
+  - `packages/desktop/src/preload/index.ts`
+  - `packages/desktop/src/main/fileManager.ts`
+  - `packages/desktop/src/main/fileManager.test.ts`
+  - `packages/editor/src/App.tsx`
+  - `packages/editor/src/__tests__/App.test.tsx`
+  - `packages/editor/src/editor/MarkFlowEditor.tsx`
+  - `packages/editor/src/editor/extensions/headingFold.ts`
+  - `packages/editor/src/editor/foldingState.ts`
+  - `packages/editor/src/editor/__tests__/folding.test.tsx`
+- Simplifications made:
+  - chose the sidecar `*.folds` path instead of mutating document front matter, so persisted fold metadata stays out of the markdown body
+  - kept the persistence bridge narrow to `getFoldState` / `saveFoldState` instead of widening file-open/save payload contracts
+  - stayed inside `MF-062`; pre-existing unrelated dirty worktree changes such as the `MF-068` ledger edit and the untracked table-command files were left untouched
+- Verification:
+  - `pnpm harness:start` (passes)
+  - `./harness/init.sh --smoke` (passes)
+  - `pnpm --filter @markflow/editor exec vitest run src/editor/__tests__/folding.test.tsx src/__tests__/App.test.tsx` (passes; 28 tests)
+  - `pnpm --filter @markflow/desktop exec vitest run src/main/fileManager.test.ts` (passes; 12 tests)
+  - `pnpm --filter @markflow/shared build` (passes)
+  - `pnpm --filter @markflow/editor test:run -- --grep folding` (passes; current package script ran the full editor suite, 32 files / 348 tests, including the new folding coverage)
+  - `pnpm --filter @markflow/editor lint` (passes)
+  - `pnpm --filter @markflow/editor build` (passes)
+  - `pnpm --filter @markflow/desktop build` (passes)
+  - `pnpm harness:verify` (passes; 106 total | verified=63 | ready=16 | planned=27 | blocked=0)
+  - manual desktop verification (passes): launched a real Electron window on `/tmp/markflow-mf062.AisuVg/folding.md`, folded the `Alpha` and `Beta` heading sections from the gutter via Chromium CDP, saved the file, confirmed `/tmp/markflow-mf062.AisuVg/folding.md.folds` contained `[7,18,26,86]`, closed the app, relaunched the same file, and confirmed the reopened renderer still showed two fold placeholders while `Gamma` remained expanded
+- Review / risks:
+  - `MF-062` is now truthfully verified for the shipped save/reopen path, but `*.folds` sidecars are not yet renamed or deleted alongside document rename/delete flows, so stale sidecars can remain after those file lifecycle operations
+  - the automated `--grep folding` command currently exercises the full editor suite because the package script forwards the grep through Vitest's full runner shape; the new folding-specific tests still ran and passed inside that suite
+- Newly verified features:
+  - `MF-062` - Folding collapses any block element (heading section, code block, list) to a single summary line
+- Next recommended feature:
+  - `MF-050` - Background indexer builds a symbol table for headings and anchors without blocking the UI thread
+
 ### 2026-04-16 - MF-060 completed real crash/relaunch recovery verification
 
 - Author: Codex

@@ -184,6 +184,44 @@ describe('FileManager async saves', () => {
   })
 })
 
+describe('FileManager fold state sidecars', () => {
+  beforeEach(() => {
+    handleMock.mockReset()
+    onMock.mockReset()
+    removeAllListenersMock.mockReset()
+    removeHandlerMock.mockReset()
+    showSaveDialogMock.mockReset()
+    appGetPathMock.mockReset()
+    appGetPathMock.mockImplementation(() => '/tmp')
+    vi.restoreAllMocks()
+  })
+
+  it('persists fold state ranges into a .folds sidecar and removes the sidecar when no folds remain', async () => {
+    const writeFileMock = vi.spyOn(fs.promises, 'writeFile').mockResolvedValue()
+    const unlinkMock = vi.spyOn(fs.promises, 'unlink').mockResolvedValue()
+    const manager = new FileManager(createWindowStub() as never)
+
+    await manager.saveFoldState('/tmp/notes.md', [8, 20, 42, 64])
+    expect(writeFileMock).toHaveBeenCalledWith('/tmp/notes.md.folds', '[8,20,42,64]', 'utf-8')
+
+    await manager.saveFoldState('/tmp/notes.md', [])
+    expect(unlinkMock).toHaveBeenCalledWith('/tmp/notes.md.folds')
+  })
+
+  it('reads fold state ranges from the sidecar and ignores invalid payloads', async () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'markflow-fold-state-'))
+    const filePath = path.join(tempDir, 'notes.md')
+    const sidecarPath = `${filePath}.folds`
+    const manager = new FileManager(createWindowStub() as never)
+
+    fs.writeFileSync(sidecarPath, '[8,20,42,64]', 'utf-8')
+    expect(await manager.getFoldState(filePath)).toEqual([8, 20, 42, 64])
+
+    fs.writeFileSync(sidecarPath, '{"ranges":[1,2]}', 'utf-8')
+    expect(await manager.getFoldState(filePath)).toEqual([])
+  })
+})
+
 
 describe('FileManager Pandoc exports', () => {
   beforeEach(() => {

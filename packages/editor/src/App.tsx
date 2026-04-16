@@ -8,10 +8,12 @@ import { VaultSidebar } from './components/VaultSidebar'
 import { GlobalSearch } from './components/GlobalSearch'
 import { GoToLine } from './components/GoToLine'
 import { serializeMarkdownSelectionForClipboard } from './editor/clipboard'
+import { areCollapsedRangesEqual } from './editor/foldingState'
 import { createExternalLinkBadgePlugin } from './plugins/externalLinkBadgePlugin'
 import {
   MarkFlowPluginHost,
   type MarkFlowAppearance,
+  type MarkFlowDesktopAPI,
   type MarkFlowQuickOpenItem,
   type MarkFlowDocument,
   type MarkFlowFileLoadProgressPayload,
@@ -207,9 +209,11 @@ export function App() {
     content: INITIAL_CONTENT,
     isDirty: false,
   })
+  const [collapsedRanges, setCollapsedRanges] = useState<number[]>([])
   const [loadingFile, setLoadingFile] = useState<MarkFlowFileLoadProgressPayload | null>(null)
   const persistedContentRef = useRef(INITIAL_CONTENT)
   const latestContentRef = useRef(INITIAL_CONTENT)
+  const collapsedRangesRef = useRef<number[]>([])
   const selectionTextRef = useRef('')
   const currentFilePathRef = useRef<string | null>(null)
   const editorNavigationKeyRef = useRef(0)
@@ -219,6 +223,39 @@ export function App() {
     pluginHostRef.current = new MarkFlowPluginHost()
     pluginHostRef.current.setPlugins([createExternalLinkBadgePlugin()])
   }
+
+  const updateCollapsedRanges = useCallback((nextRanges: number[]) => {
+    const normalized = [...nextRanges]
+    collapsedRangesRef.current = normalized
+    setCollapsedRanges((currentRanges) =>
+      areCollapsedRangesEqual(currentRanges, normalized) ? currentRanges : normalized,
+    )
+  }, [])
+
+  const loadCollapsedRanges = useCallback(
+    async (api: MarkFlowDesktopAPI, filePath: string | null) => {
+      if (!filePath) {
+        updateCollapsedRanges([])
+        return
+      }
+
+      const nextRanges = await api.getFoldState(filePath)
+      if (currentFilePathRef.current !== filePath) {
+        return
+      }
+
+      updateCollapsedRanges(nextRanges)
+    },
+    [updateCollapsedRanges],
+  )
+
+  const persistCollapsedRanges = useCallback(async (api: MarkFlowDesktopAPI, filePath: string | null) => {
+    if (!filePath) {
+      return
+    }
+
+    await api.saveFoldState(filePath, collapsedRangesRef.current)
+  }, [])
 
   useEffect(() => {
     latestContentRef.current = documentState.content
@@ -245,7 +282,7 @@ export function App() {
     const api = window.markflow
     if (!api) return
 
-    const applyOpenedDocument = ({ filePath, content }: { filePath: string | null; content: string }) => {
+    const applyOpenedDocument = async ({ filePath, content }: { filePath: string | null; content: string }) => {
       setLoadingFile((current) => (filePath && current?.filePath !== filePath ? current : null))
       persistedContentRef.current = content
       latestContentRef.current = content
@@ -257,14 +294,16 @@ export function App() {
       setEditorNavigationRequest(null)
       setIsGoToLineOpen(false)
       currentFilePathRef.current = filePath
+      updateCollapsedRanges([])
       setDocumentState({
         filePath,
         content,
         isDirty: false,
       })
+      await loadCollapsedRanges(api, filePath)
     }
 
-    const applyRecoveredDocument = (
+    const applyRecoveredDocument = async (
       checkpoint: MarkFlowRecoveryCheckpoint,
       persistedContent: string,
     ) => {
@@ -279,11 +318,13 @@ export function App() {
       setEditorNavigationRequest(null)
       setIsGoToLineOpen(false)
       currentFilePathRef.current = checkpoint.filePath
+      updateCollapsedRanges([])
       setDocumentState({
         filePath: checkpoint.filePath,
         content: checkpoint.content,
         isDirty: checkpoint.content !== persistedContent,
       })
+      await loadCollapsedRanges(api, checkpoint.filePath)
     }
 
     const handleMenuAction = async ({ action }: { action: MarkFlowMenuAction }) => {
@@ -319,12 +360,16 @@ export function App() {
       }
     }
 
-    const unsubscribeFileOpened = api.onFileOpened(applyOpenedDocument)
+    const unsubscribeFileOpened = api.onFileOpened((payload) => {
+      void applyOpenedDocument(payload)
+    })
     const unsubscribeFileLoadingProgress = api.onFileLoadingProgress((payload) => {
       setLoadingFile(payload)
     })
     const unsubscribeFileSaved = api.onFileSaved(({ filePath }) => {
       persistedContentRef.current = latestContentRef.current
+      currentFilePathRef.current = filePath
+      void persistCollapsedRanges(api, filePath)
       setDocumentState((currentDocument) => ({
         ...currentDocument,
         filePath,
@@ -339,7 +384,7 @@ export function App() {
     void (async () => {
       const currentDocument = await api.getCurrentDocument()
       if (currentDocument) {
-        applyOpenedDocument(currentDocument)
+        await applyOpenedDocument(currentDocument)
       }
       const recoveryCheckpoint = await api.getRecoveryCheckpoint()
       if (!recoveryCheckpoint) {
@@ -360,7 +405,7 @@ export function App() {
         currentDocument && currentDocument.filePath === recoveryCheckpoint.filePath
           ? currentDocument.content
           : ''
-      applyRecoveredDocument(recoveryCheckpoint, persistedContent)
+      await applyRecoveredDocument(recoveryCheckpoint, persistedContent)
     })()
     void api.getThemes().then(setThemes)
     void api.getThemeState().then((nextThemeState) => {
@@ -375,7 +420,7 @@ export function App() {
       unsubscribeThemeUpdated()
       document.getElementById(THEME_STYLE_ELEMENT_ID)?.remove()
     }
-  }, [])
+  }, [loadCollapsedRanges, persistCollapsedRanges, updateCollapsedRanges])
 
   function toggleViewMode() {
     setViewMode((m) => (m === 'wysiwyg' ? 'source' : 'wysiwyg'))
@@ -656,6 +701,10 @@ export function App() {
     setSymbolTable(table)
   }, [])
 
+  const handleCollapsedRangesChange = useCallback((nextRanges: number[]) => {
+    updateCollapsedRanges(nextRanges)
+  }, [updateCollapsedRanges])
+
   const docStats = useMemo(
     () => computeStats(documentState.content, selectionText),
     [documentState.content, selectionText],
@@ -887,6 +936,8 @@ export function App() {
               pluginHost={pluginHostRef.current ?? undefined}
               filePath={documentState.filePath ?? undefined}
               navigationRequest={editorNavigationRequest}
+              collapsedRanges={collapsedRanges}
+              onCollapsedRangesChange={handleCollapsedRangesChange}
             />
           </div>
           {outlineHeadings.length > 0 ? (

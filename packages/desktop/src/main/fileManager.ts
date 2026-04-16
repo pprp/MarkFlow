@@ -21,6 +21,7 @@ const STREAM_PREVIEW_BYTE_LIMIT = 64 * 1024
 const RECOVERY_CHECKPOINT_DELAY_MS = 30_000
 const RECOVERY_CHECKPOINT_FILE_NAME = '.markflow-recovery'
 const SESSION_STATE_FILE_NAME = '.markflow-recovery-session.json'
+const FOLD_STATE_FILE_SUFFIX = '.folds'
 
 interface MarkFlowSessionState {
   cleanExit: boolean
@@ -44,6 +45,8 @@ export class FileManager {
     ipcMain.removeHandler('open-path')
     ipcMain.removeHandler('save-file')
     ipcMain.removeHandler('save-file-as')
+    ipcMain.removeHandler('get-fold-state')
+    ipcMain.removeHandler('save-fold-state')
     ipcMain.removeHandler('new-file')
     ipcMain.removeHandler('get-current-path')
     ipcMain.removeHandler('get-current-document')
@@ -66,6 +69,10 @@ export class FileManager {
     ipcMain.handle('open-path', (_event, filePath: string) => this.openExistingPath(filePath))
     ipcMain.handle('save-file', async (_event, content: string) => this.saveFile(content))
     ipcMain.handle('save-file-as', async (_event, content: string) => this.saveFileAs(content))
+    ipcMain.handle('get-fold-state', async (_event, filePath: string) => this.getFoldState(filePath))
+    ipcMain.handle('save-fold-state', async (_event, filePath: string, ranges: number[]) => {
+      await this.saveFoldState(filePath, ranges)
+    })
     ipcMain.handle('new-file', () => this.newFile())
     ipcMain.handle('get-current-path', () => this.currentFilePath)
     ipcMain.handle('get-current-document', () => this.getCurrentDocument())
@@ -269,6 +276,69 @@ export class FileManager {
     return { filePath, content }
   }
 
+  async getFoldState(filePath: string): Promise<number[]> {
+    try {
+      const payload = JSON.parse(
+        await fs.promises.readFile(this.getFoldStatePath(filePath), 'utf-8'),
+      ) as unknown
+
+      if (!Array.isArray(payload)) {
+        return []
+      }
+      if (payload.length % 2 !== 0) {
+        return []
+      }
+
+      const ranges: number[] = []
+      for (let index = 0; index + 1 < payload.length; index += 2) {
+        const from = payload[index]
+        const to = payload[index + 1]
+        if (!Number.isInteger(from) || !Number.isInteger(to) || from < 0 || from >= to) {
+          return []
+        }
+        ranges.push(from, to)
+      }
+
+      return ranges
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+        console.error('Failed to read MarkFlow fold state:', error)
+      }
+      return []
+    }
+  }
+
+  async saveFoldState(filePath: string, ranges: number[]) {
+    const foldStatePath = this.getFoldStatePath(filePath)
+    const normalizedRanges: number[] = []
+
+    for (let index = 0; index + 1 < ranges.length; index += 2) {
+      const from = ranges[index]
+      const to = ranges[index + 1]
+      if (!Number.isInteger(from) || !Number.isInteger(to) || from < 0 || from >= to) {
+        continue
+      }
+      normalizedRanges.push(from, to)
+    }
+
+    if (normalizedRanges.length === 0) {
+      try {
+        await fs.promises.unlink(foldStatePath)
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+          console.error('Failed to discard MarkFlow fold state:', error)
+        }
+      }
+      return
+    }
+
+    try {
+      await fs.promises.writeFile(foldStatePath, JSON.stringify(normalizedRanges), 'utf-8')
+    } catch (error) {
+      console.error('Failed to write MarkFlow fold state:', error)
+    }
+  }
+
   canRevealCurrentFile(): boolean {
     return this.currentFilePath !== null
   }
@@ -464,6 +534,10 @@ export class FileManager {
       })
     }
     return results
+  }
+
+  private getFoldStatePath(filePath: string) {
+    return `${filePath}${FOLD_STATE_FILE_SUFFIX}`
   }
 
   private updateTitle() {

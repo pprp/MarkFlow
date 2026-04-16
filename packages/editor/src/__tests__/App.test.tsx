@@ -1,8 +1,12 @@
+import { EditorState } from '@codemirror/state'
+import { markdown, markdownLanguage } from '@codemirror/lang-markdown'
+import { foldEffect, foldedRanges } from '@codemirror/language'
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { EditorView } from '@codemirror/view'
 import { act } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { App } from '../App'
+import { headingFoldExtension } from '../editor/extensions/headingFold'
 import type {
   MarkFlowAppearance,
   MarkFlowDesktopAPI,
@@ -27,6 +31,14 @@ function getEditorView(container: HTMLElement) {
   return view as EditorView
 }
 
+function getCollapsedRanges(view: EditorView) {
+  const ranges: number[] = []
+  foldedRanges(view.state).between(0, view.state.doc.length, (from, to) => {
+    ranges.push(from, to)
+  })
+  return ranges
+}
+
 class MockMarkFlowAPI implements MarkFlowDesktopAPI {
   private themes: MarkFlowThemeSummary[] = [
     { id: 'paper', name: 'Paper' },
@@ -48,6 +60,8 @@ class MockMarkFlowAPI implements MarkFlowDesktopAPI {
   openPath: MarkFlowDesktopAPI['openPath'] = vi.fn(async () => null)
   saveFile: MarkFlowDesktopAPI['saveFile'] = vi.fn(async () => ({ success: true }))
   saveFileAs: MarkFlowDesktopAPI['saveFileAs'] = vi.fn(async () => ({ success: true }))
+  getFoldState: MarkFlowDesktopAPI['getFoldState'] = vi.fn(async () => [])
+  saveFoldState: MarkFlowDesktopAPI['saveFoldState'] = vi.fn(async () => {})
   scheduleRecoveryCheckpoint: MarkFlowDesktopAPI['scheduleRecoveryCheckpoint'] = vi.fn(() => {})
   getRecoveryCheckpoint: MarkFlowDesktopAPI['getRecoveryCheckpoint'] = vi.fn(async () => null)
   discardRecoveryCheckpoint: MarkFlowDesktopAPI['discardRecoveryCheckpoint'] = vi.fn(async () => {})
@@ -344,6 +358,69 @@ describe('App desktop integration', () => {
     expect(screen.getByText('Untitled')).toBeInTheDocument()
     expect(getEditorView(container).state.doc.toString()).toBe('')
     expect(container.querySelector('.mf-titlebar-dirty-dot')).not.toBeInTheDocument()
+  })
+
+  it('restores saved folding state on reopen and persists folding after a save', async () => {
+    const api = new MockMarkFlowAPI()
+    const content = ['# Heading', 'Body line', '# Next', 'Rest'].join('\n')
+    const state = EditorState.create({
+      doc: content,
+      extensions: [markdown({ base: markdownLanguage }), ...headingFoldExtension()],
+    })
+    const initialRanges = [state.doc.line(1).to, state.doc.line(2).to]
+    const secondHeadingRange = { from: state.doc.line(3).to, to: state.doc.line(4).to }
+
+    api.getFoldState = vi.fn(async (filePath: string) => {
+      return filePath === '/tmp/folding.md' ? initialRanges : []
+    })
+    window.markflow = api
+
+    const { container } = render(<App />)
+
+    await act(async () => {
+      api.emitFileOpened({ filePath: '/tmp/folding.md', content })
+    })
+
+    const view = getEditorView(container)
+
+    await waitFor(() => {
+      expect(api.getFoldState).toHaveBeenCalledWith('/tmp/folding.md')
+      expect(getCollapsedRanges(view)).toEqual(initialRanges)
+    })
+
+    act(() => {
+      view.dispatch({
+        effects: foldEffect.of(secondHeadingRange),
+      })
+    })
+
+    await waitFor(() => {
+      expect(getCollapsedRanges(view)).toEqual([
+        ...initialRanges,
+        secondHeadingRange.from,
+        secondHeadingRange.to,
+      ])
+    })
+
+    await act(async () => {
+      api.emitMenuAction('save-file')
+    })
+
+    await waitFor(() => {
+      expect(api.saveFile).toHaveBeenCalledWith(content)
+    })
+
+    await act(async () => {
+      api.emitFileSaved({ filePath: '/tmp/folding.md' })
+    })
+
+    await waitFor(() => {
+      expect(api.saveFoldState).toHaveBeenCalledWith('/tmp/folding.md', [
+        ...initialRanges,
+        secondHeadingRange.from,
+        secondHeadingRange.to,
+      ])
+    })
   })
 
   it('writes rich and source clipboard variants for the current selection', async () => {

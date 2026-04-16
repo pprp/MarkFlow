@@ -9,6 +9,7 @@ import {
   defaultHighlightStyle,
   bracketMatching,
   indentOnInput,
+  foldState,
 } from '@codemirror/language'
 import { searchKeymap, highlightSelectionMatches, openSearchPanel } from '@codemirror/search'
 import { closeBrackets, closeBracketsKeymap } from '@codemirror/autocomplete'
@@ -42,6 +43,7 @@ import { findHeadingAnchorPosition } from './outline'
 import { indexerExtension, symbolTableField, type SymbolTable } from './indexer'
 import { FloatingToolbar } from '../components/FloatingToolbar'
 import { MAX_UNDO_HISTORY_EVENTS, pruneHistoryState } from './historyLimit'
+import { applyCollapsedRanges, getCollapsedRanges } from './foldingState'
 
 export interface MarkFlowEditorProps {
   content: string
@@ -61,6 +63,8 @@ export interface MarkFlowEditorProps {
   pluginHost?: MarkFlowPluginHost
   filePath?: string
   navigationRequest?: { key: number; position: number } | null
+  collapsedRanges?: number[]
+  onCollapsedRangesChange?: (ranges: number[]) => void
 }
 
 const baseTheme = EditorView.theme({
@@ -161,6 +165,7 @@ function getEditorExtensions(
   onToggleModeRef: React.MutableRefObject<MarkFlowEditorProps['onToggleMode']>,
   onToggleFocusModeRef: React.MutableRefObject<MarkFlowEditorProps['onToggleFocusMode']>,
   onToggleTypewriterModeRef: React.MutableRefObject<MarkFlowEditorProps['onToggleTypewriterMode']>,
+  onCollapsedRangesChangeRef: React.MutableRefObject<MarkFlowEditorProps['onCollapsedRangesChange']>,
   viewModeRef: React.MutableRefObject<ViewMode>,
   pruneHistoryRef: React.MutableRefObject<((view: EditorView) => void) | null>,
   viewModeCompartment: Compartment,
@@ -261,6 +266,12 @@ function getEditorExtensions(
       if (nextTable !== previousTable) {
         onSymbolTableChangeRef.current?.(nextTable, update.state.doc.toString())
       }
+
+      const nextFoldState = update.state.field(foldState, false)
+      const previousFoldState = update.startState.field(foldState, false)
+      if (nextFoldState !== previousFoldState) {
+        onCollapsedRangesChangeRef.current?.(getCollapsedRanges(update.state))
+      }
     }),
     viewModeCompartment.of(getViewModeExtensions(viewMode, filePath, pluginHost)),
     focusModeCompartment.of(focusMode ? focusModeExtension() : []),
@@ -281,11 +292,13 @@ export function MarkFlowEditor({
   onSelectionChange,
   onToggleFocusMode,
   onToggleTypewriterMode,
+  onCollapsedRangesChange,
   focusMode = false,
   typewriterMode = false,
   pluginHost,
   filePath,
   navigationRequest,
+  collapsedRanges,
 }: MarkFlowEditorProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const previewContainerRef = useRef<HTMLDivElement>(null)
@@ -301,6 +314,7 @@ export function MarkFlowEditor({
   const onSelectionChangeRef = useRef(onSelectionChange)
   const onToggleFocusModeRef = useRef(onToggleFocusMode)
   const onToggleTypewriterModeRef = useRef(onToggleTypewriterMode)
+  const onCollapsedRangesChangeRef = useRef(onCollapsedRangesChange)
   const filePathRef = useRef(filePath)
   const viewModeRef = useRef(viewMode)
   const pruneHistoryRef = useRef<((view: EditorView) => void) | null>(null)
@@ -350,6 +364,10 @@ export function MarkFlowEditor({
   }, [onToggleTypewriterMode])
 
   useEffect(() => {
+    onCollapsedRangesChangeRef.current = onCollapsedRangesChange
+  }, [onCollapsedRangesChange])
+
+  useEffect(() => {
     filePathRef.current = filePath
   }, [filePath])
 
@@ -376,6 +394,7 @@ export function MarkFlowEditor({
       onToggleModeRef,
       onToggleFocusModeRef,
       onToggleTypewriterModeRef,
+      onCollapsedRangesChangeRef,
       viewModeRef,
       pruneHistoryRef,
       viewModeCompartmentRef.current,
@@ -407,6 +426,7 @@ export function MarkFlowEditor({
         onToggleModeRef,
         onToggleFocusModeRef,
         onToggleTypewriterModeRef,
+        onCollapsedRangesChangeRef,
         viewModeRef,
         pruneHistoryRef,
         viewModeCompartmentRef.current,
@@ -693,6 +713,13 @@ export function MarkFlowEditor({
       annotations: Transaction.addToHistory.of(false),
     })
   }, [content])
+
+  useEffect(() => {
+    const view = viewRef.current
+    if (!view) return
+
+    applyCollapsedRanges(view, collapsedRanges)
+  }, [collapsedRanges, content])
 
   useEffect(() => {
     const view = viewRef.current

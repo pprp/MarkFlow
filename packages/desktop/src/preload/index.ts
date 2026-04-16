@@ -27,6 +27,9 @@ const api: MarkFlowDesktopAPI = {
   saveFile: (content: string) => ipcRenderer.invoke('save-file', content) as Promise<MarkFlowSaveResult | null>,
   saveFileAs: (content: string) =>
     ipcRenderer.invoke('save-file-as', content) as Promise<MarkFlowSaveResult | null>,
+  getFoldState: (filePath: string) => ipcRenderer.invoke('get-fold-state', filePath) as Promise<number[]>,
+  saveFoldState: (filePath: string, ranges: number[]) =>
+    ipcRenderer.invoke('save-fold-state', filePath, ranges) as Promise<void>,
   scheduleRecoveryCheckpoint: (draft: MarkFlowRecoveryDraft) => {
     ipcRenderer.send('schedule-recovery-checkpoint', draft)
   },
