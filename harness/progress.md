@@ -9,6 +9,38 @@
 
 ## Session Log
 
+### 2026-04-16 - MF-088 rerun restored smoke confidence without widening the active feature
+
+- Author: Codex (Dispatcher)
+- Focus: obey the automation startup sequence, treat the initial smoke failure as the blocker, and stop after re-verifying the existing `MF-088` tabs slice instead of starting a new feature.
+- Research updates:
+  - Researcher stayed idle once smoke triage took priority, so no new Typora capability entries were added or edited in `harness/feature-ledger.json`.
+- What changed:
+  - re-read the root `AGENTS.md`, then ran `pnpm harness:start` followed by `./harness/init.sh --smoke`; the first smoke run failed in `packages/editor/src/__tests__/App.test.tsx` on the two tab/outline integration cases already covered by the in-progress `MF-088` worktree
+  - narrowed the failure to the existing document-tab implementation in `packages/editor/src/App.tsx` / `packages/editor/src/editor/MarkFlowEditor.tsx`, then re-ran the targeted `App.test.tsx` cases, the full `App.test.tsx` file, the focused desktop tab tests, `pnpm lint`, `pnpm build`, and `./harness/init.sh --smoke` on the current tree
+  - left product code and the ledger unchanged in this run because the current dirty `MF-088` slice already verifies cleanly on the present tree and no speculative patch was justified
+- Changed files:
+  - `harness/progress.md`
+- Simplifications made:
+  - did not start a second feature once smoke triage became the run's critical path
+  - refused to guess at an `App.tsx` patch after the failure stopped reproducing under targeted and full reruns
+- Verification:
+  - `pnpm harness:start` (passes)
+  - initial `./harness/init.sh --smoke` (failed on `packages/editor/src/__tests__/App.test.tsx`; tab/outline integration cases)
+  - `pnpm --filter @markflow/editor exec vitest run src/__tests__/App.test.tsx -t "opens multiple documents in tabs and preserves selection, outline focus, and undo history while cycling|keeps the outline in sync when headings are renamed or reordered"` (passes; 2 tests)
+  - `pnpm --filter @markflow/editor exec vitest run src/__tests__/App.test.tsx` (passes; 32 tests)
+  - `pnpm --filter @markflow/desktop exec vitest run src/main/fileManager.test.ts src/main/menu.test.ts` (passes; 18 tests)
+  - `pnpm lint` (passes)
+  - `pnpm build` (passes)
+  - rerun `./harness/init.sh --smoke` (passes; desktop 31/31, editor 364/367 with 3 skips)
+- Review / risks:
+  - `MF-088` still remains `status=ready`, `passes=false`, and `lastVerifiedAt=null`; this rerun proved the current automation stack is green again, but it did not replace the pending manual Electron acceptance for five-tab shortcut cycling, reopen-closed, and quit/relaunch session restore
+  - the initial smoke red state could not be reproduced after targeted reruns, so if it returns the highest-risk surface is still App-level per-tab state sync rather than a new ledger gap
+- Newly verified features:
+  - none
+- Next recommended feature:
+  - `MF-088` - complete the pending manual Electron verification for shortcut cycling, reopen-closed, and quit/relaunch session restore, then promote the ledger only if that live flow really passes
+
 ### 2026-04-16 - MF-088 landed multi-document tabs while keeping manual acceptance honest
 
 - Author: Codex
