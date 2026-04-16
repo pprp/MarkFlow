@@ -2,6 +2,7 @@ import { EditorView, Decoration, ViewPlugin, ViewUpdate, DecorationSet, WidgetTy
 import { syntaxTree } from '@codemirror/language'
 import { RangeSetBuilder } from '@codemirror/state'
 import { getDecorationViewportWindow } from './viewportWindow'
+import { isDiagramFenceLanguage } from './mermaidDecoration'
 
 export class LanguageBadgeWidget extends WidgetType {
   constructor(readonly lang: string) {
@@ -35,12 +36,11 @@ export function buildCodeBlockDecorations(view: EditorView): DecorationSet {
     enter(node) {
       if (node.name !== 'FencedCode') return
 
-      // Skip fenced blocks that have dedicated renderers (e.g. mermaid diagrams).
       const infoNode = node.node.getChild('CodeInfo')
       let lang = ''
       if (infoNode) {
         lang = doc.sliceString(infoNode.from, infoNode.to).trim().toLowerCase()
-        if (lang === 'mermaid') return
+        if (isDiagramFenceLanguage(lang)) return
       }
 
       const { from, to } = node

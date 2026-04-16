@@ -36,7 +36,7 @@ import { fileUrlToPath, isMarkdownFilePath, linkDecorations, resolveLinkHref } f
 import { yamlFrontMatterDecorations } from './decorations/yamlFrontMatter'
 import { listDecorations } from './decorations/listDecoration'
 import { mathDecorations } from './decorations/mathDecoration'
-import { mermaidDecorations } from './decorations/mermaidDecoration'
+import { diagramDecorations } from './decorations/mermaidDecoration'
 import { tableDecorations } from './decorations/tableDecoration'
 import { inlineHtmlDecorations } from './decorations/inlineHtmlDecoration'
 import { smartInput } from './extensions/smartInput'
@@ -200,7 +200,7 @@ function getRenderedExtensions(
     linkDecorations(filePath),
     listDecorations(),
     mathDecorations(),
-    mermaidDecorations(),
+    diagramDecorations(),
     yamlFrontMatterDecorations(),
     tableDecorations(),
     inlineHtmlDecorations(),

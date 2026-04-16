@@ -5086,3 +5086,43 @@
   - none
 - Next recommended feature:
   - `MF-084` - perform the pending long-document manual fullscreen/distraction-free flicker check, then promote `passes` / `lastVerifiedAt` only if the transition remains stable throughout repeated toggles
+
+### 2026-04-16 - MF-087 flow, sequence, and Mermaid gantt/sequence fences now share one inline diagram renderer
+
+- Author: Codex
+- Focus: obey the startup protocol for `MF-087`, implement only the fenced-diagram rendering feature in `@markflow/editor`, run the feature-specific automated verification plus `pnpm harness:verify`, keep the ledger honest because Typora parity was not manually verified here, and finish with a Lore-protocol commit.
+- What changed:
+  - re-read the root `AGENTS.md`, ran `pnpm harness:start`, and ran `./harness/init.sh --smoke` before implementation
+  - generalized `packages/editor/src/editor/decorations/mermaidDecoration.ts` into a shared diagram pipeline that still lazy-loads Mermaid, now recognizes `mermaid`, `flow`, and `sequence` fenced blocks, schedules rendering on the next idle pass, caches SVG output per block, and isolates render failures to the block that failed
+  - added a lightweight `flowchart.js`-style to Mermaid flowchart transformer so `flow` fences such as `st=>start` / `cond(yes)->done` render inline without introducing new dependencies
+  - updated `packages/editor/src/editor/decorations/codeBlockDecoration.ts` so generic code block badges no longer decorate `flow` or `sequence` fences, matching the existing `mermaid` exclusion
+  - expanded `packages/editor/src/editor/__tests__/mermaidDecoration.test.ts` to cover `flow`, `sequence`, Mermaid `sequenceDiagram`, Mermaid `gantt`, localized block-level error handling, and edit-time re-rendering without duplicate diagram nodes; updated `packages/editor/src/editor/__tests__/codeBlockDecoration.test.ts` to assert all diagram fence languages are excluded from generic code styling
+  - updated `packages/editor/src/editor/MarkFlowEditor.tsx` and `packages/editor/src/styles/global.css` so the editor mounts the shared diagram decorations and styles generic `.mf-diagram` widgets without regressing the existing `.mf-mermaid` class hooks
+- Changed files:
+  - `packages/editor/src/editor/MarkFlowEditor.tsx`
+  - `packages/editor/src/editor/decorations/mermaidDecoration.ts`
+  - `packages/editor/src/editor/decorations/codeBlockDecoration.ts`
+  - `packages/editor/src/editor/__tests__/mermaidDecoration.test.ts`
+  - `packages/editor/src/editor/__tests__/codeBlockDecoration.test.ts`
+  - `packages/editor/src/styles/global.css`
+  - `harness/feature-ledger.json`
+  - `harness/progress.md`
+- Simplifications made:
+  - reused Mermaid as the sole runtime renderer for all supported diagram fences instead of adding `flowchart.js` and `js-sequence-diagrams` dependencies, by prefixing `sequence` fences as Mermaid sequence diagrams and translating the supported `flow` fence subset into Mermaid flowchart syntax
+  - kept backward compatibility for existing editor themes/tests by retaining the `.mf-mermaid` class alongside the new generic `.mf-diagram` class instead of renaming the whole styling surface in one step
+  - handled edit-time re-render safety inside the widget itself with an idle token and cache key rather than introducing a new editor-wide debounce layer
+- Verification:
+  - `pnpm harness:start` (passes)
+  - `./harness/init.sh --smoke` before implementation (passes; workspace smoke green at session start)
+  - `pnpm --filter @markflow/editor exec vitest run src/editor/__tests__/mermaidDecoration.test.ts src/editor/__tests__/codeBlockDecoration.test.ts` (passes; 2 files / 28 tests covering additional diagram language tags, error isolation, and duplicate-node-free re-rendering)
+  - `pnpm --filter @markflow/editor lint` (passes)
+  - `pnpm --filter @markflow/editor build` (passes)
+  - `pnpm harness:verify` (passes)
+- Review / risks:
+  - `MF-087` is implemented and automated coverage is green, but `passes` must remain false until someone opens the Typora diagram sample document and confirms parity for real `flow`, `sequence`, and Mermaid `gantt`/`sequenceDiagram` blocks
+  - the `flow` fence support intentionally covers the common Typora/flowchart.js node-definition and chained-edge syntax used in the official samples; more exotic flowchart.js constructs may still need follow-up normalization if parity testing finds gaps
+  - render correctness for `sequence` fences depends on Mermaid accepting the js-sequence-diagrams-style body once prefixed with `sequenceDiagram`; the automated suite validates the normalization path and widget behavior, not full visual parity against Typora
+- Newly verified features:
+  - none
+- Next recommended feature:
+  - `MF-087` - perform the pending Typora sample-document manual parity check, then promote `passes` / `lastVerifiedAt` only if `flow`, `sequence`, Mermaid `sequenceDiagram`, and Mermaid `gantt` all match expected inline rendering

@@ -153,12 +153,18 @@ describe('buildCodeBlockDecorations — language badges', () => {
     expect(badge?.textContent).toBe('javascript')
   })
 
-  it('mermaid blocks are excluded from code block decorations', () => {
-    const doc = '```mermaid\ngraph LR\n  A-->B\n```\n\nafter'
+  it.each([
+    ['mermaid', 'graph LR\n  A-->B'],
+    ['flow', 'st=>start: Start\nst->e\ne=>end: End'],
+    ['sequence', 'Alice->Bob: hi'],
+  ])('%s blocks are excluded from code block decorations', (lang, body) => {
+    const doc = `\`\`\`${lang}\n${body}\n\`\`\`\n\nafter`
     const view = makeView(doc)
     const decoSet = buildCodeBlockDecorations(view)
     let count = 0
-    decoSet.between(0, doc.length, () => { count++ })
+    decoSet.between(0, doc.length, () => {
+      count++
+    })
     expect(count).toBe(0)
     view.destroy()
   })

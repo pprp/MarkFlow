@@ -1663,7 +1663,8 @@ body {
   color: var(--mf-code-fg);
 }
 
-/* ── Mermaid diagram widgets ────────────────────────────────── */
+/* ── Diagram widgets ────────────────────────────────────────── */
+.cm-editor .mf-diagram,
 .cm-editor .mf-mermaid {
   display: block;
   text-align: center;
@@ -1672,17 +1673,20 @@ body {
   overflow-x: auto;
 }
 
+.cm-editor .mf-diagram svg,
 .cm-editor .mf-mermaid svg {
   max-width: 100%;
   height: auto;
 }
 
+.cm-editor .mf-diagram-loading,
 .cm-editor .mf-mermaid-loading {
   font-size: 13px;
   color: var(--mf-fg-muted);
   font-style: italic;
 }
 
+.cm-editor .mf-diagram-error,
 .cm-editor .mf-mermaid-error {
   font-size: 13px;
   color: var(--mf-code-fg);
@@ -1693,6 +1697,7 @@ body {
 }
 
 @media (prefers-color-scheme: dark) {
+  .cm-editor .mf-diagram-error,
   .cm-editor .mf-mermaid-error {
     background: color-mix(in srgb, var(--mf-code-fg) 11%, var(--mf-bg));
   }
