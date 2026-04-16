@@ -1777,26 +1777,26 @@
       "category": "phase-2-functional",
       "area": "@markflow/editor",
       "priority": 2,
-      "status": "planned",
+      "status": "ready",
       "passes": false,
       "lastVerifiedAt": null,
       "dependsOn": [
         "MF-013"
       ],
       "steps": [
-        "Place the caret in a rendered markdown table and trigger table row/column insert actions from shortcuts or command palette.",
-        "Use Typora-style move-row commands to move the current row up/down and confirm table structure remains valid.",
-        "Confirm undo/redo restores table structure atomically after each table edit command."
+        "Place the caret in a rendered markdown table and trigger Typora-style row insertion: `Ctrl`/`Cmd`+`Enter` inserts an empty row below, and pressing `Tab` from the last cell appends a new row.",
+        "Delete the current row with `Ctrl`/`Cmd`+`Shift`+`Backspace`, then use a table command surface to insert/delete a column and move the current row up/down; confirm the pipe table stays rectangular and alignment markers remain intact.",
+        "Undo and redo each table command and confirm selection stays in the affected cell/row without exposing malformed markdown."
       ],
       "verification": {
         "automated": [
-          "Add command-level tests in `packages/editor/src/editor/__tests__/tableDecoration.test.ts` (or dedicated table command tests) for insert/delete/move row operations preserving pipe-table syntax."
+          "Add focused table-command coverage in `packages/editor/src/editor/__tests__/tableCommands.test.ts` (or the existing table suite) for row insert via `Mod-Enter`, last-cell `Tab` row append, row delete via `Mod-Shift-Backspace`, column insert/delete, row move up/down, and undo/redo preserving pipe-table syntax plus alignment markers."
         ],
         "manual": [
-          "Use table editing commands repeatedly in a 20-row table and confirm no malformed rows or delimiter drift."
+          "Exercise the commands repeatedly in a 20-row, 5-column table and confirm there is no malformed row output, separator drift, or caret jump after switching between WYSIWYG and source mode."
         ]
       },
-      "notes": "Typora documents richer table editing commands (insert/delete row/column) and release notes mention move-table-row shortcuts, while MarkFlow currently provides table rendering/styling only. Sources: https://support.typora.io/Table-Editing/ and https://support.typora.io/What%27s-New-1.11/."
+      "notes": "Updated on 2026-04-16: `packages/editor/src/editor/extensions/tableCommands.ts` now adds a bounded WYSIWYG table transaction layer wired through `packages/editor/src/editor/MarkFlowEditor.tsx`, covering row insert below via `Mod-Enter`, last-cell `Tab` row append, row delete via `Mod-Shift-Backspace`, row move up/down via `Alt-Arrow`, and user-reachable column insert/delete hotkeys via `Mod-Alt-ArrowLeft`, `Mod-Alt-ArrowRight`, and `Mod-Alt-Backspace`. Focused coverage in `packages/editor/src/editor/__tests__/tableCommands.test.ts` plus a regression pass in `packages/editor/src/editor/__tests__/MarkFlowEditor.test.tsx` passed on 2026-04-16, and the table rewrites keep pipe rows rectangular with alignment markers intact while header/separator `Alt-Arrow` and non-terminal `Tab` no longer fall through to generic line movement or indentation. `passes` remains false because the large-table/manual acceptance is still pending and one Typora parity gap remains open: redo after some table edits does not yet keep the caret in the affected row/cell (most visibly after inserting a brand-new empty row), so the step requiring selection to stay in the affected cell/row across every undo/redo cycle is not fully closed. Sources: https://support.typora.io/Table-Editing/ and https://support.typora.io/Shortcut-Keys/."
     },
     {
       "id": "MF-069",

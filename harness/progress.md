@@ -9,6 +9,48 @@
 
 ## Session Log
 
+### 2026-04-16 - MF-068 table-editing hotkeys landed as a bounded partial parity slice
+
+- Author: Codex (Dispatcher)
+- Focus: close one Typora replication loop around markdown table editing without widening into a second active feature.
+- Research updates:
+  - Researcher compared Typora's `Table Editing` and `Shortcut Keys` docs against the repo and tightened the existing `MF-068` entry instead of adding backlog noise.
+  - `MF-068` moved from `planned` to `ready`, with concrete Typora-aligned steps for row insert/delete, last-cell `Tab` append, row move, column operations, and undo/redo expectations.
+- What changed:
+  - added `packages/editor/src/editor/extensions/tableCommands.ts`, a bounded WYSIWYG table transaction layer that parses the current markdown table, rewrites rectangular pipe-table text, and exposes row/column editing commands
+  - wired `tableCommandExtension()` into `packages/editor/src/editor/MarkFlowEditor.tsx` so table hotkeys run at editor scope in WYSIWYG mode
+  - shipped user-reachable hotkeys for `MF-068`: `Mod-Enter` inserts a row below, last-cell `Tab` appends a row, `Mod-Shift-Backspace` deletes the current row, `Alt-ArrowUp/Down` moves body rows, and `Mod-Alt-ArrowLeft` / `Mod-Alt-ArrowRight` / `Mod-Alt-Backspace` handle column insert/delete
+  - suppressed two regressions before acceptance: header/separator `Alt-Arrow` and non-terminal `Tab` now no-op inside tables instead of falling through to generic line movement or indentation
+  - added focused coverage in `packages/editor/src/editor/__tests__/tableCommands.test.ts` for row/column hotkeys, undo/redo on the implemented table rewrites, header/separator safety, and non-terminal `Tab` behavior
+  - updated `harness/feature-ledger.json` so `MF-068` truthfully remains `status=ready`, `passes=false`, and `lastVerifiedAt=null` while documenting the remaining parity gaps
+- Changed files:
+  - `harness/feature-ledger.json`
+  - `packages/editor/src/editor/extensions/tableCommands.ts`
+  - `packages/editor/src/editor/MarkFlowEditor.tsx`
+  - `packages/editor/src/editor/__tests__/tableCommands.test.ts`
+  - `harness/progress.md`
+- Simplifications made:
+  - kept the command surface editor-local and hotkey-driven instead of widening into menu, palette, or context-menu work
+  - reused markdown table rewrites in one place instead of introducing a second table model or UI state layer
+  - kept `MF-068` partial and truthful rather than forcing a false `verified`/`passes=true` promotion
+  - did not treat the already-dirty `MF-062` folding-related files in this worktree as part of the active feature, even though they co-exist in the same session
+- Verification:
+  - `pnpm harness:start` (passes)
+  - `./harness/init.sh --smoke` (passes on the current dirty tree; desktop 28/28 and editor 351/354 passing with 3 skips)
+  - `pnpm --filter @markflow/editor exec vitest run src/editor/__tests__/tableCommands.test.ts src/editor/__tests__/MarkFlowEditor.test.tsx` (passes; 51 tests, 3 skipped)
+  - `pnpm --filter @markflow/editor exec eslint src/editor/MarkFlowEditor.tsx src/editor/extensions/tableCommands.ts src/editor/__tests__/tableCommands.test.ts` (passes)
+  - `pnpm --filter @markflow/editor build` (passes)
+  - `pnpm harness:verify` (passes; 106 total | verified=64 | ready=16 | planned=26 | blocked=0 on the current tree)
+  - Reviewer re-review accepted the narrowed `MF-068` scope with no remaining findings in the requested table-command files
+- Review / risks:
+  - `MF-068` is intentionally not marked passed yet: redo after some table edits still does not always keep the caret in the affected row/cell, most visibly after inserting a brand-new empty row
+  - manual acceptance is still pending for repeated editing in a 20-row, 5-column table and WYSIWYG/source mode switching
+  - the worktree still contains unrelated `MF-062` folding persistence edits that were already present before this cycle and should not be conflated with the `MF-068` outcome
+- Newly verified features:
+  - none
+- Next recommended feature:
+  - `MF-068` - close the redo/caret parity gap and complete the pending large-table manual acceptance, then promote the ledger only if both really pass
+
 ### 2026-04-16 - MF-062 folding now survives save and reopen
 
 - Author: Codex

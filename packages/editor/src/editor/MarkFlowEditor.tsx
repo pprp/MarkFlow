@@ -36,6 +36,7 @@ import { headingFoldExtension } from './extensions/headingFold'
 import { smartPasteExtension } from './extensions/smartPaste'
 import { spellCheckExtension } from './extensions/spellCheck'
 import { emojiAutocompleteExtension } from './extensions/emojiAutocomplete'
+import { tableCommandExtension } from './extensions/tableCommands'
 import { markdownPostProcessorExtension } from './extensions/markdownPostProcessor'
 import { readingModeExtension } from './extensions/readingMode'
 import { tocDecorations } from './decorations/tocDecoration'
@@ -236,6 +237,7 @@ function getEditorExtensions(
       indentWithTab,
     ]),
     EditorView.clickAddsSelectionRange.of((event) => event.altKey),
+    tableCommandExtension({ isWysiwygMode: () => viewModeRef.current === 'wysiwyg' }),
     smartTypographyExtension(),
     smartInput({ isWysiwygMode: () => viewModeRef.current === 'wysiwyg' }),
     smartPasteExtension(),
