@@ -1,4 +1,8 @@
-import { markdownLanguage } from '@codemirror/lang-markdown'
+import {
+  DEFAULT_MARKDOWN_MODE,
+  getMarkdownParser,
+  type MarkFlowMarkdownMode,
+} from '../markdownMode'
 
 export interface OutlineHeading {
   anchor: string
@@ -33,7 +37,7 @@ function lineNumberAt(content: string, position: number) {
 
 function extractHeadingText(name: string, rawHeading: string) {
   if (name.startsWith('ATXHeading')) {
-    return rawHeading.replace(/^#{1,6}\s+/, '').replace(/\s*#*\s*$/, '').trim()
+    return rawHeading.replace(/^#{1,6}\s*/, '').replace(/\s*#*\s*$/, '').trim()
   }
 
   if (name.startsWith('SetextHeading')) {
@@ -63,10 +67,13 @@ export function normalizeHeadingHref(href: string) {
   return targetAnchor || null
 }
 
-export function extractOutlineHeadings(content: string): OutlineHeading[] {
+export function extractOutlineHeadings(
+  content: string,
+  markdownMode: MarkFlowMarkdownMode = DEFAULT_MARKDOWN_MODE,
+): OutlineHeading[] {
   const headings: OutlineHeading[] = []
   const seenAnchors = new Map<string, number>()
-  markdownLanguage.parser.parse(content).iterate({
+  getMarkdownParser(markdownMode).parse(content).iterate({
     enter(node) {
       const level = headingLevels.get(node.name)
       if (!level) {
@@ -101,6 +108,7 @@ export function findHeadingAnchorPosition(
   content: string,
   href: string,
   anchorLookup?: ReadonlyMap<string, number>,
+  markdownMode: MarkFlowMarkdownMode = DEFAULT_MARKDOWN_MODE,
 ) {
   const targetAnchor = normalizeHeadingHref(href)
   if (!targetAnchor) {
@@ -111,7 +119,10 @@ export function findHeadingAnchorPosition(
     return anchorLookup.get(targetAnchor) ?? null
   }
 
-  return extractOutlineHeadings(content).find((heading) => heading.anchor === targetAnchor)?.from ?? null
+  return (
+    extractOutlineHeadings(content, markdownMode).find((heading) => heading.anchor === targetAnchor)?.from ??
+    null
+  )
 }
 
 export function findActiveHeadingAnchor(headings: OutlineHeading[], position: number) {

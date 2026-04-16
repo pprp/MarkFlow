@@ -2,6 +2,7 @@ import { fireEvent, render } from '@testing-library/react'
 import { isolateHistory, redo, undo, undoDepth } from '@codemirror/commands'
 import { EditorSelection, Transaction } from '@codemirror/state'
 import { EditorView, runScopeHandlers } from '@codemirror/view'
+import { syntaxTree } from '@codemirror/language'
 import { describe, expect, it, vi } from 'vitest'
 import { waitFor } from '@testing-library/react'
 import { MarkFlowEditor } from '../MarkFlowEditor'
@@ -29,6 +30,24 @@ function getVisibleLineNumbers(container: HTMLElement) {
   return Array.from(container.querySelectorAll('.cm-lineNumbers .cm-gutterElement'))
     .filter((element) => !element.getAttribute('style')?.includes('visibility: hidden'))
     .map((element) => element.textContent)
+}
+
+function firstBlockName(view: EditorView) {
+  const cursor = syntaxTree(view.state).cursor()
+  expect(cursor.firstChild()).toBe(true)
+  return cursor.name
+}
+
+function listItemRanges(view: EditorView) {
+  const ranges: Array<[number, number]> = []
+  syntaxTree(view.state).iterate({
+    enter(node) {
+      if (node.name === 'ListItem') {
+        ranges.push([node.from, node.to])
+      }
+    },
+  })
+  return ranges
 }
 
 function dispatchEditorShortcut(
@@ -154,6 +173,79 @@ describe('MarkFlowEditor', () => {
     await waitFor(() => {
       expect(getEditorView(container)).toBe(view)
       expect(container.querySelector('.cm-lineNumbers')).toBeNull()
+    })
+  })
+
+  it('reconfigures heading parsing between tolerant and strict markdown modes without recreating the editor', async () => {
+    const { container, rerender } = render(
+      <MarkFlowEditor
+        content="###Header"
+        markdownMode="tolerant"
+        viewMode="wysiwyg"
+        onChange={vi.fn()}
+      />,
+    )
+
+    const view = getEditorView(container)
+
+    await waitFor(() => {
+      expect(firstBlockName(view)).toBe('ATXHeading3')
+      expect(container.querySelector('.cm-line.mf-h3')).not.toBeNull()
+    })
+
+    rerender(
+      <MarkFlowEditor
+        content="###Header"
+        markdownMode="strict"
+        viewMode="wysiwyg"
+        onChange={vi.fn()}
+      />,
+    )
+
+    await waitFor(() => {
+      expect(getEditorView(container)).toBe(view)
+      expect(firstBlockName(view)).toBe('Paragraph')
+      expect(container.querySelector('.cm-line.mf-h3')).toBeNull()
+    })
+  })
+
+  it('reconfigures ordered-list indentation parsing between tolerant and strict markdown modes', async () => {
+    const content = ['1. aaa', '  bbb', '', '10. aaa', '  1. ccc'].join('\n')
+    const { container, rerender } = render(
+      <MarkFlowEditor
+        content={content}
+        markdownMode="tolerant"
+        viewMode="wysiwyg"
+        onChange={vi.fn()}
+      />,
+    )
+
+    const view = getEditorView(container)
+
+    await waitFor(() => {
+      expect(listItemRanges(view)).toEqual([
+        [0, 12],
+        [14, 30],
+        [24, 30],
+      ])
+    })
+
+    rerender(
+      <MarkFlowEditor
+        content={content}
+        markdownMode="strict"
+        viewMode="wysiwyg"
+        onChange={vi.fn()}
+      />,
+    )
+
+    await waitFor(() => {
+      expect(getEditorView(container)).toBe(view)
+      expect(listItemRanges(view)).toEqual([
+        [0, 6],
+        [14, 21],
+        [22, 30],
+      ])
     })
   })
 

@@ -74,6 +74,12 @@ import {
   loadLocalStatisticsPreferences,
   persistLocalStatisticsPreferences,
 } from './statisticsPreferences'
+import {
+  formatMarkdownModeStatus,
+  loadLocalMarkdownModePreference,
+  persistLocalMarkdownModePreference,
+  type MarkFlowMarkdownMode,
+} from './markdownMode'
 
 const THEME_STYLE_ELEMENT_ID = 'mf-theme-overrides'
 const EDITOR_ROOT_SELECTOR = '.cm-editor'
@@ -436,6 +442,9 @@ export function App() {
   const [viewMode, setViewMode] = useState<ViewMode>('wysiwyg')
   const [focusMode, setFocusMode] = useState(false)
   const [typewriterMode, setTypewriterMode] = useState(false)
+  const [markdownMode, setMarkdownMode] = useState<MarkFlowMarkdownMode>(() =>
+    loadLocalMarkdownModePreference(),
+  )
   const [headingNumberingEnabled, setHeadingNumberingEnabled] = useState(() =>
     loadLocalHeadingNumberingPreference(),
   )
@@ -458,6 +467,7 @@ export function App() {
     loadLocalSpellCheckState(),
   )
   const [isDocumentStatisticsOpen, setIsDocumentStatisticsOpen] = useState(false)
+  const [isMarkdownModeSettingsOpen, setIsMarkdownModeSettingsOpen] = useState(false)
   const [isSpellCheckSettingsOpen, setIsSpellCheckSettingsOpen] = useState(false)
   const [isHeadingNumberingSettingsOpen, setIsHeadingNumberingSettingsOpen] = useState(false)
   const [isSourceLineNumbersSettingsOpen, setIsSourceLineNumbersSettingsOpen] = useState(false)
@@ -511,6 +521,8 @@ export function App() {
   const editorShellRef = useRef<HTMLDivElement | null>(null)
   const documentStatisticsButtonRef = useRef<HTMLButtonElement | null>(null)
   const documentStatisticsPanelRef = useRef<HTMLDivElement | null>(null)
+  const markdownModeButtonRef = useRef<HTMLButtonElement | null>(null)
+  const markdownModePanelRef = useRef<HTMLDivElement | null>(null)
   const headingNumberingButtonRef = useRef<HTMLButtonElement | null>(null)
   const headingNumberingPanelRef = useRef<HTMLDivElement | null>(null)
   const sourceLineNumbersButtonRef = useRef<HTMLButtonElement | null>(null)
@@ -548,8 +560,14 @@ export function App() {
     persistLocalStatisticsPreferences(nextPreferences)
   }, [])
 
+  const updateMarkdownModePreference = useCallback((mode: MarkFlowMarkdownMode) => {
+    setMarkdownMode(mode)
+    persistLocalMarkdownModePreference(mode)
+  }, [])
+
   const closeStatusbarPanels = useCallback(() => {
     setIsDocumentStatisticsOpen(false)
+    setIsMarkdownModeSettingsOpen(false)
     setIsHeadingNumberingSettingsOpen(false)
     setIsSourceLineNumbersSettingsOpen(false)
     setIsSpellCheckSettingsOpen(false)
@@ -557,6 +575,7 @@ export function App() {
   }, [])
 
   const toggleDocumentStatistics = useCallback(() => {
+    setIsMarkdownModeSettingsOpen(false)
     setIsHeadingNumberingSettingsOpen(false)
     setIsSourceLineNumbersSettingsOpen(false)
     setIsSpellCheckSettingsOpen(false)
@@ -686,6 +705,7 @@ export function App() {
   useEffect(() => {
     if (
       !isDocumentStatisticsOpen &&
+      !isMarkdownModeSettingsOpen &&
       !isHeadingNumberingSettingsOpen &&
       !isSourceLineNumbersSettingsOpen &&
       !isSpellCheckSettingsOpen &&
@@ -699,6 +719,8 @@ export function App() {
       if (
         (target instanceof Node && documentStatisticsPanelRef.current?.contains(target)) ||
         (target instanceof Node && documentStatisticsButtonRef.current?.contains(target)) ||
+        (target instanceof Node && markdownModePanelRef.current?.contains(target)) ||
+        (target instanceof Node && markdownModeButtonRef.current?.contains(target)) ||
         (target instanceof Node && headingNumberingPanelRef.current?.contains(target)) ||
         (target instanceof Node && headingNumberingButtonRef.current?.contains(target)) ||
         (target instanceof Node && sourceLineNumbersPanelRef.current?.contains(target)) ||
@@ -729,6 +751,7 @@ export function App() {
   }, [
     closeStatusbarPanels,
     isDocumentStatisticsOpen,
+    isMarkdownModeSettingsOpen,
     isHeadingNumberingSettingsOpen,
     isImageUploadSettingsOpen,
     isSourceLineNumbersSettingsOpen,
@@ -3161,6 +3184,7 @@ export function App() {
                 initialSnapshot={activeTab.snapshot}
                 content={activeTab.content}
                 editable={activeTab.largeFile == null}
+                markdownMode={markdownMode}
                 spellCheckLanguage={spellCheckState.selectedLanguage}
                 viewMode={viewMode}
                 showSourceLineNumbers={sourceLineNumbersEnabled}
@@ -3333,6 +3357,60 @@ export function App() {
           ) : null}
           <div className="mf-statusbar-actions">
           <button
+            ref={markdownModeButtonRef}
+            type="button"
+            className={`mf-statusbar-button${isMarkdownModeSettingsOpen ? ' mf-statusbar-button-active' : ''}`}
+            aria-haspopup="dialog"
+            aria-expanded={isMarkdownModeSettingsOpen}
+            aria-label="Markdown mode settings"
+            onClick={() => {
+              setIsDocumentStatisticsOpen(false)
+              setIsHeadingNumberingSettingsOpen(false)
+              setIsSourceLineNumbersSettingsOpen(false)
+              setIsSpellCheckSettingsOpen(false)
+              setIsImageUploadSettingsOpen(false)
+              setIsMarkdownModeSettingsOpen((current) => !current)
+            }}
+          >
+            {formatMarkdownModeStatus(markdownMode)}
+          </button>
+          {isMarkdownModeSettingsOpen ? (
+            <section
+              ref={markdownModePanelRef}
+              className="mf-spellcheck-popover"
+              role="dialog"
+              aria-label="Markdown mode settings"
+            >
+              <div className="mf-spellcheck-popover-header">
+                <div>
+                  <p className="mf-spellcheck-popover-title">Markdown Mode</p>
+                  <p className="mf-spellcheck-popover-copy">
+                    Strict mode follows GFM-style heading whitespace and ordered-list indentation
+                    more closely. The choice is remembered for the next launch.
+                  </p>
+                </div>
+              </div>
+              <label className="mf-image-upload-checkbox">
+                <input
+                  type="radio"
+                  name="markdown-mode"
+                  checked={markdownMode === 'tolerant'}
+                  onChange={() => updateMarkdownModePreference('tolerant')}
+                />
+                <span>Tolerant markdown parsing</span>
+              </label>
+              <label className="mf-image-upload-checkbox">
+                <input
+                  type="radio"
+                  name="markdown-mode"
+                  checked={markdownMode === 'strict'}
+                  onChange={() => updateMarkdownModePreference('strict')}
+                />
+                <span>Strict markdown parsing</span>
+              </label>
+            </section>
+          ) : null}
+          <button
             ref={headingNumberingButtonRef}
             type="button"
             className={`mf-statusbar-button${isHeadingNumberingSettingsOpen ? ' mf-statusbar-button-active' : ''}`}
@@ -3341,6 +3419,7 @@ export function App() {
             aria-label="Heading numbering settings"
             onClick={() => {
               setIsDocumentStatisticsOpen(false)
+              setIsMarkdownModeSettingsOpen(false)
               setIsSourceLineNumbersSettingsOpen(false)
               setIsSpellCheckSettingsOpen(false)
               setIsImageUploadSettingsOpen(false)
@@ -3384,6 +3463,7 @@ export function App() {
             aria-label="Source line-number settings"
             onClick={() => {
               setIsDocumentStatisticsOpen(false)
+              setIsMarkdownModeSettingsOpen(false)
               setIsHeadingNumberingSettingsOpen(false)
               setIsSpellCheckSettingsOpen(false)
               setIsImageUploadSettingsOpen(false)
@@ -3429,6 +3509,7 @@ export function App() {
                 aria-label="Image upload preferences"
                 onClick={() => {
                   setIsDocumentStatisticsOpen(false)
+                  setIsMarkdownModeSettingsOpen(false)
                   setIsHeadingNumberingSettingsOpen(false)
                   setIsSourceLineNumbersSettingsOpen(false)
                   setIsSpellCheckSettingsOpen(false)
@@ -3571,6 +3652,7 @@ export function App() {
             aria-label="Spellcheck settings"
             onClick={() => {
               setIsDocumentStatisticsOpen(false)
+              setIsMarkdownModeSettingsOpen(false)
               setIsHeadingNumberingSettingsOpen(false)
               setIsSourceLineNumbersSettingsOpen(false)
               setIsImageUploadSettingsOpen(false)
@@ -3694,6 +3776,7 @@ export function App() {
         <div id="mf-export-container" style={{ position: 'absolute', left: '-9999px', top: 0, width: '800px', height: 'auto' }}>
           <MarkFlowEditor
             content={activeTab?.content ?? ''}
+            markdownMode={markdownMode}
             spellCheckLanguage={spellCheckState.selectedLanguage}
             viewMode="wysiwyg"
             onChange={() => {}}

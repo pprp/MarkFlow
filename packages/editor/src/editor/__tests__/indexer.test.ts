@@ -71,6 +71,18 @@ describe('indexer: buildSymbolTable', () => {
     expect(table.headings.map((h) => h.text)).toEqual(['Real Heading'])
     expect(table.anchors.has('not-a-heading')).toBe(false)
   })
+
+  it('uses the active markdown mode when indexing ATX headings without whitespace', () => {
+    const doc = ['###Header', '', '### Header'].join('\n')
+
+    expect(buildSymbolTable(doc, 'strict').headings.map((heading) => heading.from)).toEqual([
+      doc.indexOf('### Header'),
+    ])
+    expect(buildSymbolTable(doc, 'tolerant').headings.map((heading) => heading.from)).toEqual([
+      0,
+      doc.indexOf('### Header'),
+    ])
+  })
 })
 
 // ---------------------------------------------------------------------------

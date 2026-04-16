@@ -66,10 +66,16 @@ import { FloatingToolbar } from '../components/FloatingToolbar'
 import type { MinimapScrollMetrics } from '../components/Minimap'
 import { MAX_UNDO_HISTORY_EVENTS, pruneHistoryState } from './historyLimit'
 import { applyCollapsedRanges, getCollapsedRanges } from './foldingState'
+import {
+  DEFAULT_MARKDOWN_MODE,
+  getMarkdownModeExtensions,
+  type MarkFlowMarkdownMode,
+} from '../markdownMode'
 
 export interface MarkFlowEditorProps {
   content: string
   viewMode: ViewMode
+  markdownMode?: MarkFlowMarkdownMode
   showSourceLineNumbers?: boolean
   editable?: boolean
   spellCheckLanguage?: string | null
@@ -191,6 +197,7 @@ function countOccurrencesBefore(text: string, searchText: string, beforeIndex: n
 
 function getRenderedExtensions(
   renderedViewMode: MarkFlowRenderedViewMode,
+  markdownMode: MarkFlowMarkdownMode,
   filePath?: string,
   pluginHost?: MarkFlowPluginHost,
 ) {
@@ -206,7 +213,7 @@ function getRenderedExtensions(
     yamlFrontMatterDecorations(),
     tableDecorations(),
     inlineHtmlDecorations(),
-    tocDecorations(),
+    tocDecorations(markdownMode),
   ]
 
   if (pluginHost) {
@@ -255,15 +262,19 @@ function openReplacePanel(view: EditorView) {
 function getViewModeExtensions(
   viewMode: ViewMode,
   showSourceLineNumbers: boolean,
+  markdownMode: MarkFlowMarkdownMode,
   filePath?: string,
   pluginHost?: MarkFlowPluginHost,
 ) {
   if (viewMode === 'wysiwyg') {
-    return getRenderedExtensions('wysiwyg', filePath, pluginHost)
+    return getRenderedExtensions('wysiwyg', markdownMode, filePath, pluginHost)
   }
 
   if (viewMode === 'reading') {
-    return [...getRenderedExtensions('reading', filePath, pluginHost), ...readingModeExtension()]
+    return [
+      ...getRenderedExtensions('reading', markdownMode, filePath, pluginHost),
+      ...readingModeExtension(),
+    ]
   }
 
   if (viewMode === 'source') {
@@ -271,6 +282,17 @@ function getViewModeExtensions(
   }
 
   return []
+}
+
+function getMarkdownSyntaxExtensions(markdownMode: MarkFlowMarkdownMode) {
+  return [
+    markdown({
+      base: markdownLanguage,
+      codeLanguages: languages,
+      extensions: getMarkdownModeExtensions(markdownMode),
+    }),
+    indexerExtension({ markdownMode }),
+  ]
 }
 
 function publishScrollMetrics(
@@ -287,6 +309,7 @@ function publishScrollMetrics(
 function getEditorExtensions(
   viewMode: ViewMode,
   showSourceLineNumbers: boolean,
+  markdownMode: MarkFlowMarkdownMode,
   editable: boolean,
   focusMode: boolean,
   typewriterMode: boolean,
@@ -305,6 +328,7 @@ function getEditorExtensions(
   onCollapsedRangesChangeRef: React.MutableRefObject<MarkFlowEditorProps['onCollapsedRangesChange']>,
   viewModeRef: React.MutableRefObject<ViewMode>,
   pruneHistoryRef: React.MutableRefObject<((view: EditorView) => void) | null>,
+  markdownCompartment: Compartment,
   viewModeCompartment: Compartment,
   editableCompartment: Compartment,
   focusModeCompartment: Compartment,
@@ -323,7 +347,7 @@ function getEditorExtensions(
     indentOnInput(),
     highlightSelectionMatches(),
     syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
-    markdown({ base: markdownLanguage, codeLanguages: languages }),
+    markdownCompartment.of(getMarkdownSyntaxExtensions(markdownMode)),
     keymap.of([
       {
         key: 'Escape',
@@ -383,7 +407,6 @@ function getEditorExtensions(
     emojiAutocompleteExtension(),
     headingFoldExtension(),
     spellCheckCompartment.of(spellCheckExtension({ language: spellCheckLanguage })),
-    indexerExtension(),
     EditorView.lineWrapping,
     EditorView.updateListener.of((update) => {
       if (update.docChanged) {
@@ -415,7 +438,9 @@ function getEditorExtensions(
         onCollapsedRangesChangeRef.current?.(getCollapsedRanges(update.state))
       }
     }),
-    viewModeCompartment.of(getViewModeExtensions(viewMode, showSourceLineNumbers, filePath, pluginHost)),
+    viewModeCompartment.of(
+      getViewModeExtensions(viewMode, showSourceLineNumbers, markdownMode, filePath, pluginHost),
+    ),
     focusModeCompartment.of(focusMode ? focusModeExtension() : []),
     typewriterModeCompartment.of(typewriterMode ? typewriterModeExtension() : []),
   ]
@@ -424,6 +449,7 @@ function getEditorExtensions(
 export const MarkFlowEditor = forwardRef<MarkFlowEditorHandle, MarkFlowEditorProps>(function MarkFlowEditor({
   content,
   viewMode,
+  markdownMode = DEFAULT_MARKDOWN_MODE,
   showSourceLineNumbers = true,
   editable = true,
   spellCheckLanguage,
@@ -464,8 +490,11 @@ export const MarkFlowEditor = forwardRef<MarkFlowEditorHandle, MarkFlowEditorPro
   const onToggleTypewriterModeRef = useRef(onToggleTypewriterMode)
   const onCollapsedRangesChangeRef = useRef(onCollapsedRangesChange)
   const filePathRef = useRef(filePath)
+  const markdownModeRef = useRef(markdownMode)
+  const appliedMarkdownModeRef = useRef(markdownMode)
   const viewModeRef = useRef(viewMode)
   const pruneHistoryRef = useRef<((view: EditorView) => void) | null>(null)
+  const markdownCompartmentRef = useRef(new Compartment())
   const viewModeCompartmentRef = useRef(new Compartment())
   const editableCompartmentRef = useRef(new Compartment())
   const focusModeCompartmentRef = useRef(new Compartment())
@@ -526,6 +555,10 @@ export const MarkFlowEditor = forwardRef<MarkFlowEditorHandle, MarkFlowEditorPro
   }, [filePath])
 
   useEffect(() => {
+    markdownModeRef.current = markdownMode
+  }, [markdownMode])
+
+  useEffect(() => {
     viewModeRef.current = viewMode
   }, [viewMode])
 
@@ -537,6 +570,7 @@ export const MarkFlowEditor = forwardRef<MarkFlowEditorHandle, MarkFlowEditorPro
     const nextExtensions = getEditorExtensions(
       viewMode,
       showSourceLineNumbers,
+      markdownMode,
       editable,
       focusMode,
       typewriterMode,
@@ -555,6 +589,7 @@ export const MarkFlowEditor = forwardRef<MarkFlowEditorHandle, MarkFlowEditorPro
       onCollapsedRangesChangeRef,
       viewModeRef,
       pruneHistoryRef,
+      markdownCompartmentRef.current,
       viewModeCompartmentRef.current,
       editableCompartmentRef.current,
       focusModeCompartmentRef.current,
@@ -573,6 +608,7 @@ export const MarkFlowEditor = forwardRef<MarkFlowEditorHandle, MarkFlowEditorPro
     const extensions = getEditorExtensions(
       viewMode,
       showSourceLineNumbers,
+      markdownMode,
       editable,
       focusMode,
       typewriterMode,
@@ -591,6 +627,7 @@ export const MarkFlowEditor = forwardRef<MarkFlowEditorHandle, MarkFlowEditorPro
       onCollapsedRangesChangeRef,
       viewModeRef,
       pruneHistoryRef,
+      markdownCompartmentRef.current,
       viewModeCompartmentRef.current,
       editableCompartmentRef.current,
       focusModeCompartmentRef.current,
@@ -641,8 +678,9 @@ export const MarkFlowEditor = forwardRef<MarkFlowEditorHandle, MarkFlowEditorPro
       const doc = view.state.doc.toString()
       const anchorLookup = view.state.field(symbolTableField).anchors
       const headingPosition = anchorLookup.size > 0
-        ? findHeadingAnchorPosition(doc, href, anchorLookup) ?? findHeadingAnchorPosition(doc, href)
-        : findHeadingAnchorPosition(doc, href)
+        ? findHeadingAnchorPosition(doc, href, anchorLookup, markdownModeRef.current) ??
+          findHeadingAnchorPosition(doc, href, undefined, markdownModeRef.current)
+        : findHeadingAnchorPosition(doc, href, undefined, markdownModeRef.current)
       if (headingPosition !== null) {
         view.dispatch({
           selection: EditorSelection.cursor(headingPosition),
@@ -773,10 +811,35 @@ export const MarkFlowEditor = forwardRef<MarkFlowEditorHandle, MarkFlowEditorPro
 
     view.dispatch({
       effects: viewModeCompartmentRef.current.reconfigure(
-        getViewModeExtensions(viewMode, showSourceLineNumbers, filePath, pluginHost),
+        getViewModeExtensions(viewMode, showSourceLineNumbers, markdownMode, filePath, pluginHost),
       ),
     })
-  }, [filePath, pluginHost, showSourceLineNumbers, viewMode])
+  }, [filePath, markdownMode, pluginHost, showSourceLineNumbers, viewMode])
+
+  useEffect(() => {
+    const view = viewRef.current
+    if (!view) return
+    if (appliedMarkdownModeRef.current === markdownMode) {
+      return
+    }
+
+    appliedMarkdownModeRef.current = markdownMode
+
+    const currentContent = view.state.doc.toString()
+    const currentSelection = view.state.selection
+    view.dispatch({
+      effects: markdownCompartmentRef.current.reconfigure(
+        getMarkdownSyntaxExtensions(markdownMode),
+      ),
+      changes: {
+        from: 0,
+        to: currentContent.length,
+        insert: currentContent,
+      },
+      selection: currentSelection,
+      annotations: Transaction.addToHistory.of(false),
+    })
+  }, [markdownMode])
 
   useEffect(() => {
     const view = viewRef.current
@@ -839,10 +902,14 @@ export const MarkFlowEditor = forwardRef<MarkFlowEditorHandle, MarkFlowEditorPro
       extensions: [
         baseTheme,
         syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
-        markdown({ base: markdownLanguage, codeLanguages: languages }),
+        markdown({
+          base: markdownLanguage,
+          codeLanguages: languages,
+          extensions: getMarkdownModeExtensions(markdownMode),
+        }),
         EditorView.editable.of(false),
         EditorView.lineWrapping,
-        ...getRenderedExtensions('split-preview', filePath, pluginHost),
+        ...getRenderedExtensions('split-preview', markdownMode, filePath, pluginHost),
       ],
     })
 
@@ -918,7 +985,7 @@ export const MarkFlowEditor = forwardRef<MarkFlowEditorHandle, MarkFlowEditorPro
       previewView.destroy()
       previewViewRef.current = null
     }
-  }, [filePath, pluginHost, viewMode])
+  }, [filePath, markdownMode, pluginHost, viewMode])
 
   // Keep split preview in sync with content changes
   useEffect(() => {

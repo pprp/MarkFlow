@@ -24,6 +24,10 @@ import {
   loadLocalStatisticsPreferences,
   persistLocalStatisticsPreferences,
 } from '../statisticsPreferences'
+import {
+  loadLocalMarkdownModePreference,
+  persistLocalMarkdownModePreference,
+} from '../markdownMode'
 import { computeStats } from '../editor/wordCount'
 import type {
   MarkFlowAppearance,
@@ -424,6 +428,7 @@ class MockMarkFlowAPI implements MarkFlowDesktopAPI {
 describe('App desktop integration', () => {
   afterEach(() => {
     delete window.markflow
+    persistLocalMarkdownModePreference('tolerant')
     persistLocalHeadingNumberingPreference(false)
     persistLocalSourceLineNumbersPreference(true)
     persistLocalStatisticsPreferences({ excludeFencedCode: true })
@@ -1385,6 +1390,42 @@ describe('App desktop integration', () => {
     await waitFor(() => {
       expect(container.querySelector('.cm-lineNumbers')).toBeNull()
     })
+  })
+
+  it('toggles markdown mode in preferences, updates heading parsing, and persists the choice', async () => {
+    const api = new MockMarkFlowAPI()
+    window.markflow = api
+
+    const content = ['###Header', '', '10. aaa', '  1. ccc'].join('\n')
+    const { container, unmount } = render(<App />)
+
+    await act(async () => {
+      api.emitFileOpened({ filePath: '/tmp/markdown-mode.md', content })
+    })
+
+    const markdownModeButton = await screen.findByRole('button', { name: 'Markdown mode settings' })
+    expect(markdownModeButton).toHaveTextContent('Markdown: Tolerant')
+
+    await waitFor(() => {
+      expect(container.querySelector('.cm-line.mf-h3')).not.toBeNull()
+    })
+
+    fireEvent.click(markdownModeButton)
+    fireEvent.click(await screen.findByRole('radio', { name: 'Strict markdown parsing' }))
+
+    await waitFor(() => {
+      expect(markdownModeButton).toHaveTextContent('Markdown: Strict')
+      expect(loadLocalMarkdownModePreference()).toBe('strict')
+      expect(container.querySelector('.cm-line.mf-h3')).toBeNull()
+    })
+
+    unmount()
+
+    render(<App />)
+
+    expect(await screen.findByRole('button', { name: 'Markdown mode settings' })).toHaveTextContent(
+      'Markdown: Strict',
+    )
   })
 
   it('opens document statistics from the menu bridge and toggles fenced-code exclusion', async () => {

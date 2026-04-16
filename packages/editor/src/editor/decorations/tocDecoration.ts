@@ -9,6 +9,10 @@ import {
 import { RangeSetBuilder } from '@codemirror/state'
 import { extractOutlineHeadings, type OutlineHeading } from '../outline'
 import { getDecorationViewportWindow } from './viewportWindow'
+import {
+  DEFAULT_MARKDOWN_MODE,
+  type MarkFlowMarkdownMode,
+} from '../../markdownMode'
 
 const TOC_LINE_RE = /^\[toc\]\s*$/i
 
@@ -75,20 +79,20 @@ function buildTocDecorations(view: EditorView, headings: OutlineHeading[]): Deco
   return builder.finish()
 }
 
-export function tocDecorations() {
+export function tocDecorations(markdownMode: MarkFlowMarkdownMode = DEFAULT_MARKDOWN_MODE) {
   return ViewPlugin.fromClass(
     class {
       decorations: DecorationSet
       headings: OutlineHeading[]
 
       constructor(view: EditorView) {
-        this.headings = extractOutlineHeadings(view.state.doc.toString())
+        this.headings = extractOutlineHeadings(view.state.doc.toString(), markdownMode)
         this.decorations = buildTocDecorations(view, this.headings)
       }
 
       update(update: ViewUpdate) {
         if (update.docChanged) {
-          this.headings = extractOutlineHeadings(update.view.state.doc.toString())
+          this.headings = extractOutlineHeadings(update.view.state.doc.toString(), markdownMode)
         }
         if (update.docChanged || update.selectionSet || update.viewportChanged) {
           this.decorations = buildTocDecorations(update.view, this.headings)

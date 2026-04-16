@@ -45,4 +45,16 @@ describe('outline helpers', () => {
 
     expect(findHeadingAnchorPosition(doc, '#second', anchors)).toBe(secondHeadingStart)
   })
+
+  it('switches ATX heading whitespace handling with the markdown mode', () => {
+    const doc = ['###Header', '', '### Header'].join('\n')
+
+    expect(extractOutlineHeadings(doc, 'strict').map((heading) => heading.text)).toEqual(['Header'])
+    expect(extractOutlineHeadings(doc, 'tolerant').map((heading) => heading.text)).toEqual([
+      'Header',
+      'Header',
+    ])
+    expect(findHeadingAnchorPosition(doc, '#header', undefined, 'strict')).toBe(doc.indexOf('### Header'))
+    expect(findHeadingAnchorPosition(doc, '#header', undefined, 'tolerant')).toBe(0)
+  })
 })

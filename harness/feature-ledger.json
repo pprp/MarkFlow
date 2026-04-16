@@ -2615,7 +2615,7 @@
       "category": "phase-2-functional",
       "area": "@markflow/editor",
       "priority": 3,
-      "status": "planned",
+      "status": "ready",
       "passes": false,
       "lastVerifiedAt": null,
       "dependsOn": [],
@@ -2633,7 +2633,7 @@
           "Toggle strict mode on the same markdown fixture, restart, and verify heading/list parsing changes exactly as expected."
         ]
       },
-      "notes": "Typora exposes a strict mode that follows GFM more closely, including mandatory whitespace after heading markers and stricter list-paragraph indentation, and applies the setting after restart. Repo search found no strict/tolerant parser toggle or persisted markdown-mode setting in MarkFlow yet. Sources: https://support.typora.io/Strict-Mode/ and https://support.typora.io/Markdown-Reference/."
+      "notes": "Implemented on 2026-04-16 in `packages/editor/src/markdownMode.ts`, `packages/editor/src/App.tsx`, `packages/editor/src/editor/MarkFlowEditor.tsx`, `packages/editor/src/editor/outline.ts`, `packages/editor/src/editor/indexer.ts`, and `packages/editor/src/editor/decorations/tocDecoration.ts` by adding a persisted local strict/tolerant markdown-mode preference, exposing it from the status bar, and threading the selected parser mode through the editor, outline, and symbol-index paths. Automated coverage in `packages/editor/src/editor/__tests__/markdownMode.test.ts`, `packages/editor/src/editor/__tests__/MarkFlowEditor.test.tsx`, `packages/editor/src/editor/__tests__/outline.test.ts`, `packages/editor/src/editor/__tests__/indexer.test.ts`, and `packages/editor/src/__tests__/App.test.tsx` passed on 2026-04-16, alongside `pnpm --filter @markflow/editor lint`, `pnpm --filter @markflow/editor build`, and `pnpm harness:verify`. A small prerequisite fix in `packages/editor/src/components/GlobalSearch.tsx` / `.css` replaced blur-driven dismissal with backdrop dismissal so the existing navigation-history tests stay stable while the editor reclaims focus. `passes` remains false until manual verification confirms the persisted toggle and restart behavior against the same heading/list fixture. Sources: https://support.typora.io/Strict-Mode/ and https://support.typora.io/Markdown-Reference/."
     },
     {
       "id": "MF-101",

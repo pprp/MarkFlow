@@ -15,6 +15,10 @@
 import { StateEffect, StateField, type Extension } from '@codemirror/state'
 import { ViewPlugin, type ViewUpdate } from '@codemirror/view'
 import { extractOutlineHeadings, type OutlineHeading } from './outline'
+import {
+  DEFAULT_MARKDOWN_MODE,
+  type MarkFlowMarkdownMode,
+} from '../markdownMode'
 
 // ---------------------------------------------------------------------------
 // Public types
@@ -42,8 +46,11 @@ export function createEmptySymbolTable(): SymbolTable {
 // Core: symbol table builder (pure, synchronous, safe to call from a Worker)
 // ---------------------------------------------------------------------------
 
-export function buildSymbolTable(content: string): SymbolTable {
-  const headings = extractOutlineHeadings(content)
+export function buildSymbolTable(
+  content: string,
+  markdownMode: MarkFlowMarkdownMode = DEFAULT_MARKDOWN_MODE,
+): SymbolTable {
+  const headings = extractOutlineHeadings(content, markdownMode)
   const anchors = new Map<string, number>()
   for (const heading of headings) {
     anchors.set(heading.anchor, heading.from)
@@ -64,15 +71,21 @@ export class DocumentIndexer {
   private debounceTimer: ReturnType<typeof setTimeout> | null = null
   private generation = 0
   private readonly debounceMs: number
+  private readonly markdownMode: MarkFlowMarkdownMode
   private readonly onResult: (table: SymbolTable) => void
   private readonly schedule: IndexerSchedule
 
   constructor(
     onResult: (table: SymbolTable) => void,
-    options: { debounceMs?: number; schedule?: IndexerSchedule } = {},
+    options: {
+      debounceMs?: number
+      markdownMode?: MarkFlowMarkdownMode
+      schedule?: IndexerSchedule
+    } = {},
   ) {
     this.onResult = onResult
     this.debounceMs = options.debounceMs ?? DEFAULT_DEBOUNCE_MS
+    this.markdownMode = options.markdownMode ?? DEFAULT_MARKDOWN_MODE
     this.schedule = options.schedule ?? ((fn) => Promise.resolve().then(fn))
   }
 
@@ -100,7 +113,7 @@ export class DocumentIndexer {
           if (runId !== this.generation) {
             return
           }
-          const table = buildSymbolTable(snapshot)
+          const table = buildSymbolTable(snapshot, this.markdownMode)
           this.onResult(table)
         })
       }
@@ -160,7 +173,7 @@ export class DocumentIndexer {
           if (runId !== this.generation) {
             return
           }
-          const table = buildSymbolTable(content)
+          const table = buildSymbolTable(content, this.markdownMode)
           this.onResult(table)
         })
         return
@@ -171,7 +184,7 @@ export class DocumentIndexer {
         if (runId !== this.generation) {
           return
         }
-        const partialTable = buildSymbolTable(chunkContent)
+        const partialTable = buildSymbolTable(chunkContent, this.markdownMode)
         this.onResult(partialTable)
         batchStart = batchEnd
         processNextBatch()
@@ -219,6 +232,7 @@ export const symbolTableField = StateField.define<SymbolTable>({
  */
 export function indexerExtension(options: {
   debounceMs?: number
+  markdownMode?: MarkFlowMarkdownMode
   schedule?: IndexerSchedule
 } = {}): Extension {
   return [
