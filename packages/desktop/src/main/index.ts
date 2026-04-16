@@ -54,19 +54,12 @@ async function toggleAlwaysOnTop() {
 
 function queueFileOpen(filePath: string) {
   pendingOpenFilePath = filePath
-  if (mainWindow && !mainWindow.webContents.isLoading()) {
-    flushPendingFileOpen()
+  if (fileManager) {
+    fileManager.setStartupOverrideFilePath(filePath)
   }
-}
-
-function flushPendingFileOpen() {
-  if (!pendingOpenFilePath || !mainWindow) return
-
-  const filePath = pendingOpenFilePath
-  pendingOpenFilePath = null
-
-  if (fs.existsSync(filePath)) {
-    fileManager.openPath(filePath)
+  if (mainWindow && !mainWindow.webContents.isLoading()) {
+    void fileManager.openExistingPath(filePath)
+    pendingOpenFilePath = null
   }
 }
 
@@ -89,6 +82,8 @@ function createWindow() {
   })
 
   fileManager = new FileManager(mainWindow, () => buildMenu())
+  fileManager.setStartupOverrideFilePath(pendingOpenFilePath)
+  pendingOpenFilePath = null
   fileManager.registerIpcHandlers()
   fileManager.markSessionStarted()
   themeManager = new ThemeManager(mainWindow, app.getPath('userData'))
@@ -137,17 +132,24 @@ function createWindow() {
   mainWindow.webContents.setWindowOpenHandler(createWindowOpenHandler(shell.openExternal))
 
   mainWindow.webContents.once('did-finish-load', () => {
-    flushPendingFileOpen()
     sendWindowState()
   })
 }
 
 function buildMenu() {
   const openRecent = fileManager?.getOpenRecentMenuState()
+  const launchOptions = fileManager?.getLaunchOptionsMenuState()
   Menu.setApplicationMenu(
     Menu.buildFromTemplate(
       createApplicationMenuTemplate({
         canRevealCurrentFile: () => fileManager?.canRevealCurrentFile() ?? false,
+        launchOptions: launchOptions ?? {
+          behavior: 'open-new-file',
+          defaultFolderPath: null,
+          chooseDefaultFolder: () => {},
+          clearDefaultFolder: () => {},
+          selectBehavior: () => {},
+        },
         openRecent: openRecent ?? {
           pinnedFolders: [],
           recentEntries: [],

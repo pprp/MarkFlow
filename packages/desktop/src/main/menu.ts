@@ -1,5 +1,6 @@
+import * as path from 'path'
 import type { MenuItemConstructorOptions } from 'electron'
-import type { MarkFlowMenuAction, MarkFlowRecentPathKind } from '@markflow/shared'
+import type { MarkFlowLaunchBehavior, MarkFlowMenuAction, MarkFlowRecentPathKind } from '@markflow/shared'
 
 export interface OpenRecentMenuEntry {
   description: string
@@ -21,9 +22,18 @@ export interface OpenRecentMenuOptions {
   unpinFolder: (folderPath: string) => void
 }
 
+export interface LaunchOptionsMenuOptions {
+  behavior: MarkFlowLaunchBehavior
+  defaultFolderPath: string | null
+  chooseDefaultFolder: () => void
+  clearDefaultFolder: () => void
+  selectBehavior: (behavior: MarkFlowLaunchBehavior) => void
+}
+
 interface ApplicationMenuOptions {
   canRevealCurrentFile: () => boolean
   isAlwaysOnTop: boolean
+  launchOptions: LaunchOptionsMenuOptions
   openRecent: OpenRecentMenuOptions
   revealCurrentFileInFolder: () => boolean
   sendMenuAction: (action: MarkFlowMenuAction) => void
@@ -116,9 +126,54 @@ function buildOpenRecentSubmenu(openRecent: OpenRecentMenuOptions): MenuItemCons
   return submenu
 }
 
+function buildLaunchOptionsSubmenu(launchOptions: LaunchOptionsMenuOptions): MenuItemConstructorOptions[] {
+  const defaultFolderLabel = launchOptions.defaultFolderPath
+    ? `Open Default Folder (${path.basename(launchOptions.defaultFolderPath) || launchOptions.defaultFolderPath})`
+    : 'Open Default Folder'
+
+  return [
+    {
+      label: 'Open New File',
+      type: 'radio',
+      checked: launchOptions.behavior === 'open-new-file',
+      click: () => launchOptions.selectBehavior('open-new-file'),
+    },
+    {
+      label: 'Restore Last Folder',
+      type: 'radio',
+      checked: launchOptions.behavior === 'restore-last-folder',
+      click: () => launchOptions.selectBehavior('restore-last-folder'),
+    },
+    {
+      label: 'Restore Last File and Folder',
+      type: 'radio',
+      checked: launchOptions.behavior === 'restore-last-file-and-folder',
+      click: () => launchOptions.selectBehavior('restore-last-file-and-folder'),
+    },
+    { type: 'separator' },
+    {
+      label: defaultFolderLabel,
+      type: 'radio',
+      enabled: launchOptions.defaultFolderPath !== null,
+      checked: launchOptions.behavior === 'open-default-folder',
+      click: () => launchOptions.selectBehavior('open-default-folder'),
+    },
+    {
+      label: 'Choose Default Folder…',
+      click: () => launchOptions.chooseDefaultFolder(),
+    },
+    {
+      label: 'Clear Default Folder',
+      enabled: launchOptions.defaultFolderPath !== null,
+      click: () => launchOptions.clearDefaultFolder(),
+    },
+  ]
+}
+
 export function createApplicationMenuTemplate({
   canRevealCurrentFile,
   isAlwaysOnTop,
+  launchOptions,
   openRecent,
   revealCurrentFileInFolder,
   sendMenuAction,
@@ -135,6 +190,7 @@ export function createApplicationMenuTemplate({
         { label: 'New', accelerator: 'CmdOrCtrl+N', click: () => sendMenuAction('new-file') },
         { label: 'Open…', accelerator: 'CmdOrCtrl+O', click: () => sendMenuAction('open-file') },
         { label: 'Open Recent', submenu: buildOpenRecentSubmenu(openRecent) },
+        { label: 'Launch Options', submenu: buildLaunchOptionsSubmenu(launchOptions) },
         { type: 'separator' },
         { label: 'Close Tab', accelerator: 'CmdOrCtrl+W', click: () => sendMenuAction('close-tab') },
         {

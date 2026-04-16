@@ -345,6 +345,19 @@ interface ClosedDocumentTabState {
   tab: DocumentTabState
 }
 
+interface AppStartupState {
+  document: MarkFlowFilePayload | null
+  folderPath: string | null
+  windowSession: {
+    documents: MarkFlowFilePayload[]
+    activeFilePath: string | null
+  } | null
+}
+
+type MarkFlowStartupAPI = MarkFlowDesktopAPI & {
+  getStartupState: () => Promise<AppStartupState>
+}
+
 type PendingNavigationTarget = NavigationLocation & {
   preserveScroll?: boolean
 }
@@ -629,7 +642,7 @@ export function App() {
   }, [updateTabs])
 
   const syncWindowSession = useCallback(async (nextTabs: readonly DocumentTabState[], nextActiveTabId: string | null) => {
-    const api = window.markflow
+    const api = window.markflow as MarkFlowStartupAPI | undefined
     if (!api) {
       return
     }
@@ -1078,28 +1091,34 @@ export function App() {
 
     void (async () => {
       let persistedDocuments: MarkFlowFilePayload[] = []
-      const windowSession = await api.getWindowSession()
-      if (windowSession?.documents.length) {
-        const nextTabs = windowSession.documents.map((document) =>
+      const startupState = await api.getStartupState()
+      if (startupState.windowSession?.documents.length) {
+        const nextTabs = startupState.windowSession.documents.map((document) =>
           createDocumentTab(document.filePath, document.content, document.largeFile ?? null),
         )
         const nextActiveTab =
-          nextTabs.find((tab) => tab.filePath === windowSession.activeFilePath) ?? nextTabs[0] ?? null
+          nextTabs.find((tab) => tab.filePath === startupState.windowSession?.activeFilePath) ??
+          nextTabs[0] ??
+          null
 
         replaceTabs(nextTabs)
         replaceActiveTabId(nextActiveTab?.id ?? null)
-        persistedDocuments = windowSession.documents
+        persistedDocuments = startupState.windowSession.documents
         await Promise.all(
           nextTabs.map((tab) =>
             tab.largeFile ? Promise.resolve() : loadCollapsedRangesForTab(api, tab.id, tab.filePath),
           ),
         )
-      } else {
-        const currentDocument = await api.getCurrentDocument()
-        if (currentDocument) {
-          persistedDocuments = [currentDocument]
-          await applyOpenedDocument(currentDocument)
-        }
+      } else if (startupState.document) {
+        persistedDocuments = [startupState.document]
+        await applyOpenedDocument(startupState.document)
+      }
+
+      if (startupState.folderPath) {
+        setVaultPath(startupState.folderPath)
+        setShowSidebar(true)
+        const files = await api.getVaultFiles(startupState.folderPath)
+        setVaultFiles(files ?? [])
       }
 
       const recoveryCheckpoint = await api.getRecoveryCheckpoint()

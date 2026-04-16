@@ -5466,3 +5466,48 @@
   - none
 - Next recommended feature:
   - `MF-101` - perform the pending mixed-document manual delete-range verification, then set `passes` / `lastVerifiedAt`
+
+### 2026-04-16 - MF-103 adds persisted launch options for reopening the last file or folder on startup
+
+- Author: Codex
+- Focus: obey the startup protocol for `MF-103`, implement only the desktop launch-behavior feature, run the required automated verification plus `pnpm harness:verify`, keep the ledger honest because macOS and Windows relaunch checks were not completed here, and finish with a Lore-protocol commit.
+- What changed:
+  - re-read the root `AGENTS.md`, ran `pnpm harness:start`, and ran `./harness/init.sh --smoke` before implementation; both passed in this session
+  - extended `packages/desktop/src/main/fileManager.ts` with a persisted `.markflow-launch-options.json` model that remembers the selected launch behavior, default folder, last active file, and last folder, plus a `getStartupState()` resolver that prefers an explicit CLI/open-file path, otherwise restores the configured file/folder targets and skips missing paths cleanly
+  - updated `packages/desktop/src/main/menu.ts` and `packages/desktop/src/main/index.ts` so `File -> Launch Options` exposes Typora-style choices for `Open New File`, `Restore Last Folder`, `Restore Last File and Folder`, and `Open Default Folder`, including choosing and clearing a default folder from the desktop shell
+  - added the preload/shared startup-state bridge in `packages/desktop/src/preload/index.ts` and `packages/shared/src/index.ts`, then switched `packages/editor/src/App.tsx` to hydrate startup documents and folders from that single startup snapshot instead of racing `getWindowSession()` and `getCurrentDocument()` against post-load IPC
+  - added focused regression coverage in `packages/desktop/src/main/fileManager.test.ts` and `packages/desktop/src/main/menu.test.ts` for launch-option persistence, startup selection, explicit-file override precedence, missing default-folder fallback, and menu wiring; also extended `packages/editor/src/__tests__/App.test.tsx` to prove startup folder hydration still opens the sidebar
+- Changed files:
+  - `packages/desktop/src/main/fileManager.ts`
+  - `packages/desktop/src/main/fileManager.test.ts`
+  - `packages/desktop/src/main/index.ts`
+  - `packages/desktop/src/main/menu.ts`
+  - `packages/desktop/src/main/menu.test.ts`
+  - `packages/desktop/src/preload/index.ts`
+  - `packages/editor/src/App.tsx`
+  - `packages/editor/src/__tests__/App.test.tsx`
+  - `packages/shared/src/index.ts`
+  - `harness/feature-ledger.json`
+  - `harness/progress.md`
+- Simplifications made:
+  - kept launch-behavior persistence in the existing desktop `FileManager` rather than adding a second desktop state manager with overlapping path knowledge
+  - reused the existing renderer sidebar hydration path for startup folders, but fed it from one `getStartupState()` bridge instead of layering more `did-finish-load` events on top of window-session restore
+  - limited user-facing controls to the desktop menu instead of inventing a broader preferences panel in the same feature
+- Verification:
+  - `pnpm harness:start` (passes)
+  - `./harness/init.sh --smoke` before implementation (passes)
+  - `pnpm --filter @markflow/desktop exec vitest run src/main/fileManager.test.ts src/main/menu.test.ts` (passes; 2 files / 35 tests)
+  - `pnpm --filter @markflow/editor exec vitest run src/__tests__/App.test.tsx` (passes; 1 file / 52 tests)
+  - `pnpm --filter @markflow/shared build` (passes)
+  - `pnpm --filter @markflow/desktop lint` (passes)
+  - `pnpm --filter @markflow/desktop build` (passes)
+  - `pnpm --filter @markflow/editor build` (passes)
+  - `pnpm harness:verify` (passes)
+- Review / risks:
+  - `MF-103` is implemented and automated coverage is green, but `passes` must remain false until someone performs real relaunch checks on macOS and Windows and confirms each launch option behaves correctly outside the test harness
+  - the new startup-state resolver intentionally treats a missing remembered/default path as a no-op fallback to the normal starter document instead of surfacing a modal; this matches the feature's non-crash requirement, but the exact UX may still need product tuning later
+  - launch-option selection currently lives only in the desktop menu; if MarkFlow later grows a broader Preferences surface, these settings should move there without changing the persisted state schema gratuitously
+- Newly verified features:
+  - none
+- Next recommended feature:
+  - `MF-103` - perform the pending manual relaunch verification on macOS and Windows, then set `passes` / `lastVerifiedAt` only if all four startup behaviors match the ledger contract

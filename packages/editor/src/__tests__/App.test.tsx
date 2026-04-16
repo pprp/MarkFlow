@@ -110,6 +110,12 @@ function buildWindowedPayload(
   }
 }
 
+interface MockStartupState {
+  document: MarkFlowFilePayload | null
+  folderPath: string | null
+  windowSession: MarkFlowWindowSession | null
+}
+
 class MockMarkFlowAPI implements MarkFlowDesktopAPI {
   private documents = new Map<string, MarkFlowFilePayload>()
   private themes: MarkFlowThemeSummary[] = [
@@ -150,6 +156,11 @@ class MockMarkFlowAPI implements MarkFlowDesktopAPI {
     isAlwaysOnTop: false,
     isFullscreen: false,
   }
+  private startupState: MockStartupState = {
+    document: null,
+    folderPath: null,
+    windowSession: null,
+  }
   private windowSession: MarkFlowWindowSession | null = null
   private confirmTabCloseAction: 'save' | 'discard' | 'cancel' = 'cancel'
   openFile: MarkFlowDesktopAPI['openFile'] = vi.fn(async () => null)
@@ -160,6 +171,7 @@ class MockMarkFlowAPI implements MarkFlowDesktopAPI {
     }
     return document
   })
+  getStartupState = vi.fn(async () => this.startupState)
   readLargeFileWindow: MarkFlowDesktopAPI['readLargeFileWindow'] = vi.fn(async () => null)
   saveFile: MarkFlowDesktopAPI['saveFile'] = vi.fn(async () => ({ success: true }))
   saveFileAs: MarkFlowDesktopAPI['saveFileAs'] = vi.fn(async () => ({ success: true }))
@@ -345,6 +357,15 @@ class MockMarkFlowAPI implements MarkFlowDesktopAPI {
 
   setWindowSession(session: MarkFlowWindowSession | null) {
     this.windowSession = session
+    this.startupState = {
+      ...this.startupState,
+      document: null,
+      windowSession: session,
+    }
+  }
+
+  setStartupState(startupState: MockStartupState) {
+    this.startupState = startupState
   }
 
   setDocument(document: MarkFlowFilePayload) {
@@ -439,10 +460,14 @@ describe('App desktop integration', () => {
 
   it('hydrates an already-open desktop document on mount', async () => {
     const api = new MockMarkFlowAPI()
-    api.getCurrentDocument = vi.fn(async () => ({
-      filePath: '/tmp/session.md',
-      content: '# Session restore',
-    }))
+    api.setStartupState({
+      document: {
+        filePath: '/tmp/session.md',
+        content: '# Session restore',
+      },
+      folderPath: null,
+      windowSession: null,
+    })
     window.markflow = api
 
     const { container } = render(<App />)
@@ -452,6 +477,25 @@ describe('App desktop integration', () => {
     })
 
     expect(screen.getByRole('tab', { name: 'session.md' })).toBeInTheDocument()
+  })
+
+  it('opens the startup folder returned by the desktop bridge on mount', async () => {
+    const api = new MockMarkFlowAPI()
+    api.setStartupState({
+      document: null,
+      folderPath: '/docs',
+      windowSession: null,
+    })
+    api.getVaultFiles = vi.fn(async () => ['/docs/alpha.md', '/docs/beta.md'])
+    window.markflow = api
+
+    const { container } = render(<App />)
+
+    await waitFor(() => {
+      expect(container.querySelector('.mf-sidebar')).toBeInTheDocument()
+      expect(screen.getByText('alpha.md')).toBeInTheDocument()
+      expect(screen.getByText('beta.md')).toBeInTheDocument()
+    })
   })
 
   it('loads the default markdown post-processor plugin for starter links', async () => {

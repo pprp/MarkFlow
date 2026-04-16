@@ -17,10 +17,21 @@ function createOpenRecentOptions() {
   }
 }
 
+function createLaunchOptions() {
+  return {
+    behavior: 'open-new-file' as const,
+    defaultFolderPath: null,
+    chooseDefaultFolder: vi.fn(),
+    clearDefaultFolder: vi.fn(),
+    selectBehavior: vi.fn(),
+  }
+}
+
 function createMenuTemplate(overrides: Partial<Parameters<typeof createApplicationMenuTemplate>[0]> = {}) {
   return createApplicationMenuTemplate({
     canRevealCurrentFile: () => true,
     isAlwaysOnTop: false,
+    launchOptions: createLaunchOptions(),
     openRecent: createOpenRecentOptions(),
     revealCurrentFileInFolder: vi.fn(() => true),
     sendMenuAction: vi.fn(),
@@ -306,5 +317,55 @@ describe('createApplicationMenuTemplate', () => {
     expect(pinFolder).toHaveBeenCalledWith('/Users/pprp/docs')
     expect(clearItems).toHaveBeenCalledTimes(1)
     expect(clearAll).toHaveBeenCalledTimes(1)
+  })
+
+  it('serializes launch option choices and routes selection through the desktop callbacks', () => {
+    const chooseDefaultFolder = vi.fn()
+    const clearDefaultFolder = vi.fn()
+    const selectBehavior = vi.fn()
+    const template = createMenuTemplate({
+      launchOptions: {
+        behavior: 'open-default-folder',
+        defaultFolderPath: '/Users/pprp/Notes',
+        chooseDefaultFolder,
+        clearDefaultFolder,
+        selectBehavior,
+      },
+    })
+    const fileMenu = template.find((item) => item.label === 'File')
+    const fileSubmenu = Array.isArray(fileMenu?.submenu) ? fileMenu.submenu : []
+    const launchOptionsItem = fileSubmenu.find((item) => item.label === 'Launch Options')
+    const launchOptionsSubmenu = Array.isArray(launchOptionsItem?.submenu) ? launchOptionsItem.submenu : []
+    const openNewFileItem = launchOptionsSubmenu.find((item) => item.label === 'Open New File')
+    const restoreLastFolderItem = launchOptionsSubmenu.find((item) => item.label === 'Restore Last Folder')
+    const restoreLastFileAndFolderItem = launchOptionsSubmenu.find(
+      (item) => item.label === 'Restore Last File and Folder',
+    )
+    const openDefaultFolderItem = launchOptionsSubmenu.find((item) =>
+      typeof item.label === 'string' && item.label.startsWith('Open Default Folder'),
+    )
+    const chooseDefaultFolderItem = launchOptionsSubmenu.find((item) => item.label === 'Choose Default Folder…')
+    const clearDefaultFolderItem = launchOptionsSubmenu.find((item) => item.label === 'Clear Default Folder')
+
+    openNewFileItem?.click?.({} as never, {} as never, {} as never)
+    restoreLastFolderItem?.click?.({} as never, {} as never, {} as never)
+    restoreLastFileAndFolderItem?.click?.({} as never, {} as never, {} as never)
+    chooseDefaultFolderItem?.click?.({} as never, {} as never, {} as never)
+    clearDefaultFolderItem?.click?.({} as never, {} as never, {} as never)
+
+    expect(openDefaultFolderItem).toEqual(
+      expect.objectContaining({
+        checked: true,
+        enabled: true,
+        type: 'radio',
+      }),
+    )
+    expect(selectBehavior.mock.calls).toEqual([
+      ['open-new-file'],
+      ['restore-last-folder'],
+      ['restore-last-file-and-folder'],
+    ])
+    expect(chooseDefaultFolder).toHaveBeenCalledTimes(1)
+    expect(clearDefaultFolder).toHaveBeenCalledTimes(1)
   })
 })

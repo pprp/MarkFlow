@@ -2691,7 +2691,7 @@
       "category": "phase-2-functional",
       "area": "@markflow/desktop",
       "priority": 3,
-      "status": "planned",
+      "status": "ready",
       "passes": false,
       "lastVerifiedAt": null,
       "dependsOn": [
@@ -2711,7 +2711,7 @@
           "Verify clean relaunch behavior on macOS and Windows."
         ]
       },
-      "notes": "Typora documents launch options for reopening the last file/folder or opening a specified folder on startup. MarkFlow currently only handles a CLI-passed markdown path and has no persisted startup preference or folder-restore flow. Sources: https://support.typora.io/File-Management/ and https://support.typora.io/Launch-Options/."
+      "notes": "Implemented on 2026-04-16 in `packages/desktop/src/main/fileManager.ts`, `packages/desktop/src/main/index.ts`, `packages/desktop/src/main/menu.ts`, `packages/desktop/src/preload/index.ts`, `packages/shared/src/index.ts`, `packages/editor/src/App.tsx`, `packages/desktop/src/main/fileManager.test.ts`, `packages/desktop/src/main/menu.test.ts`, and `packages/editor/src/__tests__/App.test.tsx`. MarkFlow now persists a Typora-style launch behavior selection (`Open New File`, `Restore Last Folder`, `Restore Last File and Folder`, or `Open Default Folder`) in the desktop main process, exposes that choice from `File -> Launch Options`, resolves startup through a single desktop startup-state bridge, restores the remembered or configured folder without relying on `did-finish-load` IPC races, and falls back cleanly to an empty editor when the remembered/default path is missing. Automated verification passed on 2026-04-16 with `pnpm --filter @markflow/desktop exec vitest run src/main/fileManager.test.ts src/main/menu.test.ts`, `pnpm --filter @markflow/editor exec vitest run src/__tests__/App.test.tsx`, `pnpm --filter @markflow/shared build`, `pnpm --filter @markflow/desktop lint`, `pnpm --filter @markflow/desktop build`, `pnpm --filter @markflow/editor build`, and `pnpm harness:verify`. `passes` remains false because the required clean relaunch verification on both macOS and Windows was not truthfully performed in this terminal session. Sources: https://support.typora.io/File-Management/ and https://support.typora.io/Launch-Options/."
     },
     {
       "id": "MF-104",

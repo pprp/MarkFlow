@@ -387,6 +387,120 @@ describe('FileManager window sessions', () => {
   })
 })
 
+describe('FileManager launch options', () => {
+  beforeEach(() => {
+    handleMock.mockReset()
+    onMock.mockReset()
+    removeAllListenersMock.mockReset()
+    removeHandlerMock.mockReset()
+    showOpenDialogMock.mockReset()
+    showSaveDialogMock.mockReset()
+    showMessageBoxMock.mockReset()
+    appGetPathMock.mockReset()
+    appGetPathMock.mockImplementation(() => '/tmp')
+    addRecentDocumentMock.mockReset()
+    clearRecentDocumentsMock.mockReset()
+    vi.restoreAllMocks()
+  })
+
+  it('persists the selected launch option and restores the last file plus folder on startup', async () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'markflow-launch-options-'))
+    appGetPathMock.mockImplementation(() => tempDir)
+
+    const folderPath = path.join(tempDir, 'vault')
+    const filePath = path.join(folderPath, 'alpha.md')
+    fs.mkdirSync(folderPath)
+    fs.writeFileSync(filePath, '# Alpha', 'utf-8')
+
+    const manager = new FileManager(createWindowStub() as never)
+    await manager.openExistingFolderPath(folderPath)
+    await manager.openPath(filePath)
+    await manager.saveWindowSession({
+      filePaths: [filePath],
+      activeFilePath: filePath,
+    })
+    await manager.setLaunchBehavior('restore-last-file-and-folder')
+
+    const nextSessionManager = new FileManager(createWindowStub() as never)
+    const startupState = await nextSessionManager.getStartupState()
+
+    expect(startupState).toEqual({
+      document: null,
+      folderPath,
+      windowSession: {
+        documents: [{ filePath, content: '# Alpha' }],
+        activeFilePath: filePath,
+      },
+    })
+    expect(
+      JSON.parse(fs.readFileSync(path.join(tempDir, '.markflow-launch-options.json'), 'utf-8')),
+    ).toEqual({
+      behavior: 'restore-last-file-and-folder',
+      defaultFolderPath: null,
+      lastFilePath: filePath,
+      lastFolderPath: folderPath,
+    })
+  })
+
+  it('prefers an explicit startup file over persisted launch options', async () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'markflow-launch-options-'))
+    appGetPathMock.mockImplementation(() => tempDir)
+
+    const folderPath = path.join(tempDir, 'vault')
+    const filePath = path.join(folderPath, 'alpha.md')
+    const overridePath = path.join(tempDir, 'override.md')
+    fs.mkdirSync(folderPath)
+    fs.writeFileSync(filePath, '# Alpha', 'utf-8')
+    fs.writeFileSync(overridePath, '# Override', 'utf-8')
+
+    const manager = new FileManager(createWindowStub() as never)
+    await manager.openExistingFolderPath(folderPath)
+    await manager.openPath(filePath)
+    await manager.saveWindowSession({
+      filePaths: [filePath],
+      activeFilePath: filePath,
+    })
+    await manager.setLaunchBehavior('restore-last-file-and-folder')
+
+    const nextSessionManager = new FileManager(createWindowStub() as never)
+    nextSessionManager.setStartupOverrideFilePath(overridePath)
+
+    await expect(nextSessionManager.getStartupState()).resolves.toEqual({
+      document: { filePath: overridePath, content: '# Override' },
+      folderPath: null,
+      windowSession: null,
+    })
+  })
+
+  it('opens the configured default folder on startup and falls back cleanly when it is missing', async () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'markflow-launch-options-'))
+    appGetPathMock.mockImplementation(() => tempDir)
+
+    const existingFolderPath = path.join(tempDir, 'default-vault')
+    const missingFolderPath = path.join(tempDir, 'missing-vault')
+    fs.mkdirSync(existingFolderPath)
+
+    const manager = new FileManager(createWindowStub() as never)
+    await manager.setDefaultLaunchFolderPath(existingFolderPath)
+    await manager.setLaunchBehavior('open-default-folder')
+
+    let startupState = await new FileManager(createWindowStub() as never).getStartupState()
+    expect(startupState).toEqual({
+      document: null,
+      folderPath: existingFolderPath,
+      windowSession: null,
+    })
+
+    await manager.setDefaultLaunchFolderPath(missingFolderPath)
+    startupState = await new FileManager(createWindowStub() as never).getStartupState()
+    expect(startupState).toEqual({
+      document: null,
+      folderPath: null,
+      windowSession: null,
+    })
+  })
+})
+
 describe('FileManager fold state sidecars', () => {
   beforeEach(() => {
     handleMock.mockReset()

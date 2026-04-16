@@ -9,6 +9,7 @@ import type {
   MarkFlowImageUploadSettings,
   MarkFlowFileLoadProgressPayload,
   MarkFlowFilePayload,
+  MarkFlowStartupState,
   MarkFlowMenuActionPayload,
   MarkFlowRecoveryCheckpoint,
   MarkFlowRecoveryDraft,
@@ -34,6 +35,7 @@ const api: MarkFlowDesktopAPI = {
   openFile: () => ipcRenderer.invoke('open-file'),
   openPath: (filePath: string) => ipcRenderer.invoke('open-path', filePath),
   openFolderPath: (folderPath: string) => ipcRenderer.invoke('open-folder-path', folderPath),
+  getStartupState: () => ipcRenderer.invoke('get-startup-state') as Promise<MarkFlowStartupState>,
   readLargeFileWindow: (filePath: string, lineNumber: number) =>
     ipcRenderer.invoke('read-large-file-window', filePath, lineNumber),
   saveFile: (content: string, tabId?: string | null) =>

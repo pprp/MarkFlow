@@ -6,6 +6,7 @@ import { StringDecoder } from 'string_decoder'
 const execFileAsync = promisify(execFile)
 import * as path from 'path'
 import type {
+  MarkFlowLaunchBehavior,
   MarkFlowTabCloseAction,
   MarkFlowFileLoadProgressPayload,
   MarkFlowFilePayload,
@@ -18,8 +19,13 @@ import type {
   MarkFlowWindowSessionState,
   MarkFlowRecentPathKind,
   SearchResult,
+  MarkFlowStartupState,
 } from '@markflow/shared'
-import type { OpenRecentMenuEntry, OpenRecentMenuOptions } from './menu'
+import type {
+  LaunchOptionsMenuOptions,
+  OpenRecentMenuEntry,
+  OpenRecentMenuOptions,
+} from './menu'
 
 const STREAM_OPEN_CHUNK_SIZE = 64 * 1024
 const STREAM_OPEN_THRESHOLD_BYTES = 1024 * 1024
@@ -36,7 +42,9 @@ const SESSION_STATE_FILE_NAME = '.markflow-recovery-session.json'
 const WINDOW_SESSION_FILE_NAME = '.markflow-window-session.json'
 const FOLD_STATE_FILE_SUFFIX = '.folds'
 const RECENT_HISTORY_FILE_NAME = '.markflow-open-recent.json'
+const LAUNCH_OPTIONS_FILE_NAME = '.markflow-launch-options.json'
 const MAX_RECENT_HISTORY_ITEMS = 20
+const DEFAULT_LAUNCH_BEHAVIOR: MarkFlowLaunchBehavior = 'open-new-file'
 
 interface MarkFlowSessionState {
   cleanExit: boolean
@@ -50,6 +58,13 @@ interface MarkFlowRecentPathEntry {
 interface MarkFlowRecentHistoryState {
   entries: MarkFlowRecentPathEntry[]
   pinnedFolders: string[]
+}
+
+interface MarkFlowLaunchOptionsState {
+  behavior: MarkFlowLaunchBehavior
+  defaultFolderPath: string | null
+  lastFilePath: string | null
+  lastFolderPath: string | null
 }
 
 interface FileManagerOptions {
@@ -86,11 +101,15 @@ const DEFAULT_FILE_MANAGER_OPTIONS: FileManagerOptions = {
 
 export class FileManager {
   private currentFilePath: string | null = null
+  private currentFolderPath: string | null = null
+  private startupOverrideFilePath: string | null = null
+  private launchOptions: MarkFlowLaunchOptionsState
   private recentHistory: MarkFlowRecentHistoryState
   private pendingRecoveryDraft: MarkFlowRecoveryDraft | null = null
   private recoveryWriteTimer: NodeJS.Timeout | null = null
   private readonly largeFileIndexes = new Map<string, MarkFlowLargeFileIndex>()
   private readonly options: FileManagerOptions
+  private readonly launchOptionsPath = path.join(app.getPath('userData'), LAUNCH_OPTIONS_FILE_NAME)
   private readonly recoveryCheckpointPath = path.join(app.getPath('temp'), RECOVERY_CHECKPOINT_FILE_NAME)
   private readonly recentHistoryPath = path.join(app.getPath('userData'), RECENT_HISTORY_FILE_NAME)
   private readonly sessionStatePath = path.join(app.getPath('userData'), SESSION_STATE_FILE_NAME)
@@ -105,6 +124,7 @@ export class FileManager {
       ...DEFAULT_FILE_MANAGER_OPTIONS,
       ...options,
     }
+    this.launchOptions = this.readLaunchOptions()
     this.recentHistory = this.readRecentHistory()
     this.syncOsRecentDocuments()
   }
@@ -119,6 +139,7 @@ export class FileManager {
     ipcMain.removeHandler('save-fold-state')
     ipcMain.removeHandler('new-file')
     ipcMain.removeHandler('get-current-path')
+    ipcMain.removeHandler('get-startup-state')
     ipcMain.removeHandler('get-current-document')
     ipcMain.removeHandler('get-recovery-checkpoint')
     ipcMain.removeHandler('discard-recovery-checkpoint')
@@ -156,6 +177,7 @@ export class FileManager {
     })
     ipcMain.handle('new-file', () => this.newFile())
     ipcMain.handle('get-current-path', () => this.currentFilePath)
+    ipcMain.handle('get-startup-state', () => this.getStartupState())
     ipcMain.handle('get-current-document', () => this.getCurrentDocument())
     ipcMain.handle('get-window-session', () => this.getWindowSession())
     ipcMain.handle('save-window-session', async (_event, session: MarkFlowWindowSessionState) => {
@@ -347,6 +369,112 @@ export class FileManager {
     }
   }
 
+  getLaunchOptionsMenuState(): LaunchOptionsMenuOptions {
+    return {
+      behavior: this.launchOptions.behavior,
+      defaultFolderPath: this.launchOptions.defaultFolderPath,
+      chooseDefaultFolder: () => {
+        void this.chooseDefaultLaunchFolder()
+      },
+      clearDefaultFolder: () => {
+        void this.clearDefaultLaunchFolder()
+      },
+      selectBehavior: (behavior) => {
+        void this.setLaunchBehavior(behavior)
+      },
+    }
+  }
+
+  setStartupOverrideFilePath(filePath: string | null) {
+    this.startupOverrideFilePath = filePath
+  }
+
+  async setLaunchBehavior(behavior: MarkFlowLaunchBehavior) {
+    if (behavior === 'open-default-folder' && !this.launchOptions.defaultFolderPath) {
+      return
+    }
+    if (this.launchOptions.behavior === behavior) {
+      return
+    }
+
+    this.launchOptions = {
+      ...this.launchOptions,
+      behavior,
+    }
+    await this.persistLaunchOptions()
+    this.onCurrentFilePathChanged?.()
+  }
+
+  async setDefaultLaunchFolderPath(folderPath: string | null) {
+    const normalizedFolderPath = typeof folderPath === 'string' && folderPath.length > 0 ? folderPath : null
+    if (this.launchOptions.defaultFolderPath === normalizedFolderPath) {
+      return
+    }
+
+    this.launchOptions = {
+      ...this.launchOptions,
+      defaultFolderPath: normalizedFolderPath,
+    }
+    await this.persistLaunchOptions()
+    this.onCurrentFilePathChanged?.()
+  }
+
+  async getStartupState(): Promise<MarkFlowStartupState> {
+    const explicitDocument = await this.resolveExplicitStartupDocument()
+    if (explicitDocument) {
+      return {
+        document: explicitDocument,
+        folderPath: null,
+        windowSession: null,
+      }
+    }
+
+    if (this.launchOptions.behavior === 'restore-last-file-and-folder') {
+      const windowSession = await this.getStartupWindowSession()
+      const folderPath = await this.resolveStartupFolderPath(
+        this.launchOptions.lastFolderPath ??
+          (this.launchOptions.lastFilePath ? path.dirname(this.launchOptions.lastFilePath) : null),
+      )
+
+      if (windowSession) {
+        return {
+          document: null,
+          folderPath,
+          windowSession,
+        }
+      }
+
+      const document = await this.resolveStartupDocument(this.launchOptions.lastFilePath)
+      return {
+        document,
+        folderPath,
+        windowSession: null,
+      }
+    }
+
+    if (this.launchOptions.behavior === 'restore-last-folder') {
+      return {
+        document: null,
+        folderPath: await this.resolveStartupFolderPath(this.launchOptions.lastFolderPath),
+        windowSession: null,
+      }
+    }
+
+    if (this.launchOptions.behavior === 'open-default-folder') {
+      return {
+        document: null,
+        folderPath: await this.resolveStartupFolderPath(this.launchOptions.defaultFolderPath),
+        windowSession: null,
+      }
+    }
+
+    return {
+      document: null,
+      folderPath: null,
+      windowSession: null,
+    }
+  }
+
   async newFile() {
     this.currentFilePath = null
     this.onCurrentFilePathChanged?.()
@@ -408,7 +536,7 @@ export class FileManager {
 
     const saveResult = await this.writeFile(result.filePath, content ?? '')
     if (saveResult.success) {
-      this.currentFilePath = result.filePath
+      await this.rememberFilePath(result.filePath)
       await this.addRecentEntry('file', result.filePath)
       await this.removeRecoveryDocument(tabId)
       this.emitFileSaved(result.filePath)
@@ -419,7 +547,7 @@ export class FileManager {
 
   async openPath(filePath: string): Promise<MarkFlowFilePayload> {
     const payload = await this.readFileForOpen(filePath)
-    this.currentFilePath = filePath
+    await this.rememberFilePath(filePath)
     await this.addRecentEntry('file', filePath)
     this.window.webContents.send('file-opened', payload)
     this.updateTitle()
@@ -548,8 +676,10 @@ export class FileManager {
     const nextActiveFilePath =
       session.activeFilePath && documents.some((document) => document.filePath === session.activeFilePath)
         ? session.activeFilePath
-        : documents[0].filePath
-    this.currentFilePath = nextActiveFilePath
+        : documents[0].filePath ?? null
+    if (nextActiveFilePath) {
+      await this.rememberFilePath(nextActiveFilePath)
+    }
     this.onCurrentFilePathChanged?.()
     this.updateTitle()
 
@@ -582,7 +712,19 @@ export class FileManager {
       console.error('Failed to write MarkFlow window session state:', error)
     }
 
-    this.currentFilePath = activeFilePath
+    if (activeFilePath) {
+      await this.rememberFilePath(activeFilePath)
+    } else {
+      const didChange = this.currentFilePath !== null || this.launchOptions.lastFilePath !== null
+      this.currentFilePath = null
+      this.launchOptions = {
+        ...this.launchOptions,
+        lastFilePath: null,
+      }
+      if (didChange) {
+        await this.persistLaunchOptions()
+      }
+    }
     this.onCurrentFilePathChanged?.()
     this.updateTitle()
   }
@@ -735,6 +877,7 @@ export class FileManager {
     })
     if (result.canceled || result.filePaths.length === 0) return null
 
+    await this.rememberFolderPath(result.filePaths[0])
     await this.addRecentEntry('folder', result.filePaths[0])
     return { folderPath: result.filePaths[0] }
   }
@@ -749,8 +892,34 @@ export class FileManager {
       return null
     }
 
+    await this.rememberFolderPath(folderPath)
     await this.addRecentEntry('folder', folderPath)
     return { folderPath }
+  }
+
+  private async chooseDefaultLaunchFolder() {
+    const result = await dialog.showOpenDialog(this.window, {
+      properties: ['openDirectory'],
+    })
+    if (result.canceled || result.filePaths.length === 0) {
+      return
+    }
+
+    await this.setDefaultLaunchFolderPath(result.filePaths[0])
+    await this.setLaunchBehavior('open-default-folder')
+  }
+
+  private async clearDefaultLaunchFolder() {
+    const nextBehavior =
+      this.launchOptions.behavior === 'open-default-folder' ? DEFAULT_LAUNCH_BEHAVIOR : this.launchOptions.behavior
+
+    this.launchOptions = {
+      ...this.launchOptions,
+      behavior: nextBehavior,
+      defaultFolderPath: null,
+    }
+    await this.persistLaunchOptions()
+    this.onCurrentFilePathChanged?.()
   }
 
   getVaultFiles(folderPath: string): string[] {
@@ -877,6 +1046,119 @@ export class FileManager {
     this.onCurrentFilePathChanged?.()
   }
 
+  private async rememberFilePath(filePath: string) {
+    const folderPath = path.dirname(filePath)
+    const didChange =
+      this.currentFilePath !== filePath ||
+      this.currentFolderPath !== folderPath ||
+      this.launchOptions.lastFilePath !== filePath ||
+      this.launchOptions.lastFolderPath !== folderPath
+
+    this.currentFilePath = filePath
+    this.currentFolderPath = folderPath
+    this.launchOptions = {
+      ...this.launchOptions,
+      lastFilePath: filePath,
+      lastFolderPath: folderPath,
+    }
+
+    if (didChange) {
+      await this.persistLaunchOptions()
+    }
+  }
+
+  private async rememberFolderPath(folderPath: string) {
+    const didChange =
+      this.currentFolderPath !== folderPath || this.launchOptions.lastFolderPath !== folderPath
+
+    this.currentFolderPath = folderPath
+    this.launchOptions = {
+      ...this.launchOptions,
+      lastFolderPath: folderPath,
+    }
+
+    if (didChange) {
+      await this.persistLaunchOptions()
+    }
+  }
+
+  private async resolveExplicitStartupDocument() {
+    if (!this.startupOverrideFilePath) {
+      return null
+    }
+
+    const explicitFilePath = this.startupOverrideFilePath
+    this.startupOverrideFilePath = null
+    return this.resolveStartupDocument(explicitFilePath)
+  }
+
+  private async resolveStartupDocument(filePath: string | null) {
+    if (!filePath || !fs.existsSync(filePath)) {
+      return null
+    }
+
+    const payload = await this.readFileForOpen(filePath)
+    await this.rememberFilePath(filePath)
+    await this.addRecentEntry('file', filePath)
+    this.updateTitle()
+    return payload
+  }
+
+  private async resolveStartupFolderPath(folderPath: string | null) {
+    if (!folderPath) {
+      return null
+    }
+
+    try {
+      const stats = await fs.promises.stat(folderPath)
+      if (!stats.isDirectory()) {
+        return null
+      }
+    } catch {
+      return null
+    }
+
+    await this.rememberFolderPath(folderPath)
+    await this.addRecentEntry('folder', folderPath)
+    return folderPath
+  }
+
+  private async getStartupWindowSession(): Promise<MarkFlowWindowSession | null> {
+    const session = await this.readWindowSessionState()
+    if (!session || session.filePaths.length === 0) {
+      return null
+    }
+
+    const documents: MarkFlowFilePayload[] = []
+    for (const filePath of session.filePaths) {
+      if (!fs.existsSync(filePath)) {
+        continue
+      }
+
+      documents.push(await this.readFileForOpen(filePath))
+    }
+
+    if (documents.length === 0) {
+      return null
+    }
+
+    const activeFilePath =
+      session.activeFilePath && documents.some((document) => document.filePath === session.activeFilePath)
+        ? session.activeFilePath
+        : documents[0].filePath ?? null
+
+    if (activeFilePath) {
+      await this.rememberFilePath(activeFilePath)
+      await this.addRecentEntry('file', activeFilePath)
+    }
+    this.updateTitle()
+
+    return {
+      documents,
+      activeFilePath,
+    }
+  }
+
   private syncOsRecentDocuments() {
     if (typeof app.clearRecentDocuments !== 'function' || typeof app.addRecentDocument !== 'function') {
       return
@@ -929,6 +1211,29 @@ export class FileManager {
         entries: [],
         pinnedFolders: [],
       }
+    }
+  }
+
+  private readLaunchOptions(): MarkFlowLaunchOptionsState {
+    try {
+      const contents = fs.readFileSync(this.launchOptionsPath, 'utf-8')
+      if (typeof contents !== 'string' || contents.trim().length === 0) {
+        return this.createDefaultLaunchOptions()
+      }
+
+      const payload = JSON.parse(contents) as Partial<MarkFlowLaunchOptionsState>
+      return {
+        behavior: this.normalizeLaunchBehavior(payload.behavior),
+        defaultFolderPath: this.normalizeOptionalPath(payload.defaultFolderPath),
+        lastFilePath: this.normalizeOptionalPath(payload.lastFilePath),
+        lastFolderPath: this.normalizeOptionalPath(payload.lastFolderPath),
+      }
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+        console.error('Failed to read MarkFlow launch options:', error)
+      }
+
+      return this.createDefaultLaunchOptions()
     }
   }
 
@@ -989,12 +1294,42 @@ export class FileManager {
     return normalizedPaths
   }
 
+  private normalizeLaunchBehavior(behavior: unknown): MarkFlowLaunchBehavior {
+    return behavior === 'restore-last-folder' ||
+      behavior === 'restore-last-file-and-folder' ||
+      behavior === 'open-default-folder'
+      ? behavior
+      : DEFAULT_LAUNCH_BEHAVIOR
+  }
+
+  private normalizeOptionalPath(targetPath: unknown): string | null {
+    return typeof targetPath === 'string' && targetPath.length > 0 ? targetPath : null
+  }
+
+  private createDefaultLaunchOptions(): MarkFlowLaunchOptionsState {
+    return {
+      behavior: DEFAULT_LAUNCH_BEHAVIOR,
+      defaultFolderPath: null,
+      lastFilePath: null,
+      lastFolderPath: null,
+    }
+  }
+
   private async persistRecentHistory() {
     try {
       await fs.promises.mkdir(path.dirname(this.recentHistoryPath), { recursive: true })
       await fs.promises.writeFile(this.recentHistoryPath, JSON.stringify(this.recentHistory), 'utf-8')
     } catch (error) {
       console.error('Failed to write MarkFlow recent history:', error)
+    }
+  }
+
+  private async persistLaunchOptions() {
+    try {
+      await fs.promises.mkdir(path.dirname(this.launchOptionsPath), { recursive: true })
+      await fs.promises.writeFile(this.launchOptionsPath, JSON.stringify(this.launchOptions), 'utf-8')
+    } catch (error) {
+      console.error('Failed to write MarkFlow launch options:', error)
     }
   }
 

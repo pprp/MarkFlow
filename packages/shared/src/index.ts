@@ -182,6 +182,18 @@ export interface MarkFlowWindowSession {
   activeFilePath: string | null
 }
 
+export type MarkFlowLaunchBehavior =
+  | 'open-new-file'
+  | 'restore-last-folder'
+  | 'restore-last-file-and-folder'
+  | 'open-default-folder'
+
+export interface MarkFlowStartupState {
+  document: MarkFlowFilePayload | null
+  folderPath: string | null
+  windowSession: MarkFlowWindowSession | null
+}
+
 export interface MarkFlowClipboardPayload {
   text: string
   html?: string
@@ -372,6 +384,7 @@ export interface MarkFlowDesktopAPI {
   openFile: () => Promise<MarkFlowFilePayload | null>
   openPath: (filePath: string) => Promise<MarkFlowFilePayload | null>
   openFolderPath: (folderPath: string) => Promise<{ folderPath: string } | null>
+  getStartupState: () => Promise<MarkFlowStartupState>
   readLargeFileWindow: (filePath: string, lineNumber: number) => Promise<MarkFlowFilePayload | null>
   saveFile: (content: string, tabId?: string | null) => Promise<MarkFlowSaveResult | null>
   saveFileAs: (content: string, tabId?: string | null) => Promise<MarkFlowSaveResult | null>
