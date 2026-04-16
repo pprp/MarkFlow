@@ -209,13 +209,16 @@
 
 - Author: Codex
 - Focus: implement `MF-074` only, starting from the required session-start harness flow, then add a command palette on `Cmd/Ctrl+Shift+P` that can search and dispatch representative editor and desktop actions by name without widening scope to a second feature.
+- Research updates:
+  - Researcher re-checked Typora's public docs and found no official evidence for a first-party Typora command-palette UI, so `MF-074` was reframed as a MarkFlow command launcher informed by Typora's documented menu, shortcut, and quick-open surface rather than as a confirmed Typora parity claim.
 - What changed:
   - re-read the root `AGENTS.md`, then ran `pnpm harness:start` followed by `./harness/init.sh --smoke` before touching `MF-074`
   - added a dedicated command palette overlay and ranking helper in `packages/editor/src/components/CommandPalette.tsx`, `packages/editor/src/components/CommandPalette.css`, and `packages/editor/src/components/commandPaletteRegistry.ts`
   - wired `packages/editor/src/App.tsx` to open the palette on `Cmd/Ctrl+Shift+P`, register representative view/insert/export/navigation/edit/file commands, and close/refocus the editor after successful editor-side actions
   - extended `packages/editor/src/editor/MarkFlowEditor.tsx` with a narrow imperative command bridge and exported the needed scaffold helpers from `packages/editor/src/editor/extensions/smartInput.ts` so palette-triggered edits can act on the live CodeMirror selection
-  - added automated coverage in `packages/editor/src/components/commandPalette.test.tsx` and `packages/editor/src/__tests__/App.test.tsx` for registry ordering, prefix/fuzzy filtering, execution dispatch, keyboard invocation, and editor-state preservation
-  - updated `harness/feature-ledger.json` notes for `MF-074` while keeping `status=planned`, `passes=false`, and `lastVerifiedAt=null` because this session did not complete the required manual GUI walkthrough
+  - restored the pre-existing `Cmd/Ctrl+Shift+F` global-search toggle semantics after the initial palette wiring had accidentally made that shortcut open-only
+  - added automated coverage in `packages/editor/src/components/commandPalette.test.tsx` and `packages/editor/src/__tests__/App.test.tsx` for registry ordering, prefix/fuzzy filtering, execution dispatch, keyboard invocation, editor-state preservation, and palette dispatch of a desktop-style Quick Open action
+  - updated `harness/feature-ledger.json` so `MF-074` now truthfully sits at `status=ready`, `passes=false`, and `lastVerifiedAt=null`, with notes that reflect the research ambiguity instead of overstating Typora parity
 - Changed files:
   - `packages/editor/src/App.tsx`
   - `packages/editor/src/components/CommandPalette.tsx`
@@ -231,18 +234,20 @@
   - kept the existing file `QuickOpen` flow intact instead of trying to merge file browsing and command execution into one larger refactor
   - used a small imperative editor command surface rather than threading raw `EditorView` references throughout `App`
   - limited the palette registry to representative high-value actions across the required categories instead of expanding into unrelated preference or menu-system work
+  - corrected the ledger wording instead of renaming or deleting `MF-074`, which keeps backlog history stable while removing an unsupported claim
 - Verification:
   - `pnpm harness:start` (passes)
   - `./harness/init.sh --smoke` (passes; workspace smoke run completed before implementation, including desktop and editor test suites)
-  - `pnpm --filter @markflow/editor exec vitest run src/components/commandPalette.test.tsx src/__tests__/App.test.tsx` (passes; 2 files / 29 tests)
-  - `pnpm --filter @markflow/editor lint` (passes)
+  - `pnpm --filter @markflow/editor exec vitest run src/components/commandPalette.test.tsx src/__tests__/App.test.tsx` (passes; 2 files / 30 tests)
+  - `pnpm --filter @markflow/editor exec eslint src/App.tsx src/editor/MarkFlowEditor.tsx src/editor/extensions/smartInput.ts src/components/CommandPalette.tsx src/components/commandPaletteRegistry.ts src/components/commandPalette.test.tsx` (passes)
   - `pnpm --filter @markflow/editor build` (passes)
-  - `pnpm harness:verify` (passes; 106 total | verified=64 | ready=17 | planned=25 | blocked=0)
+  - `pnpm harness:verify` (passes; 106 total | verified=64 | ready=18 | planned=24 | blocked=0)
   - manual verification (blocked in this terminal session): the required five-category GUI walkthrough was not performed here, so `passes` could not be truthfully promoted
 - Review / risks:
   - `MF-074` still cannot move to `passes=true` or receive `lastVerifiedAt` until a real GUI session exercises at least one view, insert, export, navigation, and edit command through the palette without touching menus
   - insert scaffold commands intentionally reuse existing WYSIWYG/plain-paragraph constraints from the editor shortcuts, so the manual run should cover those commands from a valid paragraph context rather than source mode
   - the current registry is representative rather than exhaustive; future editor or desktop actions will need explicit registration if they should appear in the palette
+  - official Typora docs still do not prove a first-party command-palette UI, so the parity claim should remain limited to menu/shortcut coverage unless stronger evidence appears later
 - Newly verified features:
   - none
 - Next recommended feature:

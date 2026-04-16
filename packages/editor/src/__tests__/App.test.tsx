@@ -1072,6 +1072,35 @@ describe('App command palette integration', () => {
     expect(view.scrollDOM.scrollTop).toBe(120)
     expect(screen.queryByPlaceholderText('Search commands...')).not.toBeInTheDocument()
   })
+
+  it('dispatches desktop-style actions such as quick open through the command palette', async () => {
+    const api = new MockMarkFlowAPI()
+    api.getQuickOpenList = vi.fn(async () => [
+      {
+        id: '/docs/alpha.md',
+        label: 'alpha.md',
+        description: '/docs',
+        filePath: '/docs/alpha.md',
+        isRecent: false,
+      },
+    ])
+    window.markflow = api
+
+    render(<App />)
+
+    fireEvent.keyDown(document, { key: 'p', ctrlKey: true, shiftKey: true })
+
+    const input = await screen.findByPlaceholderText('Search commands...')
+    fireEvent.change(input, { target: { value: 'quick open' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+
+    await waitFor(() => {
+      expect(api.getQuickOpenList).toHaveBeenCalledTimes(1)
+      expect(screen.getByPlaceholderText('Search files by name...')).toBeInTheDocument()
+    })
+
+    expect(screen.queryByPlaceholderText('Search commands...')).not.toBeInTheDocument()
+  })
 })
 
 

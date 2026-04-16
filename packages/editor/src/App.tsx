@@ -471,6 +471,14 @@ export function App() {
     return true
   }, [])
 
+  const handleToggleGlobalSearch = useCallback(() => {
+    setIsCommandPaletteOpen(false)
+    setIsQuickOpenOpen(false)
+    setIsGoToLineOpen(false)
+    setIsGlobalSearchOpen((current) => !current)
+    return true
+  }, [])
+
   const handleOpenGoToLine = useCallback(() => {
     setIsCommandPaletteOpen(false)
     setIsQuickOpenOpen(false)
@@ -557,7 +565,7 @@ export function App() {
         await handleOpenQuickOpen()
       } else if (isGlobalSearchKey) {
         e.preventDefault()
-        handleOpenGlobalSearch()
+        handleToggleGlobalSearch()
       } else if (isGoToLineKey) {
         e.preventDefault()
         handleOpenGoToLine()
@@ -565,7 +573,12 @@ export function App() {
     }
     document.addEventListener('keydown', handleGlobalKeyDown)
     return () => document.removeEventListener('keydown', handleGlobalKeyDown)
-  }, [handleOpenCommandPalette, handleOpenGlobalSearch, handleOpenGoToLine, handleOpenQuickOpen])
+  }, [
+    handleOpenCommandPalette,
+    handleOpenGoToLine,
+    handleOpenQuickOpen,
+    handleToggleGlobalSearch,
+  ])
 
   const handleQuickOpenSelect = async (item: MarkFlowQuickOpenItem) => {
     setIsQuickOpenOpen(false)
