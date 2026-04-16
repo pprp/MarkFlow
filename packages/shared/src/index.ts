@@ -9,6 +9,16 @@ export type ViewMode = 'source' | 'wysiwyg' | 'reading' | 'split'
 export interface MarkFlowFilePayload {
   filePath: string | null
   content: string
+  largeFile?: MarkFlowLargeFileWindow | null
+}
+
+export interface MarkFlowLargeFileWindow {
+  totalBytes: number
+  totalLines: number
+  windowStartLine: number
+  windowEndLine: number
+  anchorLine: number
+  readOnly: true
 }
 
 export interface MarkFlowFileLoadProgressPayload {
@@ -30,6 +40,12 @@ export interface MarkFlowSaveResult {
 }
 
 export interface MarkFlowRecoveryDraft {
+  activeTabId: string | null
+  documents: MarkFlowRecoveryDocument[]
+}
+
+export interface MarkFlowRecoveryDocument {
+  tabId: string
   filePath: string | null
   content: string
 }
@@ -272,8 +288,9 @@ export class MarkFlowPluginHost {
 export interface MarkFlowDesktopAPI {
   openFile: () => Promise<MarkFlowFilePayload | null>
   openPath: (filePath: string) => Promise<MarkFlowFilePayload | null>
-  saveFile: (content: string) => Promise<MarkFlowSaveResult | null>
-  saveFileAs: (content: string) => Promise<MarkFlowSaveResult | null>
+  readLargeFileWindow: (filePath: string, lineNumber: number) => Promise<MarkFlowFilePayload | null>
+  saveFile: (content: string, tabId?: string | null) => Promise<MarkFlowSaveResult | null>
+  saveFileAs: (content: string, tabId?: string | null) => Promise<MarkFlowSaveResult | null>
   getFoldState: (filePath: string) => Promise<number[]>
   saveFoldState: (filePath: string, ranges: number[]) => Promise<void>
   scheduleRecoveryCheckpoint: (draft: MarkFlowRecoveryDraft) => void

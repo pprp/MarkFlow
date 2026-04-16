@@ -26,9 +26,12 @@ function subscribe<T>(channel: string, cb: (data: T) => void) {
 const api: MarkFlowDesktopAPI = {
   openFile: () => ipcRenderer.invoke('open-file'),
   openPath: (filePath: string) => ipcRenderer.invoke('open-path', filePath),
-  saveFile: (content: string) => ipcRenderer.invoke('save-file', content) as Promise<MarkFlowSaveResult | null>,
-  saveFileAs: (content: string) =>
-    ipcRenderer.invoke('save-file-as', content) as Promise<MarkFlowSaveResult | null>,
+  readLargeFileWindow: (filePath: string, lineNumber: number) =>
+    ipcRenderer.invoke('read-large-file-window', filePath, lineNumber),
+  saveFile: (content: string, tabId?: string | null) =>
+    ipcRenderer.invoke('save-file', content, tabId ?? null) as Promise<MarkFlowSaveResult | null>,
+  saveFileAs: (content: string, tabId?: string | null) =>
+    ipcRenderer.invoke('save-file-as', content, tabId ?? null) as Promise<MarkFlowSaveResult | null>,
   getFoldState: (filePath: string) => ipcRenderer.invoke('get-fold-state', filePath) as Promise<number[]>,
   saveFoldState: (filePath: string, ranges: number[]) =>
     ipcRenderer.invoke('save-fold-state', filePath, ranges) as Promise<void>,

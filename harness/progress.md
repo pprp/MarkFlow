@@ -9,6 +9,45 @@
 
 ## Session Log
 
+### 2026-04-16 - MF-088 multi-tab recovery follow-up closed the reviewer-found crash gap
+
+- Author: Codex (Dispatcher)
+- Focus: keep `MF-088` as the only active Typora parity slice, fix the reviewer-found multi-tab recovery regressions, and stop short of a false ledger promotion without live Electron acceptance.
+- Research updates:
+  - no new Typora capability entries or ledger edits were needed; this run stayed inside the existing `MF-088` tab/session item instead of widening scope.
+- What changed:
+  - normalized desktop recovery payloads from a single draft into `{ activeTabId, documents[] }` across `packages/shared/src/index.ts`, `packages/desktop/src/preload/index.ts`, and `packages/desktop/src/main/fileManager.ts`, so saving one recovered tab prunes only that tab's checkpoint entry instead of dropping or leaving stale recovery state
+  - updated `packages/editor/src/App.tsx` to schedule recovery for every dirty non-large-file tab, preserve a stable `recoveryTabId` across restore, and pass that id back on save so recovered tabs map back to the correct checkpoint document
+  - expanded focused coverage in `packages/editor/src/__tests__/App.test.tsx` and `packages/desktop/src/main/fileManager.test.ts` for multi-dirty-tab checkpoint payloads, multi-tab restore, and save-after-recovery pruning; also fixed the temporary type/build fallout introduced by the shared API change
+- Changed files:
+  - `harness/progress.md`
+  - `packages/shared/src/index.ts`
+  - `packages/desktop/src/preload/index.ts`
+  - `packages/desktop/src/main/fileManager.ts`
+  - `packages/desktop/src/main/fileManager.test.ts`
+  - `packages/editor/src/App.tsx`
+  - `packages/editor/src/editor/MarkFlowEditor.tsx`
+  - `packages/editor/src/__tests__/App.test.tsx`
+- Simplifications made:
+  - kept `harness/feature-ledger.json` unchanged because this run corrected the in-progress `MF-088` implementation rather than discovering a new Typora gap
+  - reused stable recovery tab ids instead of inventing path-based pruning heuristics that would break untitled/recovered tabs
+  - preserved legacy single-document checkpoint compatibility inside `FileManager` normalization instead of adding a separate migration step
+- Verification:
+  - `pnpm build` (passes)
+  - `pnpm lint` (passes)
+  - `pnpm --filter @markflow/editor exec vitest run src/__tests__/App.test.tsx` (passes; 34 tests)
+  - `pnpm --filter @markflow/desktop exec vitest run src/main/fileManager.test.ts` (passes; 15 tests)
+  - `pnpm harness:verify` (passes; 106 total | verified=64 | ready=19 | planned=23 | blocked=0)
+  - `./harness/init.sh --smoke` (passes; desktop 32/32, editor 366 passed with 3 skips)
+  - reviewer acceptance (passes): scoped read-only review confirmed both the inactive-dirty-tab recovery loss and the save-after-recovery pruning bug are fixed, with no remaining blocking issue in the touched files
+- Review / risks:
+  - `MF-088` still remains `status=ready`, `passes=false`, and `lastVerifiedAt=null` because the ledger's manual desktop acceptance for five-tab shortcut cycling, reopen-closed, and quit/relaunch session restore is still pending
+  - the remaining confidence gap is live Electron crash/relaunch behavior for mixed saved and untitled multi-tab sessions, which these automated tests do not fully prove
+- Newly verified features:
+  - none
+- Next recommended feature:
+  - `MF-088` - run the remaining live Electron acceptance for five-tab cycling, reopen-closed, and quit/relaunch session restore, then promote the ledger only if that manual flow really passes
+
 ### 2026-04-16 - MF-088 rerun restored smoke confidence without widening the active feature
 
 - Author: Codex (Dispatcher)

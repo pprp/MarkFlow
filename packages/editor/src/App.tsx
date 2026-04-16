@@ -27,6 +27,7 @@ import {
   type MarkFlowDocument,
   type MarkFlowFilePayload,
   type MarkFlowFileLoadProgressPayload,
+  type MarkFlowLargeFileWindow,
   type MarkFlowMenuAction,
   type MarkFlowRecoveryCheckpoint,
   type MarkFlowTabCloseAction,
@@ -198,6 +199,8 @@ let untitledTabCounter = 0
 
 interface DocumentTabState extends MarkFlowDocument {
   id: string
+  recoveryTabId: string | null
+  largeFile: MarkFlowLargeFileWindow | null
   persistedContent: string
   collapsedRanges: number[]
   cursorPosition: number
@@ -227,9 +230,15 @@ function createUntitledLabel(content: string) {
   return untitledTabCounter === 1 ? 'Untitled' : `Untitled ${untitledTabCounter}`
 }
 
-function createDocumentTab(filePath: string | null, content: string): DocumentTabState {
+function createDocumentTab(
+  filePath: string | null,
+  content: string,
+  largeFile: MarkFlowLargeFileWindow | null = null,
+): DocumentTabState {
   return {
     id: createTabId(),
+    recoveryTabId: null,
+    largeFile,
     filePath,
     content,
     persistedContent: content,
@@ -242,6 +251,30 @@ function createDocumentTab(filePath: string | null, content: string): DocumentTa
     snapshot: null,
     untitledLabel: createUntitledLabel(content),
   }
+}
+
+function getTotalLinesForTab(tab: DocumentTabState | null) {
+  if (!tab) {
+    return 1
+  }
+
+  return tab.largeFile?.totalLines ?? (tab.content.length ? tab.content.split('\n').length : 1)
+}
+
+function getCurrentLineNumberForTab(tab: DocumentTabState | null) {
+  if (!tab) {
+    return 1
+  }
+
+  const localLineNumber = getLineNumberAtPosition(tab.content, tab.cursorPosition)
+  if (!tab.largeFile) {
+    return localLineNumber
+  }
+
+  return Math.min(
+    tab.largeFile.totalLines,
+    tab.largeFile.windowStartLine + localLineNumber - 1,
+  )
 }
 
 function getTabLabel(tab: DocumentTabState, loadingFile: MarkFlowFileLoadProgressPayload | null = null) {
@@ -433,7 +466,7 @@ export function App() {
     const api = window.markflow
     if (!api) return
 
-    const applyOpenedDocument = async ({ filePath, content }: { filePath: string | null; content: string }) => {
+    const applyOpenedDocument = async ({ filePath, content, largeFile }: MarkFlowFilePayload) => {
       captureActiveTabSnapshot()
       setLoadingFile((current) => (current?.filePath === filePath ? null : current))
       setEditorNavigationRequest(null)
@@ -448,11 +481,13 @@ export function App() {
         if (existingTab) {
           nextActiveId = existingTab.id
           if (existingTab.content !== content) {
-            filePathToLoad = filePath
+            filePathToLoad = largeFile ? null : filePath
             nextTabs = currentTabs.map((tab) =>
               tab.id === existingTab.id
                 ? {
                     ...tab,
+                    recoveryTabId: null,
+                    largeFile: largeFile ?? null,
                     content,
                     persistedContent: content,
                     isDirty: false,
@@ -470,9 +505,9 @@ export function App() {
       }
 
       if (nextActiveId == null) {
-        const nextTab = createDocumentTab(filePath, content)
+        const nextTab = createDocumentTab(filePath, content, largeFile ?? null)
         nextActiveId = nextTab.id
-        filePathToLoad = filePath
+        filePathToLoad = largeFile ? null : filePath
         nextTabs =
           currentTabs.length === 1 &&
           currentTabs[0].filePath == null &&
@@ -492,30 +527,37 @@ export function App() {
       }
     }
 
-    const applyRecoveredDocument = async (
+    const applyRecoveredDocuments = async (
       checkpoint: MarkFlowRecoveryCheckpoint,
-      persistedContent: string,
+      persistedDocuments: readonly MarkFlowFilePayload[],
     ) => {
       captureActiveTabSnapshot()
       setLoadingFile(null)
       setEditorNavigationRequest(null)
       setIsGoToLineOpen(false)
 
-      const currentTabs = tabsRef.current
-      const existingTab = checkpoint.filePath
-        ? currentTabs.find((tab) => tab.filePath === checkpoint.filePath)
-        : null
-      const nextTab = existingTab ? null : createDocumentTab(checkpoint.filePath, checkpoint.content)
-      const nextActiveId = existingTab?.id ?? nextTab?.id ?? null
-      const filePathToLoad = checkpoint.filePath
-      const nextTabs = existingTab
-        ? currentTabs.map((tab) =>
+      let nextTabs = tabsRef.current
+      let nextActiveId: string | null = null
+      const fileLoads: Array<{ filePath: string; tabId: string }> = []
+
+      for (const recoveredDocument of checkpoint.documents) {
+        const persistedContent =
+          recoveredDocument.filePath
+            ? persistedDocuments.find((document) => document.filePath === recoveredDocument.filePath)?.content ?? ''
+            : ''
+        const existingTab = recoveredDocument.filePath
+          ? nextTabs.find((tab) => tab.filePath === recoveredDocument.filePath)
+          : null
+
+        if (existingTab) {
+          nextTabs = nextTabs.map((tab) =>
             tab.id === existingTab.id
               ? {
                   ...tab,
-                  content: checkpoint.content,
+                  recoveryTabId: recoveredDocument.tabId,
+                  content: recoveredDocument.content,
                   persistedContent,
-                  isDirty: checkpoint.content !== persistedContent,
+                  isDirty: recoveredDocument.content !== persistedContent,
                   cursorPosition: 0,
                   viewportPosition: null,
                   selectionText: '',
@@ -524,23 +566,36 @@ export function App() {
                 }
               : tab,
           )
-        : [
-            ...currentTabs,
-            {
-              ...(nextTab as DocumentTabState),
-              persistedContent,
-              isDirty: checkpoint.content !== persistedContent,
-            },
-          ]
+          if (recoveredDocument.filePath) {
+            fileLoads.push({ filePath: recoveredDocument.filePath, tabId: existingTab.id })
+          }
+          if (checkpoint.activeTabId === recoveredDocument.tabId) {
+            nextActiveId = existingTab.id
+          }
+          continue
+        }
+
+        const recoveredTab: DocumentTabState = {
+          ...createDocumentTab(recoveredDocument.filePath, recoveredDocument.content),
+          recoveryTabId: recoveredDocument.tabId,
+          persistedContent,
+          isDirty: recoveredDocument.content !== persistedContent,
+        }
+        nextTabs = [...nextTabs, recoveredTab]
+        if (recoveredDocument.filePath) {
+          fileLoads.push({ filePath: recoveredDocument.filePath, tabId: recoveredTab.id })
+        }
+        if (checkpoint.activeTabId === recoveredDocument.tabId) {
+          nextActiveId = recoveredTab.id
+        }
+      }
 
       replaceTabs(nextTabs)
+      replaceActiveTabId(nextActiveId ?? activeTabIdRef.current ?? nextTabs[0]?.id ?? null)
 
-      if (nextActiveId) {
-        replaceActiveTabId(nextActiveId)
-      }
-      if (nextActiveId && filePathToLoad) {
-        await loadCollapsedRangesForTab(api, nextActiveId, filePathToLoad)
-      }
+      await Promise.all(
+        fileLoads.map(({ filePath, tabId }) => loadCollapsedRangesForTab(api, tabId, filePath)),
+      )
     }
 
     const handleMenuAction = async ({ action }: { action: MarkFlowMenuAction }) => {
@@ -619,7 +674,9 @@ export function App() {
       let persistedDocuments: MarkFlowFilePayload[] = []
       const windowSession = await api.getWindowSession()
       if (windowSession?.documents.length) {
-        const nextTabs = windowSession.documents.map((document) => createDocumentTab(document.filePath, document.content))
+        const nextTabs = windowSession.documents.map((document) =>
+          createDocumentTab(document.filePath, document.content, document.largeFile ?? null),
+        )
         const nextActiveTab =
           nextTabs.find((tab) => tab.filePath === windowSession.activeFilePath) ?? nextTabs[0] ?? null
 
@@ -627,7 +684,9 @@ export function App() {
         replaceActiveTabId(nextActiveTab?.id ?? null)
         persistedDocuments = windowSession.documents
         await Promise.all(
-          nextTabs.map((tab) => loadCollapsedRangesForTab(api, tab.id, tab.filePath)),
+          nextTabs.map((tab) =>
+            tab.largeFile ? Promise.resolve() : loadCollapsedRangesForTab(api, tab.id, tab.filePath),
+          ),
         )
       } else {
         const currentDocument = await api.getCurrentDocument()
@@ -642,7 +701,13 @@ export function App() {
         return
       }
 
-      const recoveredName = recoveryCheckpoint.filePath?.split(/[\\/]/).at(-1) ?? 'untitled document'
+      const activeRecoveryDocument =
+        recoveryCheckpoint.documents.find((document) => document.tabId === recoveryCheckpoint.activeTabId) ??
+        recoveryCheckpoint.documents[0]
+      const recoveredName =
+        recoveryCheckpoint.documents.length === 1
+          ? activeRecoveryDocument?.filePath?.split(/[\\/]/).at(-1) ?? 'untitled document'
+          : `${recoveryCheckpoint.documents.length} documents`
       const shouldRecover = window.confirm(
         `Recover the auto-saved changes for ${recoveredName} from ${new Date(recoveryCheckpoint.savedAt).toLocaleString()}?`,
       )
@@ -652,9 +717,7 @@ export function App() {
         return
       }
 
-      const persistedContent =
-        persistedDocuments.find((document) => document.filePath === recoveryCheckpoint.filePath)?.content ?? ''
-      await applyRecoveredDocument(recoveryCheckpoint, persistedContent)
+      await applyRecoveredDocuments(recoveryCheckpoint, persistedDocuments)
     })()
     void api.getThemes().then(setThemes)
     void api.getThemeState().then((nextThemeState) => {
@@ -801,6 +864,9 @@ export function App() {
       if (!tab) {
         return false
       }
+      if (tab.largeFile) {
+        return false
+      }
 
       let latestSnapshot: MarkFlowEditorSnapshot | null = null
       if (tabId === activeTabIdRef.current) {
@@ -828,8 +894,8 @@ export function App() {
       await syncWindowSession(currentTabs, tabId)
 
       const result = forceSaveAs
-        ? await api.saveFileAs(tab.content)
-        : await api.saveFile(tab.content)
+        ? await api.saveFileAs(tab.content, tab.recoveryTabId ?? tabId)
+        : await api.saveFile(tab.content, tab.recoveryTabId ?? tabId)
       if (!result?.success) {
         return false
       }
@@ -841,6 +907,7 @@ export function App() {
 
       updateTab(tabId, (currentTab) => ({
         ...currentTab,
+        recoveryTabId: null,
         filePath: nextFilePath ?? currentTab.filePath,
         persistedContent: currentTab.content,
         isDirty: false,
@@ -961,17 +1028,29 @@ export function App() {
   }, [handleCloseTab, handleCycleTabs, handleReopenClosedTab, handleSaveTab])
 
   const totalLines = useMemo(
-    () => (activeTab?.content.length ? activeTab.content.split('\n').length : 1),
-    [activeTab?.content],
+    () => getTotalLinesForTab(activeTab),
+    [activeTab],
   )
 
   const currentLineNumber = useMemo(
-    () => getLineNumberAtPosition(activeTab?.content ?? '', activeTab?.cursorPosition ?? 0),
-    [activeTab?.content, activeTab?.cursorPosition],
+    () => getCurrentLineNumberForTab(activeTab),
+    [activeTab],
   )
 
   const windowSessionKey = useMemo(
     () => tabs.map((tab) => tab.filePath ?? '').join('\u0000'),
+    [tabs],
+  )
+
+  const dirtyRecoveryDocuments = useMemo(
+    () =>
+      tabs
+        .filter((tab) => tab.isDirty && tab.largeFile == null)
+        .map((tab) => ({
+          tabId: tab.recoveryTabId ?? tab.id,
+          filePath: tab.filePath,
+          content: tab.content,
+        })),
     [tabs],
   )
 
@@ -985,13 +1064,13 @@ export function App() {
 
   useEffect(() => {
     const api = window.markflow
-    if (!api || !activeTab?.isDirty) return
+    if (!api || dirtyRecoveryDocuments.length === 0) return
 
     api.scheduleRecoveryCheckpoint({
-      filePath: activeTab.filePath,
-      content: activeTab.content,
+      activeTabId: activeTab?.isDirty ? activeTab.recoveryTabId ?? activeTab.id : null,
+      documents: dirtyRecoveryDocuments,
     })
-  }, [activeTab])
+  }, [activeTab?.id, activeTab?.isDirty, dirtyRecoveryDocuments])
 
   useEffect(() => {
     const handleGlobalKeyDown = async (e: KeyboardEvent) => {
@@ -1061,7 +1140,7 @@ export function App() {
 
   const handlePandocExport = async (action: 'export-docx' | 'export-epub' | 'export-latex') => {
     const api = window.markflow
-    if (!api || !activeTab) return
+    if (!api || !activeTab || activeTab.largeFile) return
 
     const ext = action === 'export-docx' ? 'docx' : action === 'export-epub' ? 'epub' : 'tex'
     const defaultName = activeTab.filePath
@@ -1078,7 +1157,7 @@ export function App() {
   }
 
   const handleExport = async (format: 'html' | 'pdf') => {
-    if (!activeTab) {
+    if (!activeTab || activeTab.largeFile) {
       return
     }
 
@@ -1144,11 +1223,15 @@ export function App() {
       return
     }
 
-    updateTab(currentActiveTabId, (tab) => ({
-      ...tab,
-      content,
-      isDirty: content !== tab.persistedContent,
-    }))
+    updateTab(currentActiveTabId, (tab) =>
+      tab.largeFile
+        ? tab
+        : {
+            ...tab,
+            content,
+            isDirty: content !== tab.persistedContent,
+          },
+    )
   }
 
   function handleSelectionChange(nextSelectionText: string) {
@@ -1503,7 +1586,7 @@ export function App() {
 
   const activeAppearance = themeState?.activeAppearance ?? 'light'
 
-  const outlineHeadings = activeTab?.symbolTable.headings ?? []
+  const outlineHeadings = activeTab?.largeFile ? [] : activeTab?.symbolTable.headings ?? []
 
   const activeOutlineAnchor = useMemo(
     () => findActiveHeadingAnchor(outlineHeadings, activeTab?.cursorPosition ?? activeTab?.viewportPosition ?? 0),
@@ -1527,7 +1610,52 @@ export function App() {
   }, [updateTab])
 
   const handleGoToLine = useCallback(
-    (lineNumber: number) => {
+    async (lineNumber: number) => {
+      if (activeTab?.largeFile && activeTab.filePath) {
+        const api = window.markflow
+        if (!api) {
+          return
+        }
+
+        const payload = await api.readLargeFileWindow(activeTab.filePath, lineNumber)
+        if (!payload?.largeFile) {
+          return
+        }
+
+        const nextPosition = getLineStartPosition(
+          payload.content,
+          payload.largeFile.anchorLine - payload.largeFile.windowStartLine + 1,
+        )
+        const currentActiveTabId = activeTabIdRef.current
+        if (currentActiveTabId) {
+          updateTab(currentActiveTabId, (tab) =>
+            tab.filePath !== activeTab.filePath
+              ? tab
+              : {
+                  ...tab,
+                  largeFile: payload.largeFile ?? null,
+                  content: payload.content,
+                  persistedContent: payload.content,
+                  isDirty: false,
+                  collapsedRanges: [],
+                  cursorPosition: nextPosition,
+                  viewportPosition: null,
+                  selectionText: '',
+                  symbolTable: createEmptySymbolTable(),
+                  snapshot: null,
+                },
+          )
+        }
+
+        editorNavigationKeyRef.current += 1
+        setEditorNavigationRequest({
+          key: editorNavigationKeyRef.current,
+          position: nextPosition,
+        })
+        setIsGoToLineOpen(false)
+        return
+      }
+
       editorNavigationKeyRef.current += 1
       setEditorNavigationRequest({
         key: editorNavigationKeyRef.current,
@@ -1535,7 +1663,7 @@ export function App() {
       })
       setIsGoToLineOpen(false)
     },
-    [activeTab?.content],
+    [activeTab?.content, activeTab?.filePath, activeTab?.largeFile, updateTab],
   )
 
   const handleSymbolTableChange = useCallback((table: SymbolTable, content: string) => {
@@ -1545,7 +1673,7 @@ export function App() {
     }
 
     updateTab(currentActiveTabId, (tab) => {
-      if (content !== tab.content) {
+      if (tab.largeFile || content !== tab.content) {
         return tab
       }
 
@@ -1563,7 +1691,7 @@ export function App() {
     }
 
     updateTab(currentActiveTabId, (tab) => {
-      if (areCollapsedRangesEqual(tab.collapsedRanges, nextRanges)) {
+      if (tab.largeFile || areCollapsedRangesEqual(tab.collapsedRanges, nextRanges)) {
         return tab
       }
 
@@ -1612,6 +1740,9 @@ export function App() {
   )
 
   const activeDocumentName = activeTab ? getTabLabel(activeTab, loadingFile) : 'Untitled'
+  const largeFileNotice = activeTab?.largeFile
+    ? `Large-file mode: showing lines ${activeTab.largeFile.windowStartLine.toLocaleString()}-${activeTab.largeFile.windowEndLine.toLocaleString()} of ${activeTab.largeFile.totalLines.toLocaleString()}. Editing and export stay disabled to keep memory bounded.`
+    : null
 
   const loadingProgressPercent = loadingFile
     ? Math.min(100, Math.round((loadingFile.bytesRead / Math.max(loadingFile.totalBytes, 1)) * 100))
@@ -1845,12 +1976,18 @@ export function App() {
                 <pre className="mf-file-loading-preview">{loadingFile.previewContent}</pre>
               </section>
             ) : null}
+            {largeFileNotice ? (
+              <section className="mf-large-file-banner" aria-live="polite">
+                {largeFileNotice}
+              </section>
+            ) : null}
             {activeTab ? (
               <MarkFlowEditor
                 key={activeTab.id}
                 ref={editorRef}
                 initialSnapshot={activeTab.snapshot}
                 content={activeTab.content}
+                editable={activeTab.largeFile == null}
                 viewMode={viewMode}
                 onChange={handleContentChange}
                 onCursorPositionChange={handleCursorPositionChange}
@@ -1923,6 +2060,18 @@ export function App() {
         <span className="mf-statusbar-stat">{docStats.chars.toLocaleString()} chars</span>
         <span className="mf-statusbar-sep" aria-hidden="true">·</span>
         <span className="mf-statusbar-stat">{docStats.readingMinutes} min read</span>
+        {activeTab?.largeFile ? (
+          <>
+            <span className="mf-statusbar-sep" aria-hidden="true">·</span>
+            <span className="mf-statusbar-stat">
+              line {currentLineNumber.toLocaleString()} / {totalLines.toLocaleString()}
+            </span>
+            <span className="mf-statusbar-sep" aria-hidden="true">·</span>
+            <span className="mf-statusbar-stat">
+              window {activeTab.largeFile.windowStartLine.toLocaleString()}-{activeTab.largeFile.windowEndLine.toLocaleString()}
+            </span>
+          </>
+        ) : null}
         {docStats.selectionChars > 0 && (
           <>
             <span className="mf-statusbar-sep" aria-hidden="true">|</span>

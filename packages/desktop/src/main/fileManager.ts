@@ -11,6 +11,7 @@ import type {
   MarkFlowFilePayload,
   MarkFlowQuickOpenItem,
   MarkFlowRecoveryCheckpoint,
+  MarkFlowRecoveryDocument,
   MarkFlowRecoveryDraft,
   MarkFlowSaveResult,
   MarkFlowWindowSession,
@@ -21,6 +22,12 @@ import type {
 const STREAM_OPEN_CHUNK_SIZE = 64 * 1024
 const STREAM_OPEN_THRESHOLD_BYTES = 1024 * 1024
 const STREAM_PREVIEW_BYTE_LIMIT = 64 * 1024
+const WINDOWED_OPEN_THRESHOLD_BYTES = 256 * 1024 * 1024
+const WINDOWED_READ_CHUNK_SIZE = 256 * 1024
+const WINDOWED_PROGRESS_INTERVAL_BYTES = 4 * 1024 * 1024
+const WINDOWED_LINE_CHECKPOINT_INTERVAL = 2048
+const WINDOWED_LINE_WINDOW_SIZE = 400
+const WINDOWED_LINE_CONTEXT_BEFORE = 40
 const RECOVERY_CHECKPOINT_DELAY_MS = 30_000
 const RECOVERY_CHECKPOINT_FILE_NAME = '.markflow-recovery'
 const SESSION_STATE_FILE_NAME = '.markflow-recovery-session.json'
@@ -31,11 +38,45 @@ interface MarkFlowSessionState {
   cleanExit: boolean
 }
 
+interface FileManagerOptions {
+  windowedLineCheckpointInterval: number
+  windowedLineContextBefore: number
+  windowedLineWindowSize: number
+  windowedOpenThresholdBytes: number
+  windowedProgressIntervalBytes: number
+  windowedReadChunkSize: number
+}
+
+interface MarkFlowLargeFileCheckpoint {
+  lineNumber: number
+  byteOffset: number
+}
+
+interface MarkFlowLargeFileIndex {
+  filePath: string
+  totalBytes: number
+  totalLines: number
+  mtimeMs: number
+  checkpoints: MarkFlowLargeFileCheckpoint[]
+  lastWindow: MarkFlowFilePayload | null
+}
+
+const DEFAULT_FILE_MANAGER_OPTIONS: FileManagerOptions = {
+  windowedLineCheckpointInterval: WINDOWED_LINE_CHECKPOINT_INTERVAL,
+  windowedLineContextBefore: WINDOWED_LINE_CONTEXT_BEFORE,
+  windowedLineWindowSize: WINDOWED_LINE_WINDOW_SIZE,
+  windowedOpenThresholdBytes: WINDOWED_OPEN_THRESHOLD_BYTES,
+  windowedProgressIntervalBytes: WINDOWED_PROGRESS_INTERVAL_BYTES,
+  windowedReadChunkSize: WINDOWED_READ_CHUNK_SIZE,
+}
+
 export class FileManager {
   private currentFilePath: string | null = null
   private recentFiles: string[] = []
   private pendingRecoveryDraft: MarkFlowRecoveryDraft | null = null
   private recoveryWriteTimer: NodeJS.Timeout | null = null
+  private readonly largeFileIndexes = new Map<string, MarkFlowLargeFileIndex>()
+  private readonly options: FileManagerOptions
   private readonly recoveryCheckpointPath = path.join(app.getPath('temp'), RECOVERY_CHECKPOINT_FILE_NAME)
   private readonly sessionStatePath = path.join(app.getPath('userData'), SESSION_STATE_FILE_NAME)
   private readonly windowSessionPath = path.join(app.getPath('userData'), WINDOW_SESSION_FILE_NAME)
@@ -43,11 +84,18 @@ export class FileManager {
   constructor(
     private window: BrowserWindow,
     private onCurrentFilePathChanged?: () => void,
-  ) {}
+    options: Partial<FileManagerOptions> = {},
+  ) {
+    this.options = {
+      ...DEFAULT_FILE_MANAGER_OPTIONS,
+      ...options,
+    }
+  }
 
   registerIpcHandlers() {
     ipcMain.removeHandler('open-file')
     ipcMain.removeHandler('open-path')
+    ipcMain.removeHandler('read-large-file-window')
     ipcMain.removeHandler('save-file')
     ipcMain.removeHandler('save-file-as')
     ipcMain.removeHandler('get-fold-state')
@@ -75,8 +123,15 @@ export class FileManager {
 
     ipcMain.handle('open-file', () => this.openFile())
     ipcMain.handle('open-path', (_event, filePath: string) => this.openExistingPath(filePath))
-    ipcMain.handle('save-file', async (_event, content: string) => this.saveFile(content))
-    ipcMain.handle('save-file-as', async (_event, content: string) => this.saveFileAs(content))
+    ipcMain.handle('read-large-file-window', (_event, filePath: string, lineNumber: number) =>
+      this.readLargeFileWindow(filePath, lineNumber),
+    )
+    ipcMain.handle('save-file', async (_event, content: string, tabId: string | null) =>
+      this.saveFile(content, tabId),
+    )
+    ipcMain.handle('save-file-as', async (_event, content: string, tabId: string | null) =>
+      this.saveFileAs(content, tabId),
+    )
     ipcMain.handle('get-fold-state', async (_event, filePath: string) => this.getFoldState(filePath))
     ipcMain.handle('save-fold-state', async (_event, filePath: string, ranges: number[]) => {
       await this.saveFoldState(filePath, ranges)
@@ -246,21 +301,21 @@ export class FileManager {
     return this.openPath(filePath)
   }
 
-  async saveFile(content?: string): Promise<MarkFlowSaveResult | null> {
+  async saveFile(content?: string, tabId: string | null = null): Promise<MarkFlowSaveResult | null> {
     if (!this.currentFilePath) {
-      return this.saveFileAs(content)
+      return this.saveFileAs(content, tabId)
     }
 
     const saveResult = await this.writeFile(this.currentFilePath, content ?? '')
     if (saveResult.success) {
-      await this.discardRecoveryCheckpoint()
+      await this.removeRecoveryDocument(tabId)
       this.emitFileSaved(this.currentFilePath)
       saveResult.filePath = this.currentFilePath
     }
     return saveResult
   }
 
-  async saveFileAs(content?: string): Promise<MarkFlowSaveResult | null> {
+  async saveFileAs(content?: string, tabId: string | null = null): Promise<MarkFlowSaveResult | null> {
     const result = await dialog.showSaveDialog(this.window, {
       filters: [
         { name: 'Markdown', extensions: ['md'] },
@@ -276,7 +331,7 @@ export class FileManager {
       this.currentFilePath = result.filePath
       this.addToRecent(result.filePath)
       this.onCurrentFilePathChanged?.()
-      await this.discardRecoveryCheckpoint()
+      await this.removeRecoveryDocument(tabId)
       this.emitFileSaved(result.filePath)
       saveResult.filePath = result.filePath
     }
@@ -284,13 +339,30 @@ export class FileManager {
   }
 
   async openPath(filePath: string): Promise<MarkFlowFilePayload> {
-    const content = await this.readFileForOpen(filePath)
+    const payload = await this.readFileForOpen(filePath)
     this.currentFilePath = filePath
     this.addToRecent(filePath)
     this.onCurrentFilePathChanged?.()
-    this.window.webContents.send('file-opened', { filePath, content })
+    this.window.webContents.send('file-opened', payload)
     this.updateTitle()
-    return { filePath, content }
+    return payload
+  }
+
+  async readLargeFileWindow(filePath: string, lineNumber: number): Promise<MarkFlowFilePayload | null> {
+    if (!fs.existsSync(filePath)) {
+      return null
+    }
+
+    const stats = await fs.promises.stat(filePath)
+    if (stats.size < this.options.windowedOpenThresholdBytes) {
+      const content = await this.readFileForOpen(filePath)
+      return {
+        ...content,
+        largeFile: null,
+      }
+    }
+
+    return this.readWindowedLargeFilePayload(filePath, stats, lineNumber)
   }
 
   async getFoldState(filePath: string): Promise<number[]> {
@@ -369,15 +441,12 @@ export class FileManager {
     return true
   }
 
-  getCurrentDocument(): MarkFlowFilePayload | null {
+  async getCurrentDocument(): Promise<MarkFlowFilePayload | null> {
     if (!this.currentFilePath || !fs.existsSync(this.currentFilePath)) {
       return null
     }
 
-    return {
-      filePath: this.currentFilePath,
-      content: fs.readFileSync(this.currentFilePath, 'utf-8'),
-    }
+    return this.readFileForOpen(this.currentFilePath)
   }
 
   async getWindowSession(): Promise<MarkFlowWindowSession | null> {
@@ -392,10 +461,7 @@ export class FileManager {
         continue
       }
 
-      documents.push({
-        filePath,
-        content: await fs.promises.readFile(filePath, 'utf-8'),
-      })
+      documents.push(await this.readFileForOpen(filePath))
     }
 
     if (documents.length === 0) {
@@ -470,7 +536,12 @@ export class FileManager {
   }
 
   scheduleRecoveryCheckpoint(draft: MarkFlowRecoveryDraft) {
-    this.pendingRecoveryDraft = draft
+    this.pendingRecoveryDraft = this.normalizeRecoveryDraft(draft)
+    if (this.pendingRecoveryDraft.documents.length === 0) {
+      void this.discardRecoveryCheckpoint()
+      return
+    }
+
     this.clearRecoveryCheckpointTimer()
     this.recoveryWriteTimer = setTimeout(() => {
       const nextDraft = this.pendingRecoveryDraft
@@ -493,21 +564,10 @@ export class FileManager {
     try {
       const payload = JSON.parse(
         await fs.promises.readFile(this.recoveryCheckpointPath, 'utf-8'),
-      ) as Partial<MarkFlowRecoveryCheckpoint>
+      ) as Partial<MarkFlowRecoveryCheckpoint> &
+        Partial<MarkFlowRecoveryDocument> & { activeTabId?: unknown; documents?: unknown; savedAt?: unknown }
 
-      if (
-        typeof payload.content !== 'string' ||
-        typeof payload.savedAt !== 'string' ||
-        (payload.filePath !== null && typeof payload.filePath !== 'string')
-      ) {
-        return null
-      }
-
-      return {
-        filePath: payload.filePath ?? null,
-        content: payload.content,
-        savedAt: payload.savedAt,
-      }
+      return this.normalizeRecoveryCheckpointPayload(payload)
     } catch {
       return null
     }
@@ -726,6 +786,144 @@ export class FileManager {
     }
   }
 
+  private normalizeRecoveryDocument(payload: Partial<MarkFlowRecoveryDocument>): MarkFlowRecoveryDocument | null {
+    if (typeof payload.tabId !== 'string' || payload.tabId.length === 0 || typeof payload.content !== 'string') {
+      return null
+    }
+
+    if (payload.filePath !== null && payload.filePath !== undefined && typeof payload.filePath !== 'string') {
+      return null
+    }
+
+    return {
+      tabId: payload.tabId,
+      filePath: payload.filePath ?? null,
+      content: payload.content,
+    }
+  }
+
+  private normalizeRecoveryDraft(draft: MarkFlowRecoveryDraft): MarkFlowRecoveryDraft {
+    const documents = draft.documents
+      .map((document) => this.normalizeRecoveryDocument(document))
+      .filter((document): document is MarkFlowRecoveryDocument => document !== null)
+    const activeTabId =
+      typeof draft.activeTabId === 'string' && documents.some((document) => document.tabId === draft.activeTabId)
+        ? draft.activeTabId
+        : null
+
+    return { activeTabId, documents }
+  }
+
+  private normalizeRecoveryCheckpointPayload(
+    payload: Partial<MarkFlowRecoveryCheckpoint> &
+      Partial<MarkFlowRecoveryDocument> & { activeTabId?: unknown; documents?: unknown; savedAt?: unknown },
+  ): MarkFlowRecoveryCheckpoint | null {
+    if (typeof payload.savedAt !== 'string') {
+      return null
+    }
+
+    const documents = Array.isArray(payload.documents)
+      ? payload.documents
+          .map((document) =>
+            this.normalizeRecoveryDocument(document as Partial<MarkFlowRecoveryDocument>),
+          )
+          .filter((document): document is MarkFlowRecoveryDocument => document !== null)
+      : typeof payload.content === 'string'
+        ? [
+            {
+              tabId: 'legacy-recovery',
+              filePath: typeof payload.filePath === 'string' ? payload.filePath : null,
+              content: payload.content,
+            },
+          ]
+        : []
+
+    if (documents.length === 0) {
+      return null
+    }
+
+    const activeTabId =
+      typeof payload.activeTabId === 'string' && documents.some((document) => document.tabId === payload.activeTabId)
+        ? payload.activeTabId
+        : null
+
+    return {
+      activeTabId,
+      documents,
+      savedAt: payload.savedAt,
+    }
+  }
+
+  private pruneRecoveryDraft(draft: MarkFlowRecoveryDraft, tabId: string): MarkFlowRecoveryDraft {
+    const documents = draft.documents.filter((document) => document.tabId !== tabId)
+    const activeTabId =
+      draft.activeTabId === tabId && !documents.some((document) => document.tabId === draft.activeTabId)
+        ? null
+        : draft.activeTabId
+
+    return {
+      activeTabId: activeTabId && documents.some((document) => document.tabId === activeTabId) ? activeTabId : null,
+      documents,
+    }
+  }
+
+  private async readRecoveryCheckpointFile(): Promise<MarkFlowRecoveryCheckpoint | null> {
+    try {
+      const payload = JSON.parse(
+        await fs.promises.readFile(this.recoveryCheckpointPath, 'utf-8'),
+      ) as Partial<MarkFlowRecoveryCheckpoint> &
+        Partial<MarkFlowRecoveryDocument> & { activeTabId?: unknown; documents?: unknown; savedAt?: unknown }
+
+      return this.normalizeRecoveryCheckpointPayload(payload)
+    } catch {
+      return null
+    }
+  }
+
+  private async removeRecoveryDocument(tabId: string | null) {
+    if (!tabId) {
+      return
+    }
+
+    if (this.pendingRecoveryDraft) {
+      this.pendingRecoveryDraft = this.pruneRecoveryDraft(this.pendingRecoveryDraft, tabId)
+      if (this.pendingRecoveryDraft.documents.length === 0) {
+        this.pendingRecoveryDraft = null
+        this.clearRecoveryCheckpointTimer()
+      }
+    }
+
+    try {
+      const checkpoint = await this.readRecoveryCheckpointFile()
+      if (!checkpoint) {
+        return
+      }
+
+      const nextCheckpoint = this.pruneRecoveryDraft(checkpoint, tabId)
+      if (nextCheckpoint.documents.length === 0) {
+        try {
+          await fs.promises.unlink(this.recoveryCheckpointPath)
+        } catch (error) {
+          if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+            console.error('Failed to update MarkFlow recovery checkpoint:', error)
+          }
+        }
+        return
+      }
+
+      await fs.promises.writeFile(
+        this.recoveryCheckpointPath,
+        JSON.stringify({
+          ...nextCheckpoint,
+          savedAt: checkpoint.savedAt,
+        }),
+        'utf-8',
+      )
+    } catch (error) {
+      console.error('Failed to prune MarkFlow recovery checkpoint:', error)
+    }
+  }
+
   private async writeSessionState(state: MarkFlowSessionState) {
     try {
       await fs.promises.mkdir(path.dirname(this.sessionStatePath), { recursive: true })
@@ -737,7 +935,7 @@ export class FileManager {
 
   private async writeRecoveryCheckpoint(draft: MarkFlowRecoveryDraft) {
     const checkpoint: MarkFlowRecoveryCheckpoint = {
-      ...draft,
+      ...this.normalizeRecoveryDraft(draft),
       savedAt: new Date().toISOString(),
     }
 
@@ -748,16 +946,26 @@ export class FileManager {
     }
   }
 
-  private async readFileForOpen(filePath: string): Promise<string> {
+  private async readFileForOpen(filePath: string): Promise<MarkFlowFilePayload> {
     const stats = await fs.promises.stat(filePath)
+    if (stats.size >= this.options.windowedOpenThresholdBytes) {
+      return this.readWindowedLargeFilePayload(filePath, stats, 1)
+    }
     if (stats.size < STREAM_OPEN_THRESHOLD_BYTES) {
-      return fs.promises.readFile(filePath, 'utf-8')
+      return {
+        filePath,
+        content: await fs.promises.readFile(filePath, 'utf-8'),
+        largeFile: null,
+      }
     }
 
     return this.readLargeFileForOpen(filePath, stats.size)
   }
 
-  private async readLargeFileForOpen(filePath: string, totalBytes: number): Promise<string> {
+  private async readLargeFileForOpen(
+    filePath: string,
+    totalBytes: number,
+  ): Promise<MarkFlowFilePayload> {
     const chunks: Buffer[] = []
     const previewDecoder = new StringDecoder('utf8')
     const stream = fs.createReadStream(filePath, {
@@ -778,7 +986,7 @@ export class FileManager {
       this.window.webContents.send('file-loading-progress', payload)
     }
 
-    return new Promise<string>((resolve, reject) => {
+    return new Promise<MarkFlowFilePayload>((resolve, reject) => {
       stream.on('data', (chunk: string | Buffer) => {
         const bufferChunk = typeof chunk === 'string' ? Buffer.from(chunk) : chunk
 
@@ -786,7 +994,10 @@ export class FileManager {
         bytesRead += bufferChunk.length
 
         if (previewContent.length < STREAM_PREVIEW_BYTE_LIMIT) {
-          previewContent = `${previewContent}${previewDecoder.write(bufferChunk)}`.slice(0, STREAM_PREVIEW_BYTE_LIMIT)
+          previewContent = `${previewContent}${previewDecoder.write(bufferChunk)}`.slice(
+            0,
+            STREAM_PREVIEW_BYTE_LIMIT,
+          )
         }
 
         emitProgress(false)
@@ -800,8 +1011,272 @@ export class FileManager {
         previewContent = `${previewContent}${previewDecoder.end()}`.slice(0, STREAM_PREVIEW_BYTE_LIMIT)
         bytesRead = totalBytes
         emitProgress(true)
-        resolve(Buffer.concat(chunks).toString('utf-8'))
+        resolve({
+          filePath,
+          content: Buffer.concat(chunks).toString('utf-8'),
+          largeFile: null,
+        })
       })
     })
+  }
+
+  private async readWindowedLargeFilePayload(
+    filePath: string,
+    stats: fs.Stats,
+    requestedLineNumber: number,
+  ): Promise<MarkFlowFilePayload> {
+    const index = await this.getLargeFileIndex(filePath, stats)
+    const clampedLineNumber = Math.max(1, Math.min(requestedLineNumber, index.totalLines))
+    const cachedWindow = index.lastWindow?.largeFile
+    if (
+      cachedWindow &&
+      clampedLineNumber >= cachedWindow.windowStartLine &&
+      clampedLineNumber <= cachedWindow.windowEndLine
+    ) {
+      const lastWindow = index.lastWindow as MarkFlowFilePayload
+      const payload: MarkFlowFilePayload = {
+        ...lastWindow,
+        largeFile: {
+          ...cachedWindow,
+          anchorLine: clampedLineNumber,
+        },
+      }
+      index.lastWindow = payload
+      return payload
+    }
+
+    const windowStartLine = this.getWindowStartLine(clampedLineNumber, index.totalLines)
+    const windowEndLine = Math.min(
+      index.totalLines,
+      windowStartLine + this.options.windowedLineWindowSize - 1,
+    )
+    const startOffset = await this.findLineStartOffset(index, windowStartLine)
+    const content = await this.readLargeFileWindowContent(
+      index,
+      startOffset,
+      windowStartLine,
+      windowEndLine,
+    )
+    const payload: MarkFlowFilePayload = {
+      filePath,
+      content,
+      largeFile: {
+        totalBytes: index.totalBytes,
+        totalLines: index.totalLines,
+        windowStartLine,
+        windowEndLine,
+        anchorLine: clampedLineNumber,
+        readOnly: true,
+      },
+    }
+    index.lastWindow = payload
+    return payload
+  }
+
+  private async getLargeFileIndex(filePath: string, stats: fs.Stats): Promise<MarkFlowLargeFileIndex> {
+    const cachedIndex = this.largeFileIndexes.get(filePath)
+    if (
+      cachedIndex &&
+      cachedIndex.totalBytes === stats.size &&
+      cachedIndex.mtimeMs === stats.mtimeMs
+    ) {
+      return cachedIndex
+    }
+
+    const fileHandle = await fs.promises.open(filePath, 'r')
+    const buffer = Buffer.allocUnsafe(this.options.windowedReadChunkSize)
+    const previewDecoder = new StringDecoder('utf8')
+    const checkpoints: MarkFlowLargeFileCheckpoint[] = [{ lineNumber: 1, byteOffset: 0 }]
+
+    let previewContent = ''
+    let bytesReadTotal = 0
+    let lastProgressBytes = 0
+    let currentLineNumber = 1
+    let nextCheckpointLine = 1 + this.options.windowedLineCheckpointInterval
+
+    const emitProgress = (done: boolean) => {
+      const payload: MarkFlowFileLoadProgressPayload = {
+        filePath,
+        bytesRead: done ? stats.size : bytesReadTotal,
+        totalBytes: stats.size,
+        previewContent,
+        done,
+      }
+      this.window.webContents.send('file-loading-progress', payload)
+    }
+
+    try {
+      while (bytesReadTotal < stats.size) {
+        const { bytesRead } = await fileHandle.read(
+          buffer,
+          0,
+          buffer.length,
+          bytesReadTotal,
+        )
+        if (bytesRead === 0) {
+          break
+        }
+
+        const chunk = buffer.subarray(0, bytesRead)
+        if (previewContent.length < STREAM_PREVIEW_BYTE_LIMIT) {
+          previewContent = `${previewContent}${previewDecoder.write(chunk)}`.slice(
+            0,
+            STREAM_PREVIEW_BYTE_LIMIT,
+          )
+        }
+
+        const chunkStartOffset = bytesReadTotal
+        for (let index = 0; index < bytesRead; index += 1) {
+          if (chunk[index] !== 10) {
+            continue
+          }
+
+          currentLineNumber += 1
+          if (currentLineNumber === nextCheckpointLine) {
+            checkpoints.push({
+              lineNumber: currentLineNumber,
+              byteOffset: chunkStartOffset + index + 1,
+            })
+            nextCheckpointLine += this.options.windowedLineCheckpointInterval
+          }
+        }
+
+        bytesReadTotal += bytesRead
+        if (bytesReadTotal - lastProgressBytes >= this.options.windowedProgressIntervalBytes) {
+          lastProgressBytes = bytesReadTotal
+          emitProgress(false)
+        }
+      }
+    } finally {
+      await fileHandle.close()
+    }
+
+    previewContent = `${previewContent}${previewDecoder.end()}`.slice(0, STREAM_PREVIEW_BYTE_LIMIT)
+    emitProgress(true)
+
+    const nextIndex: MarkFlowLargeFileIndex = {
+      filePath,
+      totalBytes: stats.size,
+      totalLines: currentLineNumber,
+      mtimeMs: stats.mtimeMs,
+      checkpoints,
+      lastWindow: null,
+    }
+    this.largeFileIndexes.set(filePath, nextIndex)
+    return nextIndex
+  }
+
+  private getWindowStartLine(anchorLine: number, totalLines: number) {
+    const maxStartLine = Math.max(1, totalLines - this.options.windowedLineWindowSize + 1)
+    return Math.max(1, Math.min(anchorLine - this.options.windowedLineContextBefore, maxStartLine))
+  }
+
+  private async findLineStartOffset(index: MarkFlowLargeFileIndex, targetLine: number) {
+    if (targetLine <= 1) {
+      return 0
+    }
+
+    let checkpoint = index.checkpoints[0]
+    for (const candidate of index.checkpoints) {
+      if (candidate.lineNumber > targetLine) {
+        break
+      }
+      checkpoint = candidate
+    }
+
+    if (checkpoint.lineNumber === targetLine) {
+      return checkpoint.byteOffset
+    }
+
+    const fileHandle = await fs.promises.open(index.filePath, 'r')
+    const buffer = Buffer.allocUnsafe(this.options.windowedReadChunkSize)
+    let currentOffset = checkpoint.byteOffset
+    let currentLineNumber = checkpoint.lineNumber
+
+    try {
+      while (currentOffset < index.totalBytes) {
+        const { bytesRead } = await fileHandle.read(
+          buffer,
+          0,
+          buffer.length,
+          currentOffset,
+        )
+        if (bytesRead === 0) {
+          break
+        }
+
+        for (let position = 0; position < bytesRead; position += 1) {
+          if (buffer[position] !== 10) {
+            continue
+          }
+
+          currentLineNumber += 1
+          if (currentLineNumber === targetLine) {
+            return currentOffset + position + 1
+          }
+        }
+
+        currentOffset += bytesRead
+      }
+    } finally {
+      await fileHandle.close()
+    }
+
+    return index.totalBytes
+  }
+
+  private async readLargeFileWindowContent(
+    index: MarkFlowLargeFileIndex,
+    startOffset: number,
+    windowStartLine: number,
+    windowEndLine: number,
+  ) {
+    const fileHandle = await fs.promises.open(index.filePath, 'r')
+    const buffer = Buffer.allocUnsafe(this.options.windowedReadChunkSize)
+    const chunks: Buffer[] = []
+    const desiredLineCount = windowEndLine - windowStartLine + 1
+
+    let currentOffset = startOffset
+    let collectedLineCount = 1
+
+    try {
+      while (currentOffset < index.totalBytes) {
+        const { bytesRead } = await fileHandle.read(
+          buffer,
+          0,
+          buffer.length,
+          currentOffset,
+        )
+        if (bytesRead === 0) {
+          break
+        }
+
+        const chunk = buffer.subarray(0, bytesRead)
+        let segmentEnd = bytesRead
+        for (let position = 0; position < bytesRead; position += 1) {
+          if (chunk[position] !== 10) {
+            continue
+          }
+
+          if (collectedLineCount === desiredLineCount) {
+            segmentEnd = position + 1
+            chunks.push(chunk.subarray(0, segmentEnd))
+            return Buffer.concat(chunks).toString('utf-8')
+          }
+
+          collectedLineCount += 1
+        }
+
+        if (segmentEnd > 0) {
+          chunks.push(chunk.subarray(0, segmentEnd))
+        }
+
+        currentOffset += bytesRead
+      }
+    } finally {
+      await fileHandle.close()
+    }
+
+    return Buffer.concat(chunks).toString('utf-8')
   }
 }

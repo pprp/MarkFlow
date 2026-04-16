@@ -67,6 +67,7 @@ class MockMarkFlowAPI implements MarkFlowDesktopAPI {
   private confirmTabCloseAction: 'save' | 'discard' | 'cancel' = 'cancel'
   openFile: MarkFlowDesktopAPI['openFile'] = vi.fn(async () => null)
   openPath: MarkFlowDesktopAPI['openPath'] = vi.fn(async () => null)
+  readLargeFileWindow: MarkFlowDesktopAPI['readLargeFileWindow'] = vi.fn(async () => null)
   saveFile: MarkFlowDesktopAPI['saveFile'] = vi.fn(async () => ({ success: true }))
   saveFileAs: MarkFlowDesktopAPI['saveFileAs'] = vi.fn(async () => ({ success: true }))
   getFoldState: MarkFlowDesktopAPI['getFoldState'] = vi.fn(async () => [])
@@ -298,7 +299,7 @@ describe('App desktop integration', () => {
     })
 
     await waitFor(() => {
-      expect(api.saveFile).toHaveBeenCalledWith('# Notes\nSecond line')
+      expect(api.saveFile).toHaveBeenCalledWith('# Notes\nSecond line', expect.any(String))
     })
 
     await act(async () => {
@@ -421,7 +422,7 @@ describe('App desktop integration', () => {
     })
 
     await waitFor(() => {
-      expect(api.saveFile).toHaveBeenCalledWith('# Reopen\nSaved line')
+      expect(api.saveFile).toHaveBeenCalledWith('# Reopen\nSaved line', expect.any(String))
       expect(container.querySelector('.mf-titlebar-dirty-dot')).not.toBeInTheDocument()
     })
 
@@ -482,7 +483,7 @@ describe('App desktop integration', () => {
     })
 
     await waitFor(() => {
-      expect(api.saveFile).toHaveBeenCalledWith('# Cancel\nDirty')
+      expect(api.saveFile).toHaveBeenCalledWith('# Cancel\nDirty', expect.any(String))
       expect(screen.queryByRole('tab', { name: 'cancel.md' })).not.toBeInTheDocument()
     })
 
@@ -631,7 +632,7 @@ describe('App desktop integration', () => {
     })
 
     await waitFor(() => {
-      expect(api.saveFile).toHaveBeenCalledWith(content)
+      expect(api.saveFile).toHaveBeenCalledWith(content, expect.any(String))
     })
 
     await act(async () => {
@@ -1158,17 +1159,69 @@ describe('App auto-save', () => {
 
     await waitFor(() => {
       expect(api.scheduleRecoveryCheckpoint).toHaveBeenLastCalledWith({
-        filePath: '/docs/note.md',
-        content: '# Hello\nnew text',
+        activeTabId: expect.any(String),
+        documents: [
+          {
+            tabId: expect.any(String),
+            filePath: '/docs/note.md',
+            content: '# Hello\nnew text',
+          },
+        ],
       })
+    })
+  })
+
+  it('keeps inactive dirty tabs in the recovery checkpoint payload', async () => {
+    const api = new MockMarkFlowAPI()
+    window.markflow = api
+
+    const { container } = render(<App />)
+
+    await act(async () => {
+      api.emitFileOpened({ filePath: '/docs/alpha.md', content: '# Alpha' })
+    })
+
+    await act(async () => {
+      getEditorView(container).dispatch({
+        changes: { from: getEditorView(container).state.doc.length, insert: '\nalpha dirty' },
+      })
+    })
+
+    await act(async () => {
+      api.emitFileOpened({ filePath: '/docs/beta.md', content: '# Beta' })
+    })
+
+    await act(async () => {
+      getEditorView(container).dispatch({
+        changes: { from: getEditorView(container).state.doc.length, insert: '\nbeta dirty' },
+      })
+    })
+
+    await waitFor(() => {
+      const recoveryPayload = vi.mocked(api.scheduleRecoveryCheckpoint).mock.lastCall?.[0]
+      expect(recoveryPayload).toBeDefined()
+      expect(recoveryPayload?.documents.map((document) => ({
+        filePath: document.filePath,
+        content: document.content,
+      }))).toEqual([
+        { filePath: '/docs/alpha.md', content: '# Alpha\nalpha dirty' },
+        { filePath: '/docs/beta.md', content: '# Beta\nbeta dirty' },
+      ])
+      expect(recoveryPayload?.activeTabId).toBe(recoveryPayload?.documents[1]?.tabId ?? null)
     })
   })
 
   it('prompts to recover the last checkpoint and restores it as a dirty document when accepted', async () => {
     const api = new MockMarkFlowAPI()
     const recoveryCheckpoint: MarkFlowRecoveryCheckpoint = {
-      filePath: '/docs/recovered.md',
-      content: '# Recovered\n\ncheckpoint',
+      activeTabId: 'tab-recovered',
+      documents: [
+        {
+          tabId: 'tab-recovered',
+          filePath: '/docs/recovered.md',
+          content: '# Recovered\n\ncheckpoint',
+        },
+      ],
       savedAt: '2026-04-15T12:00:00.000Z',
     }
 
@@ -1186,13 +1239,27 @@ describe('App auto-save', () => {
     expect(screen.getByRole('tab', { name: 'recovered.md' })).toBeInTheDocument()
     expect(container.querySelector('.mf-titlebar-dirty-dot')).toBeInTheDocument()
     expect(api.discardRecoveryCheckpoint).not.toHaveBeenCalled()
+
+    await act(async () => {
+      api.emitMenuAction('save-file')
+    })
+
+    await waitFor(() => {
+      expect(api.saveFile).toHaveBeenCalledWith('# Recovered\n\ncheckpoint', 'tab-recovered')
+    })
   })
 
   it('discards the recovery checkpoint when the prompt is rejected', async () => {
     const api = new MockMarkFlowAPI()
     api.getRecoveryCheckpoint = vi.fn(async () => ({
-      filePath: '/docs/recovered.md',
-      content: '# Recovered\n\ncheckpoint',
+      activeTabId: 'tab-recovered',
+      documents: [
+        {
+          tabId: 'tab-recovered',
+          filePath: '/docs/recovered.md',
+          content: '# Recovered\n\ncheckpoint',
+        },
+      ],
       savedAt: '2026-04-15T12:00:00.000Z',
     }))
 
@@ -1204,6 +1271,52 @@ describe('App auto-save', () => {
     await waitFor(() => {
       expect(confirmMock).toHaveBeenCalled()
       expect(api.discardRecoveryCheckpoint).toHaveBeenCalled()
+    })
+  })
+
+  it('recovers multiple dirty tabs from one checkpoint payload', async () => {
+    const api = new MockMarkFlowAPI()
+    api.setWindowSession({
+      documents: [
+        { filePath: '/docs/alpha.md', content: '# Alpha' },
+        { filePath: '/docs/beta.md', content: '# Beta' },
+      ],
+      activeFilePath: '/docs/alpha.md',
+    })
+    api.getRecoveryCheckpoint = vi.fn(async () => ({
+      activeTabId: 'tab-beta',
+      documents: [
+        {
+          tabId: 'tab-alpha',
+          filePath: '/docs/alpha.md',
+          content: '# Alpha\nalpha dirty',
+        },
+        {
+          tabId: 'tab-beta',
+          filePath: '/docs/beta.md',
+          content: '# Beta\nbeta dirty',
+        },
+      ],
+      savedAt: '2026-04-15T12:00:00.000Z',
+    }))
+
+    vi.spyOn(window, 'confirm').mockReturnValue(true)
+    window.markflow = api
+
+    const { container } = render(<App />)
+
+    await waitFor(() => {
+      expect(screen.getByRole('tab', { name: 'beta.md' })).toHaveAttribute('aria-selected', 'true')
+      expect(getEditorView(container).state.doc.toString()).toBe('# Beta\nbeta dirty')
+      expect(container.querySelectorAll('.mf-tab-dirty-dot')).toHaveLength(2)
+    })
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('tab', { name: 'alpha.md' }))
+    })
+
+    await waitFor(() => {
+      expect(getEditorView(container).state.doc.toString()).toBe('# Alpha\nalpha dirty')
     })
   })
 })

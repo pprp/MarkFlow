@@ -219,8 +219,8 @@ describe('FileManager window sessions', () => {
 
     expect(await manager.getWindowSession()).toEqual({
       documents: [
-        { filePath: firstPath, content: '# First' },
-        { filePath: secondPath, content: '# Second' },
+        { filePath: firstPath, content: '# First', largeFile: null },
+        { filePath: secondPath, content: '# Second', largeFile: null },
       ],
       activeFilePath: secondPath,
     })
@@ -355,19 +355,22 @@ describe('FileManager chunk loader', () => {
     const manager = new FileManager(window as never)
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'markflow-chunk-loader-'))
     const filePath = path.join(tempDir, 'large.md')
-    const fileContent = `# Heading\nFirst screen\n${'Second chunk\n'.repeat(200000)}`
+    const fileContent = `# Heading\nFirst screen\n${'Second chunk\n'.repeat(90000)}`
 
     fs.writeFileSync(filePath, fileContent, 'utf-8')
 
     const result = await manager.openPath(filePath)
-    const progressCalls = window.webContents.send.mock.calls.filter(([channel]) => channel === 'file-loading-progress')
+    const fileOpenedPayload = window.webContents.send.mock.calls.find(([channel]) => channel === 'file-opened')?.[1]
+    const progressCalls = window.webContents.send.mock.calls
+      .filter(([channel]) => channel === 'file-loading-progress')
+      .map(([, payload]) => payload)
+    window.webContents.send.mockClear()
 
-    expect(result).toEqual({
-      filePath,
-      content: fileContent,
-    })
+    expect(result?.filePath).toBe(filePath)
+    expect(result?.largeFile).toBeNull()
+    expect(result?.content === fileContent).toBe(true)
     expect(progressCalls.length).toBeGreaterThan(1)
-    expect(progressCalls[0][1]).toEqual(
+    expect(progressCalls[0]).toEqual(
       expect.objectContaining({
         filePath,
         bytesRead: expect.any(Number),
@@ -376,7 +379,7 @@ describe('FileManager chunk loader', () => {
         done: false,
       }),
     )
-    expect(progressCalls.at(-1)?.[1]).toEqual(
+    expect(progressCalls.at(-1)).toEqual(
       expect.objectContaining({
         filePath,
         bytesRead: Buffer.byteLength(fileContent, 'utf-8'),
@@ -385,9 +388,10 @@ describe('FileManager chunk loader', () => {
         done: true,
       }),
     )
-    expect(window.webContents.send).toHaveBeenCalledWith('file-opened', {
+    expect(fileOpenedPayload).toEqual({
       filePath,
       content: fileContent,
+      largeFile: null,
     })
   })
 })
@@ -410,9 +414,15 @@ describe('FileManager auto-save recovery checkpoints', () => {
     const writeFileMock = vi.spyOn(fs.promises, 'writeFile').mockResolvedValue()
     const manager = new FileManager(createWindowStub() as never)
 
-    manager.scheduleRecoveryCheckpoint({ filePath: '/docs/note.md', content: '# draft 1' })
+    manager.scheduleRecoveryCheckpoint({
+      activeTabId: 'tab-1',
+      documents: [{ tabId: 'tab-1', filePath: '/docs/note.md', content: '# draft 1' }],
+    })
     await vi.advanceTimersByTimeAsync(20_000)
-    manager.scheduleRecoveryCheckpoint({ filePath: '/docs/note.md', content: '# draft 2' })
+    manager.scheduleRecoveryCheckpoint({
+      activeTabId: 'tab-1',
+      documents: [{ tabId: 'tab-1', filePath: '/docs/note.md', content: '# draft 2' }],
+    })
 
     await vi.advanceTimersByTimeAsync(29_000)
     expect(writeFileMock).not.toHaveBeenCalled()
@@ -421,7 +431,7 @@ describe('FileManager auto-save recovery checkpoints', () => {
     expect(writeFileMock).toHaveBeenCalledTimes(1)
     expect(writeFileMock).toHaveBeenCalledWith(
       '/tmp/.markflow-recovery',
-      expect.stringContaining('"content":"# draft 2"'),
+      expect.stringContaining('"documents":[{"tabId":"tab-1","filePath":"/docs/note.md","content":"# draft 2"}]'),
       'utf-8',
     )
   })
@@ -441,8 +451,8 @@ describe('FileManager auto-save recovery checkpoints', () => {
     fs.writeFileSync(
       recoveryPath,
       JSON.stringify({
-        filePath,
-        content: '# Recovered draft',
+        activeTabId: 'tab-recovered',
+        documents: [{ tabId: 'tab-recovered', filePath, content: '# Recovered draft' }],
         savedAt: '2026-04-15T12:00:00.000Z',
       }),
       'utf-8',
@@ -451,13 +461,51 @@ describe('FileManager auto-save recovery checkpoints', () => {
     fs.writeFileSync(filePath, '# Recovered draft', 'utf-8')
 
     expect(await manager.getRecoveryCheckpoint()).toEqual({
-      filePath,
-      content: '# Recovered draft',
+      activeTabId: 'tab-recovered',
+      documents: [{ tabId: 'tab-recovered', filePath, content: '# Recovered draft' }],
       savedAt: '2026-04-15T12:00:00.000Z',
     })
 
     ;((manager as unknown) as { currentFilePath: string | null }).currentFilePath = filePath
-    expect(await manager.saveFile('# Recovered draft')).toEqual({ success: true, filePath })
+    expect(await manager.saveFile('# Recovered draft', 'tab-recovered')).toEqual({ success: true, filePath })
     expect(fs.existsSync(recoveryPath)).toBe(false)
+  })
+
+  it('keeps other dirty-tab recovery data when one recovered tab is saved', async () => {
+    vi.useRealTimers()
+
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'markflow-recovery-'))
+    appGetPathMock.mockImplementation(() => tempDir)
+
+    const window = createWindowStub()
+    const manager = new FileManager(window as never)
+    const recoveryPath = path.join(tempDir, '.markflow-recovery')
+    const sessionStatePath = path.join(tempDir, '.markflow-recovery-session.json')
+    const firstFilePath = path.join(tempDir, 'one.md')
+    const secondFilePath = path.join(tempDir, 'two.md')
+
+    fs.writeFileSync(
+      recoveryPath,
+      JSON.stringify({
+        activeTabId: 'tab-one',
+        documents: [
+          { tabId: 'tab-one', filePath: firstFilePath, content: '# One dirty' },
+          { tabId: 'tab-two', filePath: secondFilePath, content: '# Two dirty' },
+        ],
+        savedAt: '2026-04-15T12:00:00.000Z',
+      }),
+      'utf-8',
+    )
+    fs.writeFileSync(sessionStatePath, JSON.stringify({ cleanExit: false }), 'utf-8')
+    fs.writeFileSync(firstFilePath, '# One dirty', 'utf-8')
+    fs.writeFileSync(secondFilePath, '# Two', 'utf-8')
+
+    ;((manager as unknown) as { currentFilePath: string | null }).currentFilePath = firstFilePath
+    expect(await manager.saveFile('# One dirty', 'tab-one')).toEqual({ success: true, filePath: firstFilePath })
+    expect(await manager.getRecoveryCheckpoint()).toEqual({
+      activeTabId: null,
+      documents: [{ tabId: 'tab-two', filePath: secondFilePath, content: '# Two dirty' }],
+      savedAt: '2026-04-15T12:00:00.000Z',
+    })
   })
 })

@@ -68,6 +68,7 @@ import { applyCollapsedRanges, getCollapsedRanges } from './foldingState'
 export interface MarkFlowEditorProps {
   content: string
   viewMode: ViewMode
+  editable?: boolean
   initialSnapshot?: MarkFlowEditorSnapshot | null
   onChange?: (content: string) => void
   onCursorPositionChange?: (position: number) => void
@@ -204,6 +205,7 @@ function getViewModeExtensions(viewMode: ViewMode, filePath?: string, pluginHost
 
 function getEditorExtensions(
   viewMode: ViewMode,
+  editable: boolean,
   focusMode: boolean,
   typewriterMode: boolean,
   filePath: string | undefined,
@@ -220,12 +222,14 @@ function getEditorExtensions(
   viewModeRef: React.MutableRefObject<ViewMode>,
   pruneHistoryRef: React.MutableRefObject<((view: EditorView) => void) | null>,
   viewModeCompartment: Compartment,
+  editableCompartment: Compartment,
   focusModeCompartment: Compartment,
   typewriterModeCompartment: Compartment,
 ) {
   return [
     baseTheme,
     EditorState.allowMultipleSelections.of(true),
+    editableCompartment.of([EditorView.editable.of(editable), EditorState.readOnly.of(!editable)]),
     history({ minDepth: MAX_UNDO_HISTORY_EVENTS, newGroupDelay: 500 }),
     drawSelection(),
     highlightActiveLine(),
@@ -334,6 +338,7 @@ function getEditorExtensions(
 export const MarkFlowEditor = forwardRef<MarkFlowEditorHandle, MarkFlowEditorProps>(function MarkFlowEditor({
   content,
   viewMode,
+  editable = true,
   initialSnapshot,
   onChange,
   onCursorPositionChange,
@@ -372,6 +377,7 @@ export const MarkFlowEditor = forwardRef<MarkFlowEditorHandle, MarkFlowEditorPro
   const viewModeRef = useRef(viewMode)
   const pruneHistoryRef = useRef<((view: EditorView) => void) | null>(null)
   const viewModeCompartmentRef = useRef(new Compartment())
+  const editableCompartmentRef = useRef(new Compartment())
   const focusModeCompartmentRef = useRef(new Compartment())
   const typewriterModeCompartmentRef = useRef(new Compartment())
   const [editorView, setEditorView] = useState<EditorView | null>(null)
@@ -435,6 +441,7 @@ export const MarkFlowEditor = forwardRef<MarkFlowEditorHandle, MarkFlowEditorPro
 
     const nextExtensions = getEditorExtensions(
       viewMode,
+      editable,
       focusMode,
       typewriterMode,
       filePathRef.current,
@@ -451,6 +458,7 @@ export const MarkFlowEditor = forwardRef<MarkFlowEditorHandle, MarkFlowEditorPro
       viewModeRef,
       pruneHistoryRef,
       viewModeCompartmentRef.current,
+      editableCompartmentRef.current,
       focusModeCompartmentRef.current,
       typewriterModeCompartmentRef.current,
     )
@@ -465,6 +473,7 @@ export const MarkFlowEditor = forwardRef<MarkFlowEditorHandle, MarkFlowEditorPro
 
     const extensions = getEditorExtensions(
       viewMode,
+      editable,
       focusMode,
       typewriterMode,
       filePath,
@@ -481,6 +490,7 @@ export const MarkFlowEditor = forwardRef<MarkFlowEditorHandle, MarkFlowEditorPro
       viewModeRef,
       pruneHistoryRef,
       viewModeCompartmentRef.current,
+      editableCompartmentRef.current,
       focusModeCompartmentRef.current,
       typewriterModeCompartmentRef.current,
     )
@@ -642,6 +652,18 @@ export const MarkFlowEditor = forwardRef<MarkFlowEditorHandle, MarkFlowEditorPro
       ),
     })
   }, [filePath, pluginHost, viewMode])
+
+  useEffect(() => {
+    const view = viewRef.current
+    if (!view) return
+
+    view.dispatch({
+      effects: editableCompartmentRef.current.reconfigure([
+        EditorView.editable.of(editable),
+        EditorState.readOnly.of(!editable),
+      ]),
+    })
+  }, [editable])
 
   useEffect(() => {
     const view = viewRef.current
