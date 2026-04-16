@@ -2,7 +2,7 @@ import type { ChangeSpec, EditorState, SelectionRange } from '@codemirror/state'
 import { EditorView } from '@codemirror/view'
 import { syntaxTree } from '@codemirror/language'
 
-interface FormatWrapper {
+export interface FormatWrapper {
   closeFrom: number
   closeText: string
   closeTo: number
@@ -229,6 +229,12 @@ function collectWrappers(state: EditorState) {
   ]
   assignWrapperDepths(wrappers)
   return wrappers
+}
+
+export function findInnermostFormatWrapper(state: EditorState, position: number) {
+  return collectWrappers(state)
+    .filter((wrapper) => position >= wrapper.openFrom && position <= wrapper.closeTo)
+    .sort((left, right) => right.depth - left.depth)[0] ?? null
 }
 
 function addInsert(map: Map<number, InsertChange[]>, position: number, change: InsertChange) {

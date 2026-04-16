@@ -636,7 +636,7 @@ function buildSmartInputKeymap(options?: SmartInputOptions): KeyBinding[] {
     run: clearFormatting,
   },
   {
-    key: 'Mod-Shift-d',
+    key: 'Shift-Alt-ArrowDown',
     preventDefault: true,
     run: duplicateLineOrSelection,
   },

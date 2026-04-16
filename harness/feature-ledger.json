@@ -2101,7 +2101,7 @@
           "Duplicate a code fence and confirm both copies remain syntactically valid."
         ]
       },
-      "notes": "Verified on 2026-04-16 against the implementation now present in `packages/editor/src/editor/extensions/smartInput.ts`, which binds `Mod-Shift-D` to duplicate the covered line block directly below without touching the clipboard, lands a single caret on the duplicate, preserves block selection on duplicated multi-line ranges, and isolates the change into one undo step. Covered by `packages/editor/src/editor/__tests__/MarkFlowEditor.test.tsx`. `passes` remains false because the required live code-fence duplication check was not completed in this terminal session. Source: https://support.typora.io/Shortcut-Keys/."
+      "notes": "Verified on 2026-04-16 against the implementation now present in `packages/editor/src/editor/extensions/smartInput.ts`, which now binds duplication to `Shift-Alt-ArrowDown` so `MF-101` can reclaim Typora's documented `Mod-Shift-D` delete-word shortcut without losing duplicate-line coverage. The command still duplicates the covered line block directly below without touching the clipboard, lands a single caret on the duplicate, preserves block selection on duplicated multi-line ranges, and isolates the change into one undo step. Covered by `packages/editor/src/editor/__tests__/MarkFlowEditor.test.tsx`. `passes` remains false because the required live code-fence duplication check was not completed in this terminal session. Sources: https://support.typora.io/Shortcut-Keys/ and the `MF-101` prerequisite shortcut-conflict fix recorded on 2026-04-16."
     },
     {
       "id": "MF-080",
@@ -2259,7 +2259,7 @@
       "category": "phase-2-functional",
       "area": "@markflow/editor",
       "priority": 3,
-      "status": "planned",
+      "status": "ready",
       "passes": false,
       "lastVerifiedAt": null,
       "dependsOn": ["MF-014", "MF-067"],
@@ -2658,7 +2658,7 @@
           "Exercise the delete-range shortcuts in a mixed markdown document and confirm each command removes the same scope Typora would remove."
         ]
       },
-      "notes": "Typora documents block-aware delete commands for paragraph or block, sentence or line, styled scope, and word. MarkFlow currently relies on default CodeMirror deletion behavior, and repo search found no Typora-style delete-range command layer or shortcut wiring. Sources: https://support.typora.io/Delete-Range/ and https://support.typora.io/Shortcut-Keys/."
+      "notes": "Implemented on 2026-04-16 in `packages/editor/src/editor/extensions/deleteRange.ts`, `packages/editor/src/editor/MarkFlowEditor.tsx`, `packages/editor/src/App.tsx`, `packages/editor/src/editor/clearFormatting.ts`, `packages/editor/src/editor/extensions/smartInput.ts`, `packages/editor/src/editor/__tests__/deleteRange.test.ts`, and `packages/editor/src/editor/__tests__/MarkFlowEditor.test.tsx`. This run adds a dedicated delete-range command layer for Typora-style delete-word, delete-line-or-sentence, delete-block, and delete-styled-scope semantics: delete-word now removes the current lexical word while preserving adjacent markdown, delete-line-or-sentence dispatches by block type (sentence in prose, row in tables, source line in code or math blocks), delete-block removes the surrounding heading/paragraph/list-item or fenced block range, and delete-styled-scope drops the innermost inline wrapper under the caret. The command palette now exposes all four commands, while the editor binds `Mod-Shift-D` for delete word, `Mod-Shift-Backspace` for delete line or sentence, and `Mod-Shift-E` for delete styled scope. A tiny prerequisite fix moved `MF-079` duplication off `Mod-Shift-D` onto `Shift-Alt-ArrowDown` so the Typora delete-word shortcut could land without conflict. Automated verification passed on 2026-04-16 with `pnpm --filter @markflow/editor exec vitest run src/editor/__tests__/deleteRange.test.ts src/editor/__tests__/MarkFlowEditor.test.tsx src/__tests__/App.test.tsx`, `pnpm --filter @markflow/editor lint`, `pnpm --filter @markflow/editor build`, and `pnpm harness:verify`. `passes` remains false because the required mixed-document manual shortcut verification was not performed in this terminal session. Sources: https://support.typora.io/Delete-Range/ and https://support.typora.io/Shortcut-Keys/."
     },
     {
       "id": "MF-102",

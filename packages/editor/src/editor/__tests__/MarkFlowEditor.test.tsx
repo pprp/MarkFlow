@@ -405,7 +405,7 @@ describe('MarkFlowEditor', () => {
     expect(restoredSelection.head).toBe(view.state.doc.line(3).to)
   })
 
-  it('duplicates the active line below the caret and lands on the copy', () => {
+  it('duplicates the active line below the caret on Shift-Alt-ArrowDown and lands on the copy', () => {
     const content = ['alpha', 'beta', 'gamma'].join('\n')
     const duplicatedContent = ['alpha', 'beta', 'beta', 'gamma'].join('\n')
     const { container } = render(
@@ -416,10 +416,10 @@ describe('MarkFlowEditor', () => {
     view.dispatch({ selection: { anchor: view.state.doc.line(2).from + 2 } })
 
     dispatchEditorShortcut(view, {
-      key: 'D',
-      code: 'KeyD',
-      keyCode: 68,
-      ctrlKey: true,
+      key: 'ArrowDown',
+      code: 'ArrowDown',
+      keyCode: 40,
+      altKey: true,
       shiftKey: true,
     })
 
@@ -429,7 +429,7 @@ describe('MarkFlowEditor', () => {
     expect(view.state.selection.main.head).toBe(view.state.doc.line(3).from + 2)
   })
 
-  it('duplicates a multi-line selection as a contiguous block and keeps the copy selected', () => {
+  it('duplicates a multi-line selection as a contiguous block on Shift-Alt-ArrowDown and keeps the copy selected', () => {
     const content = ['one', 'two', 'three', 'four'].join('\n')
     const duplicatedContent = ['one', 'two', 'three', 'two', 'three', 'four'].join('\n')
     const { container } = render(
@@ -442,10 +442,10 @@ describe('MarkFlowEditor', () => {
     })
 
     dispatchEditorShortcut(view, {
-      key: 'D',
-      code: 'KeyD',
-      keyCode: 68,
-      ctrlKey: true,
+      key: 'ArrowDown',
+      code: 'ArrowDown',
+      keyCode: 40,
+      altKey: true,
       shiftKey: true,
     })
 
@@ -457,7 +457,7 @@ describe('MarkFlowEditor', () => {
     expect(selection.head).toBe(view.state.doc.line(5).to)
   })
 
-  it('treats Cmd/Ctrl+Shift+D duplication as a single undoable history step', () => {
+  it('treats Shift-Alt-ArrowDown duplication as a single undoable history step', () => {
     const content = ['start', 'middle', 'end'].join('\n')
     const duplicatedContent = ['start', 'middle', 'middle', 'end'].join('\n')
     const { container } = render(
@@ -468,10 +468,10 @@ describe('MarkFlowEditor', () => {
     view.dispatch({ selection: { anchor: view.state.doc.line(2).from + 3 } })
 
     dispatchEditorShortcut(view, {
-      key: 'D',
-      code: 'KeyD',
-      keyCode: 68,
-      ctrlKey: true,
+      key: 'ArrowDown',
+      code: 'ArrowDown',
+      keyCode: 40,
+      altKey: true,
       shiftKey: true,
     })
     expect(view.state.doc.toString()).toBe(duplicatedContent)

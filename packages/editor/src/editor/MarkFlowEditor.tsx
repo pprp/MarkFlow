@@ -49,6 +49,13 @@ import {
   insertMathBlockScaffold,
   insertTableScaffold,
 } from './extensions/smartInput'
+import {
+  deleteBlock,
+  deleteLineOrSentence,
+  deleteRangeExtension,
+  deleteStyledScope,
+  deleteWord,
+} from './extensions/deleteRange'
 import { focusModeExtension, typewriterModeExtension } from './extensions/focusMode'
 import { smartTypographyExtension } from './extensions/smartTypography'
 import { headingFoldExtension } from './extensions/headingFold'
@@ -114,6 +121,10 @@ export type MarkFlowEditorCommand =
   | 'edit-strikethrough'
   | 'edit-inline-code'
   | 'edit-link'
+  | 'edit-delete-word'
+  | 'edit-delete-line-or-sentence'
+  | 'edit-delete-block'
+  | 'edit-delete-styled-scope'
   | 'edit-heading-1'
   | 'edit-heading-2'
   | 'edit-heading-3'
@@ -400,6 +411,7 @@ function getEditorExtensions(
       indentWithTab,
     ]),
     EditorView.clickAddsSelectionRange.of((event) => event.altKey),
+    deleteRangeExtension({ isWysiwygMode: () => viewModeRef.current === 'wysiwyg' }),
     tableCommandExtension({ isWysiwygMode: () => viewModeRef.current === 'wysiwyg' }),
     smartTypographyExtension(),
     smartInput({ isWysiwygMode: () => viewModeRef.current === 'wysiwyg' }),
@@ -1114,6 +1126,14 @@ export const MarkFlowEditor = forwardRef<MarkFlowEditorHandle, MarkFlowEditorPro
             return applyUnderline(view)
           case 'edit-link':
             return applyLink(view)
+          case 'edit-delete-word':
+            return deleteWord(view, smartInputOptions)
+          case 'edit-delete-line-or-sentence':
+            return deleteLineOrSentence(view, smartInputOptions)
+          case 'edit-delete-block':
+            return deleteBlock(view, smartInputOptions)
+          case 'edit-delete-styled-scope':
+            return deleteStyledScope(view, smartInputOptions)
           case 'edit-clear-formatting':
             return clearFormatting(view)
           case 'edit-undo':

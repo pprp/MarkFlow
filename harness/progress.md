@@ -5396,3 +5396,44 @@
   - none
 - Next recommended feature:
   - `MF-100` - perform the pending manual strict-mode verification after restart, and only then promote `passes` / `lastVerifiedAt`
+
+### 2026-04-16 - MF-101 adds Typora-style delete-range commands for words, sentences, blocks, and styled scopes
+
+- Author: Codex
+- Focus: obey the startup protocol for `MF-101`, implement only the delete-range command layer in `@markflow/editor`, run the requested automated verification plus `pnpm harness:verify`, keep the ledger honest because live mixed-document shortcut verification was not possible here, and finish with a Lore-protocol commit.
+- What changed:
+  - re-read the root `AGENTS.md`, ran `pnpm harness:start`, and ran `./harness/init.sh --smoke` before implementation; both passed in this session
+  - added `packages/editor/src/editor/extensions/deleteRange.ts` as a dedicated Typora-style delete-range layer that distinguishes delete-word, delete-line-or-sentence, delete-block, and delete-styled-scope behavior by syntax context instead of falling back to raw CodeMirror deletion
+  - wired the new delete-range extension into `packages/editor/src/editor/MarkFlowEditor.tsx`, exposed the same four commands through the imperative editor command bridge, and added command-palette entries in `packages/editor/src/App.tsx` so the commands are reachable beyond bare key events
+  - exported `findInnermostFormatWrapper()` from `packages/editor/src/editor/clearFormatting.ts` so styled-scope deletion can reuse the existing inline-wrapper parser rather than duplicating wrapper detection logic
+  - moved the older duplicate-line shortcut in `packages/editor/src/editor/extensions/smartInput.ts` from `Mod-Shift-D` to `Shift-Alt-ArrowDown` as a tiny prerequisite conflict fix, because Typora documents `Mod-Shift-D` as Delete Word and `MF-101` needed that binding back
+  - added focused regression coverage in `packages/editor/src/editor/__tests__/deleteRange.test.ts` for paragraph, list, code, math, and table fixtures, and updated `packages/editor/src/editor/__tests__/MarkFlowEditor.test.tsx` so duplicate-line coverage follows the remapped prerequisite shortcut
+- Changed files:
+  - `packages/editor/src/App.tsx`
+  - `packages/editor/src/editor/MarkFlowEditor.tsx`
+  - `packages/editor/src/editor/clearFormatting.ts`
+  - `packages/editor/src/editor/extensions/deleteRange.ts`
+  - `packages/editor/src/editor/extensions/smartInput.ts`
+  - `packages/editor/src/editor/__tests__/deleteRange.test.ts`
+  - `packages/editor/src/editor/__tests__/MarkFlowEditor.test.tsx`
+  - `harness/feature-ledger.json`
+  - `harness/progress.md`
+- Simplifications made:
+  - kept delete-range behavior in one editor-only extension instead of scattering block-specific deletion rules across App, menu, and decoration layers
+  - reused the existing table row command and inline-format wrapper parsing so the new feature shares the same table formatting and markdown-wrapper semantics already used elsewhere in the editor
+  - limited the prerequisite shortcut fix to the conflicting duplicate-line binding instead of redesigning the broader edit shortcut map during this feature
+- Verification:
+  - `pnpm harness:start` (passes)
+  - `./harness/init.sh --smoke` before implementation (passes)
+  - `pnpm --filter @markflow/editor exec vitest run src/editor/__tests__/deleteRange.test.ts src/editor/__tests__/MarkFlowEditor.test.tsx src/__tests__/App.test.tsx` (passes; 3 files / 108 tests covering delete-range fixtures, duplicate-shortcut regression, and command-palette/editor integration)
+  - `pnpm --filter @markflow/editor lint` (passes)
+  - `pnpm --filter @markflow/editor build` (passes)
+  - `pnpm harness:verify` (passes)
+- Review / risks:
+  - `MF-101` is implemented and automated coverage is green, but `passes` must remain false until someone exercises the delete-range shortcuts and command-palette actions in a real mixed markdown document and confirms the scopes match Typora expectations
+  - delete-line-or-sentence intentionally delegates table edits through the existing table command layer, which means row deletion will continue to normalize surviving column widths; this is covered in tests, but exact whitespace parity against Typora still needs live confirmation
+  - the block and styled-scope commands are exposed through the command palette and editor bridge, while the currently verified direct shortcuts are `Mod-Shift-D`, `Mod-Shift-Backspace`, and `Mod-Shift-E`; if a later Typora doc revision proves different default bindings for block deletion, that should be handled as a focused shortcut-mapping follow-up rather than changing the semantics layer again
+- Newly verified features:
+  - none
+- Next recommended feature:
+  - `MF-101` - perform the pending mixed-document manual delete-range verification, and only then promote `passes` / `lastVerifiedAt`
