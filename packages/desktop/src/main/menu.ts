@@ -264,6 +264,9 @@ export function createApplicationMenuTemplate({
     {
       label: 'Go',
       submenu: [
+        { label: 'Back', accelerator: 'CmdOrCtrl+[', click: () => sendMenuAction('navigate-back') },
+        { label: 'Forward', accelerator: 'CmdOrCtrl+]', click: () => sendMenuAction('navigate-forward') },
+        { type: 'separator' },
         { label: 'Go to Line…', accelerator: 'CmdOrCtrl+G', click: () => sendMenuAction('go-to-line') },
         { type: 'separator' },
         { label: 'Next Tab', accelerator: 'CmdOrCtrl+Shift+]', click: () => sendMenuAction('next-tab') },

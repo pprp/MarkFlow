@@ -120,6 +120,31 @@ describe('createApplicationMenuTemplate', () => {
     expect(sendMenuAction).toHaveBeenCalledWith('toggle-minimap')
   })
 
+  it('routes navigation history actions through the Go menu bridge', () => {
+    const sendMenuAction = vi.fn()
+    const template = createMenuTemplate({
+      sendMenuAction,
+    })
+    const backItem = getMenuItem(template, 'Go', 'Back')
+    const forwardItem = getMenuItem(template, 'Go', 'Forward')
+
+    backItem?.click?.({} as never, {} as never, {} as never)
+    forwardItem?.click?.({} as never, {} as never, {} as never)
+
+    expect(backItem).toEqual(
+      expect.objectContaining({
+        accelerator: 'CmdOrCtrl+[',
+      }),
+    )
+    expect(forwardItem).toEqual(
+      expect.objectContaining({
+        accelerator: 'CmdOrCtrl+]',
+      }),
+    )
+    expect(sendMenuAction.mock.calls).toContainEqual(['navigate-back'])
+    expect(sendMenuAction.mock.calls).toContainEqual(['navigate-forward'])
+  })
+
   it('routes clear formatting through the renderer menu bridge', () => {
     const sendMenuAction = vi.fn()
     const template = createMenuTemplate({

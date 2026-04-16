@@ -5,6 +5,16 @@ import {
   type MarkFlowEditorSnapshot,
 } from './editor/MarkFlowEditor'
 import { createEmptySymbolTable, type SymbolTable } from './editor/indexer'
+import {
+  canNavigateBack,
+  canNavigateForward,
+  createEmptyNavigationHistory,
+  navigateBackInHistory,
+  navigateForwardInHistory,
+  pushNavigationHistoryEntry,
+  type NavigationLocation,
+} from './editor/navigationHistory'
+import { fileUrlToPath, resolveLinkHref } from './editor/decorations/linkDecoration'
 import { findActiveHeadingAnchor } from './editor/outline'
 import { computeStats } from './editor/wordCount'
 import { CommandPalette } from './components/CommandPalette'
@@ -281,6 +291,14 @@ function getLineStartPosition(content: string, requestedLineNumber: number) {
   return content.length
 }
 
+function getLineColumnPosition(content: string, lineNumber: number, column: number) {
+  const lineStart = getLineStartPosition(content, lineNumber)
+  const boundedColumn = Math.max(0, column)
+  const lineEndIndex = content.indexOf('\n', lineStart)
+  const lineEnd = lineEndIndex >= 0 ? lineEndIndex : content.length
+  return Math.min(lineStart + boundedColumn, lineEnd)
+}
+
 let tabIdCounter = 0
 let untitledTabCounter = 0
 
@@ -301,6 +319,10 @@ interface DocumentTabState extends MarkFlowDocument {
 interface ClosedDocumentTabState {
   closedIndex: number
   tab: DocumentTabState
+}
+
+type PendingNavigationTarget = NavigationLocation & {
+  preserveScroll?: boolean
 }
 
 function createTabId() {
@@ -424,7 +446,9 @@ export function App() {
   const [editorNavigationRequest, setEditorNavigationRequest] = useState<{
     key: number
     position: number
+    scrollTop?: number | null
   } | null>(null)
+  const [pendingNavigationTarget, setPendingNavigationTarget] = useState<PendingNavigationTarget | null>(null)
   const [outlineCollapsed, setOutlineCollapsed] = useState(false)
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false)
   const [isQuickOpenOpen, setIsQuickOpenOpen] = useState(false)
@@ -442,6 +466,8 @@ export function App() {
   )
   const handleCloseTabRef = useRef<(tabId: string | null) => Promise<boolean>>(async () => false)
   const handleReopenClosedTabRef = useRef<() => Promise<boolean>>(async () => false)
+  const handleNavigateBackRef = useRef<() => Promise<boolean>>(async () => false)
+  const handleNavigateForwardRef = useRef<() => Promise<boolean>>(async () => false)
   const handleCycleTabsRef = useRef<(direction: 1 | -1) => void>(() => {})
   const handleOpenFolderPathRef = useRef<(folderPath: string) => Promise<boolean>>(async () => false)
   const handleOpenQuickOpenRef = useRef<() => Promise<boolean>>(async () => false)
@@ -453,6 +479,7 @@ export function App() {
     (action: 'export-docx' | 'export-epub' | 'export-latex') => Promise<void>
   >(async () => {})
   const editorNavigationKeyRef = useRef(0)
+  const navigationHistoryRef = useRef(createEmptyNavigationHistory())
   const pluginHostRef = useRef<MarkFlowPluginHost | null>(null)
   const editorRef = useRef<MarkFlowEditorHandle | null>(null)
   const editorShellRef = useRef<HTMLDivElement | null>(null)
@@ -865,6 +892,12 @@ export function App() {
         case 'go-to-line':
           setIsGoToLineOpen(true)
           break
+        case 'navigate-back':
+          await handleNavigateBackRef.current()
+          break
+        case 'navigate-forward':
+          await handleNavigateForwardRef.current()
+          break
         case 'command-palette':
           setIsCommandPaletteOpen(true)
           break
@@ -1018,7 +1051,13 @@ export function App() {
       unsubscribeThemeUpdated()
       document.getElementById(THEME_STYLE_ELEMENT_ID)?.remove()
     }
-  }, [captureActiveTabSnapshot, loadCollapsedRangesForTab, replaceActiveTabId, replaceTabs, updateTabs])
+  }, [
+    captureActiveTabSnapshot,
+    loadCollapsedRangesForTab,
+    replaceActiveTabId,
+    replaceTabs,
+    updateTabs,
+  ])
 
   function toggleViewMode() {
     setViewMode((m) => (m === 'wysiwyg' ? 'source' : 'wysiwyg'))
@@ -1067,6 +1106,270 @@ export function App() {
       setToasts((currentToasts) => currentToasts.filter((toast) => toast.id !== nextToast.id))
     }, 4_000)
   }, [])
+
+  const createNavigationLocationForTab = useCallback(
+    (
+      tab: DocumentTabState,
+      overrides: Partial<PendingNavigationTarget> = {},
+    ): PendingNavigationTarget => ({
+      tabId: overrides.tabId ?? tab.id,
+      filePath: overrides.filePath ?? tab.filePath,
+      cursorPosition:
+        overrides.cursorPosition ??
+        tab.snapshot?.cursorPosition ??
+        tab.cursorPosition,
+      scrollTop:
+        overrides.scrollTop ??
+        tab.snapshot?.scrollTop ??
+        null,
+      preserveScroll: overrides.preserveScroll ?? false,
+    }),
+    [],
+  )
+
+  const captureActiveNavigationLocation = useCallback((): NavigationLocation | null => {
+    const currentActiveTabId = activeTabIdRef.current
+    if (!currentActiveTabId) {
+      return null
+    }
+
+    const snapshot = captureActiveTabSnapshot()
+    const currentTab = tabsRef.current.find((tab) => tab.id === currentActiveTabId)
+    if (!currentTab) {
+      return null
+    }
+
+    return {
+      tabId: currentTab.id,
+      filePath: currentTab.filePath,
+      cursorPosition: snapshot?.cursorPosition ?? currentTab.snapshot?.cursorPosition ?? currentTab.cursorPosition,
+      scrollTop: snapshot?.scrollTop ?? currentTab.snapshot?.scrollTop ?? null,
+    }
+  }, [captureActiveTabSnapshot])
+
+  const requestEditorNavigation = useCallback((target: PendingNavigationTarget) => {
+    const targetTabId = target.tabId ?? activeTabIdRef.current
+    if (!targetTabId) {
+      return
+    }
+
+    updateTab(targetTabId, (tab) => ({
+      ...tab,
+      cursorPosition: target.cursorPosition,
+      viewportPosition: null,
+    }))
+
+    editorNavigationKeyRef.current += 1
+    setEditorNavigationRequest({
+      key: editorNavigationKeyRef.current,
+      position: target.cursorPosition,
+      scrollTop: target.preserveScroll ? target.scrollTop : null,
+    })
+  }, [updateTab])
+
+  useEffect(() => {
+    if (!pendingNavigationTarget || !activeTab) {
+      return
+    }
+
+    const matchesTarget =
+      (pendingNavigationTarget.tabId != null && activeTab.id === pendingNavigationTarget.tabId) ||
+      (pendingNavigationTarget.filePath != null && activeTab.filePath === pendingNavigationTarget.filePath)
+
+    if (!matchesTarget) {
+      return
+    }
+
+    requestEditorNavigation({
+      ...pendingNavigationTarget,
+      tabId: activeTab.id,
+    })
+    setPendingNavigationTarget(null)
+  }, [activeTab, pendingNavigationTarget, requestEditorNavigation])
+
+  const openPathWithOptionalHistory = useCallback(
+    async (
+      filePath: string,
+      options: {
+        destination?: PendingNavigationTarget | null
+        missingMessage?: string
+        pushHistory?: boolean
+      } = {},
+    ) => {
+      const currentLocation = options.pushHistory ? captureActiveNavigationLocation() : null
+      const sourceFilePath =
+        activeTabIdRef.current != null
+          ? tabsRef.current.find((tab) => tab.id === activeTabIdRef.current)?.filePath ?? null
+          : null
+      const resolvedFilePath = fileUrlToPath(resolveLinkHref(filePath, sourceFilePath ?? undefined)) ?? filePath
+      const existingTab = tabsRef.current.find((tab) => tab.filePath === resolvedFilePath) ?? null
+
+      if (existingTab) {
+        if (!options.pushHistory) {
+          captureActiveTabSnapshot()
+        }
+
+        const destination = options.destination ?? createNavigationLocationForTab(existingTab)
+
+        if (currentLocation) {
+          navigationHistoryRef.current = pushNavigationHistoryEntry(
+            navigationHistoryRef.current,
+            currentLocation,
+            destination,
+          )
+        }
+
+        setPendingNavigationTarget(destination)
+        if (activeTabIdRef.current !== existingTab.id) {
+          replaceActiveTabId(existingTab.id)
+        }
+        return destination
+      }
+
+      const result = await window.markflow?.openPath(resolvedFilePath)
+      if (!result) {
+        showToast(options.missingMessage ?? 'That recent file is no longer available.')
+        setPendingNavigationTarget(null)
+        return null
+      }
+
+      const destination =
+        options.destination ??
+        ({
+          tabId: null,
+          filePath: resolvedFilePath,
+          cursorPosition: 0,
+          scrollTop: 0,
+          preserveScroll: true,
+        } satisfies PendingNavigationTarget)
+
+      if (currentLocation) {
+        navigationHistoryRef.current = pushNavigationHistoryEntry(
+          navigationHistoryRef.current,
+          currentLocation,
+          destination,
+        )
+      }
+
+      setPendingNavigationTarget(destination)
+      return destination
+    },
+    [
+      captureActiveTabSnapshot,
+      captureActiveNavigationLocation,
+      createNavigationLocationForTab,
+      replaceActiveTabId,
+      showToast,
+    ],
+  )
+
+  const restoreNavigationTarget = useCallback(
+    async (target: PendingNavigationTarget | null) => {
+      if (!target) {
+        return false
+      }
+
+      if (target.filePath == null) {
+        const untitledTab = tabsRef.current.find((tab) => tab.id === target.tabId) ?? null
+        if (!untitledTab) {
+          return false
+        }
+
+        setPendingNavigationTarget({
+          ...target,
+          tabId: untitledTab.id,
+        })
+        if (activeTabIdRef.current !== untitledTab.id) {
+          replaceActiveTabId(untitledTab.id)
+        }
+        return true
+      }
+
+      const existingTab = tabsRef.current.find(
+        (tab) => tab.id === target.tabId || tab.filePath === target.filePath,
+      ) ?? null
+
+      if (existingTab) {
+        setPendingNavigationTarget({
+          ...target,
+          tabId: existingTab.id,
+        })
+        if (activeTabIdRef.current !== existingTab.id) {
+          replaceActiveTabId(existingTab.id)
+        }
+        return true
+      }
+
+      const result = await window.markflow?.openPath(target.filePath)
+      if (!result) {
+        showToast('That recent file is no longer available.')
+        setPendingNavigationTarget(null)
+        return false
+      }
+
+      setPendingNavigationTarget(target)
+      return true
+    },
+    [replaceActiveTabId, showToast],
+  )
+
+  const handleNavigateBack = useCallback(async () => {
+    if (!canNavigateBack(navigationHistoryRef.current)) {
+      return false
+    }
+
+    const currentLocation = captureActiveNavigationLocation()
+    if (!currentLocation) {
+      return false
+    }
+
+    const { history, target } = navigateBackInHistory(navigationHistoryRef.current, currentLocation)
+    if (!target) {
+      navigationHistoryRef.current = history
+      return false
+    }
+
+    const didRestore = await restoreNavigationTarget({
+      ...target,
+      preserveScroll: target.scrollTop != null,
+    })
+    navigationHistoryRef.current = didRestore
+      ? history
+      : {
+          entries: history.entries,
+          currentIndex: history.currentIndex + 1,
+        }
+    return didRestore
+  }, [captureActiveNavigationLocation, restoreNavigationTarget])
+
+  const handleNavigateForward = useCallback(async () => {
+    if (!canNavigateForward(navigationHistoryRef.current)) {
+      return false
+    }
+
+    const currentLocation = captureActiveNavigationLocation()
+    if (!currentLocation) {
+      return false
+    }
+
+    const { history, target } = navigateForwardInHistory(navigationHistoryRef.current, currentLocation)
+    if (!target) {
+      navigationHistoryRef.current = history
+      return false
+    }
+
+    const didRestore = await restoreNavigationTarget({
+      ...target,
+      preserveScroll: target.scrollTop != null,
+    })
+    navigationHistoryRef.current = didRestore
+      ? history
+      : {
+          entries: history.entries,
+          currentIndex: history.currentIndex - 1,
+        }
+    return didRestore
+  }, [captureActiveNavigationLocation, restoreNavigationTarget])
 
   const handleOpenQuickOpen = useCallback(async () => {
     const api = window.markflow
@@ -1163,10 +1466,54 @@ export function App() {
     }
   }
 
-  function handleGlobalSearchResult(result: SearchResult) {
+  const handleGlobalSearchResult = useCallback(async (result: SearchResult) => {
     setIsGlobalSearchOpen(false)
-    void handleOpenPath(result.filePath)
-  }
+
+    const existingTab = tabsRef.current.find((tab) => tab.filePath === result.filePath) ?? null
+    if (existingTab) {
+      const destination = createNavigationLocationForTab(existingTab, {
+        cursorPosition: getLineColumnPosition(existingTab.content, result.lineNumber, result.matchStart),
+        scrollTop: null,
+        preserveScroll: false,
+      })
+      await openPathWithOptionalHistory(result.filePath, {
+        destination,
+        missingMessage: 'That recent file is no longer available.',
+        pushHistory: true,
+      })
+      return
+    }
+
+    const currentLocation = captureActiveNavigationLocation()
+    const payload = await window.markflow?.openPath(result.filePath)
+    if (!payload) {
+      showToast('That recent file is no longer available.')
+      return
+    }
+
+    const destination: PendingNavigationTarget = {
+      tabId: null,
+      filePath: result.filePath,
+      cursorPosition: getLineColumnPosition(payload.content, result.lineNumber, result.matchStart),
+      scrollTop: null,
+      preserveScroll: false,
+    }
+
+    if (currentLocation) {
+      navigationHistoryRef.current = pushNavigationHistoryEntry(
+        navigationHistoryRef.current,
+        currentLocation,
+        destination,
+      )
+    }
+
+    setPendingNavigationTarget(destination)
+  }, [
+    captureActiveNavigationLocation,
+    createNavigationLocationForTab,
+    openPathWithOptionalHistory,
+    showToast,
+  ])
 
   const handleSwitchTab = useCallback(
     (tabId: string | null) => {
@@ -1365,13 +1712,24 @@ export function App() {
   }, [closedTabs, handleSwitchTab, replaceActiveTabId, replaceTabs])
 
   useEffect(() => {
+    handleNavigateBackRef.current = handleNavigateBack
+    handleNavigateForwardRef.current = handleNavigateForward
     handleCycleTabsRef.current = handleCycleTabs
     handleOpenFolderPathRef.current = handleOpenFolderPath
     handleOpenQuickOpenRef.current = handleOpenQuickOpen
     handleSaveTabRef.current = handleSaveTab
     handleCloseTabRef.current = handleCloseTab
     handleReopenClosedTabRef.current = handleReopenClosedTab
-  }, [handleCloseTab, handleCycleTabs, handleOpenFolderPath, handleOpenQuickOpen, handleReopenClosedTab, handleSaveTab])
+  }, [
+    handleCloseTab,
+    handleCycleTabs,
+    handleNavigateBack,
+    handleNavigateForward,
+    handleOpenFolderPath,
+    handleOpenQuickOpen,
+    handleReopenClosedTab,
+    handleSaveTab,
+  ])
 
   const totalLines = useMemo(
     () => getTotalLinesForTab(activeTab),
@@ -1439,6 +1797,14 @@ export function App() {
       const isGoToLineKey = isMac
         ? e.metaKey && !e.shiftKey && lowerKey === 'l'
         : e.ctrlKey && !e.shiftKey && lowerKey === 'l'
+      const isNavigateBackKey =
+        !e.shiftKey &&
+        !e.altKey &&
+        ((isMac && e.metaKey && e.key === '[') || (!isMac && e.ctrlKey && e.key === '['))
+      const isNavigateForwardKey =
+        !e.shiftKey &&
+        !e.altKey &&
+        ((isMac && e.metaKey && e.key === ']') || (!isMac && e.ctrlKey && e.key === ']'))
       const isNextTabKey = (!isMac && e.ctrlKey && e.key === 'Tab' && !e.shiftKey) || (e.metaKey && e.key === '`' && !e.shiftKey)
       const isPreviousTabKey =
         (!isMac && e.ctrlKey && e.key === 'Tab' && e.shiftKey) || (e.metaKey && e.key === '`' && e.shiftKey)
@@ -1447,6 +1813,12 @@ export function App() {
       if (isCommandPaletteKey) {
         e.preventDefault()
         handleOpenCommandPalette()
+      } else if (isNavigateBackKey) {
+        e.preventDefault()
+        await handleNavigateBack()
+      } else if (isNavigateForwardKey) {
+        e.preventDefault()
+        await handleNavigateForward()
       } else if (isNextTabKey) {
         e.preventDefault()
         handleCycleTabs(1)
@@ -1471,6 +1843,8 @@ export function App() {
     return () => document.removeEventListener('keydown', handleGlobalKeyDown)
   }, [
     handleCycleTabs,
+    handleNavigateBack,
+    handleNavigateForward,
     handleOpenCommandPalette,
     handleOpenGoToLine,
     handleOpenQuickOpen,
@@ -1769,12 +2143,14 @@ export function App() {
     await api.writeClipboard({ text: serializedSelection.html })
   }
 
-  async function handleOpenPath(filePath: string) {
-    const result = await window.markflow?.openPath(filePath)
-    if (!result) {
-      showToast('That recent file is no longer available.')
-    }
-  }
+  const handleOpenPath = useCallback(
+    async (filePath: string, options: { pushHistory?: boolean } = {}) =>
+      openPathWithOptionalHistory(filePath, {
+        missingMessage: 'That recent file is no longer available.',
+        pushHistory: options.pushHistory ?? false,
+      }),
+    [openPathWithOptionalHistory],
+  )
 
   async function handleThemeChange(appearance: MarkFlowAppearance, event: ChangeEvent<HTMLSelectElement>) {
     const nextThemeState = await window.markflow?.setThemeForAppearance(appearance, event.target.value)
@@ -1945,6 +2321,26 @@ export function App() {
       keywords: ['jump', 'line number'],
       shortcut: 'Mod+L',
       run: () => handleOpenGoToLine(),
+    },
+    {
+      id: 'navigation.back',
+      label: 'Go Back',
+      category: 'Navigation',
+      description: 'Return to the previous visited heading or file',
+      keywords: ['history', 'back', 'previous location'],
+      shortcut: 'Mod+[',
+      focusEditorAfterRun: true,
+      run: () => handleNavigateBack(),
+    },
+    {
+      id: 'navigation.forward',
+      label: 'Go Forward',
+      category: 'Navigation',
+      description: 'Move to the next visited heading or file',
+      keywords: ['history', 'forward', 'next location'],
+      shortcut: 'Mod+]',
+      focusEditorAfterRun: true,
+      run: () => handleNavigateForward(),
     },
     {
       id: 'file.new',
@@ -2176,18 +2572,43 @@ export function App() {
   const handleOutlineNavigate = useCallback((position: number) => {
     const currentActiveTabId = activeTabIdRef.current
     if (currentActiveTabId) {
-      updateTab(currentActiveTabId, (tab) => ({
-        ...tab,
-        viewportPosition: null,
-        cursorPosition: position,
-      }))
+      const currentTab = tabsRef.current.find((tab) => tab.id === currentActiveTabId) ?? null
+      const currentLocation = captureActiveNavigationLocation()
+      const destination =
+        currentTab == null
+          ? null
+          : ({
+              tabId: currentTab.id,
+              filePath: currentTab.filePath,
+              cursorPosition: position,
+              scrollTop: null,
+              preserveScroll: false,
+            } satisfies PendingNavigationTarget)
+
+      if (currentLocation && destination) {
+        navigationHistoryRef.current = pushNavigationHistoryEntry(
+          navigationHistoryRef.current,
+          currentLocation,
+          destination,
+        )
+      }
+
+      if (destination) {
+        setPendingNavigationTarget(destination)
+        return
+      }
     }
-    editorNavigationKeyRef.current += 1
-    setEditorNavigationRequest({
-      key: editorNavigationKeyRef.current,
-      position,
+
+    requestEditorNavigation({
+      tabId: currentActiveTabId,
+      filePath: activeTabIdRef.current
+        ? tabsRef.current.find((tab) => tab.id === activeTabIdRef.current)?.filePath ?? null
+        : null,
+      cursorPosition: position,
+      scrollTop: null,
+      preserveScroll: false,
     })
-  }, [updateTab])
+  }, [captureActiveNavigationLocation, requestEditorNavigation])
 
   const handleGoToLine = useCallback(
     async (lineNumber: number) => {
@@ -2634,7 +3055,7 @@ export function App() {
                 onScrollMetricsChange={handleScrollMetricsChange}
                 onSymbolTableChange={handleSymbolTableChange}
                 onNavigationHandled={() => setEditorNavigationRequest(null)}
-                onOpenPath={handleOpenPath}
+                onOpenPath={(filePath) => handleOpenPath(filePath, { pushHistory: true })}
                 onToggleMode={toggleViewMode}
                 onSelectionChange={handleSelectionChange}
                 onToggleFocusMode={toggleFocusMode}

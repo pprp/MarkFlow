@@ -85,6 +85,7 @@ function buildWindowedPayload(
 }
 
 class MockMarkFlowAPI implements MarkFlowDesktopAPI {
+  private documents = new Map<string, MarkFlowFilePayload>()
   private themes: MarkFlowThemeSummary[] = [
     { id: 'paper', name: 'Paper' },
     { id: 'github', name: 'GitHub' },
@@ -126,7 +127,13 @@ class MockMarkFlowAPI implements MarkFlowDesktopAPI {
   private windowSession: MarkFlowWindowSession | null = null
   private confirmTabCloseAction: 'save' | 'discard' | 'cancel' = 'cancel'
   openFile: MarkFlowDesktopAPI['openFile'] = vi.fn(async () => null)
-  openPath: MarkFlowDesktopAPI['openPath'] = vi.fn(async () => null)
+  openPath: MarkFlowDesktopAPI['openPath'] = vi.fn(async (filePath: string) => {
+    const document = this.documents.get(filePath) ?? null
+    if (document) {
+      this.emitFileOpened(document)
+    }
+    return document
+  })
   readLargeFileWindow: MarkFlowDesktopAPI['readLargeFileWindow'] = vi.fn(async () => null)
   saveFile: MarkFlowDesktopAPI['saveFile'] = vi.fn(async () => ({ success: true }))
   saveFileAs: MarkFlowDesktopAPI['saveFileAs'] = vi.fn(async () => ({ success: true }))
@@ -314,6 +321,12 @@ class MockMarkFlowAPI implements MarkFlowDesktopAPI {
     this.windowSession = session
   }
 
+  setDocument(document: MarkFlowFilePayload) {
+    if (document.filePath) {
+      this.documents.set(document.filePath, document)
+    }
+  }
+
   setConfirmTabCloseAction(action: 'save' | 'discard' | 'cancel') {
     this.confirmTabCloseAction = action
   }
@@ -357,6 +370,9 @@ class MockMarkFlowAPI implements MarkFlowDesktopAPI {
   }
 
   emitFileOpened(data: MarkFlowFilePayload) {
+    if (data.filePath) {
+      this.documents.set(data.filePath, data)
+    }
     for (const listener of this.fileOpenedListeners) listener(data)
   }
 
@@ -1357,6 +1373,75 @@ describe('App desktop integration', () => {
     })
   })
 
+  it('restores caret and scroll when navigating back and forward through outline history', async () => {
+    const api = new MockMarkFlowAPI()
+    window.markflow = api
+
+    const content = ['# Intro', '', '## Setup', 'Alpha', '', '# Appendix', 'Omega'].join('\n')
+    const { container } = render(<App />)
+
+    await act(async () => {
+      api.emitFileOpened({ filePath: '/tmp/history-outline.md', content })
+    })
+
+    const view = getEditorView(container)
+    Object.defineProperty(view.scrollDOM, 'scrollTop', {
+      value: 24,
+      writable: true,
+      configurable: true,
+    })
+
+    act(() => {
+      view.dispatch({
+        selection: { anchor: content.indexOf('# Intro') + 2 },
+      })
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Setup' }))
+
+    await waitFor(() => {
+      expect(getEditorView(container).state.selection.main.head).toBe(content.indexOf('## Setup'))
+    })
+
+    act(() => {
+      const activeView = getEditorView(container)
+      activeView.scrollDOM.scrollTop = 180
+      activeView.dispatch({
+        selection: { anchor: content.indexOf('## Setup') + 4 },
+      })
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Appendix' }))
+
+    await waitFor(() => {
+      expect(getEditorView(container).state.selection.main.head).toBe(content.indexOf('# Appendix'))
+    })
+
+    act(() => {
+      const activeView = getEditorView(container)
+      activeView.scrollDOM.scrollTop = 360
+      activeView.dispatch({
+        selection: { anchor: content.indexOf('# Appendix') + 6 },
+      })
+    })
+
+    fireEvent.keyDown(document, { key: '[', ctrlKey: true })
+
+    await waitFor(() => {
+      const backView = getEditorView(container)
+      expect(backView.state.selection.main.head).toBe(content.indexOf('## Setup') + 4)
+      expect(backView.scrollDOM.scrollTop).toBe(180)
+    })
+
+    fireEvent.keyDown(document, { key: ']', ctrlKey: true })
+
+    await waitFor(() => {
+      const forwardView = getEditorView(container)
+      expect(forwardView.state.selection.main.head).toBe(content.indexOf('# Appendix') + 6)
+      expect(forwardView.scrollDOM.scrollTop).toBe(360)
+    })
+  })
+
   it('opens a go-to-line dialog with Cmd/Ctrl+L and jumps to the requested line', async () => {
     const api = new MockMarkFlowAPI()
     window.markflow = api
@@ -2136,6 +2221,119 @@ describe('App command palette integration', () => {
     })
 
     expect(screen.queryByRole('dialog', { name: 'Global search' })).not.toBeInTheDocument()
+  })
+
+  it('pushes wikilink and global-search destinations onto navigation history across files', async () => {
+    const api = new MockMarkFlowAPI()
+    const alphaContent = ['# Alpha', '', '[[beta.md]]', '', 'search token'].join('\n')
+    const betaContent = ['# Beta', '', 'Beta target', '', 'Wrap up'].join('\n')
+    api.setDocument({ filePath: '/docs/beta.md', content: betaContent })
+    api.openFolderPath = vi.fn(async () => ({ folderPath: '/docs' }))
+    api.getVaultFiles = vi.fn(async () => ['/docs/alpha.md', '/docs/beta.md'])
+    api.searchFiles = vi.fn(async () => [
+      {
+        filePath: '/docs/alpha.md',
+        lineNumber: 5,
+        lineText: 'search token',
+        matchStart: 0,
+        matchEnd: 6,
+      },
+    ])
+    window.markflow = api
+
+    const { container } = render(<App />)
+
+    await act(async () => {
+      api.emitFileOpened({ filePath: '/docs/alpha.md', content: alphaContent })
+    })
+
+    const view = getEditorView(container)
+    Object.defineProperty(view.scrollDOM, 'scrollTop', {
+      value: 40,
+      writable: true,
+      configurable: true,
+    })
+
+    act(() => {
+      view.dispatch({
+        selection: { anchor: alphaContent.indexOf('search token') + 2 },
+      })
+    })
+
+    fireEvent.click(container.querySelector('a.mf-wikilink') as Element, { ctrlKey: true })
+
+    await waitFor(() => {
+      expect(getEditorView(container).state.doc.toString()).toBe(betaContent)
+      expect(screen.getByRole('tab', { name: 'beta.md' })).toHaveAttribute('aria-selected', 'true')
+    })
+
+    act(() => {
+      const betaView = getEditorView(container)
+      betaView.scrollDOM.scrollTop = 160
+      betaView.dispatch({
+        selection: { anchor: betaContent.indexOf('Beta target') + 5 },
+      })
+    })
+
+    await act(async () => {
+      api.emitMenuAction('open-recent-folder', '/docs')
+    })
+
+    fireEvent.keyDown(document, { key: 'f', ctrlKey: true, shiftKey: true })
+
+    const searchInput = await screen.findByRole('textbox', { name: 'Search query' })
+    fireEvent.change(searchInput, { target: { value: 'search' } })
+
+    await waitFor(() => {
+      expect(api.searchFiles).toHaveBeenCalledWith('/docs', 'search')
+    })
+
+    const alphaSearchResult = await waitFor(() => {
+      const lineLabel = screen.getByText('Line 5')
+      return lineLabel.closest('[role="button"]') as HTMLElement
+    })
+
+    act(() => {
+      const betaView = getEditorView(container)
+      betaView.scrollDOM.scrollTop = 160
+      betaView.dispatch({
+        selection: { anchor: betaContent.indexOf('Beta target') + 5 },
+      })
+    })
+
+    fireEvent.click(alphaSearchResult)
+
+    await waitFor(() => {
+      const alphaView = getEditorView(container)
+      expect(alphaView.state.doc.toString()).toBe(alphaContent)
+      expect(alphaView.state.selection.main.head).toBe(alphaContent.indexOf('search token'))
+    })
+
+    act(() => {
+      const alphaView = getEditorView(container)
+      alphaView.scrollDOM.scrollTop = 280
+      alphaView.dispatch({
+        selection: { anchor: alphaContent.indexOf('search token') + 4 },
+      })
+    })
+
+    fireEvent.keyDown(document, { key: '[', ctrlKey: true })
+
+    await waitFor(() => {
+      const betaView = getEditorView(container)
+      expect(betaView.state.doc.toString()).toBe(betaContent)
+      expect(betaView.state.selection.main.head).toBe(betaContent.indexOf('Beta target') + 5)
+      expect(betaView.scrollDOM.scrollTop).toBe(160)
+    })
+
+    fireEvent.keyDown(document, { key: '[', ctrlKey: true })
+
+    await waitFor(() => {
+      const alphaView = getEditorView(container)
+      expect(alphaView.state.doc.toString()).toBe(alphaContent)
+      expect(alphaView.state.selection.main.head).toBe(alphaContent.indexOf('search token') + 2)
+      expect(alphaView.scrollDOM.scrollTop).toBe(40)
+    })
   })
 })
 

@@ -2410,7 +2410,7 @@
       "category": "phase-2-functional",
       "area": "@markflow/editor",
       "priority": 3,
-      "status": "planned",
+      "status": "ready",
       "passes": false,
       "lastVerifiedAt": null,
       "dependsOn": ["MF-020", "MF-040", "MF-045"],
@@ -2427,7 +2427,7 @@
           "Traverse five headings across two files and confirm back/forward restores exact caret column plus scroll."
         ]
       },
-      "notes": "Typora-style navigation benefits from a browser-like back/forward stack paralleling Obsidian/VS Code. Source: https://support.typora.io/Shortcut-Keys/."
+      "notes": "Implemented on 2026-04-16 in `packages/editor/src/editor/navigationHistory.ts`, `packages/editor/src/editor/MarkFlowEditor.tsx`, `packages/editor/src/App.tsx`, `packages/editor/src/editor/__tests__/navigationHistory.test.ts`, `packages/editor/src/__tests__/App.test.tsx`, `packages/shared/src/index.ts`, `packages/desktop/src/main/menu.ts`, and `packages/desktop/src/main/menu.test.ts`. MarkFlow now keeps a capped 64-entry browser-style navigation stack for outline jumps, editor-side file navigation (including relative wikilinks resolved against the current document), and global search results; `Cmd/Ctrl+[` and `Cmd/Ctrl+]` plus Go menu wiring restore the prior caret position and saved scroll offset across files, and mid-history jumps correctly branch the forward stack. Automated verification passed with `pnpm --filter @markflow/editor exec vitest run src/editor/__tests__/navigationHistory.test.ts src/__tests__/App.test.tsx`, `pnpm --filter @markflow/desktop exec vitest run src/main/menu.test.ts`, `pnpm --filter @markflow/shared lint`, `pnpm --filter @markflow/shared build`, `pnpm --filter @markflow/editor lint`, `pnpm --filter @markflow/editor build`, `pnpm --filter @markflow/desktop lint`, `pnpm --filter @markflow/desktop build`, and `pnpm harness:verify`. `passes` remains false because the required live desktop traversal across five headings and two files was not truthfully completed in this terminal session. Source: https://support.typora.io/Shortcut-Keys/."
     },
     {
       "id": "MF-093",

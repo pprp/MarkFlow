@@ -88,7 +88,7 @@ export interface MarkFlowEditorProps {
   typewriterMode?: boolean
   pluginHost?: MarkFlowPluginHost
   filePath?: string
-  navigationRequest?: { key: number; position: number } | null
+  navigationRequest?: { key: number; position: number; scrollTop?: number | null } | null
   collapsedRanges?: number[]
   onCollapsedRangesChange?: (ranges: number[]) => void
 }
@@ -130,6 +130,7 @@ type SerializedEditorState = {
 
 export interface MarkFlowEditorSnapshot {
   collapsedRanges: number[]
+  cursorPosition: number
   scrollTop: number
   state: SerializedEditorState
 }
@@ -952,12 +953,30 @@ export const MarkFlowEditor = forwardRef<MarkFlowEditorHandle, MarkFlowEditorPro
     const view = viewRef.current
     if (!view || !navigationRequest) return
 
+    const applyHandled = () => {
+      view.focus()
+      onNavigationHandledRef.current?.()
+    }
+
     view.dispatch({
       selection: EditorSelection.cursor(navigationRequest.position),
       effects: EditorView.scrollIntoView(navigationRequest.position, { y: 'start' }),
     })
-    view.focus()
-    onNavigationHandledRef.current?.()
+
+    if (typeof navigationRequest.scrollTop === 'number') {
+      requestAnimationFrame(() => {
+        if (viewRef.current !== view) {
+          return
+        }
+
+        view.scrollDOM.scrollTop = navigationRequest.scrollTop ?? 0
+        publishScrollMetrics(view, onScrollMetricsChangeRef.current)
+        applyHandled()
+      })
+      return
+    }
+
+    applyHandled()
   }, [navigationRequest])
 
   const [splitRatio, setSplitRatio] = useState(0.5)
@@ -1059,6 +1078,7 @@ export const MarkFlowEditor = forwardRef<MarkFlowEditorHandle, MarkFlowEditorPro
         return {
           state: view.state.toJSON({ history: historyField }) as SerializedEditorState,
           collapsedRanges: getCollapsedRanges(view.state),
+          cursorPosition: view.state.selection.main.head,
           scrollTop: view.scrollDOM.scrollTop,
         }
       },

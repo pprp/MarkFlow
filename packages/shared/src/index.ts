@@ -148,6 +148,8 @@ export type MarkFlowMenuAction =
   | 'export-epub'
   | 'export-latex'
   | 'go-to-line'
+  | 'navigate-back'
+  | 'navigate-forward'
   | 'command-palette'
   | 'quick-open'
   | 'global-search'

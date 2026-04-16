@@ -9,6 +9,53 @@
 
 ## Session Log
 
+### 2026-04-16 - MF-092 Back/forward navigation history now restores visited headings and files
+
+- Author: Codex
+- Focus: obey the startup protocol for `MF-092`, implement only the editor navigation-history feature, run the listed automated verification plus `pnpm harness:verify`, keep the ledger honest because live desktop/manual verification was not completed here, and finish with a Lore-protocol commit.
+- What changed:
+  - re-read the root `AGENTS.md`, ran `pnpm harness:start`, and ran `./harness/init.sh --smoke` before implementation
+  - added `packages/editor/src/editor/navigationHistory.ts` plus `packages/editor/src/editor/__tests__/navigationHistory.test.ts` to lock the browser-style stack rules for push, back, forward, mid-history branching, and 64-entry cap trimming
+  - updated `packages/editor/src/editor/MarkFlowEditor.tsx` and `packages/editor/src/App.tsx` so navigation requests can restore both caret and `scrollTop`, outline jumps push onto history, relative wikilinks resolve against the active document path, and global search results land on the exact match column instead of only reopening the file
+  - wired `Cmd/Ctrl+[` and `Cmd/Ctrl+]` through renderer shortcuts, command-palette actions, shared menu-action types, and `packages/desktop/src/main/menu.ts` / `packages/desktop/src/main/menu.test.ts` so back/forward history works from both keyboard and Go menu
+  - expanded `packages/editor/src/__tests__/App.test.tsx` to cover outline-history caret/scroll restore plus cross-file wikilink/global-search history traversal
+  - updated `harness/feature-ledger.json` for `MF-092` only to `status=ready` while keeping `passes=false` and `lastVerifiedAt=null`
+- Changed files:
+  - `packages/editor/src/editor/navigationHistory.ts`
+  - `packages/editor/src/editor/__tests__/navigationHistory.test.ts`
+  - `packages/editor/src/editor/MarkFlowEditor.tsx`
+  - `packages/editor/src/App.tsx`
+  - `packages/editor/src/__tests__/App.test.tsx`
+  - `packages/shared/src/index.ts`
+  - `packages/desktop/src/main/menu.ts`
+  - `packages/desktop/src/main/menu.test.ts`
+  - `harness/feature-ledger.json`
+  - `harness/progress.md`
+- Simplifications made:
+  - kept the history model in one pure helper instead of scattering stack mutation across outline, search, and link handlers
+  - reused the existing editor snapshot path to capture caret + scroll evidence rather than adding new renderer IPC or persistence
+  - resolved relative wikilinks in the app layer against the active document path so the feature could stay scoped to navigation without redesigning desktop file lookup
+- Verification:
+  - `pnpm harness:start` (passes)
+  - `./harness/init.sh --smoke` before implementation (passes)
+  - `pnpm --filter @markflow/editor exec vitest run src/editor/__tests__/navigationHistory.test.ts src/__tests__/App.test.tsx` (passes; 2 files / 51 tests)
+  - `pnpm --filter @markflow/desktop exec vitest run src/main/menu.test.ts` (passes; 1 file / 11 tests)
+  - `pnpm --filter @markflow/shared lint` (passes)
+  - `pnpm --filter @markflow/shared build` (passes)
+  - `pnpm --filter @markflow/editor lint` (passes)
+  - `pnpm --filter @markflow/editor build` (passes)
+  - `pnpm --filter @markflow/desktop lint` (passes)
+  - `pnpm --filter @markflow/desktop build` (passes)
+  - `pnpm harness:verify` (passes)
+- Review / risks:
+  - `MF-092` is implemented and automated coverage is green, but `passes` must remain false until someone performs the required live desktop traversal across five headings and two files and confirms caret column plus scroll are restored exactly
+  - history entries currently capture in-session navigation state only; the stack is intentionally not persisted across app relaunches
+  - the feature now resolves relative wikilink paths against the active document path, but ambiguous vault-wide basename matching remains out of scope for this slice
+- Newly verified features:
+  - none
+- Next recommended feature:
+  - `MF-092` - complete the pending manual traversal across five headings and two files, then set `passes=true` and `lastVerifiedAt` only if caret column plus scroll restoration is confirmed in the live app
+
 ### 2026-04-16 - MF-085 heading auto-numbering now flows through editor, outline, and export markup
 
 - Author: Codex
