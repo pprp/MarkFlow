@@ -1,5 +1,6 @@
 appId: com.markflow.app
 productName: MarkFlow
+electronVersion: 33.4.11
 directories:
   output: ../../dist-mac
   buildResources: build
