@@ -1101,6 +1101,29 @@ describe('App command palette integration', () => {
 
     expect(screen.queryByPlaceholderText('Search commands...')).not.toBeInTheDocument()
   })
+
+  it('does not open global search when the shortcut event was already handled elsewhere', async () => {
+    const api = new MockMarkFlowAPI()
+    window.markflow = api
+
+    render(<App />)
+    await screen.findByLabelText('Light theme')
+
+    const event = new KeyboardEvent('keydown', {
+      key: 'f',
+      ctrlKey: true,
+      shiftKey: true,
+      bubbles: true,
+      cancelable: true,
+    })
+    event.preventDefault()
+
+    act(() => {
+      document.dispatchEvent(event)
+    })
+
+    expect(screen.queryByRole('dialog', { name: 'Global search' })).not.toBeInTheDocument()
+  })
 })
 
 

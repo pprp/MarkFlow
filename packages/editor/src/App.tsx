@@ -542,6 +542,10 @@ export function App() {
 
   useEffect(() => {
     const handleGlobalKeyDown = async (e: KeyboardEvent) => {
+      if (e.defaultPrevented) {
+        return
+      }
+
       const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0
       const isCommandPaletteKey = isMac
         ? e.metaKey && e.shiftKey && e.key.toLowerCase() === 'p'
