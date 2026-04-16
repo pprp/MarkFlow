@@ -5126,3 +5126,48 @@
   - none
 - Next recommended feature:
   - `MF-087` - perform the pending Typora sample-document manual parity check, then promote `passes` / `lastVerifiedAt` only if `flow`, `sequence`, Mermaid `sequenceDiagram`, and Mermaid `gantt` all match expected inline rendering
+
+### 2026-04-16 - MF-090 Open Recent now persists files and folders with pin/clear behavior
+
+- Author: Codex
+- Focus: obey the startup protocol for `MF-090`, implement only the desktop recent-history feature, run the feature-specific automated verification plus repository-wide verification, keep the ledger honest because OS-native/manual restart checks were not performed here, and finish with a Lore-protocol commit.
+- What changed:
+  - re-read the root `AGENTS.md`, ran `pnpm harness:start`, and ran `./harness/init.sh --smoke` before implementation
+  - replaced the in-memory `recentFiles` list in `packages/desktop/src/main/fileManager.ts` with a persisted recent-history model stored under `.markflow-open-recent.json`, tracking recent files, recent folders, and pinned folders while syncing the same saved set to `app.addRecentDocument` / `app.clearRecentDocuments`
+  - added `File -> Open Recent` generation in `packages/desktop/src/main/menu.ts` and `packages/desktop/src/main/index.ts`, including pinned-folder and recent-entry sections plus `Pin Folder`, `Unpin Folder`, `Clear Items`, and `Clear Recent and Pinned Folders / Files` actions
+  - extended the preload/shared/renderer bridge in `packages/shared/src/index.ts`, `packages/desktop/src/preload/index.ts`, `packages/editor/src/App.tsx`, and `packages/editor/src/components/QuickOpen.tsx` so Quick Open consumes the same recent-history source, can open recent folders, and reports missing recent files/folders with a toast instead of failing silently
+  - updated `packages/desktop/src/main/fileManager.test.ts`, `packages/desktop/src/main/menu.test.ts`, and `packages/editor/src/__tests__/App.test.tsx` to cover persisted recent-file/folder order, menu serialization, pin/clear flows, missing-path handling, and the widened Quick Open item shape
+- Changed files:
+  - `packages/shared/src/index.ts`
+  - `packages/desktop/src/preload/index.ts`
+  - `packages/desktop/src/main/index.ts`
+  - `packages/desktop/src/main/menu.ts`
+  - `packages/desktop/src/main/menu.test.ts`
+  - `packages/desktop/src/main/fileManager.ts`
+  - `packages/desktop/src/main/fileManager.test.ts`
+  - `packages/editor/src/App.tsx`
+  - `packages/editor/src/components/QuickOpen.tsx`
+  - `packages/editor/src/__tests__/App.test.tsx`
+  - `harness/feature-ledger.json`
+  - `harness/progress.md`
+- Simplifications made:
+  - kept one recent-history source of truth in the desktop main process and derived both `Open Recent` and Quick Open data from it instead of adding separate menu-side and renderer-side stores
+  - reused the existing `menu-action` bridge for recent-folder menu dispatch rather than introducing a second renderer event channel
+  - left `openFolder()` trusting the OS chooser while restricting existence checks to explicit path reopens, which preserves existing vault-open behavior and still covers missing recent folders
+- Verification:
+  - `pnpm harness:start` (passes)
+  - `./harness/init.sh --smoke` before implementation (passes)
+  - `pnpm --filter @markflow/desktop exec vitest run src/main/fileManager.test.ts src/main/menu.test.ts` (passes; 2 files / 28 tests covering persistence, menu serialization, pin/clear flows, and missing-file handling)
+  - `pnpm --filter @markflow/editor exec vitest run src/__tests__/App.test.tsx` (passes; 1 file / 45 tests covering Quick Open integration after the recent-history item-shape changes)
+  - `pnpm lint` (passes)
+  - `pnpm test` (passes)
+  - `pnpm build` (passes)
+  - `pnpm harness:verify` (passes)
+- Review / risks:
+  - `MF-090` is implemented and automated coverage is green, but `passes` must remain false until someone restarts the packaged app and confirms `Open Recent`, Quick Open, and OS-native recents all show the same saved history
+  - app-level pinned folders are kept in MarkFlow's own history and re-synced into OS recents, but true OS-native "pinned" presentation still depends on platform-specific shell behavior outside this automated environment
+  - missing recent folders are surfaced via renderer toast after the menu dispatch path, while missing recent files are surfaced via a main-process error dialog; both are graceful, but the exact platform chrome still needs manual confirmation
+- Newly verified features:
+  - none
+- Next recommended feature:
+  - `MF-090` - perform the pending restart-based manual verification for `Open Recent`, Quick Open, and OS-native recents, then promote `passes` / `lastVerifiedAt` only if the saved history stays aligned across all three surfaces

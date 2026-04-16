@@ -1,8 +1,29 @@
 import type { MenuItemConstructorOptions } from 'electron'
-import type { MarkFlowMenuAction } from '@markflow/shared'
+import type { MarkFlowMenuAction, MarkFlowRecentPathKind } from '@markflow/shared'
+
+export interface OpenRecentMenuEntry {
+  description: string
+  kind: MarkFlowRecentPathKind
+  label: string
+  path: string
+}
+
+export interface OpenRecentMenuOptions {
+  canClearAll: boolean
+  canClearItems: boolean
+  pinnableFolders: OpenRecentMenuEntry[]
+  pinnedFolders: OpenRecentMenuEntry[]
+  recentEntries: OpenRecentMenuEntry[]
+  clearAll: () => void
+  clearItems: () => void
+  openEntry: (entry: OpenRecentMenuEntry) => void
+  pinFolder: (folderPath: string) => void
+  unpinFolder: (folderPath: string) => void
+}
 
 interface ApplicationMenuOptions {
   canRevealCurrentFile: () => boolean
+  openRecent: OpenRecentMenuOptions
   revealCurrentFileInFolder: () => boolean
   sendMenuAction: (action: MarkFlowMenuAction) => void
   toggleFullscreen: () => void
@@ -21,8 +42,81 @@ function getRevealCurrentFileLabel(platform: NodeJS.Platform): string {
   return 'Show in Folder'
 }
 
+function buildOpenRecentItem(
+  entry: OpenRecentMenuEntry,
+  openRecent: OpenRecentMenuOptions,
+): MenuItemConstructorOptions {
+  return {
+    label: entry.label,
+    sublabel: entry.description,
+    click: () => openRecent.openEntry(entry),
+  }
+}
+
+function buildFolderActionSubmenu(
+  label: string,
+  folders: OpenRecentMenuEntry[],
+  onClick: (folderPath: string) => void,
+  emptyLabel: string,
+): MenuItemConstructorOptions {
+  return {
+    label,
+    submenu:
+      folders.length > 0
+        ? folders.map((folder) => ({
+            label: folder.label,
+            sublabel: folder.description,
+            click: () => onClick(folder.path),
+          }))
+        : [{ label: emptyLabel, enabled: false }],
+  }
+}
+
+function buildOpenRecentSubmenu(openRecent: OpenRecentMenuOptions): MenuItemConstructorOptions[] {
+  const submenu: MenuItemConstructorOptions[] = []
+
+  if (openRecent.pinnedFolders.length > 0) {
+    submenu.push({ label: 'Pinned Folders', enabled: false })
+    submenu.push(...openRecent.pinnedFolders.map((entry) => buildOpenRecentItem(entry, openRecent)))
+  }
+
+  if (openRecent.recentEntries.length > 0) {
+    if (submenu.length > 0) {
+      submenu.push({ type: 'separator' })
+    }
+    submenu.push({ label: 'Recent Files and Folders', enabled: false })
+    submenu.push(...openRecent.recentEntries.map((entry) => buildOpenRecentItem(entry, openRecent)))
+  }
+
+  if (submenu.length === 0) {
+    submenu.push({ label: 'No Recent Files or Folders', enabled: false })
+  }
+
+  submenu.push({ type: 'separator' })
+  submenu.push(
+    buildFolderActionSubmenu('Pin Folder', openRecent.pinnableFolders, openRecent.pinFolder, 'No Recent Folders'),
+  )
+  submenu.push(
+    buildFolderActionSubmenu('Unpin Folder', openRecent.pinnedFolders, openRecent.unpinFolder, 'No Pinned Folders'),
+  )
+  submenu.push({ type: 'separator' })
+  submenu.push({
+    label: 'Clear Items',
+    enabled: openRecent.canClearItems,
+    click: () => openRecent.clearItems(),
+  })
+  submenu.push({
+    label: 'Clear Recent and Pinned Folders / Files',
+    enabled: openRecent.canClearAll,
+    click: () => openRecent.clearAll(),
+  })
+
+  return submenu
+}
+
 export function createApplicationMenuTemplate({
   canRevealCurrentFile,
+  openRecent,
   revealCurrentFileInFolder,
   sendMenuAction,
   toggleFullscreen,
@@ -36,6 +130,7 @@ export function createApplicationMenuTemplate({
       submenu: [
         { label: 'New', accelerator: 'CmdOrCtrl+N', click: () => sendMenuAction('new-file') },
         { label: 'Open…', accelerator: 'CmdOrCtrl+O', click: () => sendMenuAction('open-file') },
+        { label: 'Open Recent', submenu: buildOpenRecentSubmenu(openRecent) },
         { type: 'separator' },
         { label: 'Close Tab', accelerator: 'CmdOrCtrl+W', click: () => sendMenuAction('close-tab') },
         {

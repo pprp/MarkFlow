@@ -30,7 +30,7 @@ import {
   type MarkFlowFileLoadProgressPayload,
   type MarkFlowImageUploadSettings,
   type MarkFlowLargeFileWindow,
-  type MarkFlowMenuAction,
+  type MarkFlowMenuActionPayload,
   type MarkFlowRecoveryCheckpoint,
   type MarkFlowSpellCheckState,
   type MarkFlowTabCloseAction,
@@ -440,6 +440,8 @@ export function App() {
   const handleCloseTabRef = useRef<(tabId: string | null) => Promise<boolean>>(async () => false)
   const handleReopenClosedTabRef = useRef<() => Promise<boolean>>(async () => false)
   const handleCycleTabsRef = useRef<(direction: 1 | -1) => void>(() => {})
+  const handleOpenFolderPathRef = useRef<(folderPath: string) => Promise<boolean>>(async () => false)
+  const handleOpenQuickOpenRef = useRef<() => Promise<boolean>>(async () => false)
   const handleCopyActionRef = useRef<
     (action: 'copy' | 'copy-as-markdown' | 'copy-as-html-code') => Promise<void>
   >(async () => {})
@@ -789,13 +791,18 @@ export function App() {
       )
     }
 
-    const handleMenuAction = async ({ action }: { action: MarkFlowMenuAction }) => {
+    const handleMenuAction = async ({ action, path }: MarkFlowMenuActionPayload) => {
       switch (action) {
         case 'new-file':
           await api.newFile()
           break
         case 'open-file':
           await api.openFile()
+          break
+        case 'open-recent-folder':
+          if (path) {
+            await handleOpenFolderPathRef.current(path)
+          }
           break
         case 'save-file':
           await handleSaveTabRef.current(activeTabIdRef.current)
@@ -859,7 +866,7 @@ export function App() {
           setIsCommandPaletteOpen(true)
           break
         case 'quick-open':
-          setIsQuickOpenOpen(true)
+          await handleOpenQuickOpenRef.current()
           break
         case 'global-search':
           setIsGlobalSearchOpen(true)
@@ -1046,6 +1053,18 @@ export function App() {
     setIsCommandPaletteOpen(true)
   }, [])
 
+  const showToast = useCallback((message: string) => {
+    toastIdRef.current += 1
+    const nextToast = {
+      id: toastIdRef.current,
+      message,
+    }
+    setToasts((currentToasts) => [...currentToasts, nextToast])
+    window.setTimeout(() => {
+      setToasts((currentToasts) => currentToasts.filter((toast) => toast.id !== nextToast.id))
+    }, 4_000)
+  }, [])
+
   const handleOpenQuickOpen = useCallback(async () => {
     const api = window.markflow
     if (!api) {
@@ -1060,6 +1079,28 @@ export function App() {
     setIsQuickOpenOpen(true)
     return true
   }, [])
+
+  const handleOpenFolderPath = useCallback(
+    async (folderPath: string) => {
+      const api = window.markflow
+      if (!api) {
+        return false
+      }
+
+      const result = await api.openFolderPath(folderPath)
+      if (!result) {
+        showToast('That recent folder is no longer available.')
+        return false
+      }
+
+      setVaultPath(result.folderPath)
+      setShowSidebar(true)
+      const files = await api.getVaultFiles(result.folderPath)
+      setVaultFiles(files ?? [])
+      return true
+    },
+    [showToast],
+  )
 
   const handleOpenGlobalSearch = useCallback(() => {
     setIsCommandPaletteOpen(false)
@@ -1086,13 +1127,20 @@ export function App() {
   }, [])
 
   async function handleOpenFolder() {
-    const result = await window.markflow?.openFolder()
-    if (result) {
-      setVaultPath(result.folderPath)
-      setShowSidebar(true)
-      const files = await window.markflow?.getVaultFiles(result.folderPath)
-      setVaultFiles(files ?? [])
+    const api = window.markflow
+    if (!api) {
+      return
     }
+
+    const result = await api.openFolder()
+    if (!result) {
+      return
+    }
+
+    setVaultPath(result.folderPath)
+    setShowSidebar(true)
+    const files = await api.getVaultFiles(result.folderPath)
+    setVaultFiles(files ?? [])
   }
 
   async function handleVaultFileRename(oldPath: string, newName: string) {
@@ -1315,10 +1363,12 @@ export function App() {
 
   useEffect(() => {
     handleCycleTabsRef.current = handleCycleTabs
+    handleOpenFolderPathRef.current = handleOpenFolderPath
+    handleOpenQuickOpenRef.current = handleOpenQuickOpen
     handleSaveTabRef.current = handleSaveTab
     handleCloseTabRef.current = handleCloseTab
     handleReopenClosedTabRef.current = handleReopenClosedTab
-  }, [handleCloseTab, handleCycleTabs, handleReopenClosedTab, handleSaveTab])
+  }, [handleCloseTab, handleCycleTabs, handleOpenFolderPath, handleOpenQuickOpen, handleReopenClosedTab, handleSaveTab])
 
   const totalLines = useMemo(
     () => getTotalLinesForTab(activeTab),
@@ -1427,6 +1477,11 @@ export function App() {
 
   const handleQuickOpenSelect = async (item: MarkFlowQuickOpenItem) => {
     setIsQuickOpenOpen(false)
+    if (item.kind === 'folder') {
+      await handleOpenFolderPath(item.filePath)
+      return
+    }
+
     await handleOpenPath(item.filePath)
   }
 
@@ -1509,18 +1564,6 @@ export function App() {
       await api.exportPdf(html, defaultName)
     }
   }
-
-  const showToast = useCallback((message: string) => {
-    toastIdRef.current += 1
-    const nextToast = {
-      id: toastIdRef.current,
-      message,
-    }
-    setToasts((currentToasts) => [...currentToasts, nextToast])
-    window.setTimeout(() => {
-      setToasts((currentToasts) => currentToasts.filter((toast) => toast.id !== nextToast.id))
-    }, 4_000)
-  }, [])
 
   const updateHeadingNumberingPreference = useCallback((enabled: boolean) => {
     persistLocalHeadingNumberingPreference(enabled)
@@ -1724,7 +1767,10 @@ export function App() {
   }
 
   async function handleOpenPath(filePath: string) {
-    await window.markflow?.openPath(filePath)
+    const result = await window.markflow?.openPath(filePath)
+    if (!result) {
+      showToast('That recent file is no longer available.')
+    }
   }
 
   async function handleThemeChange(appearance: MarkFlowAppearance, event: ChangeEvent<HTMLSelectElement>) {

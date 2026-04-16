@@ -33,6 +33,7 @@ function subscribe<T>(channel: string, cb: (data: T) => void) {
 const api: MarkFlowDesktopAPI = {
   openFile: () => ipcRenderer.invoke('open-file'),
   openPath: (filePath: string) => ipcRenderer.invoke('open-path', filePath),
+  openFolderPath: (folderPath: string) => ipcRenderer.invoke('open-folder-path', folderPath),
   readLargeFileWindow: (filePath: string, lineNumber: number) =>
     ipcRenderer.invoke('read-large-file-window', filePath, lineNumber),
   saveFile: (content: string, tabId?: string | null) =>

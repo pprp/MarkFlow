@@ -2360,7 +2360,7 @@
       "category": "phase-1-functional",
       "area": "@markflow/desktop",
       "priority": 3,
-      "status": "planned",
+      "status": "ready",
       "passes": false,
       "lastVerifiedAt": null,
       "dependsOn": ["MF-007"],
@@ -2377,7 +2377,7 @@
         "Verify `Open Recent`, Quick Open, and OS-native recents all reflect the same saved history after restarting the app."
         ]
       },
-      "notes": "Typora's File Management doc says recent files and folders are recorded in `File` -> `Open Recent`, Open Quickly, sidebar actions, and OS Dock/Taskbar integrations, with folder pinning plus `Clear Items` / `Clear Recent and Pinned Folders / Files` flows. MarkFlow currently only keeps an in-memory `recentFiles` array inside `packages/desktop/src/main/fileManager.ts` for `getQuickOpenList()`, with no persisted history, no `Open Recent` submenu, and no pin or clear behavior. Source: https://support.typora.io/File-Management/."
+      "notes": "Implemented with a persisted recent-history model in `packages/desktop/src/main/fileManager.ts`, dynamic `File -> Open Recent` menu generation in `packages/desktop/src/main/menu.ts`, and renderer handling in `packages/editor/src/App.tsx` so recent files and folders now survive restarts, feed Quick Open and OS recent-document sync, support pinned folders plus `Clear Items` / `Clear Recent and Pinned Folders / Files`, and report missing recent paths gracefully. Automated coverage in `packages/desktop/src/main/fileManager.test.ts` and `packages/desktop/src/main/menu.test.ts` passed on 2026-04-16, alongside `pnpm lint`, `pnpm test`, `pnpm build`, and `pnpm harness:verify`. `passes` remains false until `Open Recent`, Quick Open, and OS-native recents are manually verified after restarting the app. Source: https://support.typora.io/File-Management/."
     },
     {
       "id": "MF-091",

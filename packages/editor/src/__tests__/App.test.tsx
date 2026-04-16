@@ -154,6 +154,7 @@ class MockMarkFlowAPI implements MarkFlowDesktopAPI {
   exportEpub: MarkFlowDesktopAPI['exportEpub'] = vi.fn(async () => true)
   exportLatex: MarkFlowDesktopAPI['exportLatex'] = vi.fn(async () => true)
   openFolder: MarkFlowDesktopAPI['openFolder'] = vi.fn(async () => null)
+  openFolderPath: MarkFlowDesktopAPI['openFolderPath'] = vi.fn(async () => null)
   getVaultFiles: MarkFlowDesktopAPI['getVaultFiles'] = vi.fn(async () => [])
   renameFile: MarkFlowDesktopAPI['renameFile'] = vi.fn(async () => {})
   deleteFile: MarkFlowDesktopAPI['deleteFile'] = vi.fn(async () => {})
@@ -366,8 +367,8 @@ class MockMarkFlowAPI implements MarkFlowDesktopAPI {
     for (const listener of this.fileSavedListeners) listener(data)
   }
 
-  emitMenuAction(action: MarkFlowMenuAction) {
-    for (const listener of this.menuActionListeners) listener({ action })
+  emitMenuAction(action: MarkFlowMenuAction, path?: string | null) {
+    for (const listener of this.menuActionListeners) listener({ action, path })
   }
 
   emitWindowStateChanged(data: MarkFlowWindowState) {
@@ -1948,9 +1949,33 @@ describe('App Quick Open integration', () => {
   it('opens Quick Open on Mod-Shift-O, fuzzy-filters files, and dispatches file-open', async () => {
     const api = new MockMarkFlowAPI()
     api.getQuickOpenList = vi.fn(async () => [
-      { id: '/docs/apple.md', label: 'apple.md', description: '/docs', filePath: '/docs/apple.md', isRecent: false },
-      { id: '/docs/banana.md', label: 'banana.md', description: '/docs', filePath: '/docs/banana.md', isRecent: false },
-      { id: '/recent/cherry.md', label: 'cherry.md', description: '/recent', filePath: '/recent/cherry.md', isRecent: true }
+      {
+        id: '/docs/apple.md',
+        label: 'apple.md',
+        description: '/docs',
+        filePath: '/docs/apple.md',
+        kind: 'file' as const,
+        isRecent: false,
+        isPinned: false,
+      },
+      {
+        id: '/docs/banana.md',
+        label: 'banana.md',
+        description: '/docs',
+        filePath: '/docs/banana.md',
+        kind: 'file' as const,
+        isRecent: false,
+        isPinned: false,
+      },
+      {
+        id: 'file:/recent/cherry.md',
+        label: 'cherry.md',
+        description: '/recent',
+        filePath: '/recent/cherry.md',
+        kind: 'file' as const,
+        isRecent: true,
+        isPinned: false,
+      },
     ])
     window.markflow = api
 
@@ -1961,10 +1986,10 @@ describe('App Quick Open integration', () => {
     fireEvent.keyDown(document, { key: 'p', ctrlKey: true })
 
     await waitFor(() => {
-      expect(screen.getByPlaceholderText('Search files by name...')).toBeInTheDocument()
+      expect(screen.getByPlaceholderText('Search files or folders...')).toBeInTheDocument()
     })
 
-    const input = screen.getByPlaceholderText('Search files by name...')
+    const input = screen.getByPlaceholderText('Search files or folders...')
     
     // Type query
     fireEvent.change(input, { target: { value: 'app' } })
@@ -1975,14 +2000,14 @@ describe('App Quick Open integration', () => {
     expect(screen.queryByText('cherry.md')).not.toBeInTheDocument()
 
     // Select the first item using Enter
-    fireEvent.keyDown(screen.getByPlaceholderText('Search files by name...'), { key: 'Enter' })
+    fireEvent.keyDown(screen.getByPlaceholderText('Search files or folders...'), { key: 'Enter' })
 
     await waitFor(() => {
       expect(api.openPath).toHaveBeenCalledWith('/docs/apple.md')
     })
 
     // Panel should close
-    expect(screen.queryByPlaceholderText('Search files by name...')).not.toBeInTheDocument()
+    expect(screen.queryByPlaceholderText('Search files or folders...')).not.toBeInTheDocument()
   })
 })
 
@@ -2066,7 +2091,9 @@ describe('App command palette integration', () => {
         label: 'alpha.md',
         description: '/docs',
         filePath: '/docs/alpha.md',
+        kind: 'file' as const,
         isRecent: false,
+        isPinned: false,
       },
     ])
     window.markflow = api
@@ -2081,7 +2108,7 @@ describe('App command palette integration', () => {
 
     await waitFor(() => {
       expect(api.getQuickOpenList).toHaveBeenCalledTimes(1)
-      expect(screen.getByPlaceholderText('Search files by name...')).toBeInTheDocument()
+      expect(screen.getByPlaceholderText('Search files or folders...')).toBeInTheDocument()
     })
 
     expect(screen.queryByPlaceholderText('Search commands...')).not.toBeInTheDocument()

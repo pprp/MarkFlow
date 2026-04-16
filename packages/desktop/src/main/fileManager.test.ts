@@ -9,9 +9,12 @@ const {
   onMock,
   removeAllListenersMock,
   removeHandlerMock,
+  showOpenDialogMock,
   showSaveDialogMock,
   showMessageBoxMock,
   appGetPathMock,
+  addRecentDocumentMock,
+  clearRecentDocumentsMock,
   execFileMock,
   showItemInFolderMock,
   nativeThemeOnMock,
@@ -21,9 +24,12 @@ const {
   onMock: vi.fn(),
   removeAllListenersMock: vi.fn(),
   removeHandlerMock: vi.fn(),
+  showOpenDialogMock: vi.fn(),
   showSaveDialogMock: vi.fn(),
   showMessageBoxMock: vi.fn(),
   appGetPathMock: vi.fn(() => '/tmp'),
+  addRecentDocumentMock: vi.fn(),
+  clearRecentDocumentsMock: vi.fn(),
   execFileMock: vi.fn((file: string, args: string[], callback: (err: Error | null, stdout: string, stderr: string) => void) => {
     if (callback) callback(null, '', '')
   }),
@@ -38,9 +44,12 @@ vi.mock('child_process', () => ({
 
 vi.mock('electron', () => ({
   app: {
+    addRecentDocument: addRecentDocumentMock,
+    clearRecentDocuments: clearRecentDocumentsMock,
     getPath: appGetPathMock,
   },
   dialog: {
+    showOpenDialog: showOpenDialogMock,
     showSaveDialog: showSaveDialogMock,
     showMessageBox: showMessageBoxMock,
   },
@@ -76,10 +85,13 @@ describe('FileManager async saves', () => {
     onMock.mockReset()
     removeAllListenersMock.mockReset()
     removeHandlerMock.mockReset()
+    showOpenDialogMock.mockReset()
     showSaveDialogMock.mockReset()
     showMessageBoxMock.mockReset()
     appGetPathMock.mockReset()
     appGetPathMock.mockImplementation(() => '/tmp')
+    addRecentDocumentMock.mockReset()
+    clearRecentDocumentsMock.mockReset()
     showItemInFolderMock.mockReset()
     nativeThemeOnMock.mockReset()
     nativeThemeRemoveListenerMock.mockReset()
@@ -188,16 +200,151 @@ describe('FileManager async saves', () => {
   })
 })
 
+describe('FileManager recent history', () => {
+  beforeEach(() => {
+    handleMock.mockReset()
+    onMock.mockReset()
+    removeAllListenersMock.mockReset()
+    removeHandlerMock.mockReset()
+    showOpenDialogMock.mockReset()
+    showSaveDialogMock.mockReset()
+    showMessageBoxMock.mockReset()
+    appGetPathMock.mockReset()
+    appGetPathMock.mockImplementation(() => '/tmp')
+    addRecentDocumentMock.mockReset()
+    clearRecentDocumentsMock.mockReset()
+    vi.restoreAllMocks()
+  })
+
+  it('persists recent files and folders across sessions in most-recent-first order', async () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'markflow-open-recent-'))
+    appGetPathMock.mockImplementation(() => tempDir)
+
+    const firstFilePath = path.join(tempDir, 'alpha.md')
+    const secondFilePath = path.join(tempDir, 'beta.md')
+    const folderPath = path.join(tempDir, 'vault')
+    fs.writeFileSync(firstFilePath, '# Alpha', 'utf-8')
+    fs.writeFileSync(secondFilePath, '# Beta', 'utf-8')
+    fs.mkdirSync(folderPath)
+
+    const manager = new FileManager(createWindowStub() as never)
+    await manager.openPath(firstFilePath)
+    await manager.openExistingFolderPath(folderPath)
+    await manager.openPath(secondFilePath)
+
+    const nextSessionManager = new FileManager(createWindowStub() as never)
+    const openRecentState = nextSessionManager.getOpenRecentMenuState()
+    const quickOpenItems = await nextSessionManager.getQuickOpenList()
+
+    expect(openRecentState.recentEntries.map((entry) => `${entry.kind}:${entry.path}`)).toEqual([
+      `file:${secondFilePath}`,
+      `folder:${folderPath}`,
+      `file:${firstFilePath}`,
+    ])
+    expect(quickOpenItems.map((item) => `${item.kind}:${item.filePath}`)).toEqual([
+      `file:${secondFilePath}`,
+      `folder:${folderPath}`,
+      `file:${firstFilePath}`,
+    ])
+    expect(
+      JSON.parse(fs.readFileSync(path.join(tempDir, '.markflow-open-recent.json'), 'utf-8')),
+    ).toEqual({
+      entries: [
+        { kind: 'file', path: secondFilePath },
+        { kind: 'folder', path: folderPath },
+        { kind: 'file', path: firstFilePath },
+      ],
+      pinnedFolders: [],
+    })
+  })
+
+  it('keeps pinned folders when clearing recent items and removes them only on full clear', async () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'markflow-open-recent-'))
+    appGetPathMock.mockImplementation(() => tempDir)
+
+    const filePath = path.join(tempDir, 'alpha.md')
+    const folderPath = path.join(tempDir, 'vault')
+    fs.writeFileSync(filePath, '# Alpha', 'utf-8')
+    fs.mkdirSync(folderPath)
+
+    const manager = new FileManager(createWindowStub() as never)
+    await manager.openPath(filePath)
+    await manager.openExistingFolderPath(folderPath)
+    await (
+      (manager as unknown) as { pinRecentFolder: (nextFolderPath: string) => Promise<void> }
+    ).pinRecentFolder(folderPath)
+
+    let openRecentState = manager.getOpenRecentMenuState()
+    expect(openRecentState.pinnedFolders.map((entry) => entry.path)).toEqual([folderPath])
+    expect(openRecentState.recentEntries.map((entry) => `${entry.kind}:${entry.path}`)).toEqual([
+      `file:${filePath}`,
+    ])
+
+    await (
+      (manager as unknown) as { clearRecentItems: () => Promise<void> }
+    ).clearRecentItems()
+
+    const nextSessionManager = new FileManager(createWindowStub() as never)
+
+    openRecentState = nextSessionManager.getOpenRecentMenuState()
+    expect(openRecentState.pinnedFolders.map((entry) => entry.path)).toEqual([folderPath])
+    expect(openRecentState.recentEntries).toEqual([])
+    expect(await nextSessionManager.getQuickOpenList()).toEqual([
+      {
+        id: `folder:${folderPath}`,
+        label: 'vault',
+        description: folderPath,
+        filePath: folderPath,
+        kind: 'folder',
+        isRecent: true,
+        isPinned: true,
+      },
+    ])
+    expect(clearRecentDocumentsMock).toHaveBeenCalled()
+    expect(addRecentDocumentMock).toHaveBeenLastCalledWith(folderPath)
+
+    await (
+      (nextSessionManager as unknown) as { clearRecentItemsAndPinnedFolders: () => Promise<void> }
+    ).clearRecentItemsAndPinnedFolders()
+
+    openRecentState = nextSessionManager.getOpenRecentMenuState()
+    expect(openRecentState.pinnedFolders).toEqual([])
+    expect(openRecentState.recentEntries).toEqual([])
+  })
+
+  it('shows an error dialog for missing recent files and returns null for missing recent folders', async () => {
+    const manager = new FileManager(createWindowStub() as never)
+    const missingFilePath = '/tmp/markflow-missing-recent-file.md'
+    const missingFolderPath = '/tmp/markflow-missing-recent-folder'
+
+    await (
+      (manager as unknown) as { openRecentFileFromMenu: (filePath: string) => Promise<void> }
+    ).openRecentFileFromMenu(missingFilePath)
+
+    expect(showMessageBoxMock).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        message: 'Unable to open recent file',
+        detail: expect.stringContaining(missingFilePath),
+      }),
+    )
+    await expect(manager.openExistingFolderPath(missingFolderPath)).resolves.toBeNull()
+  })
+})
+
 describe('FileManager window sessions', () => {
   beforeEach(() => {
     handleMock.mockReset()
     onMock.mockReset()
     removeAllListenersMock.mockReset()
     removeHandlerMock.mockReset()
+    showOpenDialogMock.mockReset()
     showSaveDialogMock.mockReset()
     showMessageBoxMock.mockReset()
     appGetPathMock.mockReset()
     appGetPathMock.mockImplementation(() => '/tmp')
+    addRecentDocumentMock.mockReset()
+    clearRecentDocumentsMock.mockReset()
     vi.restoreAllMocks()
   })
 
@@ -246,10 +393,13 @@ describe('FileManager fold state sidecars', () => {
     onMock.mockReset()
     removeAllListenersMock.mockReset()
     removeHandlerMock.mockReset()
+    showOpenDialogMock.mockReset()
     showSaveDialogMock.mockReset()
     showMessageBoxMock.mockReset()
     appGetPathMock.mockReset()
     appGetPathMock.mockImplementation(() => '/tmp')
+    addRecentDocumentMock.mockReset()
+    clearRecentDocumentsMock.mockReset()
     vi.restoreAllMocks()
   })
 
@@ -343,10 +493,13 @@ describe('FileManager chunk loader', () => {
     onMock.mockReset()
     removeAllListenersMock.mockReset()
     removeHandlerMock.mockReset()
+    showOpenDialogMock.mockReset()
     showSaveDialogMock.mockReset()
     showMessageBoxMock.mockReset()
     appGetPathMock.mockReset()
     appGetPathMock.mockImplementation(() => '/tmp')
+    addRecentDocumentMock.mockReset()
+    clearRecentDocumentsMock.mockReset()
     vi.restoreAllMocks()
   })
 
@@ -401,10 +554,13 @@ describe('FileManager large file windowing', () => {
     onMock.mockReset()
     removeAllListenersMock.mockReset()
     removeHandlerMock.mockReset()
+    showOpenDialogMock.mockReset()
     showSaveDialogMock.mockReset()
     showMessageBoxMock.mockReset()
     appGetPathMock.mockReset()
     appGetPathMock.mockImplementation(() => '/tmp')
+    addRecentDocumentMock.mockReset()
+    clearRecentDocumentsMock.mockReset()
     vi.restoreAllMocks()
   })
 
@@ -475,10 +631,13 @@ describe('FileManager auto-save recovery checkpoints', () => {
     onMock.mockReset()
     removeAllListenersMock.mockReset()
     removeHandlerMock.mockReset()
+    showOpenDialogMock.mockReset()
     showSaveDialogMock.mockReset()
     showMessageBoxMock.mockReset()
     appGetPathMock.mockReset()
     appGetPathMock.mockImplementation(() => '/tmp')
+    addRecentDocumentMock.mockReset()
+    clearRecentDocumentsMock.mockReset()
     vi.restoreAllMocks()
     vi.useFakeTimers()
   })

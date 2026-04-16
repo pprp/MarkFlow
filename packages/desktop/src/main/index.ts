@@ -2,7 +2,7 @@ import { app, BrowserWindow, ipcMain, shell, Menu } from 'electron'
 import * as path from 'path'
 import * as fs from 'fs'
 import { FileManager } from './fileManager'
-import type { MarkFlowMenuAction, MarkFlowWindowState } from '@markflow/shared'
+import type { MarkFlowMenuAction, MarkFlowMenuActionPayload, MarkFlowWindowState } from '@markflow/shared'
 import { createWindowOpenHandler, handleWillNavigate } from './externalLinks'
 import { ThemeManager } from './themeManager'
 import { SpellCheckManager } from './spellCheckManager'
@@ -18,8 +18,8 @@ let spellCheckManager: SpellCheckManager | null = null
 let imageUploadManager: ImageUploadManager | null = null
 let pendingOpenFilePath: string | null = null
 
-function sendMenuAction(action: MarkFlowMenuAction) {
-  mainWindow?.webContents.send('menu-action', { action })
+function sendMenuAction(action: MarkFlowMenuAction, payload: Omit<MarkFlowMenuActionPayload, 'action'> = {}) {
+  mainWindow?.webContents.send('menu-action', { action, ...payload })
 }
 
 function getWindowState(): MarkFlowWindowState {
@@ -124,12 +124,25 @@ function createWindow() {
 }
 
 function buildMenu() {
+  const openRecent = fileManager?.getOpenRecentMenuState()
   Menu.setApplicationMenu(
     Menu.buildFromTemplate(
       createApplicationMenuTemplate({
         canRevealCurrentFile: () => fileManager?.canRevealCurrentFile() ?? false,
+        openRecent: openRecent ?? {
+          pinnedFolders: [],
+          recentEntries: [],
+          pinnableFolders: [],
+          canClearItems: false,
+          canClearAll: false,
+          openEntry: () => {},
+          pinFolder: () => {},
+          unpinFolder: () => {},
+          clearItems: () => {},
+          clearAll: () => {},
+        },
         revealCurrentFileInFolder: () => fileManager?.revealCurrentFileInFolder() ?? false,
-        sendMenuAction,
+        sendMenuAction: (action) => sendMenuAction(action),
         toggleFullscreen,
       }),
     ),

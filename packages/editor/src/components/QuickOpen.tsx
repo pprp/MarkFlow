@@ -80,7 +80,7 @@ export const QuickOpen: React.FC<QuickOpenProps> = ({ isOpen, items, onClose, on
           ref={inputRef}
           type="text"
           className="mf-quick-open-input"
-          placeholder="Search files by name..."
+          placeholder="Search files or folders..."
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onBlur={() => setTimeout(onClose, 150)}
@@ -100,6 +100,8 @@ export const QuickOpen: React.FC<QuickOpenProps> = ({ isOpen, items, onClose, on
             >
               <div className="mf-quick-open-item-label">
                 {item.label}
+                {item.kind === 'folder' && <span className="mf-quick-open-item-recent-badge">Folder</span>}
+                {item.isPinned && <span className="mf-quick-open-item-recent-badge">Pinned</span>}
                 {item.isRecent && <span className="mf-quick-open-item-recent-badge">Recent</span>}
               </div>
               {item.description && (

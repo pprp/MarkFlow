@@ -16,8 +16,10 @@ import type {
   MarkFlowSaveResult,
   MarkFlowWindowSession,
   MarkFlowWindowSessionState,
+  MarkFlowRecentPathKind,
   SearchResult,
 } from '@markflow/shared'
+import type { OpenRecentMenuEntry, OpenRecentMenuOptions } from './menu'
 
 const STREAM_OPEN_CHUNK_SIZE = 64 * 1024
 const STREAM_OPEN_THRESHOLD_BYTES = 1024 * 1024
@@ -33,9 +35,21 @@ const RECOVERY_CHECKPOINT_FILE_NAME = '.markflow-recovery'
 const SESSION_STATE_FILE_NAME = '.markflow-recovery-session.json'
 const WINDOW_SESSION_FILE_NAME = '.markflow-window-session.json'
 const FOLD_STATE_FILE_SUFFIX = '.folds'
+const RECENT_HISTORY_FILE_NAME = '.markflow-open-recent.json'
+const MAX_RECENT_HISTORY_ITEMS = 20
 
 interface MarkFlowSessionState {
   cleanExit: boolean
+}
+
+interface MarkFlowRecentPathEntry {
+  kind: MarkFlowRecentPathKind
+  path: string
+}
+
+interface MarkFlowRecentHistoryState {
+  entries: MarkFlowRecentPathEntry[]
+  pinnedFolders: string[]
 }
 
 interface FileManagerOptions {
@@ -72,12 +86,13 @@ const DEFAULT_FILE_MANAGER_OPTIONS: FileManagerOptions = {
 
 export class FileManager {
   private currentFilePath: string | null = null
-  private recentFiles: string[] = []
+  private recentHistory: MarkFlowRecentHistoryState
   private pendingRecoveryDraft: MarkFlowRecoveryDraft | null = null
   private recoveryWriteTimer: NodeJS.Timeout | null = null
   private readonly largeFileIndexes = new Map<string, MarkFlowLargeFileIndex>()
   private readonly options: FileManagerOptions
   private readonly recoveryCheckpointPath = path.join(app.getPath('temp'), RECOVERY_CHECKPOINT_FILE_NAME)
+  private readonly recentHistoryPath = path.join(app.getPath('userData'), RECENT_HISTORY_FILE_NAME)
   private readonly sessionStatePath = path.join(app.getPath('userData'), SESSION_STATE_FILE_NAME)
   private readonly windowSessionPath = path.join(app.getPath('userData'), WINDOW_SESSION_FILE_NAME)
 
@@ -90,6 +105,8 @@ export class FileManager {
       ...DEFAULT_FILE_MANAGER_OPTIONS,
       ...options,
     }
+    this.recentHistory = this.readRecentHistory()
+    this.syncOsRecentDocuments()
   }
 
   registerIpcHandlers() {
@@ -110,6 +127,7 @@ export class FileManager {
     ipcMain.removeHandler('save-window-session')
     ipcMain.removeHandler('confirm-close-tab')
     ipcMain.removeHandler('open-folder')
+    ipcMain.removeHandler('open-folder-path')
     ipcMain.removeHandler('get-vault-files')
     ipcMain.removeHandler('rename-file')
     ipcMain.removeHandler('delete-file')
@@ -155,6 +173,7 @@ export class FileManager {
     })
     ipcMain.handle('get-quick-open-list', () => this.getQuickOpenList())
     ipcMain.handle('open-folder', () => this.openFolder())
+    ipcMain.handle('open-folder-path', (_event, folderPath: string) => this.openExistingFolderPath(folderPath))
     ipcMain.handle('get-vault-files', (_event, folderPath: string) => this.getVaultFiles(folderPath))
     ipcMain.handle('rename-file', (_event, oldPath: string, newPath: string) => this.renameFile(oldPath, newPath))
     ipcMain.handle('delete-file', (_event, filePath: string) => this.deleteFile(filePath))
@@ -264,11 +283,67 @@ export class FileManager {
     }
   }
 
-  private addToRecent(filePath: string) {
-    this.recentFiles = this.recentFiles.filter(p => p !== filePath)
-    this.recentFiles.unshift(filePath)
-    if (this.recentFiles.length > 20) {
-      this.recentFiles = this.recentFiles.slice(0, 20)
+  private async addRecentEntry(kind: MarkFlowRecentPathKind, targetPath: string) {
+    this.recentHistory.entries = [
+      { kind, path: targetPath },
+      ...this.recentHistory.entries.filter((entry) => !(entry.kind === kind && entry.path === targetPath)),
+    ].slice(0, MAX_RECENT_HISTORY_ITEMS)
+
+    await this.persistRecentHistory()
+    this.syncOsRecentDocuments()
+    this.onCurrentFilePathChanged?.()
+  }
+
+  private createOpenRecentEntry(entry: MarkFlowRecentPathEntry): OpenRecentMenuEntry {
+    return {
+      kind: entry.kind,
+      path: entry.path,
+      label: path.basename(entry.path) || entry.path,
+      description: entry.kind === 'file' ? path.dirname(entry.path) : entry.path,
+    }
+  }
+
+  getOpenRecentMenuState(): OpenRecentMenuOptions {
+    const pinnedFolderSet = new Set(this.recentHistory.pinnedFolders)
+    const pinnedFolders = this.recentHistory.pinnedFolders.map((folderPath) =>
+      this.createOpenRecentEntry({ kind: 'folder', path: folderPath }),
+    )
+    const recentEntries = this.recentHistory.entries
+      .filter((entry) => entry.kind !== 'folder' || !pinnedFolderSet.has(entry.path))
+      .map((entry) => this.createOpenRecentEntry(entry))
+    const pinnableFolders = this.recentHistory.entries
+      .filter((entry) => entry.kind === 'folder' && !pinnedFolderSet.has(entry.path))
+      .map((entry) => this.createOpenRecentEntry(entry))
+
+    return {
+      pinnedFolders,
+      recentEntries,
+      pinnableFolders,
+      canClearItems: this.recentHistory.entries.length > 0,
+      canClearAll: this.recentHistory.entries.length > 0 || this.recentHistory.pinnedFolders.length > 0,
+      openEntry: (entry) => {
+        if (entry.kind === 'folder') {
+          this.window.webContents.send('menu-action', {
+            action: 'open-recent-folder',
+            path: entry.path,
+          })
+          return
+        }
+
+        void this.openRecentFileFromMenu(entry.path)
+      },
+      pinFolder: (folderPath) => {
+        void this.pinRecentFolder(folderPath)
+      },
+      unpinFolder: (folderPath) => {
+        void this.unpinRecentFolder(folderPath)
+      },
+      clearItems: () => {
+        void this.clearRecentItems()
+      },
+      clearAll: () => {
+        void this.clearRecentItemsAndPinnedFolders()
+      },
     }
   }
 
@@ -298,7 +373,12 @@ export class FileManager {
       return null
     }
 
-    return this.openPath(filePath)
+    try {
+      return await this.openPath(filePath)
+    } catch (error) {
+      console.error('Failed to open file path:', error)
+      return null
+    }
   }
 
   async saveFile(content?: string, tabId: string | null = null): Promise<MarkFlowSaveResult | null> {
@@ -329,8 +409,7 @@ export class FileManager {
     const saveResult = await this.writeFile(result.filePath, content ?? '')
     if (saveResult.success) {
       this.currentFilePath = result.filePath
-      this.addToRecent(result.filePath)
-      this.onCurrentFilePathChanged?.()
+      await this.addRecentEntry('file', result.filePath)
       await this.removeRecoveryDocument(tabId)
       this.emitFileSaved(result.filePath)
       saveResult.filePath = result.filePath
@@ -341,8 +420,7 @@ export class FileManager {
   async openPath(filePath: string): Promise<MarkFlowFilePayload> {
     const payload = await this.readFileForOpen(filePath)
     this.currentFilePath = filePath
-    this.addToRecent(filePath)
-    this.onCurrentFilePathChanged?.()
+    await this.addRecentEntry('file', filePath)
     this.window.webContents.send('file-opened', payload)
     this.updateTitle()
     return payload
@@ -593,14 +671,17 @@ export class FileManager {
         for (const file of files) {
           if (file.isFile() && /.(md|markdown|txt)$/i.test(file.name)) {
             const filePath = path.join(dir, file.name)
-            if (!seen.has(filePath)) {
-              seen.add(filePath)
+            const key = `file:${filePath}`
+            if (!seen.has(key)) {
+              seen.add(key)
               items.push({
                 id: filePath,
                 label: file.name,
                 description: dir,
                 filePath,
-                isRecent: false
+                kind: 'file',
+                isRecent: false,
+                isPinned: false,
               })
             }
           }
@@ -610,15 +691,37 @@ export class FileManager {
       }
     }
 
-    for (const recentPath of this.recentFiles) {
-      if (!seen.has(recentPath)) {
-        seen.add(recentPath)
+    for (const pinnedFolderPath of this.recentHistory.pinnedFolders) {
+      const key = `folder:${pinnedFolderPath}`
+      if (!seen.has(key)) {
+        seen.add(key)
         items.push({
-          id: recentPath,
-          label: path.basename(recentPath),
-          description: path.dirname(recentPath),
-          filePath: recentPath,
-          isRecent: true
+          id: key,
+          label: path.basename(pinnedFolderPath) || pinnedFolderPath,
+          description: pinnedFolderPath,
+          filePath: pinnedFolderPath,
+          kind: 'folder',
+          isRecent: true,
+          isPinned: true,
+        })
+      }
+    }
+
+    for (const entry of this.recentHistory.entries) {
+      const key = `${entry.kind}:${entry.path}`
+      if (entry.kind === 'folder' && this.recentHistory.pinnedFolders.includes(entry.path)) {
+        continue
+      }
+      if (!seen.has(key)) {
+        seen.add(key)
+        items.push({
+          id: key,
+          label: path.basename(entry.path) || entry.path,
+          description: entry.kind === 'file' ? path.dirname(entry.path) : entry.path,
+          filePath: entry.path,
+          kind: entry.kind,
+          isRecent: true,
+          isPinned: false,
         })
       }
     }
@@ -631,7 +734,23 @@ export class FileManager {
       properties: ['openDirectory'],
     })
     if (result.canceled || result.filePaths.length === 0) return null
+
+    await this.addRecentEntry('folder', result.filePaths[0])
     return { folderPath: result.filePaths[0] }
+  }
+
+  async openExistingFolderPath(folderPath: string): Promise<{ folderPath: string } | null> {
+    try {
+      const stats = await fs.promises.stat(folderPath)
+      if (!stats.isDirectory()) {
+        return null
+      }
+    } catch {
+      return null
+    }
+
+    await this.addRecentEntry('folder', folderPath)
+    return { folderPath }
   }
 
   getVaultFiles(folderPath: string): string[] {
@@ -696,6 +815,199 @@ export class FileManager {
       })
     }
     return results
+  }
+
+  private async openRecentFileFromMenu(filePath: string) {
+    const result = await this.openExistingPath(filePath)
+    if (!result) {
+      await this.showMissingRecentPathError('file', filePath)
+    }
+  }
+
+  private async pinRecentFolder(folderPath: string) {
+    if (this.recentHistory.pinnedFolders.includes(folderPath)) {
+      return
+    }
+
+    this.recentHistory.pinnedFolders = [folderPath, ...this.recentHistory.pinnedFolders].slice(
+      0,
+      MAX_RECENT_HISTORY_ITEMS,
+    )
+    await this.persistRecentHistory()
+    this.syncOsRecentDocuments()
+    this.onCurrentFilePathChanged?.()
+  }
+
+  private async unpinRecentFolder(folderPath: string) {
+    const nextPinnedFolders = this.recentHistory.pinnedFolders.filter(
+      (currentFolderPath) => currentFolderPath !== folderPath,
+    )
+    if (nextPinnedFolders.length === this.recentHistory.pinnedFolders.length) {
+      return
+    }
+
+    this.recentHistory.pinnedFolders = nextPinnedFolders
+    await this.persistRecentHistory()
+    this.syncOsRecentDocuments()
+    this.onCurrentFilePathChanged?.()
+  }
+
+  private async clearRecentItems() {
+    if (this.recentHistory.entries.length === 0) {
+      return
+    }
+
+    this.recentHistory.entries = []
+    await this.persistRecentHistory()
+    this.syncOsRecentDocuments()
+    this.onCurrentFilePathChanged?.()
+  }
+
+  private async clearRecentItemsAndPinnedFolders() {
+    if (this.recentHistory.entries.length === 0 && this.recentHistory.pinnedFolders.length === 0) {
+      return
+    }
+
+    this.recentHistory = {
+      entries: [],
+      pinnedFolders: [],
+    }
+    await this.persistRecentHistory()
+    this.syncOsRecentDocuments()
+    this.onCurrentFilePathChanged?.()
+  }
+
+  private syncOsRecentDocuments() {
+    if (typeof app.clearRecentDocuments !== 'function' || typeof app.addRecentDocument !== 'function') {
+      return
+    }
+
+    try {
+      app.clearRecentDocuments()
+
+      const seen = new Set<string>()
+      const orderedPaths = [
+        ...this.recentHistory.pinnedFolders,
+        ...this.recentHistory.entries.map((entry) => entry.path),
+      ]
+
+      for (let index = orderedPaths.length - 1; index >= 0; index -= 1) {
+        const targetPath = orderedPaths[index]
+        if (seen.has(targetPath)) {
+          continue
+        }
+
+        seen.add(targetPath)
+        app.addRecentDocument(targetPath)
+      }
+    } catch (error) {
+      console.error('Failed to sync MarkFlow recent documents with the OS:', error)
+    }
+  }
+
+  private readRecentHistory(): MarkFlowRecentHistoryState {
+    try {
+      const contents = fs.readFileSync(this.recentHistoryPath, 'utf-8')
+      if (typeof contents !== 'string' || contents.trim().length === 0) {
+        return {
+          entries: [],
+          pinnedFolders: [],
+        }
+      }
+
+      const payload = JSON.parse(contents) as Partial<MarkFlowRecentHistoryState>
+      return {
+        entries: this.normalizeRecentEntries(payload.entries),
+        pinnedFolders: this.normalizeRecentFolderPaths(payload.pinnedFolders),
+      }
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+        console.error('Failed to read MarkFlow recent history:', error)
+      }
+
+      return {
+        entries: [],
+        pinnedFolders: [],
+      }
+    }
+  }
+
+  private normalizeRecentEntries(entries: unknown): MarkFlowRecentPathEntry[] {
+    if (!Array.isArray(entries)) {
+      return []
+    }
+
+    const normalizedEntries: MarkFlowRecentPathEntry[] = []
+    const seen = new Set<string>()
+
+    for (const entry of entries) {
+      if (!entry || typeof entry !== 'object') {
+        continue
+      }
+
+      const kind = (entry as { kind?: unknown }).kind
+      const targetPath = (entry as { path?: unknown }).path
+      if ((kind !== 'file' && kind !== 'folder') || typeof targetPath !== 'string' || targetPath.length === 0) {
+        continue
+      }
+
+      const key = `${kind}:${targetPath}`
+      if (seen.has(key)) {
+        continue
+      }
+
+      seen.add(key)
+      normalizedEntries.push({ kind, path: targetPath })
+      if (normalizedEntries.length >= MAX_RECENT_HISTORY_ITEMS) {
+        break
+      }
+    }
+
+    return normalizedEntries
+  }
+
+  private normalizeRecentFolderPaths(pinnedFolders: unknown): string[] {
+    if (!Array.isArray(pinnedFolders)) {
+      return []
+    }
+
+    const normalizedPaths: string[] = []
+    const seen = new Set<string>()
+
+    for (const folderPath of pinnedFolders) {
+      if (typeof folderPath !== 'string' || folderPath.length === 0 || seen.has(folderPath)) {
+        continue
+      }
+
+      seen.add(folderPath)
+      normalizedPaths.push(folderPath)
+      if (normalizedPaths.length >= MAX_RECENT_HISTORY_ITEMS) {
+        break
+      }
+    }
+
+    return normalizedPaths
+  }
+
+  private async persistRecentHistory() {
+    try {
+      await fs.promises.mkdir(path.dirname(this.recentHistoryPath), { recursive: true })
+      await fs.promises.writeFile(this.recentHistoryPath, JSON.stringify(this.recentHistory), 'utf-8')
+    } catch (error) {
+      console.error('Failed to write MarkFlow recent history:', error)
+    }
+  }
+
+  private async showMissingRecentPathError(kind: MarkFlowRecentPathKind, targetPath: string) {
+    const label = kind === 'folder' ? 'folder' : 'file'
+    await dialog.showMessageBox(this.window, {
+      type: 'error',
+      buttons: ['OK'],
+      defaultId: 0,
+      message: `Unable to open recent ${label}`,
+      detail: `MarkFlow could not find this ${label}:\n${targetPath}`,
+      noLink: true,
+    })
   }
 
   private getFoldStatePath(filePath: string) {

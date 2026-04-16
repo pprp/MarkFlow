@@ -76,6 +76,8 @@ export interface MarkFlowWindowState {
   isFullscreen: boolean
 }
 
+export type MarkFlowRecentPathKind = 'file' | 'folder'
+
 export interface MarkFlowSpellCheckState {
   selectedLanguage: string | null
   availableLanguages: string[]
@@ -122,6 +124,7 @@ export interface MarkFlowImageUploadResult {
 export type MarkFlowMenuAction =
   | 'new-file'
   | 'open-file'
+  | 'open-recent-folder'
   | 'save-file'
   | 'save-file-as'
   | 'close-tab'
@@ -182,6 +185,7 @@ export interface MarkFlowClipboardPayload {
 
 export interface MarkFlowMenuActionPayload {
   action: MarkFlowMenuAction
+  path?: string | null
 }
 
 export interface MarkFlowQuickOpenItem {
@@ -189,7 +193,9 @@ export interface MarkFlowQuickOpenItem {
   label: string
   description?: string
   filePath: string
+  kind: MarkFlowRecentPathKind
   isRecent: boolean
+  isPinned: boolean
 }
 
 export interface SearchResult {
@@ -361,6 +367,7 @@ export class MarkFlowPluginHost {
 export interface MarkFlowDesktopAPI {
   openFile: () => Promise<MarkFlowFilePayload | null>
   openPath: (filePath: string) => Promise<MarkFlowFilePayload | null>
+  openFolderPath: (folderPath: string) => Promise<{ folderPath: string } | null>
   readLargeFileWindow: (filePath: string, lineNumber: number) => Promise<MarkFlowFilePayload | null>
   saveFile: (content: string, tabId?: string | null) => Promise<MarkFlowSaveResult | null>
   saveFileAs: (content: string, tabId?: string | null) => Promise<MarkFlowSaveResult | null>
