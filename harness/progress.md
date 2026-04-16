@@ -9,6 +9,35 @@
 
 ## Session Log
 
+### 2026-04-16 - MF-055 rerun kept the ledger honest while GUI RSS proof remained unavailable here
+
+- Author: Codex
+- Focus: obey the startup protocol, verify only `MF-055`, and avoid overstating completion when this session cannot truthfully perform the required 2 GB GUI jump-time and Activity Monitor RSS checks.
+- What changed:
+  - re-read the root `AGENTS.md`, then ran `pnpm harness:start` followed by `./harness/init.sh --smoke` before touching the `MF-055` records
+  - re-checked the existing large-file windowed read path and focused `MF-055` coverage in `packages/desktop/src/main/fileManager.test.ts` and `packages/editor/src/__tests__/App.test.tsx` instead of widening scope into adjacent large-file features
+  - re-ran the feature's required automated verification commands plus `pnpm harness:verify`, and probed local GUI automation capability to decide whether the manual Go-to-Line plus Activity Monitor RSS acceptance could be completed from this environment
+  - kept `harness/feature-ledger.json` unchanged because the manual verification contract is still not satisfiable from this terminal session
+- Changed files:
+  - `harness/progress.md`
+- Simplifications made:
+  - stayed strictly inside `MF-055`; no unrelated feature work, code churn, or speculative desktop patches were introduced
+  - reused the existing implementation and regression coverage because this rerun exposed an environment proof gap rather than a new product defect
+- Verification:
+  - `pnpm harness:start` (passes)
+  - `./harness/init.sh --smoke` (passes; workspace smoke rerun completed with desktop 33/33 and editor 367 passed with 3 skips)
+  - `pnpm --filter @markflow/desktop test:run -- src/main/fileManager.test.ts` (passes; current package script still runs the desktop suite, 6 files / 33 tests, including the `MF-055` large-file windowing cases)
+  - `pnpm --filter @markflow/editor test:run -- src/__tests__/App.test.tsx` (passes; current package script still runs the editor suite, 33 files / 367 tests with 3 skips, including the `MF-055` large-file Go-to-Line bridge coverage)
+  - `pnpm harness:verify` (passes; 106 total | verified=64 | ready=19 | planned=23 | blocked=0)
+  - manual-verification capability probe (blocked): `swift -e 'import ApplicationServices; print(AXIsProcessTrusted())'` returned `false`, so this session does not have a trusted Accessibility path to drive the live Go-to-Line UI or truthfully observe the required Activity Monitor RSS check
+- Review / risks:
+  - `MF-055` must remain `status=planned`, `passes=false`, and `lastVerifiedAt=null` until a real desktop session opens a synthetic 2 GB markdown file, jumps to line 1,000,000, confirms the target line appears within 2 seconds, and confirms resident memory stays below 512 MB in Activity Monitor
+  - the current blocker is environment-specific, not code-specific: automation is green, but this terminal session cannot honestly complete the GUI/manual acceptance contract
+- Newly verified features:
+  - none
+- Next recommended feature:
+  - `MF-055` - complete the pending live desktop verification with Accessibility-enabled GUI control or direct human operation, then update the ledger only if the 2 GB jump-time and Activity Monitor RSS checks truly pass
+
 ### 2026-04-16 - MF-088 multi-tab recovery follow-up closed the reviewer-found crash gap
 
 - Author: Codex (Dispatcher)
