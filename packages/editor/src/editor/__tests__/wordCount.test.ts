@@ -43,6 +43,12 @@ describe('stripMarkdownSyntax', () => {
     expect(stripped.includes('const')).toBe(false)
   })
 
+  it('preserves fenced code content when exclusion is disabled', () => {
+    const stripped = stripMarkdownSyntax('```js\nconst x = 1\n```', { excludeFencedCode: false })
+    expect(stripped.includes('const x = 1')).toBe(true)
+    expect(stripped.includes('```')).toBe(false)
+  })
+
   it('removes inline code', () => {
     const stripped = stripMarkdownSyntax('Use `const x = 1` here')
     expect(stripped.includes('const')).toBe(false)
@@ -92,6 +98,12 @@ describe('countWords', () => {
     expect(count).toBe(2) // only "Hello" and "World"
   })
 
+  it('can include fenced code content when exclusion is disabled', () => {
+    const text = 'Hello\n```js\nconst a = b\n```\nWorld'
+    const count = countWords(text, { excludeFencedCode: false })
+    expect(count).toBe(6)
+  })
+
   it('counts link text but not URLs', () => {
     const count = countWords('[click here](https://example.com)')
     expect(count).toBe(2) // "click" and "here"
@@ -119,6 +131,20 @@ describe('computeStats', () => {
     expect(stats.chars).toBe(3)
   })
 
+  it('returns the char count without spaces', () => {
+    const stats = computeStats('ab c\n d', '')
+    expect(stats.charsNoSpaces).toBe(4)
+  })
+
+  it('counts paragraphs for document and selection text', () => {
+    const text = '# Intro\n\nAlpha beta\n\nGamma delta'
+    const selection = 'Alpha beta\n\nGamma delta'
+    const stats = computeStats(text, selection)
+
+    expect(stats.paragraphs).toBe(3)
+    expect(stats.selectionParagraphs).toBe(2)
+  })
+
   it('returns readingMinutes >= 1 for short text', () => {
     const stats = computeStats('hi', '')
     expect(stats.readingMinutes).toBeGreaterThanOrEqual(1)
@@ -130,15 +156,38 @@ describe('computeStats', () => {
     expect(stats.selectionChars).toBe(5)
   })
 
+  it('returns selection char count without spaces and reading time', () => {
+    const selection = Array(205).fill('word').join(' ')
+    const stats = computeStats(`Before\n\n${selection}`, selection)
+
+    expect(stats.selectionCharsNoSpaces).toBe(selection.replace(/\s+/g, '').length)
+    expect(stats.selectionReadingMinutes).toBe(2)
+  })
+
   it('returns zero selection stats when no selection', () => {
     const stats = computeStats('Hello world', '')
     expect(stats.selectionWords).toBe(0)
     expect(stats.selectionChars).toBe(0)
+    expect(stats.selectionCharsNoSpaces).toBe(0)
+    expect(stats.selectionParagraphs).toBe(0)
+    expect(stats.selectionReadingMinutes).toBe(0)
   })
 
   it('longer text produces proportional reading time', () => {
-    const longText = Array(400).fill('word').join(' ')
+    const longText = Array(401).fill('word').join(' ')
     const stats = computeStats(longText, '')
-    expect(stats.readingMinutes).toBe(2)
+    expect(stats.readingMinutes).toBe(3)
+  })
+
+  it('drops fenced code from counts when exclusion is enabled', () => {
+    const text = 'Alpha\n\n```ts\nconst hidden = true\n```\n\nBeta'
+    const excluded = computeStats(text, '', { excludeFencedCode: true })
+    const included = computeStats(text, '', { excludeFencedCode: false })
+
+    expect(excluded.words).toBe(2)
+    expect(included.words).toBe(6)
+    expect(excluded.chars).toBeLessThan(included.chars)
+    expect(excluded.paragraphs).toBe(2)
+    expect(included.paragraphs).toBe(3)
   })
 })

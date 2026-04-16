@@ -120,6 +120,18 @@ describe('createApplicationMenuTemplate', () => {
     expect(sendMenuAction).toHaveBeenCalledWith('toggle-minimap')
   })
 
+  it('routes the document statistics item through the renderer menu bridge', () => {
+    const sendMenuAction = vi.fn()
+    const template = createMenuTemplate({
+      sendMenuAction,
+    })
+    const statisticsItem = getMenuItem(template, 'View', 'Document Statistics')
+
+    statisticsItem?.click?.({} as never, {} as never, {} as never)
+
+    expect(sendMenuAction).toHaveBeenCalledWith('toggle-document-statistics')
+  })
+
   it('routes navigation history actions through the Go menu bridge', () => {
     const sendMenuAction = vi.fn()
     const template = createMenuTemplate({

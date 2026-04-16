@@ -69,6 +69,11 @@ import {
   loadLocalSourceLineNumbersPreference,
   persistLocalSourceLineNumbersPreference,
 } from './sourceLineNumbers'
+import {
+  type MarkFlowStatisticsPreferences,
+  loadLocalStatisticsPreferences,
+  persistLocalStatisticsPreferences,
+} from './statisticsPreferences'
 
 const THEME_STYLE_ELEMENT_ID = 'mf-theme-overrides'
 const EDITOR_ROOT_SELECTOR = '.cm-editor'
@@ -191,6 +196,11 @@ function formatHeadingNumberingStatus(enabled: boolean) {
 
 function formatSourceLineNumbersStatus(enabled: boolean) {
   return enabled ? 'Source lines: On' : 'Source lines: Off'
+}
+
+function formatReadingTime(minutes: number, suffix: 'panel' | 'statusbar' = 'panel') {
+  const label = `${minutes.toLocaleString()} min`
+  return suffix === 'statusbar' ? `${label} read` : label
 }
 
 type AppToast = {
@@ -432,6 +442,9 @@ export function App() {
   const [sourceLineNumbersEnabled, setSourceLineNumbersEnabled] = useState(() =>
     loadLocalSourceLineNumbersPreference(),
   )
+  const [statisticsPreferences, setStatisticsPreferences] = useState<MarkFlowStatisticsPreferences>(() =>
+    loadLocalStatisticsPreferences(),
+  )
   const [isDistractionFreeMode, setIsDistractionFreeMode] = useState(false)
   const [windowState, setWindowState] = useState<MarkFlowWindowState>({
     isAlwaysOnTop: false,
@@ -444,6 +457,7 @@ export function App() {
   const [spellCheckState, setSpellCheckState] = useState<MarkFlowSpellCheckState>(() =>
     loadLocalSpellCheckState(),
   )
+  const [isDocumentStatisticsOpen, setIsDocumentStatisticsOpen] = useState(false)
   const [isSpellCheckSettingsOpen, setIsSpellCheckSettingsOpen] = useState(false)
   const [isHeadingNumberingSettingsOpen, setIsHeadingNumberingSettingsOpen] = useState(false)
   const [isSourceLineNumbersSettingsOpen, setIsSourceLineNumbersSettingsOpen] = useState(false)
@@ -495,6 +509,8 @@ export function App() {
   const pluginHostRef = useRef<MarkFlowPluginHost | null>(null)
   const editorRef = useRef<MarkFlowEditorHandle | null>(null)
   const editorShellRef = useRef<HTMLDivElement | null>(null)
+  const documentStatisticsButtonRef = useRef<HTMLButtonElement | null>(null)
+  const documentStatisticsPanelRef = useRef<HTMLDivElement | null>(null)
   const headingNumberingButtonRef = useRef<HTMLButtonElement | null>(null)
   const headingNumberingPanelRef = useRef<HTMLDivElement | null>(null)
   const sourceLineNumbersButtonRef = useRef<HTMLButtonElement | null>(null)
@@ -526,6 +542,28 @@ export function App() {
     },
     [],
   )
+
+  const updateStatisticsPreferences = useCallback((nextPreferences: MarkFlowStatisticsPreferences) => {
+    setStatisticsPreferences(nextPreferences)
+    persistLocalStatisticsPreferences(nextPreferences)
+  }, [])
+
+  const closeStatusbarPanels = useCallback(() => {
+    setIsDocumentStatisticsOpen(false)
+    setIsHeadingNumberingSettingsOpen(false)
+    setIsSourceLineNumbersSettingsOpen(false)
+    setIsSpellCheckSettingsOpen(false)
+    setIsImageUploadSettingsOpen(false)
+  }, [])
+
+  const toggleDocumentStatistics = useCallback(() => {
+    setIsHeadingNumberingSettingsOpen(false)
+    setIsSourceLineNumbersSettingsOpen(false)
+    setIsSpellCheckSettingsOpen(false)
+    setIsImageUploadSettingsOpen(false)
+    setIsDocumentStatisticsOpen((current) => !current)
+    return true
+  }, [])
 
   const activeTab = useMemo(() => {
     const byId = tabs.find((tab) => tab.id === activeTabId)
@@ -647,6 +685,7 @@ export function App() {
 
   useEffect(() => {
     if (
+      !isDocumentStatisticsOpen &&
       !isHeadingNumberingSettingsOpen &&
       !isSourceLineNumbersSettingsOpen &&
       !isSpellCheckSettingsOpen &&
@@ -658,6 +697,8 @@ export function App() {
     const handlePointerDown = (event: PointerEvent) => {
       const target = event.target
       if (
+        (target instanceof Node && documentStatisticsPanelRef.current?.contains(target)) ||
+        (target instanceof Node && documentStatisticsButtonRef.current?.contains(target)) ||
         (target instanceof Node && headingNumberingPanelRef.current?.contains(target)) ||
         (target instanceof Node && headingNumberingButtonRef.current?.contains(target)) ||
         (target instanceof Node && sourceLineNumbersPanelRef.current?.contains(target)) ||
@@ -670,18 +711,12 @@ export function App() {
         return
       }
 
-      setIsHeadingNumberingSettingsOpen(false)
-      setIsSourceLineNumbersSettingsOpen(false)
-      setIsSpellCheckSettingsOpen(false)
-      setIsImageUploadSettingsOpen(false)
+      closeStatusbarPanels()
     }
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
-        setIsHeadingNumberingSettingsOpen(false)
-        setIsSourceLineNumbersSettingsOpen(false)
-        setIsSpellCheckSettingsOpen(false)
-        setIsImageUploadSettingsOpen(false)
+        closeStatusbarPanels()
       }
     }
 
@@ -692,6 +727,8 @@ export function App() {
       document.removeEventListener('keydown', handleKeyDown)
     }
   }, [
+    closeStatusbarPanels,
+    isDocumentStatisticsOpen,
     isHeadingNumberingSettingsOpen,
     isImageUploadSettingsOpen,
     isSourceLineNumbersSettingsOpen,
@@ -889,6 +926,9 @@ export function App() {
         case 'toggle-outline':
           setOutlineCollapsed((current) => !current)
           break
+        case 'toggle-document-statistics':
+          toggleDocumentStatistics()
+          break
         case 'toggle-distraction-free':
           toggleDistractionFreeMode()
           break
@@ -1084,6 +1124,7 @@ export function App() {
     loadCollapsedRangesForTab,
     replaceActiveTabId,
     replaceTabs,
+    toggleDocumentStatistics,
     updateTabs,
   ])
 
@@ -1108,9 +1149,8 @@ export function App() {
       return
     }
 
-    setIsSpellCheckSettingsOpen(false)
-    setIsImageUploadSettingsOpen(false)
-  }, [isImmersiveMode])
+    closeStatusbarPanels()
+  }, [closeStatusbarPanels, isImmersiveMode])
 
   useEffect(() => {
     setEditorScrollMetrics(null)
@@ -2329,6 +2369,16 @@ export function App() {
       },
     },
     {
+      id: 'view.document-statistics',
+      label: 'Toggle Document Statistics',
+      category: 'View',
+      description: isDocumentStatisticsOpen
+        ? 'Hide the detailed document statistics panel'
+        : 'Show words, characters, paragraphs, and reading time',
+      keywords: ['word count', 'characters', 'reading time', 'status bar', 'statistics'],
+      run: () => toggleDocumentStatistics(),
+    },
+    {
       id: 'navigation.quick-open',
       label: 'Quick Open Files',
       category: 'Navigation',
@@ -2807,9 +2857,40 @@ export function App() {
   }, [activeTab, updateTab])
 
   const docStats = useMemo(
-    () => computeStats(activeTab?.content ?? '', activeTab?.selectionText ?? ''),
-    [activeTab?.content, activeTab?.selectionText],
+    () =>
+      computeStats(activeTab?.content ?? '', activeTab?.selectionText ?? '', {
+        excludeFencedCode: statisticsPreferences.excludeFencedCode,
+      }),
+    [activeTab?.content, activeTab?.selectionText, statisticsPreferences.excludeFencedCode],
   )
+  const hasSelectionStats = (activeTab?.selectionText ?? '').length > 0
+  const statisticsRows = [
+    {
+      label: 'Words',
+      documentValue: docStats.words.toLocaleString(),
+      selectionValue: docStats.selectionWords.toLocaleString(),
+    },
+    {
+      label: 'Characters',
+      documentValue: docStats.chars.toLocaleString(),
+      selectionValue: docStats.selectionChars.toLocaleString(),
+    },
+    {
+      label: 'Characters (no spaces)',
+      documentValue: docStats.charsNoSpaces.toLocaleString(),
+      selectionValue: docStats.selectionCharsNoSpaces.toLocaleString(),
+    },
+    {
+      label: 'Paragraphs',
+      documentValue: docStats.paragraphs.toLocaleString(),
+      selectionValue: docStats.selectionParagraphs.toLocaleString(),
+    },
+    {
+      label: 'Reading time',
+      documentValue: formatReadingTime(docStats.readingMinutes),
+      selectionValue: formatReadingTime(docStats.selectionReadingMinutes),
+    },
+  ]
 
   const activeDocumentName = activeTab ? getTabLabel(activeTab, loadingFile) : 'Untitled'
   const largeFileNotice = activeTab?.largeFile
@@ -3157,34 +3238,100 @@ export function App() {
       </main>
       {!isImmersiveMode ? (
         <footer className="mf-statusbar" aria-label="Document statistics">
-        <span className="mf-statusbar-stat">{docStats.words.toLocaleString()} words</span>
-        <span className="mf-statusbar-sep" aria-hidden="true">·</span>
-        <span className="mf-statusbar-stat">{docStats.lines.toLocaleString()} lines</span>
-        <span className="mf-statusbar-sep" aria-hidden="true">·</span>
-        <span className="mf-statusbar-stat">{docStats.chars.toLocaleString()} characters</span>
-        <span className="mf-statusbar-sep" aria-hidden="true">·</span>
-        <span className="mf-statusbar-stat">{docStats.readingMinutes} min read</span>
-        {activeTab?.largeFile ? (
-          <>
+          <button
+            ref={documentStatisticsButtonRef}
+            type="button"
+            className={`mf-statusbar-summary${isDocumentStatisticsOpen ? ' mf-statusbar-summary-active' : ''}`}
+            aria-haspopup="dialog"
+            aria-expanded={isDocumentStatisticsOpen}
+            aria-label={isDocumentStatisticsOpen ? 'Hide document statistics' : 'Show document statistics'}
+            onClick={() => {
+              toggleDocumentStatistics()
+            }}
+          >
+            <span className="mf-statusbar-stat">{docStats.words.toLocaleString()} words</span>
             <span className="mf-statusbar-sep" aria-hidden="true">·</span>
-            <span className="mf-statusbar-stat">
-              line {currentLineNumber.toLocaleString()} / {totalLines.toLocaleString()}
-            </span>
+            <span className="mf-statusbar-stat">{docStats.lines.toLocaleString()} lines</span>
             <span className="mf-statusbar-sep" aria-hidden="true">·</span>
-            <span className="mf-statusbar-stat">
-              window {activeTab.largeFile.windowStartLine.toLocaleString()}-{activeTab.largeFile.windowEndLine.toLocaleString()}
-            </span>
-          </>
-        ) : null}
-        {docStats.selectionChars > 0 && (
-          <>
-            <span className="mf-statusbar-sep" aria-hidden="true">|</span>
-            <span className="mf-statusbar-stat mf-statusbar-selection">
-              sel: {docStats.selectionWords}w / {docStats.selectionChars}c
-            </span>
-          </>
-        )}
-        <div className="mf-statusbar-actions">
+            <span className="mf-statusbar-stat">{docStats.chars.toLocaleString()} characters</span>
+            <span className="mf-statusbar-sep" aria-hidden="true">·</span>
+            <span className="mf-statusbar-stat">{formatReadingTime(docStats.readingMinutes, 'statusbar')}</span>
+            {activeTab?.largeFile ? (
+              <>
+                <span className="mf-statusbar-sep" aria-hidden="true">·</span>
+                <span className="mf-statusbar-stat">
+                  line {currentLineNumber.toLocaleString()} / {totalLines.toLocaleString()}
+                </span>
+                <span className="mf-statusbar-sep" aria-hidden="true">·</span>
+                <span className="mf-statusbar-stat">
+                  window {activeTab.largeFile.windowStartLine.toLocaleString()}-{activeTab.largeFile.windowEndLine.toLocaleString()}
+                </span>
+              </>
+            ) : null}
+            {hasSelectionStats ? (
+              <>
+                <span className="mf-statusbar-sep" aria-hidden="true">|</span>
+                <span className="mf-statusbar-stat mf-statusbar-selection">
+                  sel: {docStats.selectionWords}w / {docStats.selectionChars}c
+                </span>
+              </>
+            ) : null}
+          </button>
+          {isDocumentStatisticsOpen ? (
+            <section
+              ref={documentStatisticsPanelRef}
+              className="mf-statistics-popover"
+              role="dialog"
+              aria-label="Document statistics"
+            >
+              <div className="mf-spellcheck-popover-header">
+                <div>
+                  <p className="mf-spellcheck-popover-title">Document Statistics</p>
+                  <p className="mf-spellcheck-popover-copy">
+                    Live totals update as you edit. Selection metrics appear when text is highlighted.
+                  </p>
+                </div>
+              </div>
+              <table className="mf-statistics-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Metric</th>
+                    <th scope="col">Document</th>
+                    {hasSelectionStats ? <th scope="col">Selection</th> : null}
+                  </tr>
+                </thead>
+                <tbody>
+                  {statisticsRows.map((row) => (
+                    <tr key={row.label}>
+                      <th scope="row">{row.label}</th>
+                      <td>{row.documentValue}</td>
+                      {hasSelectionStats ? <td>{row.selectionValue}</td> : null}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <label className="mf-image-upload-checkbox">
+                <input
+                  type="checkbox"
+                  checked={statisticsPreferences.excludeFencedCode}
+                  onChange={(event) =>
+                    updateStatisticsPreferences({
+                      ...statisticsPreferences,
+                      excludeFencedCode: event.target.checked,
+                    })
+                  }
+                />
+                <span>Exclude fenced code blocks from counts</span>
+              </label>
+              {!hasSelectionStats ? (
+                <p className="mf-statistics-copy">Select one or more blocks to compare document and selection totals.</p>
+              ) : null}
+              <p className="mf-statistics-copy">
+                Words ignore markdown formatting markers. Character counts keep source punctuation inside the included text.
+              </p>
+            </section>
+          ) : null}
+          <div className="mf-statusbar-actions">
           <button
             ref={headingNumberingButtonRef}
             type="button"
@@ -3193,6 +3340,7 @@ export function App() {
             aria-expanded={isHeadingNumberingSettingsOpen}
             aria-label="Heading numbering settings"
             onClick={() => {
+              setIsDocumentStatisticsOpen(false)
               setIsSourceLineNumbersSettingsOpen(false)
               setIsSpellCheckSettingsOpen(false)
               setIsImageUploadSettingsOpen(false)
@@ -3235,6 +3383,7 @@ export function App() {
             aria-expanded={isSourceLineNumbersSettingsOpen}
             aria-label="Source line-number settings"
             onClick={() => {
+              setIsDocumentStatisticsOpen(false)
               setIsHeadingNumberingSettingsOpen(false)
               setIsSpellCheckSettingsOpen(false)
               setIsImageUploadSettingsOpen(false)
@@ -3279,6 +3428,7 @@ export function App() {
                 aria-expanded={isImageUploadSettingsOpen}
                 aria-label="Image upload preferences"
                 onClick={() => {
+                  setIsDocumentStatisticsOpen(false)
                   setIsHeadingNumberingSettingsOpen(false)
                   setIsSourceLineNumbersSettingsOpen(false)
                   setIsSpellCheckSettingsOpen(false)
@@ -3420,6 +3570,7 @@ export function App() {
             aria-expanded={isSpellCheckSettingsOpen}
             aria-label="Spellcheck settings"
             onClick={() => {
+              setIsDocumentStatisticsOpen(false)
               setIsHeadingNumberingSettingsOpen(false)
               setIsSourceLineNumbersSettingsOpen(false)
               setIsImageUploadSettingsOpen(false)

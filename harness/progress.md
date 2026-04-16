@@ -5301,3 +5301,51 @@
   - none
 - Next recommended feature:
   - `MF-091` - perform the pending manual verification for restart persistence, macOS Spaces behavior, Windows multi-monitor behavior, and any available multi-window flow before promoting `passes` / `lastVerifiedAt`
+
+### 2026-04-16 - MF-095 Document statistics panel adds detailed totals, selection columns, and fenced-code exclusion
+
+- Author: Codex
+- Focus: obey the startup protocol for `MF-095`, implement only the document-statistics panel feature in `@markflow/editor`, run the feature-specific automated verification plus repository-wide verification, keep the ledger honest because Typora cross-checking was not possible here, and finish with a Lore-protocol commit.
+- What changed:
+  - re-read the root `AGENTS.md`, ran `pnpm harness:start`, and ran `./harness/init.sh --smoke` before implementation; the smoke script failed before any edits because the repo already had an unrelated baseline failure in `packages/editor/src/__tests__/App.test.tsx` (`pushes wikilink and global-search destinations onto navigation history across files`)
+  - expanded `packages/editor/src/editor/wordCount.ts` from the earlier status-bar summary model into a richer statistics model with paragraphs, characters-without-spaces, selection-specific metrics, configurable fenced-code exclusion, and a less lossy reading-time approximation
+  - added `packages/editor/src/statisticsPreferences.ts` so the new statistics panel can persist its local `exclude fenced code blocks` preference without adding a new dependency or backend persistence layer
+  - rewired `packages/editor/src/App.tsx` so the status bar opens a detailed statistics popover, the View menu and command palette can toggle it, multi-block selections render a second table column, and the checkbox immediately recomputes counts in both the popover and the compact status bar summary
+  - extended `packages/desktop/src/main/menu.ts` and `packages/shared/src/index.ts` so the desktop menu bridge can dispatch a dedicated document-statistics action, then covered that path in `packages/desktop/src/main/menu.test.ts`
+  - added targeted UI coverage in `packages/editor/src/__tests__/App.test.tsx` for menu-open, status-bar-open, selection-column rendering, and fenced-code exclusion toggling; expanded `packages/editor/src/editor/__tests__/wordCount.test.ts` for paragraphs, reading-time rounding, and exclusion modes
+- Changed files:
+  - `packages/shared/src/index.ts`
+  - `packages/desktop/src/main/menu.ts`
+  - `packages/desktop/src/main/menu.test.ts`
+  - `packages/editor/src/App.tsx`
+  - `packages/editor/src/statisticsPreferences.ts`
+  - `packages/editor/src/styles/global.css`
+  - `packages/editor/src/editor/wordCount.ts`
+  - `packages/editor/src/editor/__tests__/wordCount.test.ts`
+  - `packages/editor/src/__tests__/App.test.tsx`
+  - `harness/feature-ledger.json`
+  - `harness/progress.md`
+- Simplifications made:
+  - kept the new preference local-only and fence-specific instead of inventing a broader editor-preferences framework or changing unrelated inline-code behavior from `MF-027`
+  - reused the existing status-bar popover idiom and renderer menu bridge rather than introducing a new modal system or IPC channel just for statistics
+  - used a semantic table for the panel so document/selection comparisons stay simple to render and test without a custom grid abstraction
+- Verification:
+  - `pnpm harness:start` (passes)
+  - `./harness/init.sh --smoke` before implementation (fails before any `MF-095` edits because of the pre-existing unrelated `packages/editor/src/__tests__/App.test.tsx` navigation-history test failure noted above)
+  - `pnpm --filter @markflow/editor exec vitest run src/editor/__tests__/wordCount.test.ts` (passes; 1 file / 31 tests covering paragraphs, reading-time approximation, and fenced-code selection/exclusion behavior)
+  - `pnpm --filter @markflow/editor exec vitest run src/__tests__/App.test.tsx -t "document statistics"` (passes; 2 focused UI tests covering menu/status-bar entry points, selection column rendering, and preference-driven recounting)
+  - `pnpm --filter @markflow/desktop exec vitest run src/main/menu.test.ts` (passes; 1 file / 12 tests including the new View menu dispatch path)
+  - `pnpm --filter @markflow/editor lint` (passes)
+  - `pnpm --filter @markflow/shared lint` (passes)
+  - `pnpm --filter @markflow/shared build` (passes; required so the editor package sees the widened shared menu-action union during project-reference builds)
+  - `pnpm --filter @markflow/editor build` (passes)
+  - `pnpm --filter @markflow/desktop build` (passes)
+  - `pnpm harness:verify` (passes)
+- Review / risks:
+  - `MF-095` is implemented and the targeted automated coverage is green, but `passes` must remain false until someone manually cross-checks the same sample document against Typora as the feature entry requires
+  - the startup smoke script is still not green for the session because of the unrelated existing `App.test.tsx` navigation-history failure; this feature did not fix or worsen that baseline and the risk remains for future full-suite runs
+  - the new preference deliberately excludes only fenced code blocks, matching the feature step and minimizing regression risk; if later product direction wants inline-code treatment to be configurable too, that should be specified separately instead of folded into this completed feature retroactively
+- Newly verified features:
+  - none
+- Next recommended feature:
+  - `MF-095` - perform the pending manual verification against Typora on a shared sample document, and only then promote `passes` / `lastVerifiedAt`

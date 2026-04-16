@@ -20,6 +20,11 @@ import {
   loadLocalSourceLineNumbersPreference,
   persistLocalSourceLineNumbersPreference,
 } from '../sourceLineNumbers'
+import {
+  loadLocalStatisticsPreferences,
+  persistLocalStatisticsPreferences,
+} from '../statisticsPreferences'
+import { computeStats } from '../editor/wordCount'
 import type {
   MarkFlowAppearance,
   MarkFlowDesktopAPI,
@@ -62,6 +67,13 @@ function getVisibleLineNumbers(container: HTMLElement) {
   return Array.from(container.querySelectorAll('.cm-lineNumbers .cm-gutterElement'))
     .filter((element) => !element.getAttribute('style')?.includes('visibility: hidden'))
     .map((element) => element.textContent)
+}
+
+function getStatisticsRow(panel: HTMLElement, label: string) {
+  const rowHeader = within(panel).getByRole('rowheader', { name: label })
+  const row = rowHeader.closest('tr')
+  expect(row).not.toBeNull()
+  return row as HTMLTableRowElement
 }
 
 function getOpenTabs() {
@@ -414,6 +426,7 @@ describe('App desktop integration', () => {
     delete window.markflow
     persistLocalHeadingNumberingPreference(false)
     persistLocalSourceLineNumbersPreference(true)
+    persistLocalStatisticsPreferences({ excludeFencedCode: true })
     if (typeof window.localStorage?.removeItem === 'function') {
       window.localStorage.removeItem('markflow.spellcheck-profile.v1')
     }
@@ -1372,6 +1385,115 @@ describe('App desktop integration', () => {
     await waitFor(() => {
       expect(container.querySelector('.cm-lineNumbers')).toBeNull()
     })
+  })
+
+  it('opens document statistics from the menu bridge and toggles fenced-code exclusion', async () => {
+    const api = new MockMarkFlowAPI()
+    window.markflow = api
+
+    const content = [
+      '# Intro',
+      '',
+      'Alpha beta gamma.',
+      '',
+      '```ts',
+      'const hidden = true',
+      '```',
+      '',
+      'Delta epsilon.',
+    ].join('\n')
+    const excludedStats = computeStats(content, '', { excludeFencedCode: true })
+    const includedStats = computeStats(content, '', { excludeFencedCode: false })
+
+    render(<App />)
+
+    await act(async () => {
+      api.emitFileOpened({ filePath: '/tmp/statistics.md', content })
+      api.emitMenuAction('toggle-document-statistics')
+    })
+
+    const summaryButton = await screen.findByRole('button', { name: /document statistics/i })
+    const panel = await screen.findByRole('dialog', { name: 'Document statistics' })
+    const exclusionToggle = within(panel).getByRole('checkbox', {
+      name: 'Exclude fenced code blocks from counts',
+    })
+    const wordsRow = getStatisticsRow(panel, 'Words')
+    const charactersRow = getStatisticsRow(panel, 'Characters')
+    const readingTimeRow = getStatisticsRow(panel, 'Reading time')
+
+    expect(summaryButton).toHaveTextContent(`${excludedStats.words.toLocaleString()} words`)
+    expect(within(panel).getByRole('columnheader', { name: 'Document' })).toBeInTheDocument()
+    expect(within(panel).queryByRole('columnheader', { name: 'Selection' })).not.toBeInTheDocument()
+    expect(within(wordsRow).getAllByRole('cell').map((cell) => cell.textContent?.trim())).toEqual([
+      excludedStats.words.toLocaleString(),
+    ])
+    expect(within(charactersRow).getAllByRole('cell').map((cell) => cell.textContent?.trim())).toEqual([
+      excludedStats.chars.toLocaleString(),
+    ])
+    expect(within(readingTimeRow).getAllByRole('cell').map((cell) => cell.textContent?.trim())).toEqual([
+      `${excludedStats.readingMinutes} min`,
+    ])
+
+    fireEvent.click(exclusionToggle)
+
+    await waitFor(() => {
+      expect(loadLocalStatisticsPreferences().excludeFencedCode).toBe(false)
+      expect(summaryButton).toHaveTextContent(`${includedStats.words.toLocaleString()} words`)
+      expect(within(wordsRow).getAllByRole('cell').map((cell) => cell.textContent?.trim())).toEqual([
+        includedStats.words.toLocaleString(),
+      ])
+      expect(within(charactersRow).getAllByRole('cell').map((cell) => cell.textContent?.trim())).toEqual([
+        includedStats.chars.toLocaleString(),
+      ])
+    })
+  })
+
+  it('opens document statistics from the status bar and adds a selection column for multi-block selections', async () => {
+    const api = new MockMarkFlowAPI()
+    window.markflow = api
+
+    const content = '# Intro\n\nAlpha beta\n\nGamma delta\n\nEpsilon zeta'
+    const selectionText = 'Alpha beta\n\nGamma delta'
+    const expectedStats = computeStats(content, selectionText, { excludeFencedCode: true })
+    const { container } = render(<App />)
+
+    await act(async () => {
+      api.emitFileOpened({ filePath: '/tmp/selection-stats.md', content })
+    })
+
+    const view = getEditorView(container)
+    const selectionStart = content.indexOf(selectionText)
+    const selectionEnd = selectionStart + selectionText.length
+
+    act(() => {
+      view.dispatch({
+        selection: { anchor: selectionStart, head: selectionEnd },
+      })
+    })
+
+    const summaryButton = await screen.findByRole('button', { name: /document statistics/i })
+
+    await waitFor(() => {
+      expect(summaryButton).toHaveTextContent(
+        `sel: ${expectedStats.selectionWords.toLocaleString()}w / ${expectedStats.selectionChars.toLocaleString()}c`,
+      )
+    })
+
+    fireEvent.click(summaryButton)
+
+    const panel = await screen.findByRole('dialog', { name: 'Document statistics' })
+    const wordsRow = getStatisticsRow(panel, 'Words')
+    const paragraphsRow = getStatisticsRow(panel, 'Paragraphs')
+
+    expect(within(panel).getByRole('columnheader', { name: 'Selection' })).toBeInTheDocument()
+    expect(within(wordsRow).getAllByRole('cell').map((cell) => cell.textContent?.trim())).toEqual([
+      expectedStats.words.toLocaleString(),
+      expectedStats.selectionWords.toLocaleString(),
+    ])
+    expect(within(paragraphsRow).getAllByRole('cell').map((cell) => cell.textContent?.trim())).toEqual([
+      expectedStats.paragraphs.toLocaleString(),
+      expectedStats.selectionParagraphs.toLocaleString(),
+    ])
   })
 
   it('shows an outline that mirrors heading hierarchy and navigates to the active heading', async () => {

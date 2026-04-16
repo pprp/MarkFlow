@@ -135,6 +135,7 @@ export type MarkFlowMenuAction =
   | 'toggle-minimap'
   | 'toggle-sidebar'
   | 'toggle-outline'
+  | 'toggle-document-statistics'
   | 'toggle-distraction-free'
   | 'toggle-focus-mode'
   | 'toggle-typewriter-mode'

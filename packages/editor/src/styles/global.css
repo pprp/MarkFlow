@@ -903,6 +903,33 @@ body {
   letter-spacing: -0.01em;
 }
 
+.mf-statusbar-summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 0 8px;
+  height: 20px;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  transition: background-color var(--mf-transition-fast), color var(--mf-transition-fast);
+  -webkit-app-region: no-drag;
+}
+
+.mf-statusbar-summary:hover {
+  background: var(--mf-fill-secondary);
+  color: var(--mf-fg);
+}
+
+.mf-statusbar-summary-active {
+  background: var(--mf-accent-light);
+  color: var(--mf-accent);
+}
+
 .mf-statusbar-stat {
   font-variant-numeric: tabular-nums;
 }
@@ -953,6 +980,24 @@ body {
   right: 0;
   bottom: calc(100% + 10px);
   width: min(24rem, calc(100vw - 24px));
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--mf-border-light);
+  border-radius: var(--mf-radius-lg);
+  background: color-mix(in srgb, var(--mf-bg-tertiary) 94%, transparent);
+  box-shadow: var(--mf-shadow-lg);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  z-index: 8;
+}
+
+.mf-statistics-popover {
+  position: absolute;
+  left: 16px;
+  bottom: calc(100% + 10px);
+  width: min(34rem, calc(100vw - 24px));
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -1027,6 +1072,51 @@ body {
   display: flex;
   align-items: flex-start;
   gap: 8px;
+  color: var(--mf-fg-secondary);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.mf-statistics-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+}
+
+.mf-statistics-table thead th {
+  padding: 0 0 8px;
+  color: var(--mf-fg-muted);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  text-align: right;
+}
+
+.mf-statistics-table thead th:first-child,
+.mf-statistics-table tbody th {
+  text-align: left;
+}
+
+.mf-statistics-table tbody th,
+.mf-statistics-table tbody td {
+  padding: 7px 0;
+  border-top: 1px solid color-mix(in srgb, var(--mf-border-light) 78%, transparent);
+}
+
+.mf-statistics-table tbody th {
+  color: var(--mf-fg-secondary);
+  font-weight: 500;
+}
+
+.mf-statistics-table tbody td {
+  color: var(--mf-fg);
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  text-align: right;
+}
+
+.mf-statistics-copy {
   color: var(--mf-fg-secondary);
   font-size: 11px;
   line-height: 1.45;

@@ -243,6 +243,7 @@ export function createApplicationMenuTemplate({
         { label: 'Distraction Free Mode', click: () => sendMenuAction('toggle-distraction-free') },
         { label: 'Focus Mode', click: () => sendMenuAction('toggle-focus-mode') },
         { label: 'Typewriter Mode', click: () => sendMenuAction('toggle-typewriter-mode') },
+        { label: 'Document Statistics', click: () => sendMenuAction('toggle-document-statistics') },
         { type: 'separator' },
         { role: 'resetZoom' },
         { role: 'zoomIn' },
