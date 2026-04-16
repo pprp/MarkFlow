@@ -273,6 +273,93 @@ body {
   gap: 4px;
 }
 
+.mf-tabstrip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 38px;
+  padding: 0 12px 8px;
+  background: rgba(255, 255, 255, 0.82);
+  border-bottom: 1px solid var(--mf-border-light);
+  overflow-x: auto;
+}
+
+@media (prefers-color-scheme: dark) {
+  .mf-tabstrip {
+    background: rgba(28, 28, 30, 0.82);
+  }
+}
+
+.mf-tab {
+  -webkit-app-region: no-drag;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+  max-width: min(26vw, 240px);
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: transparent;
+  transition: background-color var(--mf-transition-fast), border-color var(--mf-transition-fast);
+}
+
+.mf-tab:hover {
+  background: var(--mf-fill-secondary);
+}
+
+.mf-tab-active {
+  background: var(--mf-fill);
+  border-color: var(--mf-border-light);
+}
+
+.mf-tab-button {
+  -webkit-app-region: no-drag;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  max-width: 100%;
+  padding: 7px 8px 7px 10px;
+  color: var(--mf-fg-secondary);
+  background: transparent;
+  border: none;
+  border-radius: 10px;
+  font: inherit;
+  cursor: default;
+}
+
+.mf-tab-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mf-tab-close {
+  -webkit-app-region: no-drag;
+  width: 24px;
+  height: 24px;
+  margin-right: 4px;
+  color: var(--mf-fg-muted);
+  background: transparent;
+  border: none;
+  border-radius: 999px;
+  cursor: default;
+  transition: background-color var(--mf-transition-fast), color var(--mf-transition-fast);
+}
+
+.mf-tab-close:hover {
+  color: var(--mf-fg-secondary);
+  background: var(--mf-fill-secondary);
+}
+
+.mf-tab-dirty-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--mf-accent);
+  flex-shrink: 0;
+}
+
 /* ── Theme picker ───────────────────────────────────────────── */
 .mf-theme-controls {
   -webkit-app-region: no-drag;

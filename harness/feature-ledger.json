@@ -2296,7 +2296,7 @@
       "category": "phase-2-functional",
       "area": "@markflow/desktop",
       "priority": 2,
-      "status": "planned",
+      "status": "ready",
       "passes": false,
       "lastVerifiedAt": null,
       "dependsOn": ["MF-007", "MF-041"],
@@ -2314,7 +2314,7 @@
           "Open five tabs, cycle them with the platform shortcuts, reopen the last closed tab, then quit and relaunch to confirm session restore reproduces the tab set."
         ]
       },
-      "notes": "Typora's later 1.x multi-tab workflow includes switching between opened documents and reopening the last closed file from the keyboard, not just showing multiple tabs. Repo search found no MarkFlow tab/session model, no keyboard tab-cycling bindings, and no reopen-closed stack in the current desktop/editor code, so the existing tab entry needed those acceptance criteria spelled out. Sources: https://support.typora.io/What%27s-New-1.5/ and https://support.typora.io/Shortcut-Keys/."
+      "notes": "Typora's later 1.x multi-tab workflow includes switching between opened documents and reopening the last closed file from the keyboard, not just showing multiple tabs. Repo search found no MarkFlow tab/session model, no keyboard tab-cycling bindings, and no reopen-closed stack in the current desktop/editor code, so the existing tab entry needed those acceptance criteria spelled out. Sources: https://support.typora.io/What%27s-New-1.5/ and https://support.typora.io/Shortcut-Keys/. Implementation now lands per-tab editor snapshots, desktop close-confirm/session IPC, tab cycling/reopen commands, and focused coverage in `packages/editor/src/__tests__/App.test.tsx`, `packages/desktop/src/main/fileManager.test.ts`, and `packages/desktop/src/main/menu.test.ts`; manual desktop verification is still pending, so `passes` remains false."
     },
     {
       "id": "MF-089",

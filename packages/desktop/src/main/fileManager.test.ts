@@ -10,6 +10,7 @@ const {
   removeAllListenersMock,
   removeHandlerMock,
   showSaveDialogMock,
+  showMessageBoxMock,
   appGetPathMock,
   execFileMock,
   showItemInFolderMock,
@@ -21,6 +22,7 @@ const {
   removeAllListenersMock: vi.fn(),
   removeHandlerMock: vi.fn(),
   showSaveDialogMock: vi.fn(),
+  showMessageBoxMock: vi.fn(),
   appGetPathMock: vi.fn(() => '/tmp'),
   execFileMock: vi.fn((file: string, args: string[], callback: (err: Error | null, stdout: string, stderr: string) => void) => {
     if (callback) callback(null, '', '')
@@ -40,6 +42,7 @@ vi.mock('electron', () => ({
   },
   dialog: {
     showSaveDialog: showSaveDialogMock,
+    showMessageBox: showMessageBoxMock,
   },
   ipcMain: {
     handle: handleMock,
@@ -74,6 +77,7 @@ describe('FileManager async saves', () => {
     removeAllListenersMock.mockReset()
     removeHandlerMock.mockReset()
     showSaveDialogMock.mockReset()
+    showMessageBoxMock.mockReset()
     appGetPathMock.mockReset()
     appGetPathMock.mockImplementation(() => '/tmp')
     showItemInFolderMock.mockReset()
@@ -97,7 +101,7 @@ describe('FileManager async saves', () => {
 
     const result = await handlers.get('save-file')?.({}, '# Notes')
 
-    expect(result).toEqual({ success: true })
+    expect(result).toEqual({ success: true, filePath: '/tmp/notes.md' })
     expect(writeFileMock).toHaveBeenCalledWith('/tmp/notes.md', '# Notes', 'utf-8')
     expect(window.webContents.send).toHaveBeenCalledWith('file-saved', { filePath: '/tmp/notes.md' })
     expect(window.setTitle).toHaveBeenCalledWith('notes.md — MarkFlow')
@@ -132,7 +136,7 @@ describe('FileManager async saves', () => {
 
     const result = await manager.saveFileAs('# Copy')
 
-    expect(result).toEqual({ success: true })
+    expect(result).toEqual({ success: true, filePath: '/tmp/notes-copy.md' })
     expect(writeFileMock).toHaveBeenCalledWith('/tmp/notes-copy.md', '# Copy', 'utf-8')
     expect(window.webContents.send).toHaveBeenCalledWith('file-saved', { filePath: '/tmp/notes-copy.md' })
     expect(window.setRepresentedFilename).toHaveBeenCalledWith('/tmp/notes-copy.md')
@@ -184,6 +188,58 @@ describe('FileManager async saves', () => {
   })
 })
 
+describe('FileManager window sessions', () => {
+  beforeEach(() => {
+    handleMock.mockReset()
+    onMock.mockReset()
+    removeAllListenersMock.mockReset()
+    removeHandlerMock.mockReset()
+    showSaveDialogMock.mockReset()
+    showMessageBoxMock.mockReset()
+    appGetPathMock.mockReset()
+    appGetPathMock.mockImplementation(() => '/tmp')
+    vi.restoreAllMocks()
+  })
+
+  it('persists the open tab set and restores it with the previously active file', async () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'markflow-window-session-'))
+    appGetPathMock.mockImplementation(() => tempDir)
+
+    const firstPath = path.join(tempDir, 'first.md')
+    const secondPath = path.join(tempDir, 'second.md')
+    fs.writeFileSync(firstPath, '# First', 'utf-8')
+    fs.writeFileSync(secondPath, '# Second', 'utf-8')
+
+    const manager = new FileManager(createWindowStub() as never)
+
+    await manager.saveWindowSession({
+      filePaths: [firstPath, secondPath, firstPath],
+      activeFilePath: secondPath,
+    })
+
+    expect(await manager.getWindowSession()).toEqual({
+      documents: [
+        { filePath: firstPath, content: '# First' },
+        { filePath: secondPath, content: '# Second' },
+      ],
+      activeFilePath: secondPath,
+    })
+  })
+
+  it('maps the dirty-close prompt buttons to save, discard, and cancel actions', async () => {
+    const manager = new FileManager(createWindowStub() as never)
+
+    showMessageBoxMock.mockResolvedValueOnce({ response: 0 })
+    await expect(manager.confirmTabClose('notes.md')).resolves.toBe('save')
+
+    showMessageBoxMock.mockResolvedValueOnce({ response: 1 })
+    await expect(manager.confirmTabClose('notes.md')).resolves.toBe('discard')
+
+    showMessageBoxMock.mockResolvedValueOnce({ response: 2 })
+    await expect(manager.confirmTabClose('notes.md')).resolves.toBe('cancel')
+  })
+})
+
 describe('FileManager fold state sidecars', () => {
   beforeEach(() => {
     handleMock.mockReset()
@@ -191,6 +247,7 @@ describe('FileManager fold state sidecars', () => {
     removeAllListenersMock.mockReset()
     removeHandlerMock.mockReset()
     showSaveDialogMock.mockReset()
+    showMessageBoxMock.mockReset()
     appGetPathMock.mockReset()
     appGetPathMock.mockImplementation(() => '/tmp')
     vi.restoreAllMocks()
@@ -230,6 +287,7 @@ describe('FileManager Pandoc exports', () => {
     removeAllListenersMock.mockReset()
     removeHandlerMock.mockReset()
     showSaveDialogMock.mockReset()
+    showMessageBoxMock.mockReset()
     execFileMock.mockClear()
     appGetPathMock.mockReset()
     appGetPathMock.mockImplementation(() => '/tmp')
@@ -286,6 +344,7 @@ describe('FileManager chunk loader', () => {
     removeAllListenersMock.mockReset()
     removeHandlerMock.mockReset()
     showSaveDialogMock.mockReset()
+    showMessageBoxMock.mockReset()
     appGetPathMock.mockReset()
     appGetPathMock.mockImplementation(() => '/tmp')
     vi.restoreAllMocks()
@@ -340,6 +399,7 @@ describe('FileManager auto-save recovery checkpoints', () => {
     removeAllListenersMock.mockReset()
     removeHandlerMock.mockReset()
     showSaveDialogMock.mockReset()
+    showMessageBoxMock.mockReset()
     appGetPathMock.mockReset()
     appGetPathMock.mockImplementation(() => '/tmp')
     vi.restoreAllMocks()
@@ -397,7 +457,7 @@ describe('FileManager auto-save recovery checkpoints', () => {
     })
 
     ;((manager as unknown) as { currentFilePath: string | null }).currentFilePath = filePath
-    expect(await manager.saveFile('# Recovered draft')).toEqual({ success: true })
+    expect(await manager.saveFile('# Recovered draft')).toEqual({ success: true, filePath })
     expect(fs.existsSync(recoveryPath)).toBe(false)
   })
 })

@@ -1,5 +1,9 @@
 import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { MarkFlowEditor, type MarkFlowEditorHandle } from './editor/MarkFlowEditor'
+import {
+  MarkFlowEditor,
+  type MarkFlowEditorHandle,
+  type MarkFlowEditorSnapshot,
+} from './editor/MarkFlowEditor'
 import { createEmptySymbolTable, type SymbolTable } from './editor/indexer'
 import { findActiveHeadingAnchor } from './editor/outline'
 import { computeStats } from './editor/wordCount'
@@ -21,12 +25,15 @@ import {
   type MarkFlowDesktopAPI,
   type MarkFlowQuickOpenItem,
   type MarkFlowDocument,
+  type MarkFlowFilePayload,
   type MarkFlowFileLoadProgressPayload,
   type MarkFlowMenuAction,
   type MarkFlowRecoveryCheckpoint,
+  type MarkFlowTabCloseAction,
   type MarkFlowThemeState,
   type MarkFlowThemeSummary,
   type ViewMode,
+  type MarkFlowWindowSessionState,
   type SearchResult,
 } from '@markflow/shared'
 
@@ -186,6 +193,85 @@ function getLineStartPosition(content: string, requestedLineNumber: number) {
   return content.length
 }
 
+let tabIdCounter = 0
+let untitledTabCounter = 0
+
+interface DocumentTabState extends MarkFlowDocument {
+  id: string
+  persistedContent: string
+  collapsedRanges: number[]
+  cursorPosition: number
+  viewportPosition: number | null
+  selectionText: string
+  symbolTable: SymbolTable
+  snapshot: MarkFlowEditorSnapshot | null
+  untitledLabel: string
+}
+
+interface ClosedDocumentTabState {
+  closedIndex: number
+  tab: DocumentTabState
+}
+
+function createTabId() {
+  tabIdCounter += 1
+  return `tab-${tabIdCounter}`
+}
+
+function createUntitledLabel(content: string) {
+  if (content === INITIAL_CONTENT) {
+    return 'Starter Document'
+  }
+
+  untitledTabCounter += 1
+  return untitledTabCounter === 1 ? 'Untitled' : `Untitled ${untitledTabCounter}`
+}
+
+function createDocumentTab(filePath: string | null, content: string): DocumentTabState {
+  return {
+    id: createTabId(),
+    filePath,
+    content,
+    persistedContent: content,
+    isDirty: false,
+    collapsedRanges: [],
+    cursorPosition: 0,
+    viewportPosition: null,
+    selectionText: '',
+    symbolTable: createEmptySymbolTable(),
+    snapshot: null,
+    untitledLabel: createUntitledLabel(content),
+  }
+}
+
+function getTabLabel(tab: DocumentTabState, loadingFile: MarkFlowFileLoadProgressPayload | null = null) {
+  if (tab.filePath) {
+    return tab.filePath.split(/[\\/]/).at(-1) ?? tab.filePath
+  }
+
+  if (loadingFile?.filePath) {
+    return loadingFile.filePath.split(/[\\/]/).at(-1) ?? loadingFile.filePath
+  }
+
+  return tab.untitledLabel
+}
+
+function findTabIndex(tabs: readonly DocumentTabState[], tabId: string | null) {
+  return tabs.findIndex((tab) => tab.id === tabId)
+}
+
+function buildWindowSessionState(
+  tabs: readonly DocumentTabState[],
+  activeTabId: string | null,
+): MarkFlowWindowSessionState {
+  const filePaths = tabs.flatMap((tab) => (tab.filePath ? [tab.filePath] : []))
+  const activeFilePath = tabs.find((tab) => tab.id === activeTabId)?.filePath ?? null
+  return {
+    filePaths,
+    activeFilePath,
+  }
+}
+
 export function App() {
   const [viewMode, setViewMode] = useState<ViewMode>('wysiwyg')
   const [focusMode, setFocusMode] = useState(false)
@@ -197,31 +283,34 @@ export function App() {
   const [isGoToLineOpen, setIsGoToLineOpen] = useState(false)
   const [themes, setThemes] = useState<MarkFlowThemeSummary[]>([])
   const [themeState, setThemeState] = useState<MarkFlowThemeState | null>(null)
-  const [cursorPosition, setCursorPosition] = useState(0)
-  const [viewportPosition, setViewportPosition] = useState<number | null>(null)
   const [editorNavigationRequest, setEditorNavigationRequest] = useState<{
     key: number
     position: number
   } | null>(null)
   const [outlineCollapsed, setOutlineCollapsed] = useState(false)
-  const [symbolTable, setSymbolTable] = useState<SymbolTable>(() => createEmptySymbolTable())
-  const [selectionText, setSelectionText] = useState('')
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false)
   const [isQuickOpenOpen, setIsQuickOpenOpen] = useState(false)
   const [isExporting, setIsExporting] = useState(false)
   const [quickOpenItems, setQuickOpenItems] = useState<MarkFlowQuickOpenItem[]>([])
-  const [documentState, setDocumentState] = useState<MarkFlowDocument>({
-    filePath: null,
-    content: INITIAL_CONTENT,
-    isDirty: false,
-  })
-  const [collapsedRanges, setCollapsedRanges] = useState<number[]>([])
+  const [tabs, setTabs] = useState<DocumentTabState[]>(() => [createDocumentTab(null, INITIAL_CONTENT)])
+  const [activeTabId, setActiveTabId] = useState<string | null>(null)
+  const [closedTabs, setClosedTabs] = useState<ClosedDocumentTabState[]>([])
   const [loadingFile, setLoadingFile] = useState<MarkFlowFileLoadProgressPayload | null>(null)
-  const persistedContentRef = useRef(INITIAL_CONTENT)
-  const latestContentRef = useRef(INITIAL_CONTENT)
-  const collapsedRangesRef = useRef<number[]>([])
-  const selectionTextRef = useRef('')
-  const currentFilePathRef = useRef<string | null>(null)
+  const tabsRef = useRef<DocumentTabState[]>(tabs)
+  const activeTabIdRef = useRef<string | null>(null)
+  const handleSaveTabRef = useRef<(tabId: string | null, forceSaveAs?: boolean) => Promise<boolean>>(
+    async () => false,
+  )
+  const handleCloseTabRef = useRef<(tabId: string | null) => Promise<boolean>>(async () => false)
+  const handleReopenClosedTabRef = useRef<() => Promise<boolean>>(async () => false)
+  const handleCycleTabsRef = useRef<(direction: 1 | -1) => void>(() => {})
+  const handleCopyActionRef = useRef<
+    (action: 'copy' | 'copy-as-markdown' | 'copy-as-html-code') => Promise<void>
+  >(async () => {})
+  const handleExportRef = useRef<(format: 'html' | 'pdf') => Promise<void>>(async () => {})
+  const handlePandocExportRef = useRef<
+    (action: 'export-docx' | 'export-epub' | 'export-latex') => Promise<void>
+  >(async () => {})
   const editorNavigationKeyRef = useRef(0)
   const pluginHostRef = useRef<MarkFlowPluginHost | null>(null)
   const editorRef = useRef<MarkFlowEditorHandle | null>(null)
@@ -231,42 +320,97 @@ export function App() {
     pluginHostRef.current.setPlugins([createExternalLinkBadgePlugin()])
   }
 
-  const updateCollapsedRanges = useCallback((nextRanges: number[]) => {
-    const normalized = [...nextRanges]
-    collapsedRangesRef.current = normalized
-    setCollapsedRanges((currentRanges) =>
-      areCollapsedRangesEqual(currentRanges, normalized) ? currentRanges : normalized,
-    )
+  const activeTab = useMemo(() => {
+    const byId = tabs.find((tab) => tab.id === activeTabId)
+    return byId ?? tabs[0] ?? null
+  }, [activeTabId, tabs])
+
+  const replaceTabs = useCallback((nextTabs: DocumentTabState[]) => {
+    tabsRef.current = nextTabs
+    setTabs(nextTabs)
+    return nextTabs
   }, [])
 
-  const loadCollapsedRanges = useCallback(
-    async (api: MarkFlowDesktopAPI, filePath: string | null) => {
+  const updateTabs = useCallback((updater: (currentTabs: DocumentTabState[]) => DocumentTabState[]) => {
+    const nextTabs = updater(tabsRef.current)
+    tabsRef.current = nextTabs
+    setTabs(nextTabs)
+    return nextTabs
+  }, [])
+
+  const replaceActiveTabId = useCallback((nextActiveTabId: string | null) => {
+    activeTabIdRef.current = nextActiveTabId
+    setActiveTabId(nextActiveTabId)
+  }, [])
+
+  useEffect(() => {
+    if (activeTabId == null && tabs[0]) {
+      replaceActiveTabId(tabs[0].id)
+      return
+    }
+
+    if (activeTabId && !tabs.some((tab) => tab.id === activeTabId)) {
+      replaceActiveTabId(tabs[0]?.id ?? null)
+    }
+  }, [activeTabId, replaceActiveTabId, tabs])
+
+  useEffect(() => {
+    activeTabIdRef.current = activeTab?.id ?? null
+  }, [activeTab])
+
+  const updateTab = useCallback((tabId: string, updater: (tab: DocumentTabState) => DocumentTabState) => {
+    updateTabs((currentTabs) =>
+      currentTabs.map((tab) => (tab.id === tabId ? updater(tab) : tab)),
+    )
+  }, [updateTabs])
+
+  const syncWindowSession = useCallback(async (nextTabs: readonly DocumentTabState[], nextActiveTabId: string | null) => {
+    const api = window.markflow
+    if (!api) {
+      return
+    }
+
+    await api.saveWindowSession(buildWindowSessionState(nextTabs, nextActiveTabId))
+  }, [])
+
+  const loadCollapsedRangesForTab = useCallback(
+    async (api: MarkFlowDesktopAPI, tabId: string, filePath: string | null) => {
       if (!filePath) {
-        updateCollapsedRanges([])
+        updateTab(tabId, (tab) => (tab.collapsedRanges.length === 0 ? tab : { ...tab, collapsedRanges: [] }))
         return
       }
 
       const nextRanges = await api.getFoldState(filePath)
-      if (currentFilePathRef.current !== filePath) {
-        return
-      }
+      updateTab(tabId, (tab) => {
+        if (tab.filePath !== filePath || areCollapsedRangesEqual(tab.collapsedRanges, nextRanges)) {
+          return tab
+        }
 
-      updateCollapsedRanges(nextRanges)
+        return {
+          ...tab,
+          collapsedRanges: [...nextRanges],
+        }
+      })
     },
-    [updateCollapsedRanges],
+    [updateTab],
   )
 
-  const persistCollapsedRanges = useCallback(async (api: MarkFlowDesktopAPI, filePath: string | null) => {
-    if (!filePath) {
-      return
+  const captureActiveTabSnapshot = useCallback(() => {
+    const currentActiveTabId = activeTabIdRef.current
+    const snapshot = editorRef.current?.captureSnapshot()
+    if (!currentActiveTabId || !snapshot) {
+      return null
     }
 
-    await api.saveFoldState(filePath, collapsedRangesRef.current)
-  }, [])
-
-  useEffect(() => {
-    latestContentRef.current = documentState.content
-  }, [documentState.content])
+    updateTab(currentActiveTabId, (tab) => ({
+      ...tab,
+      snapshot,
+      collapsedRanges: areCollapsedRangesEqual(tab.collapsedRanges, snapshot.collapsedRanges)
+        ? tab.collapsedRanges
+        : [...snapshot.collapsedRanges],
+    }))
+    return snapshot
+  }, [updateTab])
 
   useEffect(() => () => {
     pluginHostRef.current?.dispose()
@@ -290,48 +434,113 @@ export function App() {
     if (!api) return
 
     const applyOpenedDocument = async ({ filePath, content }: { filePath: string | null; content: string }) => {
-      setLoadingFile((current) => (filePath && current?.filePath !== filePath ? current : null))
-      persistedContentRef.current = content
-      latestContentRef.current = content
-      setCursorPosition(0)
-      setViewportPosition(null)
-      setSymbolTable(createEmptySymbolTable())
-      selectionTextRef.current = ''
-      setSelectionText('')
+      captureActiveTabSnapshot()
+      setLoadingFile((current) => (current?.filePath === filePath ? null : current))
       setEditorNavigationRequest(null)
       setIsGoToLineOpen(false)
-      currentFilePathRef.current = filePath
-      updateCollapsedRanges([])
-      setDocumentState({
-        filePath,
-        content,
-        isDirty: false,
-      })
-      await loadCollapsedRanges(api, filePath)
+
+      const currentTabs = tabsRef.current
+      let nextTabs = currentTabs
+      let nextActiveId: string | null = null
+      let filePathToLoad: string | null = null
+      if (filePath) {
+        const existingTab = currentTabs.find((tab) => tab.filePath === filePath)
+        if (existingTab) {
+          nextActiveId = existingTab.id
+          if (existingTab.content !== content) {
+            filePathToLoad = filePath
+            nextTabs = currentTabs.map((tab) =>
+              tab.id === existingTab.id
+                ? {
+                    ...tab,
+                    content,
+                    persistedContent: content,
+                    isDirty: false,
+                    collapsedRanges: [],
+                    cursorPosition: 0,
+                    viewportPosition: null,
+                    selectionText: '',
+                    symbolTable: createEmptySymbolTable(),
+                    snapshot: null,
+                  }
+                : tab,
+            )
+          }
+        }
+      }
+
+      if (nextActiveId == null) {
+        const nextTab = createDocumentTab(filePath, content)
+        nextActiveId = nextTab.id
+        filePathToLoad = filePath
+        nextTabs =
+          currentTabs.length === 1 &&
+          currentTabs[0].filePath == null &&
+          !currentTabs[0].isDirty &&
+          (currentTabs[0].content === INITIAL_CONTENT || currentTabs[0].content === '')
+            ? [nextTab]
+            : [...currentTabs, nextTab]
+      }
+
+      replaceTabs(nextTabs)
+
+      if (nextActiveId) {
+        replaceActiveTabId(nextActiveId)
+      }
+      if (nextActiveId && filePathToLoad) {
+        await loadCollapsedRangesForTab(api, nextActiveId, filePathToLoad)
+      }
     }
 
     const applyRecoveredDocument = async (
       checkpoint: MarkFlowRecoveryCheckpoint,
       persistedContent: string,
     ) => {
+      captureActiveTabSnapshot()
       setLoadingFile(null)
-      persistedContentRef.current = persistedContent
-      latestContentRef.current = checkpoint.content
-      setCursorPosition(0)
-      setViewportPosition(null)
-      setSymbolTable(createEmptySymbolTable())
-      selectionTextRef.current = ''
-      setSelectionText('')
       setEditorNavigationRequest(null)
       setIsGoToLineOpen(false)
-      currentFilePathRef.current = checkpoint.filePath
-      updateCollapsedRanges([])
-      setDocumentState({
-        filePath: checkpoint.filePath,
-        content: checkpoint.content,
-        isDirty: checkpoint.content !== persistedContent,
-      })
-      await loadCollapsedRanges(api, checkpoint.filePath)
+
+      const currentTabs = tabsRef.current
+      const existingTab = checkpoint.filePath
+        ? currentTabs.find((tab) => tab.filePath === checkpoint.filePath)
+        : null
+      const nextTab = existingTab ? null : createDocumentTab(checkpoint.filePath, checkpoint.content)
+      const nextActiveId = existingTab?.id ?? nextTab?.id ?? null
+      const filePathToLoad = checkpoint.filePath
+      const nextTabs = existingTab
+        ? currentTabs.map((tab) =>
+            tab.id === existingTab.id
+              ? {
+                  ...tab,
+                  content: checkpoint.content,
+                  persistedContent,
+                  isDirty: checkpoint.content !== persistedContent,
+                  cursorPosition: 0,
+                  viewportPosition: null,
+                  selectionText: '',
+                  symbolTable: createEmptySymbolTable(),
+                  snapshot: null,
+                }
+              : tab,
+          )
+        : [
+            ...currentTabs,
+            {
+              ...(nextTab as DocumentTabState),
+              persistedContent,
+              isDirty: checkpoint.content !== persistedContent,
+            },
+          ]
+
+      replaceTabs(nextTabs)
+
+      if (nextActiveId) {
+        replaceActiveTabId(nextActiveId)
+      }
+      if (nextActiveId && filePathToLoad) {
+        await loadCollapsedRangesForTab(api, nextActiveId, filePathToLoad)
+      }
     }
 
     const handleMenuAction = async ({ action }: { action: MarkFlowMenuAction }) => {
@@ -343,26 +552,38 @@ export function App() {
           await api.openFile()
           break
         case 'save-file':
-          await api.saveFile(latestContentRef.current)
+          await handleSaveTabRef.current(activeTabIdRef.current)
           break
         case 'save-file-as':
-          await api.saveFileAs(latestContentRef.current)
+          await handleSaveTabRef.current(activeTabIdRef.current, true)
+          break
+        case 'close-tab':
+          await handleCloseTabRef.current(activeTabIdRef.current)
+          break
+        case 'reopen-closed-tab':
+          await handleReopenClosedTabRef.current()
+          break
+        case 'next-tab':
+          handleCycleTabsRef.current(1)
+          break
+        case 'previous-tab':
+          handleCycleTabsRef.current(-1)
           break
         case 'copy':
         case 'copy-as-markdown':
         case 'copy-as-html-code':
-          await handleCopyAction(action)
+          await handleCopyActionRef.current(action)
           break
         case 'export-html':
-          await handleExport('html')
+          await handleExportRef.current('html')
           break
         case 'export-pdf':
-          await handleExport('pdf')
+          await handleExportRef.current('pdf')
           break
         case 'export-docx':
         case 'export-epub':
         case 'export-latex':
-          await handlePandocExport(action)
+          await handlePandocExportRef.current(action)
           break
       }
     }
@@ -374,14 +595,20 @@ export function App() {
       setLoadingFile(payload)
     })
     const unsubscribeFileSaved = api.onFileSaved(({ filePath }) => {
-      persistedContentRef.current = latestContentRef.current
-      currentFilePathRef.current = filePath
-      void persistCollapsedRanges(api, filePath)
-      setDocumentState((currentDocument) => ({
-        ...currentDocument,
-        filePath,
-        isDirty: false,
-      }))
+      updateTabs((currentTabs) =>
+        currentTabs.map((tab) => {
+          if (tab.id !== activeTabIdRef.current && tab.filePath !== filePath) {
+            return tab
+          }
+
+          return {
+            ...tab,
+            filePath,
+            persistedContent: tab.content,
+            isDirty: false,
+          }
+        }),
+      )
     })
     const unsubscribeMenuAction = api.onMenuAction((payload) => {
       void handleMenuAction(payload)
@@ -389,10 +616,27 @@ export function App() {
     const unsubscribeThemeUpdated = api.onThemeUpdated(applyThemeState)
 
     void (async () => {
-      const currentDocument = await api.getCurrentDocument()
-      if (currentDocument) {
-        await applyOpenedDocument(currentDocument)
+      let persistedDocuments: MarkFlowFilePayload[] = []
+      const windowSession = await api.getWindowSession()
+      if (windowSession?.documents.length) {
+        const nextTabs = windowSession.documents.map((document) => createDocumentTab(document.filePath, document.content))
+        const nextActiveTab =
+          nextTabs.find((tab) => tab.filePath === windowSession.activeFilePath) ?? nextTabs[0] ?? null
+
+        replaceTabs(nextTabs)
+        replaceActiveTabId(nextActiveTab?.id ?? null)
+        persistedDocuments = windowSession.documents
+        await Promise.all(
+          nextTabs.map((tab) => loadCollapsedRangesForTab(api, tab.id, tab.filePath)),
+        )
+      } else {
+        const currentDocument = await api.getCurrentDocument()
+        if (currentDocument) {
+          persistedDocuments = [currentDocument]
+          await applyOpenedDocument(currentDocument)
+        }
       }
+
       const recoveryCheckpoint = await api.getRecoveryCheckpoint()
       if (!recoveryCheckpoint) {
         return
@@ -409,9 +653,7 @@ export function App() {
       }
 
       const persistedContent =
-        currentDocument && currentDocument.filePath === recoveryCheckpoint.filePath
-          ? currentDocument.content
-          : ''
+        persistedDocuments.find((document) => document.filePath === recoveryCheckpoint.filePath)?.content ?? ''
       await applyRecoveredDocument(recoveryCheckpoint, persistedContent)
     })()
     void api.getThemes().then(setThemes)
@@ -427,7 +669,7 @@ export function App() {
       unsubscribeThemeUpdated()
       document.getElementById(THEME_STYLE_ELEMENT_ID)?.remove()
     }
-  }, [loadCollapsedRanges, persistCollapsedRanges, updateCollapsedRanges])
+  }, [captureActiveTabSnapshot, loadCollapsedRangesForTab, replaceActiveTabId, replaceTabs, updateTabs])
 
   function toggleViewMode() {
     setViewMode((m) => (m === 'wysiwyg' ? 'source' : 'wysiwyg'))
@@ -519,26 +761,237 @@ export function App() {
     void handleOpenPath(result.filePath)
   }
 
+  const handleSwitchTab = useCallback(
+    (tabId: string | null) => {
+      if (!tabId || tabId === activeTabIdRef.current) {
+        return
+      }
+
+      captureActiveTabSnapshot()
+      setEditorNavigationRequest(null)
+      setIsGoToLineOpen(false)
+      replaceActiveTabId(tabId)
+    },
+    [captureActiveTabSnapshot, replaceActiveTabId],
+  )
+
+  const handleCycleTabs = useCallback(
+    (direction: 1 | -1) => {
+      const currentTabs = tabsRef.current
+      if (currentTabs.length <= 1) {
+        return
+      }
+
+      const currentIndex = findTabIndex(currentTabs, activeTabIdRef.current)
+      const startIndex = currentIndex >= 0 ? currentIndex : 0
+      const nextIndex = (startIndex + direction + currentTabs.length) % currentTabs.length
+      handleSwitchTab(currentTabs[nextIndex]?.id ?? null)
+    },
+    [handleSwitchTab],
+  )
+
+  const handleSaveTab = useCallback(
+    async (tabId: string | null, forceSaveAs: boolean = false) => {
+      const api = window.markflow
+      if (!api || !tabId) {
+        return false
+      }
+
+      const tab = tabsRef.current.find((currentTab) => currentTab.id === tabId)
+      if (!tab) {
+        return false
+      }
+
+      let latestSnapshot: MarkFlowEditorSnapshot | null = null
+      if (tabId === activeTabIdRef.current) {
+        latestSnapshot = editorRef.current?.captureSnapshot() ?? null
+        if (latestSnapshot) {
+          const nextSnapshot = latestSnapshot
+          updateTab(tabId, (currentTab) => ({
+            ...currentTab,
+            snapshot: nextSnapshot,
+            collapsedRanges: areCollapsedRangesEqual(currentTab.collapsedRanges, nextSnapshot.collapsedRanges)
+              ? currentTab.collapsedRanges
+              : [...nextSnapshot.collapsedRanges],
+          }))
+        }
+      }
+
+      const currentTabs = tabsRef.current.map((currentTab) =>
+        currentTab.id === tabId
+          ? {
+              ...currentTab,
+              snapshot: latestSnapshot ?? currentTab.snapshot,
+            }
+          : currentTab,
+      )
+      await syncWindowSession(currentTabs, tabId)
+
+      const result = forceSaveAs
+        ? await api.saveFileAs(tab.content)
+        : await api.saveFile(tab.content)
+      if (!result?.success) {
+        return false
+      }
+
+      const nextFilePath = result.filePath ?? tab.filePath
+      if (nextFilePath) {
+        await api.saveFoldState(nextFilePath, latestSnapshot?.collapsedRanges ?? tab.collapsedRanges)
+      }
+
+      updateTab(tabId, (currentTab) => ({
+        ...currentTab,
+        filePath: nextFilePath ?? currentTab.filePath,
+        persistedContent: currentTab.content,
+        isDirty: false,
+      }))
+      return true
+    },
+    [syncWindowSession, updateTab],
+  )
+
+  const handleCloseTab = useCallback(
+    async (tabId: string | null) => {
+      if (!tabId) {
+        return false
+      }
+
+      const tab = tabsRef.current.find((currentTab) => currentTab.id === tabId)
+      if (!tab) {
+        return false
+      }
+
+      let closedTab = tab
+      if (tabId === activeTabIdRef.current) {
+        const snapshot = editorRef.current?.captureSnapshot()
+        if (snapshot) {
+          closedTab = {
+            ...tab,
+            snapshot,
+            collapsedRanges: areCollapsedRangesEqual(tab.collapsedRanges, snapshot.collapsedRanges)
+              ? tab.collapsedRanges
+              : [...snapshot.collapsedRanges],
+          }
+        }
+      }
+
+      if (closedTab.isDirty) {
+        const api = window.markflow
+        const label = getTabLabel(closedTab, loadingFile)
+        const decision: MarkFlowTabCloseAction = api ? await api.confirmTabClose(label) : 'cancel'
+        if (decision === 'cancel') {
+          return false
+        }
+
+        if (decision === 'save') {
+          const didSave = await handleSaveTab(tabId)
+          if (!didSave) {
+            return false
+          }
+
+          const savedTab = tabsRef.current.find((currentTab) => currentTab.id === tabId)
+          if (savedTab) {
+            closedTab = {
+              ...savedTab,
+              snapshot: closedTab.snapshot,
+            }
+          }
+        } else if (decision === 'discard') {
+          if (closedTab.filePath == null) {
+            closedTab = {
+              ...closedTab,
+              content: '',
+              persistedContent: '',
+              isDirty: false,
+            }
+          } else {
+            closedTab = {
+              ...closedTab,
+              content: closedTab.persistedContent,
+              isDirty: false,
+            }
+          }
+        }
+      }
+
+      const currentTabs = tabsRef.current
+      const closedIndex = findTabIndex(currentTabs, tabId)
+      const nextTabs = currentTabs.filter((currentTab) => currentTab.id !== tabId)
+      const fallbackTab = nextTabs[Math.min(closedIndex, Math.max(nextTabs.length - 1, 0))] ?? null
+
+      setClosedTabs((currentClosedTabs) => [{ closedIndex, tab: closedTab }, ...currentClosedTabs].slice(0, 20))
+      replaceTabs(nextTabs.length > 0 ? nextTabs : [createDocumentTab(null, '')])
+      replaceActiveTabId(nextTabs.length > 0 ? fallbackTab?.id ?? null : null)
+      setEditorNavigationRequest(null)
+      setIsGoToLineOpen(false)
+      return true
+    },
+    [handleSaveTab, loadingFile, replaceActiveTabId, replaceTabs],
+  )
+
+  const handleReopenClosedTab = useCallback(async () => {
+    const [mostRecentClosedTab, ...remainingClosedTabs] = closedTabs
+    if (!mostRecentClosedTab) {
+      return false
+    }
+
+    const existingTab = mostRecentClosedTab.tab.filePath
+      ? tabsRef.current.find((tab) => tab.filePath === mostRecentClosedTab.tab.filePath)
+      : null
+    if (existingTab) {
+      setClosedTabs(remainingClosedTabs)
+      handleSwitchTab(existingTab.id)
+      return true
+    }
+
+    const nextTabs = [...tabsRef.current]
+    const insertIndex = Math.max(0, Math.min(mostRecentClosedTab.closedIndex, nextTabs.length))
+    nextTabs.splice(insertIndex, 0, mostRecentClosedTab.tab)
+    setClosedTabs(remainingClosedTabs)
+    replaceTabs(nextTabs)
+    replaceActiveTabId(mostRecentClosedTab.tab.id)
+    return true
+  }, [closedTabs, handleSwitchTab, replaceActiveTabId, replaceTabs])
+
+  useEffect(() => {
+    handleCycleTabsRef.current = handleCycleTabs
+    handleSaveTabRef.current = handleSaveTab
+    handleCloseTabRef.current = handleCloseTab
+    handleReopenClosedTabRef.current = handleReopenClosedTab
+  }, [handleCloseTab, handleCycleTabs, handleReopenClosedTab, handleSaveTab])
+
   const totalLines = useMemo(
-    () => (documentState.content.length === 0 ? 1 : documentState.content.split('\n').length),
-    [documentState.content],
+    () => (activeTab?.content.length ? activeTab.content.split('\n').length : 1),
+    [activeTab?.content],
   )
 
   const currentLineNumber = useMemo(
-    () => getLineNumberAtPosition(documentState.content, cursorPosition),
-    [cursorPosition, documentState.content],
+    () => getLineNumberAtPosition(activeTab?.content ?? '', activeTab?.cursorPosition ?? 0),
+    [activeTab?.content, activeTab?.cursorPosition],
+  )
+
+  const windowSessionKey = useMemo(
+    () => tabs.map((tab) => tab.filePath ?? '').join('\u0000'),
+    [tabs],
   )
 
   useEffect(() => {
+    if (!activeTabId) {
+      return
+    }
+
+    void syncWindowSession(tabsRef.current, activeTabId)
+  }, [activeTabId, syncWindowSession, windowSessionKey])
+
+  useEffect(() => {
     const api = window.markflow
-    if (!api) return
-    if (!documentState.isDirty) return
+    if (!api || !activeTab?.isDirty) return
 
     api.scheduleRecoveryCheckpoint({
-      filePath: documentState.filePath,
-      content: documentState.content,
+      filePath: activeTab.filePath,
+      content: activeTab.content,
     })
-  }, [documentState.content, documentState.filePath, documentState.isDirty])
+  }, [activeTab])
 
   useEffect(() => {
     const handleGlobalKeyDown = async (e: KeyboardEvent) => {
@@ -547,23 +1000,37 @@ export function App() {
       }
 
       const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0
+      const lowerKey = e.key.toLowerCase()
       const isCommandPaletteKey = isMac
-        ? e.metaKey && e.shiftKey && e.key.toLowerCase() === 'p'
-        : e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'p'
+        ? e.metaKey && e.shiftKey && lowerKey === 'p'
+        : e.ctrlKey && e.shiftKey && lowerKey === 'p'
       const isQuickOpenKey = isMac
-        ? e.metaKey && e.shiftKey && e.key.toLowerCase() === 'o'
-        : e.ctrlKey && e.key.toLowerCase() === 'p'
+        ? e.metaKey && e.shiftKey && lowerKey === 'o'
+        : e.ctrlKey && lowerKey === 'p'
 
       const isGlobalSearchKey = isMac
-        ? e.metaKey && e.shiftKey && e.key.toLowerCase() === 'f'
-        : e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'f'
+        ? e.metaKey && e.shiftKey && lowerKey === 'f'
+        : e.ctrlKey && e.shiftKey && lowerKey === 'f'
       const isGoToLineKey = isMac
-        ? e.metaKey && !e.shiftKey && e.key.toLowerCase() === 'l'
-        : e.ctrlKey && !e.shiftKey && e.key.toLowerCase() === 'l'
+        ? e.metaKey && !e.shiftKey && lowerKey === 'l'
+        : e.ctrlKey && !e.shiftKey && lowerKey === 'l'
+      const isNextTabKey = (!isMac && e.ctrlKey && e.key === 'Tab' && !e.shiftKey) || (e.metaKey && e.key === '`' && !e.shiftKey)
+      const isPreviousTabKey =
+        (!isMac && e.ctrlKey && e.key === 'Tab' && e.shiftKey) || (e.metaKey && e.key === '`' && e.shiftKey)
+      const isReopenClosedTabKey = e.shiftKey && ((e.metaKey && lowerKey === 't') || (e.ctrlKey && lowerKey === 't'))
 
       if (isCommandPaletteKey) {
         e.preventDefault()
         handleOpenCommandPalette()
+      } else if (isNextTabKey) {
+        e.preventDefault()
+        handleCycleTabs(1)
+      } else if (isPreviousTabKey) {
+        e.preventDefault()
+        handleCycleTabs(-1)
+      } else if (isReopenClosedTabKey) {
+        e.preventDefault()
+        await handleReopenClosedTab()
       } else if (isQuickOpenKey) {
         e.preventDefault()
         await handleOpenQuickOpen()
@@ -578,9 +1045,11 @@ export function App() {
     document.addEventListener('keydown', handleGlobalKeyDown)
     return () => document.removeEventListener('keydown', handleGlobalKeyDown)
   }, [
+    handleCycleTabs,
     handleOpenCommandPalette,
     handleOpenGoToLine,
     handleOpenQuickOpen,
+    handleReopenClosedTab,
     handleToggleGlobalSearch,
   ])
 
@@ -592,23 +1061,27 @@ export function App() {
 
   const handlePandocExport = async (action: 'export-docx' | 'export-epub' | 'export-latex') => {
     const api = window.markflow
-    if (!api) return
+    if (!api || !activeTab) return
 
     const ext = action === 'export-docx' ? 'docx' : action === 'export-epub' ? 'epub' : 'tex'
-    const defaultName = currentFilePathRef.current
-      ? currentFilePathRef.current.replace(/\.(md|markdown|txt)$/i, '') + '.' + ext
+    const defaultName = activeTab.filePath
+      ? activeTab.filePath.replace(/\.(md|markdown|txt)$/i, '') + '.' + ext
       : `Untitled.${ext}`
 
     if (action === 'export-docx') {
-      await api.exportDocx(latestContentRef.current, defaultName)
+      await api.exportDocx(activeTab.content, defaultName)
     } else if (action === 'export-epub') {
-      await api.exportEpub(latestContentRef.current, defaultName)
+      await api.exportEpub(activeTab.content, defaultName)
     } else {
-      await api.exportLatex(latestContentRef.current, defaultName)
+      await api.exportLatex(activeTab.content, defaultName)
     }
   }
 
   const handleExport = async (format: 'html' | 'pdf') => {
+    if (!activeTab) {
+      return
+    }
+
     setIsExporting(true)
     // Wait a couple of frames for the React state to render the unconstrained editor
     await new Promise(r => requestAnimationFrame(r))
@@ -629,7 +1102,7 @@ export function App() {
 <html>
 <head>
   <meta charset="utf-8">
-  <title>${currentFilePathRef.current ? currentFilePathRef.current.split('/').pop() : 'Export'}</title>
+  <title>${activeTab.filePath ? activeTab.filePath.split('/').pop() : 'Export'}</title>
   ${styles}
   <style>
     body { background-color: var(--mf-bg); color: var(--mf-text); font-family: var(--mf-font-sans); padding: 40px; margin: 0; }
@@ -654,8 +1127,8 @@ export function App() {
     const api = window.markflow
     if (!api) return
     
-    const defaultName = currentFilePathRef.current 
-      ? currentFilePathRef.current.replace(/\.(md|markdown|txt)$/i, '') + '.' + format
+    const defaultName = activeTab.filePath
+      ? activeTab.filePath.replace(/\.(md|markdown|txt)$/i, '') + '.' + format
       : 'Untitled.' + format
 
     if (format === 'html') {
@@ -666,17 +1139,28 @@ export function App() {
   }
 
   function handleContentChange(content: string) {
-    latestContentRef.current = content
-    setDocumentState((currentDocument) => ({
-      ...currentDocument,
+    const currentActiveTabId = activeTabIdRef.current
+    if (!currentActiveTabId) {
+      return
+    }
+
+    updateTab(currentActiveTabId, (tab) => ({
+      ...tab,
       content,
-      isDirty: content !== persistedContentRef.current,
+      isDirty: content !== tab.persistedContent,
     }))
   }
 
   function handleSelectionChange(nextSelectionText: string) {
-    selectionTextRef.current = nextSelectionText
-    setSelectionText(nextSelectionText)
+    const currentActiveTabId = activeTabIdRef.current
+    if (!currentActiveTabId) {
+      return
+    }
+
+    updateTab(currentActiveTabId, (tab) => ({
+      ...tab,
+      selectionText: nextSelectionText,
+    }))
   }
 
   async function handleCopyAction(action: 'copy' | 'copy-as-markdown' | 'copy-as-html-code') {
@@ -690,7 +1174,7 @@ export function App() {
       return
     }
 
-    const markdownSelection = selectionTextRef.current
+    const markdownSelection = activeTab?.selectionText ?? ''
     if (markdownSelection.length === 0) {
       return
     }
@@ -723,6 +1207,12 @@ export function App() {
       applyThemeState(nextThemeState)
     }
   }
+
+  useEffect(() => {
+    handleCopyActionRef.current = handleCopyAction
+    handleExportRef.current = handleExport
+    handlePandocExportRef.current = handlePandocExport
+  }, [handleCopyAction, handleExport, handlePandocExport])
 
   const commandPaletteActions: CommandPaletteAction[] = [
     {
@@ -845,13 +1335,7 @@ export function App() {
       keywords: ['document', 'write'],
       shortcut: 'Mod+S',
       run: async () => {
-        const api = window.markflow
-        if (!api) {
-          return false
-        }
-
-        await api.saveFile(latestContentRef.current)
-        return true
+        return handleSaveTab(activeTabIdRef.current)
       },
     },
     {
@@ -862,13 +1346,7 @@ export function App() {
       keywords: ['document', 'rename copy'],
       shortcut: 'Mod+Shift+S',
       run: async () => {
-        const api = window.markflow
-        if (!api) {
-          return false
-        }
-
-        await api.saveFileAs(latestContentRef.current)
-        return true
+        return handleSaveTab(activeTabIdRef.current, true)
       },
     },
     {
@@ -1025,59 +1503,115 @@ export function App() {
 
   const activeAppearance = themeState?.activeAppearance ?? 'light'
 
-  const outlineHeadings = symbolTable.headings
+  const outlineHeadings = activeTab?.symbolTable.headings ?? []
 
   const activeOutlineAnchor = useMemo(
-    () => findActiveHeadingAnchor(outlineHeadings, viewportPosition ?? cursorPosition),
-    [cursorPosition, outlineHeadings, viewportPosition],
+    () => findActiveHeadingAnchor(outlineHeadings, activeTab?.cursorPosition ?? activeTab?.viewportPosition ?? 0),
+    [activeTab?.cursorPosition, activeTab?.viewportPosition, outlineHeadings],
   )
 
   const handleOutlineNavigate = useCallback((position: number) => {
-    setViewportPosition(null)
-    setCursorPosition(position)
+    const currentActiveTabId = activeTabIdRef.current
+    if (currentActiveTabId) {
+      updateTab(currentActiveTabId, (tab) => ({
+        ...tab,
+        viewportPosition: null,
+        cursorPosition: position,
+      }))
+    }
     editorNavigationKeyRef.current += 1
     setEditorNavigationRequest({
       key: editorNavigationKeyRef.current,
       position,
     })
-  }, [])
+  }, [updateTab])
 
   const handleGoToLine = useCallback(
     (lineNumber: number) => {
       editorNavigationKeyRef.current += 1
       setEditorNavigationRequest({
         key: editorNavigationKeyRef.current,
-        position: getLineStartPosition(documentState.content, lineNumber),
+        position: getLineStartPosition(activeTab?.content ?? '', lineNumber),
       })
       setIsGoToLineOpen(false)
     },
-    [documentState.content],
+    [activeTab?.content],
   )
 
   const handleSymbolTableChange = useCallback((table: SymbolTable, content: string) => {
-    if (content !== latestContentRef.current) {
+    const currentActiveTabId = activeTabIdRef.current
+    if (!currentActiveTabId) {
       return
     }
 
-    setSymbolTable(table)
-  }, [])
+    updateTab(currentActiveTabId, (tab) => {
+      if (content !== tab.content) {
+        return tab
+      }
+
+      return {
+        ...tab,
+        symbolTable: table,
+      }
+    })
+  }, [updateTab])
 
   const handleCollapsedRangesChange = useCallback((nextRanges: number[]) => {
-    updateCollapsedRanges(nextRanges)
-  }, [updateCollapsedRanges])
+    const currentActiveTabId = activeTabIdRef.current
+    if (!currentActiveTabId) {
+      return
+    }
+
+    updateTab(currentActiveTabId, (tab) => {
+      if (areCollapsedRangesEqual(tab.collapsedRanges, nextRanges)) {
+        return tab
+      }
+
+      return {
+        ...tab,
+        collapsedRanges: [...nextRanges],
+      }
+    })
+  }, [updateTab])
+
+  const handleCursorPositionChange = useCallback((position: number) => {
+    const currentActiveTabId = activeTabIdRef.current
+    if (!currentActiveTabId) {
+      return
+    }
+
+    updateTab(currentActiveTabId, (tab) =>
+      tab.cursorPosition === position
+        ? tab
+        : {
+            ...tab,
+            cursorPosition: position,
+          },
+    )
+  }, [updateTab])
+
+  const handleViewportPositionChange = useCallback((position: number) => {
+    const currentActiveTabId = activeTabIdRef.current
+    if (!currentActiveTabId) {
+      return
+    }
+
+    updateTab(currentActiveTabId, (tab) =>
+      tab.viewportPosition === position
+        ? tab
+        : {
+            ...tab,
+            viewportPosition: position,
+          },
+    )
+  }, [updateTab])
 
   const docStats = useMemo(
-    () => computeStats(documentState.content, selectionText),
-    [documentState.content, selectionText],
+    () => computeStats(activeTab?.content ?? '', activeTab?.selectionText ?? ''),
+    [activeTab?.content, activeTab?.selectionText],
   )
 
-  const activeDocumentName = documentState.filePath
-    ? documentState.filePath.split(/[\\/]/).at(-1) ?? documentState.filePath
-    : loadingFile?.filePath
-      ? loadingFile.filePath.split(/[\\/]/).at(-1) ?? loadingFile.filePath
-    : documentState.content === INITIAL_CONTENT && !documentState.isDirty
-      ? 'Starter Document'
-      : 'Untitled'
+  const activeDocumentName = activeTab ? getTabLabel(activeTab, loadingFile) : 'Untitled'
 
   const loadingProgressPercent = loadingFile
     ? Math.min(100, Math.round((loadingFile.bytesRead / Math.max(loadingFile.totalBytes, 1)) * 100))
@@ -1096,7 +1630,7 @@ export function App() {
           <span className="mf-titlebar-appname">MarkFlow</span>
         </div>
         <div className="mf-titlebar-center">
-          {documentState.isDirty && (
+          {activeTab?.isDirty && (
             <span className="mf-titlebar-dirty-dot" aria-hidden="true" />
           )}
           <span className="mf-titlebar-document">
@@ -1239,13 +1773,45 @@ export function App() {
           </div>
         </div>
       </header>
+      <div className="mf-tabstrip" role="tablist" aria-label="Open documents">
+        {tabs.map((tab) => {
+          const isActive = tab.id === activeTab?.id
+          const tabLabel = getTabLabel(tab)
+
+          return (
+            <div key={tab.id} className={`mf-tab${isActive ? ' mf-tab-active' : ''}`}>
+              <button
+                type="button"
+                role="tab"
+                className="mf-tab-button"
+                aria-selected={isActive}
+                onClick={() => handleSwitchTab(tab.id)}
+              >
+                {tab.isDirty ? <span className="mf-tab-dirty-dot" aria-hidden="true" /> : null}
+                <span className="mf-tab-label">{tabLabel}</span>
+              </button>
+              <button
+                type="button"
+                className="mf-tab-close"
+                aria-label={`Close ${tabLabel}`}
+                onClick={(event) => {
+                  event.stopPropagation()
+                  void handleCloseTab(tab.id)
+                }}
+              >
+                ×
+              </button>
+            </div>
+          )
+        })}
+      </div>
       <main className="mf-main">
         {showSidebar && (
           <div className="mf-sidebar">
             <VaultSidebar
               folderPath={vaultPath}
               files={vaultFiles}
-              activeFile={documentState.filePath}
+              activeFile={activeTab?.filePath ?? null}
               onFileOpen={(fp) => void handleOpenPath(fp)}
               onFileRename={(old, newName) => void handleVaultFileRename(old, newName)}
               onFileDelete={(fp) => void handleVaultFileDelete(fp)}
@@ -1279,28 +1845,32 @@ export function App() {
                 <pre className="mf-file-loading-preview">{loadingFile.previewContent}</pre>
               </section>
             ) : null}
-            <MarkFlowEditor
-              ref={editorRef}
-              content={documentState.content}
-              viewMode={viewMode}
-              onChange={handleContentChange}
-              onCursorPositionChange={setCursorPosition}
-              onViewportPositionChange={setViewportPosition}
-              onSymbolTableChange={handleSymbolTableChange}
-              onNavigationHandled={() => setEditorNavigationRequest(null)}
-              onOpenPath={handleOpenPath}
-              onToggleMode={toggleViewMode}
-              onSelectionChange={handleSelectionChange}
-              onToggleFocusMode={toggleFocusMode}
-              onToggleTypewriterMode={toggleTypewriterMode}
-              focusMode={focusMode}
-              typewriterMode={typewriterMode}
-              pluginHost={pluginHostRef.current ?? undefined}
-              filePath={documentState.filePath ?? undefined}
-              navigationRequest={editorNavigationRequest}
-              collapsedRanges={collapsedRanges}
-              onCollapsedRangesChange={handleCollapsedRangesChange}
-            />
+            {activeTab ? (
+              <MarkFlowEditor
+                key={activeTab.id}
+                ref={editorRef}
+                initialSnapshot={activeTab.snapshot}
+                content={activeTab.content}
+                viewMode={viewMode}
+                onChange={handleContentChange}
+                onCursorPositionChange={handleCursorPositionChange}
+                onViewportPositionChange={handleViewportPositionChange}
+                onSymbolTableChange={handleSymbolTableChange}
+                onNavigationHandled={() => setEditorNavigationRequest(null)}
+                onOpenPath={handleOpenPath}
+                onToggleMode={toggleViewMode}
+                onSelectionChange={handleSelectionChange}
+                onToggleFocusMode={toggleFocusMode}
+                onToggleTypewriterMode={toggleTypewriterMode}
+                focusMode={focusMode}
+                typewriterMode={typewriterMode}
+                pluginHost={pluginHostRef.current ?? undefined}
+                filePath={activeTab.filePath ?? undefined}
+                navigationRequest={editorNavigationRequest}
+                collapsedRanges={activeTab.collapsedRanges}
+                onCollapsedRangesChange={handleCollapsedRangesChange}
+              />
+            ) : null}
           </div>
           {outlineHeadings.length > 0 ? (
             <aside className={`mf-outline-panel${outlineCollapsed ? ' mf-outline-panel-collapsed' : ''}`}>
@@ -1395,7 +1965,7 @@ export function App() {
       {isExporting && (
         <div id="mf-export-container" style={{ position: 'absolute', left: '-9999px', top: 0, width: '800px', height: 'auto' }}>
           <MarkFlowEditor
-            content={documentState.content}
+            content={activeTab?.content ?? ''}
             viewMode="wysiwyg"
             onChange={() => {}}
             onCursorPositionChange={() => {}}
@@ -1410,7 +1980,7 @@ export function App() {
             focusMode={false}
             typewriterMode={false}
             pluginHost={pluginHostRef.current ?? undefined}
-            filePath={documentState.filePath ?? undefined}
+            filePath={activeTab?.filePath ?? undefined}
             navigationRequest={null}
           />
         </div>

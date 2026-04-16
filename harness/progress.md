@@ -9,6 +9,51 @@
 
 ## Session Log
 
+### 2026-04-16 - MF-088 landed multi-document tabs while keeping manual acceptance honest
+
+- Author: Codex
+- Focus: implement only `MF-088` after the required startup protocol, add the missing desktop/editor tab model, and stop short of a false ledger pass without real desktop manual verification.
+- What changed:
+  - re-read the root `AGENTS.md`, then ran `pnpm harness:start` followed by `./harness/init.sh --smoke` before editing `MF-088`
+  - added desktop session/close-tab IPC in `packages/shared/src/index.ts`, `packages/desktop/src/preload/index.ts`, and `packages/desktop/src/main/fileManager.ts` so the renderer can persist open file tabs, restore the last window session, and prompt save/discard/cancel on dirty-tab close
+  - extended `packages/desktop/src/main/menu.ts` with `Close Tab`, `Reopen Closed Tab`, `Next Tab`, and `Previous Tab`, and covered those routes in `packages/desktop/src/main/menu.test.ts`
+  - replaced the single-document renderer flow in `packages/editor/src/App.tsx` with a tab/session model that keeps per-tab content, dirty state, selection, caret, outline state, folded ranges, undo snapshot, recently closed tabs, keyboard cycling, and reopen-closed behavior in one window
+  - taught `packages/editor/src/editor/MarkFlowEditor.tsx` to capture and restore serialized CodeMirror state, history, folded ranges, and scroll position per tab so switching/reopening tabs preserves live editor state instead of recreating a clean buffer
+  - added tab-strip styling in `packages/editor/src/styles/global.css` and focused automated coverage in `packages/editor/src/__tests__/App.test.tsx` plus `packages/desktop/src/main/fileManager.test.ts`
+  - updated `harness/feature-ledger.json` so `MF-088` truthfully moves from `planned` to `ready` while staying `passes=false` and `lastVerifiedAt=null`
+- Changed files:
+  - `harness/feature-ledger.json`
+  - `harness/progress.md`
+  - `packages/shared/src/index.ts`
+  - `packages/desktop/src/preload/index.ts`
+  - `packages/desktop/src/main/fileManager.ts`
+  - `packages/desktop/src/main/fileManager.test.ts`
+  - `packages/desktop/src/main/menu.ts`
+  - `packages/desktop/src/main/menu.test.ts`
+  - `packages/editor/src/App.tsx`
+  - `packages/editor/src/editor/MarkFlowEditor.tsx`
+  - `packages/editor/src/__tests__/App.test.tsx`
+  - `packages/editor/src/styles/global.css`
+- Simplifications made:
+  - persisted only file-backed tabs in the desktop window session instead of inventing a separate scratch-tab serialization format
+  - reused CodeMirror JSON snapshot/history restore instead of introducing a second undo/session abstraction for tab switching
+  - kept tab commands in the existing menu/keyboard surface and did not widen this slice into drag-reorder, pinned tabs, or cross-window tab transfer
+- Verification:
+  - `pnpm harness:start` (passes)
+  - `./harness/init.sh --smoke` (passes)
+  - `pnpm --filter @markflow/editor exec vitest run src/__tests__/App.test.tsx` (passes; 32 tests)
+  - `pnpm --filter @markflow/desktop exec vitest run src/main/fileManager.test.ts src/main/menu.test.ts` (passes; 18 tests)
+  - `pnpm harness:verify` (passes before ledger/progress update)
+  - `pnpm lint` (passes)
+  - `pnpm build` (passes)
+- Review / risks:
+  - `MF-088` still cannot move to `passes=true` or receive `lastVerifiedAt` until a real desktop session proves five-tab shortcut cycling, reopen-closed, and quit/relaunch session restore manually
+  - session restore currently covers file-backed markdown tabs only; untitled scratch tabs are intentionally not restored across relaunch in this slice
+- Newly verified features:
+  - none
+- Next recommended feature:
+  - `MF-088` - complete the pending manual Electron verification for shortcut cycling, reopen-closed, and quit/relaunch session restore, then promote the ledger only if that live flow really passes
+
 ### 2026-04-16 - MF-068 table-editing hotkeys landed as a bounded partial parity slice
 
 - Author: Codex (Dispatcher)

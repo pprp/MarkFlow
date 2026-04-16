@@ -6,12 +6,15 @@ import { StringDecoder } from 'string_decoder'
 const execFileAsync = promisify(execFile)
 import * as path from 'path'
 import type {
+  MarkFlowTabCloseAction,
   MarkFlowFileLoadProgressPayload,
   MarkFlowFilePayload,
   MarkFlowQuickOpenItem,
   MarkFlowRecoveryCheckpoint,
   MarkFlowRecoveryDraft,
   MarkFlowSaveResult,
+  MarkFlowWindowSession,
+  MarkFlowWindowSessionState,
   SearchResult,
 } from '@markflow/shared'
 
@@ -21,6 +24,7 @@ const STREAM_PREVIEW_BYTE_LIMIT = 64 * 1024
 const RECOVERY_CHECKPOINT_DELAY_MS = 30_000
 const RECOVERY_CHECKPOINT_FILE_NAME = '.markflow-recovery'
 const SESSION_STATE_FILE_NAME = '.markflow-recovery-session.json'
+const WINDOW_SESSION_FILE_NAME = '.markflow-window-session.json'
 const FOLD_STATE_FILE_SUFFIX = '.folds'
 
 interface MarkFlowSessionState {
@@ -34,6 +38,7 @@ export class FileManager {
   private recoveryWriteTimer: NodeJS.Timeout | null = null
   private readonly recoveryCheckpointPath = path.join(app.getPath('temp'), RECOVERY_CHECKPOINT_FILE_NAME)
   private readonly sessionStatePath = path.join(app.getPath('userData'), SESSION_STATE_FILE_NAME)
+  private readonly windowSessionPath = path.join(app.getPath('userData'), WINDOW_SESSION_FILE_NAME)
 
   constructor(
     private window: BrowserWindow,
@@ -53,6 +58,9 @@ export class FileManager {
     ipcMain.removeHandler('get-recovery-checkpoint')
     ipcMain.removeHandler('discard-recovery-checkpoint')
     ipcMain.removeHandler('get-quick-open-list')
+    ipcMain.removeHandler('get-window-session')
+    ipcMain.removeHandler('save-window-session')
+    ipcMain.removeHandler('confirm-close-tab')
     ipcMain.removeHandler('open-folder')
     ipcMain.removeHandler('get-vault-files')
     ipcMain.removeHandler('rename-file')
@@ -76,6 +84,13 @@ export class FileManager {
     ipcMain.handle('new-file', () => this.newFile())
     ipcMain.handle('get-current-path', () => this.currentFilePath)
     ipcMain.handle('get-current-document', () => this.getCurrentDocument())
+    ipcMain.handle('get-window-session', () => this.getWindowSession())
+    ipcMain.handle('save-window-session', async (_event, session: MarkFlowWindowSessionState) => {
+      await this.saveWindowSession(session)
+    })
+    ipcMain.handle('confirm-close-tab', async (_event, documentName: string) =>
+      this.confirmTabClose(documentName),
+    )
     ipcMain.on('schedule-recovery-checkpoint', (_event, draft: MarkFlowRecoveryDraft) => {
       this.scheduleRecoveryCheckpoint(draft)
     })
@@ -240,6 +255,7 @@ export class FileManager {
     if (saveResult.success) {
       await this.discardRecoveryCheckpoint()
       this.emitFileSaved(this.currentFilePath)
+      saveResult.filePath = this.currentFilePath
     }
     return saveResult
   }
@@ -262,6 +278,7 @@ export class FileManager {
       this.onCurrentFilePathChanged?.()
       await this.discardRecoveryCheckpoint()
       this.emitFileSaved(result.filePath)
+      saveResult.filePath = result.filePath
     }
     return saveResult
   }
@@ -361,6 +378,95 @@ export class FileManager {
       filePath: this.currentFilePath,
       content: fs.readFileSync(this.currentFilePath, 'utf-8'),
     }
+  }
+
+  async getWindowSession(): Promise<MarkFlowWindowSession | null> {
+    const session = await this.readWindowSessionState()
+    if (!session || session.filePaths.length === 0) {
+      return null
+    }
+
+    const documents: MarkFlowFilePayload[] = []
+    for (const filePath of session.filePaths) {
+      if (!fs.existsSync(filePath)) {
+        continue
+      }
+
+      documents.push({
+        filePath,
+        content: await fs.promises.readFile(filePath, 'utf-8'),
+      })
+    }
+
+    if (documents.length === 0) {
+      this.currentFilePath = null
+      this.onCurrentFilePathChanged?.()
+      this.updateTitle()
+      return null
+    }
+
+    const nextActiveFilePath =
+      session.activeFilePath && documents.some((document) => document.filePath === session.activeFilePath)
+        ? session.activeFilePath
+        : documents[0].filePath
+    this.currentFilePath = nextActiveFilePath
+    this.onCurrentFilePathChanged?.()
+    this.updateTitle()
+
+    return {
+      documents,
+      activeFilePath: nextActiveFilePath,
+    }
+  }
+
+  async saveWindowSession(session: MarkFlowWindowSessionState) {
+    const normalizedFilePaths = session.filePaths.filter((filePath, index, filePaths) => {
+      return typeof filePath === 'string' && filePath.length > 0 && filePaths.indexOf(filePath) === index
+    })
+    const activeFilePath =
+      session.activeFilePath && normalizedFilePaths.includes(session.activeFilePath)
+        ? session.activeFilePath
+        : normalizedFilePaths[0] ?? null
+
+    try {
+      await fs.promises.mkdir(path.dirname(this.windowSessionPath), { recursive: true })
+      await fs.promises.writeFile(
+        this.windowSessionPath,
+        JSON.stringify({
+          filePaths: normalizedFilePaths,
+          activeFilePath,
+        } satisfies MarkFlowWindowSessionState),
+        'utf-8',
+      )
+    } catch (error) {
+      console.error('Failed to write MarkFlow window session state:', error)
+    }
+
+    this.currentFilePath = activeFilePath
+    this.onCurrentFilePathChanged?.()
+    this.updateTitle()
+  }
+
+  async confirmTabClose(documentName: string): Promise<MarkFlowTabCloseAction> {
+    const result = await dialog.showMessageBox(this.window, {
+      type: 'warning',
+      buttons: ['Save', 'Discard', 'Cancel'],
+      defaultId: 0,
+      cancelId: 2,
+      noLink: true,
+      message: `Save changes to ${documentName}?`,
+      detail: 'Your unsaved changes will be lost if you discard them.',
+    })
+
+    if (result.response === 0) {
+      return 'save'
+    }
+
+    if (result.response === 1) {
+      return 'discard'
+    }
+
+    return 'cancel'
   }
 
   scheduleRecoveryCheckpoint(draft: MarkFlowRecoveryDraft) {
@@ -592,6 +698,29 @@ export class FileManager {
       }
 
       return { cleanExit: payload.cleanExit }
+    } catch {
+      return null
+    }
+  }
+
+  private async readWindowSessionState(): Promise<MarkFlowWindowSessionState | null> {
+    try {
+      const payload = JSON.parse(
+        await fs.promises.readFile(this.windowSessionPath, 'utf-8'),
+      ) as Partial<MarkFlowWindowSessionState>
+
+      if (!Array.isArray(payload.filePaths)) {
+        return null
+      }
+      if (payload.activeFilePath !== null && typeof payload.activeFilePath !== 'string') {
+        return null
+      }
+
+      const filePaths = payload.filePaths.filter((filePath): filePath is string => typeof filePath === 'string')
+      return {
+        filePaths,
+        activeFilePath: payload.activeFilePath ?? null,
+      }
     } catch {
       return null
     }

@@ -1,4 +1,5 @@
 import { EditorSelection, EditorState } from '@codemirror/state'
+import { undo } from '@codemirror/commands'
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown'
 import { foldEffect, foldedRanges } from '@codemirror/language'
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
@@ -19,6 +20,8 @@ import type {
   MarkFlowThemePayload,
   MarkFlowThemeState,
   MarkFlowThemeSummary,
+  MarkFlowWindowSession,
+  MarkFlowWindowSessionState,
 } from '@markflow/shared'
 
 function getEditorView(container: HTMLElement) {
@@ -39,6 +42,10 @@ function getCollapsedRanges(view: EditorView) {
   return ranges
 }
 
+function getOpenTabs() {
+  return screen.getAllByRole('tab')
+}
+
 class MockMarkFlowAPI implements MarkFlowDesktopAPI {
   private themes: MarkFlowThemeSummary[] = [
     { id: 'paper', name: 'Paper' },
@@ -56,6 +63,8 @@ class MockMarkFlowAPI implements MarkFlowDesktopAPI {
       cssText: ':root { --mf-accent: #9c5f2f; }',
     },
   }
+  private windowSession: MarkFlowWindowSession | null = null
+  private confirmTabCloseAction: 'save' | 'discard' | 'cancel' = 'cancel'
   openFile: MarkFlowDesktopAPI['openFile'] = vi.fn(async () => null)
   openPath: MarkFlowDesktopAPI['openPath'] = vi.fn(async () => null)
   saveFile: MarkFlowDesktopAPI['saveFile'] = vi.fn(async () => ({ success: true }))
@@ -69,6 +78,14 @@ class MockMarkFlowAPI implements MarkFlowDesktopAPI {
   getCurrentPath: MarkFlowDesktopAPI['getCurrentPath'] = vi.fn(async () => null)
   getQuickOpenList: MarkFlowDesktopAPI['getQuickOpenList'] = vi.fn(async () => [])
   getCurrentDocument: MarkFlowDesktopAPI['getCurrentDocument'] = vi.fn(async () => null)
+  getWindowSession: MarkFlowDesktopAPI['getWindowSession'] = vi.fn(async () => this.windowSession)
+  saveWindowSession: MarkFlowDesktopAPI['saveWindowSession'] = vi.fn(async (session: MarkFlowWindowSessionState) => {
+    this.windowSession = {
+      documents: session.filePaths.map((filePath) => ({ filePath, content: '' })),
+      activeFilePath: session.activeFilePath,
+    }
+  })
+  confirmTabClose: MarkFlowDesktopAPI['confirmTabClose'] = vi.fn(async () => this.confirmTabCloseAction)
 
   exportHtml: MarkFlowDesktopAPI['exportHtml'] = vi.fn(async () => true)
   exportPdf: MarkFlowDesktopAPI['exportPdf'] = vi.fn(async () => true)
@@ -163,6 +180,14 @@ class MockMarkFlowAPI implements MarkFlowDesktopAPI {
     })
   }
 
+  setWindowSession(session: MarkFlowWindowSession | null) {
+    this.windowSession = session
+  }
+
+  setConfirmTabCloseAction(action: 'save' | 'discard' | 'cancel') {
+    this.confirmTabCloseAction = action
+  }
+
   onFileOpened(cb: (data: MarkFlowFilePayload) => void) {
     this.fileOpenedListeners.add(cb)
     return () => this.fileOpenedListeners.delete(cb)
@@ -229,7 +254,7 @@ describe('App desktop integration', () => {
       expect(getEditorView(container).state.doc.toString()).toBe('# Session restore')
     })
 
-    expect(screen.getByText('session.md')).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'session.md' })).toBeInTheDocument()
   })
 
   it('loads the default markdown post-processor plugin for starter links', async () => {
@@ -257,7 +282,7 @@ describe('App desktop integration', () => {
 
     const view = getEditorView(container)
     expect(view.state.doc.toString()).toBe('# Notes')
-    expect(screen.getByText('notes.md')).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'notes.md' })).toBeInTheDocument()
 
     act(() => {
       view.dispatch({
@@ -265,7 +290,7 @@ describe('App desktop integration', () => {
       })
     })
 
-    expect(screen.getByText('notes.md')).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'notes.md' })).toBeInTheDocument()
     expect(container.querySelector('.mf-titlebar-dirty-dot')).toBeInTheDocument()
 
     await act(async () => {
@@ -280,7 +305,206 @@ describe('App desktop integration', () => {
       api.emitFileSaved({ filePath: '/tmp/notes.md' })
     })
 
-    expect(screen.getByText('notes.md')).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'notes.md' })).toBeInTheDocument()
+  })
+
+  it('opens multiple documents in tabs and preserves selection, outline focus, and undo history while cycling', async () => {
+    const api = new MockMarkFlowAPI()
+    window.markflow = api
+
+    const alphaContent = '# Alpha\n\n## One'
+    const betaContent = '# Beta\n\n## Two'
+    const { container } = render(<App />)
+
+    await act(async () => {
+      api.emitFileOpened({ filePath: '/tmp/alpha.md', content: alphaContent })
+    })
+
+    let view = getEditorView(container)
+    act(() => {
+      view.dispatch({
+        changes: { from: view.state.doc.length, insert: '\nAlpha line' },
+        selection: {
+          anchor: alphaContent.indexOf('One'),
+          head: alphaContent.indexOf('One') + 'One'.length,
+        },
+      })
+    })
+
+    await act(async () => {
+      api.emitFileOpened({ filePath: '/tmp/beta.md', content: betaContent })
+    })
+
+    view = getEditorView(container)
+    act(() => {
+      view.dispatch({
+        changes: { from: view.state.doc.length, insert: '\nBeta line' },
+      })
+    })
+
+    expect(getOpenTabs().map((tab) => tab.textContent)).toEqual(expect.arrayContaining(['alpha.md', 'beta.md']))
+    expect(container.querySelectorAll('.mf-tab-dirty-dot')).toHaveLength(2)
+
+    fireEvent.keyDown(document, { key: 'Tab', ctrlKey: true, shiftKey: true })
+
+    await waitFor(() => {
+      const alphaView = getEditorView(container)
+      expect(alphaView.state.doc.toString()).toBe('# Alpha\n\n## One\nAlpha line')
+      expect(alphaView.state.sliceDoc(alphaView.state.selection.main.from, alphaView.state.selection.main.to)).toBe(
+        'One',
+      )
+      expect(screen.getByRole('button', { name: 'One' })).toHaveAttribute('aria-current', 'true')
+    })
+
+    act(() => {
+      const alphaView = getEditorView(container)
+      expect(undo(alphaView)).toBe(true)
+    })
+
+    expect(getEditorView(container).state.doc.toString()).toBe(alphaContent)
+
+    fireEvent.keyDown(document, { key: 'Tab', ctrlKey: true })
+
+    await waitFor(() => {
+      const betaView = getEditorView(container)
+      expect(betaView.state.doc.toString()).toBe('# Beta\n\n## Two\nBeta line')
+    })
+
+    act(() => {
+      const betaView = getEditorView(container)
+      expect(undo(betaView)).toBe(true)
+    })
+
+    expect(getEditorView(container).state.doc.toString()).toBe(betaContent)
+  })
+
+  it('restores the tab session returned by the desktop bridge on relaunch', async () => {
+    const api = new MockMarkFlowAPI()
+    api.setWindowSession({
+      documents: [
+        { filePath: '/tmp/alpha.md', content: '# Alpha' },
+        { filePath: '/tmp/beta.md', content: '# Beta' },
+      ],
+      activeFilePath: '/tmp/beta.md',
+    })
+    window.markflow = api
+
+    const { container } = render(<App />)
+
+    await waitFor(() => {
+      expect(getOpenTabs()).toHaveLength(2)
+      expect(screen.getByRole('tab', { name: 'beta.md' })).toBeInTheDocument()
+      expect(getEditorView(container).state.doc.toString()).toBe('# Beta')
+    })
+  })
+
+  it('reopens the last cleanly closed tab with its prior selection and undo history restored', async () => {
+    const api = new MockMarkFlowAPI()
+    window.markflow = api
+
+    const { container } = render(<App />)
+
+    await act(async () => {
+      api.emitFileOpened({ filePath: '/tmp/reopen.md', content: '# Reopen' })
+    })
+
+    let view = getEditorView(container)
+    act(() => {
+      view.dispatch({
+        changes: { from: view.state.doc.length, insert: '\nSaved line' },
+        selection: { anchor: 2, head: 8 },
+      })
+    })
+
+    await act(async () => {
+      api.emitMenuAction('save-file')
+    })
+
+    await waitFor(() => {
+      expect(api.saveFile).toHaveBeenCalledWith('# Reopen\nSaved line')
+      expect(container.querySelector('.mf-titlebar-dirty-dot')).not.toBeInTheDocument()
+    })
+
+    await act(async () => {
+      api.emitMenuAction('close-tab')
+    })
+
+    await waitFor(() => {
+      expect(screen.queryByRole('tab', { name: 'reopen.md' })).not.toBeInTheDocument()
+    })
+
+    fireEvent.keyDown(document, { key: 't', ctrlKey: true, shiftKey: true })
+
+    await waitFor(() => {
+      const reopenedView = getEditorView(container)
+      expect(screen.getByRole('tab', { name: 'reopen.md' })).toHaveAttribute('aria-selected', 'true')
+      expect(reopenedView.state.doc.toString()).toBe('# Reopen\nSaved line')
+      expect(
+        reopenedView.state.sliceDoc(reopenedView.state.selection.main.from, reopenedView.state.selection.main.to),
+      ).toBe('Reopen')
+    })
+
+    act(() => {
+      const reopenedView = getEditorView(container)
+      expect(undo(reopenedView)).toBe(true)
+    })
+
+    expect(getEditorView(container).state.doc.toString()).toBe('# Reopen')
+  })
+
+  it('shows a dirty-close prompt and respects cancel, save, and discard choices', async () => {
+    const api = new MockMarkFlowAPI()
+    window.markflow = api
+
+    const { container } = render(<App />)
+
+    await act(async () => {
+      api.emitFileOpened({ filePath: '/tmp/cancel.md', content: '# Cancel' })
+    })
+
+    act(() => {
+      const view = getEditorView(container)
+      view.dispatch({ changes: { from: view.state.doc.length, insert: '\nDirty' } })
+    })
+
+    api.setConfirmTabCloseAction('cancel')
+    await act(async () => {
+      fireEvent.click(screen.getByLabelText('Close cancel.md'))
+    })
+
+    expect(api.confirmTabClose).toHaveBeenCalledWith('cancel.md')
+    expect(screen.getByRole('tab', { name: 'cancel.md' })).toBeInTheDocument()
+    expect(api.saveFile).not.toHaveBeenCalled()
+
+    api.setConfirmTabCloseAction('save')
+    await act(async () => {
+      fireEvent.click(screen.getByLabelText('Close cancel.md'))
+    })
+
+    await waitFor(() => {
+      expect(api.saveFile).toHaveBeenCalledWith('# Cancel\nDirty')
+      expect(screen.queryByRole('tab', { name: 'cancel.md' })).not.toBeInTheDocument()
+    })
+
+    await act(async () => {
+      api.emitFileOpened({ filePath: '/tmp/discard.md', content: '# Discard' })
+    })
+
+    act(() => {
+      const view = getEditorView(container)
+      view.dispatch({ changes: { from: view.state.doc.length, insert: '\nDirty' } })
+    })
+
+    api.setConfirmTabCloseAction('discard')
+    await act(async () => {
+      fireEvent.click(screen.getByLabelText('Close discard.md'))
+    })
+
+    await waitFor(() => {
+      expect(screen.queryByRole('tab', { name: 'discard.md' })).not.toBeInTheDocument()
+    })
+
+    expect(api.saveFile).toHaveBeenCalledTimes(1)
   })
 
   it('shows streamed large-file progress until the final document arrives', async () => {
@@ -325,7 +549,7 @@ describe('App desktop integration', () => {
 
     const { container } = render(<App />)
 
-    expect(screen.getByText('Starter Document')).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'Starter Document' })).toBeInTheDocument()
 
     await act(async () => {
       api.emitFileOpened({ filePath: '/tmp/draft.md', content: 'Draft' })
@@ -338,7 +562,7 @@ describe('App desktop integration', () => {
       })
     })
 
-    expect(screen.getByText('draft.md')).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'draft.md' })).toBeInTheDocument()
     expect(container.querySelector('.mf-titlebar-dirty-dot')).toBeInTheDocument()
 
     await act(async () => {
@@ -355,7 +579,7 @@ describe('App desktop integration', () => {
       api.emitFileOpened({ filePath: null, content: '' })
     })
 
-    expect(screen.getByText('Untitled')).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: /Untitled/ })).toBeInTheDocument()
     expect(getEditorView(container).state.doc.toString()).toBe('')
     expect(container.querySelector('.mf-titlebar-dirty-dot')).not.toBeInTheDocument()
   })
@@ -959,7 +1183,7 @@ describe('App auto-save', () => {
       expect(getEditorView(container).state.doc.toString()).toBe('# Recovered\n\ncheckpoint')
     })
 
-    expect(screen.getByText('recovered.md')).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'recovered.md' })).toBeInTheDocument()
     expect(container.querySelector('.mf-titlebar-dirty-dot')).toBeInTheDocument()
     expect(api.discardRecoveryCheckpoint).not.toHaveBeenCalled()
   })

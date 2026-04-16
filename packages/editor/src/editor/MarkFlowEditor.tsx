@@ -4,6 +4,7 @@ import { EditorView, keymap, drawSelection, highlightActiveLine } from '@codemir
 import {
   defaultKeymap,
   history,
+  historyField,
   historyKeymap,
   indentWithTab,
   redo,
@@ -67,6 +68,7 @@ import { applyCollapsedRanges, getCollapsedRanges } from './foldingState'
 export interface MarkFlowEditorProps {
   content: string
   viewMode: ViewMode
+  initialSnapshot?: MarkFlowEditorSnapshot | null
   onChange?: (content: string) => void
   onCursorPositionChange?: (position: number) => void
   onViewportPositionChange?: (position: number) => void
@@ -99,8 +101,21 @@ export type MarkFlowEditorCommand =
   | 'edit-select-all'
 
 export interface MarkFlowEditorHandle {
+  captureSnapshot: () => MarkFlowEditorSnapshot | null
   executeCommand: (command: MarkFlowEditorCommand) => boolean
   focus: () => void
+}
+
+type SerializedEditorState = {
+  doc: string
+  selection: unknown
+  history: unknown
+}
+
+export interface MarkFlowEditorSnapshot {
+  collapsedRanges: number[]
+  scrollTop: number
+  state: SerializedEditorState
 }
 
 const baseTheme = EditorView.theme({
@@ -319,6 +334,7 @@ function getEditorExtensions(
 export const MarkFlowEditor = forwardRef<MarkFlowEditorHandle, MarkFlowEditorProps>(function MarkFlowEditor({
   content,
   viewMode,
+  initialSnapshot,
   onChange,
   onCursorPositionChange,
   onViewportPositionChange,
@@ -447,30 +463,33 @@ export const MarkFlowEditor = forwardRef<MarkFlowEditorHandle, MarkFlowEditorPro
   useEffect(() => {
     if (!containerRef.current || viewRef.current) return
 
-    const state = EditorState.create({
-      doc: content,
-      extensions: getEditorExtensions(
-        viewMode,
-        focusMode,
-        typewriterMode,
-        filePath,
-        pluginHost,
-        onChangeRef,
-        onCursorPositionChangeRef,
-        onViewportPositionChangeRef,
-        onSymbolTableChangeRef,
-        onSelectionChangeRef,
-        onToggleModeRef,
-        onToggleFocusModeRef,
-        onToggleTypewriterModeRef,
-        onCollapsedRangesChangeRef,
-        viewModeRef,
-        pruneHistoryRef,
-        viewModeCompartmentRef.current,
-        focusModeCompartmentRef.current,
-        typewriterModeCompartmentRef.current,
-      ),
-    })
+    const extensions = getEditorExtensions(
+      viewMode,
+      focusMode,
+      typewriterMode,
+      filePath,
+      pluginHost,
+      onChangeRef,
+      onCursorPositionChangeRef,
+      onViewportPositionChangeRef,
+      onSymbolTableChangeRef,
+      onSelectionChangeRef,
+      onToggleModeRef,
+      onToggleFocusModeRef,
+      onToggleTypewriterModeRef,
+      onCollapsedRangesChangeRef,
+      viewModeRef,
+      pruneHistoryRef,
+      viewModeCompartmentRef.current,
+      focusModeCompartmentRef.current,
+      typewriterModeCompartmentRef.current,
+    )
+    const state = initialSnapshot
+      ? EditorState.fromJSON(initialSnapshot.state, { extensions }, { history: historyField })
+      : EditorState.create({
+          doc: content,
+          extensions,
+        })
 
     const view = new EditorView({
       state,
@@ -578,8 +597,28 @@ export const MarkFlowEditor = forwardRef<MarkFlowEditorHandle, MarkFlowEditorPro
 
     viewRef.current = view
     setEditorView(view)
+    const selection = view.state.selection.main
+    const selectedText = selection.empty ? '' : view.state.doc.sliceString(selection.from, selection.to)
     onCursorPositionChangeRef.current?.(view.state.selection.main.head)
+    onSelectionChangeRef.current?.(selectedText)
     onSymbolTableChangeRef.current?.(view.state.field(symbolTableField), view.state.doc.toString())
+    onCollapsedRangesChangeRef.current?.(getCollapsedRanges(view.state))
+    onViewportPositionChangeRef.current?.(view.viewport.from)
+
+    const nextCollapsedRanges = initialSnapshot?.collapsedRanges ?? collapsedRanges
+    if (nextCollapsedRanges && nextCollapsedRanges.length > 0) {
+      applyCollapsedRanges(view, nextCollapsedRanges)
+    }
+    if (initialSnapshot && initialSnapshot.scrollTop > 0) {
+      requestAnimationFrame(() => {
+        if (viewRef.current !== view) {
+          return
+        }
+
+        view.scrollDOM.scrollTop = initialSnapshot.scrollTop
+        onViewportPositionChangeRef.current?.(view.viewport.from)
+      })
+    }
 
     return () => {
       view.dom.removeEventListener('click', handleClick)
@@ -836,6 +875,18 @@ export const MarkFlowEditor = forwardRef<MarkFlowEditorHandle, MarkFlowEditorPro
       },
       focus: () => {
         viewRef.current?.focus()
+      },
+      captureSnapshot: () => {
+        const view = viewRef.current
+        if (!view) {
+          return null
+        }
+
+        return {
+          state: view.state.toJSON({ history: historyField }) as SerializedEditorState,
+          collapsedRanges: getCollapsedRanges(view.state),
+          scrollTop: view.scrollDOM.scrollTop,
+        }
       },
     }),
     [],

@@ -26,6 +26,7 @@ export interface MarkFlowSavePayload {
 export interface MarkFlowSaveResult {
   success: boolean
   error?: string
+  filePath?: string | null
 }
 
 export interface MarkFlowRecoveryDraft {
@@ -60,6 +61,10 @@ export type MarkFlowMenuAction =
   | 'open-file'
   | 'save-file'
   | 'save-file-as'
+  | 'close-tab'
+  | 'reopen-closed-tab'
+  | 'next-tab'
+  | 'previous-tab'
   | 'copy'
   | 'copy-as-markdown'
   | 'copy-as-html-code'
@@ -68,6 +73,18 @@ export type MarkFlowMenuAction =
   | 'export-docx'
   | 'export-epub'
   | 'export-latex'
+
+export type MarkFlowTabCloseAction = 'save' | 'discard' | 'cancel'
+
+export interface MarkFlowWindowSessionState {
+  filePaths: string[]
+  activeFilePath: string | null
+}
+
+export interface MarkFlowWindowSession {
+  documents: MarkFlowFilePayload[]
+  activeFilePath: string | null
+}
 
 export interface MarkFlowClipboardPayload {
   text: string
@@ -271,6 +288,9 @@ export interface MarkFlowDesktopAPI {
   getCurrentPath: () => Promise<string | null>
   getQuickOpenList: () => Promise<MarkFlowQuickOpenItem[]>
   getCurrentDocument: () => Promise<MarkFlowFilePayload | null>
+  getWindowSession: () => Promise<MarkFlowWindowSession | null>
+  saveWindowSession: (session: MarkFlowWindowSessionState) => Promise<void>
+  confirmTabClose: (documentName: string) => Promise<MarkFlowTabCloseAction>
   getThemes: () => Promise<MarkFlowThemeSummary[]>
   getThemeState: () => Promise<MarkFlowThemeState | null>
   getCurrentTheme: () => Promise<MarkFlowThemePayload | null>

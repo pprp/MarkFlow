@@ -32,6 +32,12 @@ export function createApplicationMenuTemplate({
       submenu: [
         { label: 'New', accelerator: 'CmdOrCtrl+N', click: () => sendMenuAction('new-file') },
         { label: 'Open…', accelerator: 'CmdOrCtrl+O', click: () => sendMenuAction('open-file') },
+        { label: 'Close Tab', accelerator: 'CmdOrCtrl+W', click: () => sendMenuAction('close-tab') },
+        {
+          label: 'Reopen Closed Tab',
+          accelerator: 'Shift+CmdOrCtrl+T',
+          click: () => sendMenuAction('reopen-closed-tab'),
+        },
         { type: 'separator' },
         { label: 'Save', accelerator: 'CmdOrCtrl+S', click: () => sendMenuAction('save-file') },
         { label: 'Save As…', accelerator: 'CmdOrCtrl+Shift+S', click: () => sendMenuAction('save-file-as') },
@@ -76,6 +82,9 @@ export function createApplicationMenuTemplate({
         { role: 'resetZoom' },
         { role: 'zoomIn' },
         { role: 'zoomOut' },
+        { type: 'separator' },
+        { label: 'Next Tab', click: () => sendMenuAction('next-tab') },
+        { label: 'Previous Tab', click: () => sendMenuAction('previous-tab') },
         { type: 'separator' },
         { role: 'togglefullscreen' },
       ],

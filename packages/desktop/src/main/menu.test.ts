@@ -70,4 +70,22 @@ describe('createApplicationMenuTemplate', () => {
       ['copy-as-html-code'],
     ])
   })
+
+  it('exposes close and reopen tab menu actions', () => {
+    const sendMenuAction = vi.fn()
+    const template = createApplicationMenuTemplate({
+      canRevealCurrentFile: () => true,
+      revealCurrentFileInFolder: vi.fn(() => true),
+      sendMenuAction,
+      platform: 'linux',
+    })
+    const closeTabItem = getMenuItem(template, 'File', 'Close Tab')
+    const reopenClosedTabItem = getMenuItem(template, 'File', 'Reopen Closed Tab')
+
+    closeTabItem?.click?.({} as never, {} as never, {} as never)
+    reopenClosedTabItem?.click?.({} as never, {} as never, {} as never)
+
+    expect(sendMenuAction.mock.calls).toContainEqual(['close-tab'])
+    expect(sendMenuAction.mock.calls).toContainEqual(['reopen-closed-tab'])
+  })
 })

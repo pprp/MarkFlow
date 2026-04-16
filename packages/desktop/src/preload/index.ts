@@ -10,6 +10,8 @@ import type {
   MarkFlowSavePayload,
   MarkFlowSaveResult,
   SearchResult,
+  MarkFlowWindowSession,
+  MarkFlowWindowSessionState,
   MarkFlowThemeState,
 } from '@markflow/shared'
 
@@ -45,6 +47,11 @@ const api: MarkFlowDesktopAPI = {
   getCurrentPath: () => ipcRenderer.invoke('get-current-path'),
   getQuickOpenList: () => ipcRenderer.invoke('get-quick-open-list'),
   getCurrentDocument: () => ipcRenderer.invoke('get-current-document'),
+  getWindowSession: () => ipcRenderer.invoke('get-window-session') as Promise<MarkFlowWindowSession | null>,
+  saveWindowSession: (session: MarkFlowWindowSessionState) =>
+    ipcRenderer.invoke('save-window-session', session) as Promise<void>,
+  confirmTabClose: (documentName: string) =>
+    ipcRenderer.invoke('confirm-close-tab', documentName),
   getThemes: () => ipcRenderer.invoke('get-themes'),
   getThemeState: () => ipcRenderer.invoke('get-theme-state'),
   getCurrentTheme: () => ipcRenderer.invoke('get-current-theme'),
