@@ -4920,3 +4920,35 @@
   - none
 - Next recommended feature:
   - `MF-077` - perform the pending live nested-formatting manual verification, then promote `passes` / `lastVerifiedAt` only if the packaged app clears every inline layer without disturbing adjacent text
+
+### 2026-04-16 - MF-079 duplicate line/selection stays local to the editor and undo stack
+
+- Author: Codex
+- Focus: obey the startup protocol for `MF-079`, implement only the duplicate-line/selection shortcut in `@markflow/editor`, run the requested automated verification plus `pnpm harness:verify`, and keep the ledger honest because the required manual code-fence check was not completed in this terminal session.
+- What changed:
+  - re-read the root `AGENTS.md`, ran `pnpm harness:start`, and then ran `./harness/init.sh --smoke` before touching `MF-079`
+  - during verification, `HEAD` advanced to `8f59ccd` (`feat(editor): add line duplication functionality and enhance editor commands`), which already introduced the `Cmd/Ctrl+Shift+D` editor implementation in `packages/editor/src/editor/extensions/smartInput.ts` plus the `MarkFlowEditor.test.tsx` coverage for line duplication, block duplication, and undo behavior
+  - verified that the existing editor implementation duplicates the current line or covered line block directly below without using the clipboard, lands a collapsed caret on the copied line for single-line duplication, keeps the duplicated block selected for multi-line selections, and isolates the edit into one undo step
+  - updated `harness/feature-ledger.json` for `MF-079` only to `status=ready` while keeping `passes=false` and `lastVerifiedAt=null`, and recorded this session handoff in `harness/progress.md`, because manual verification is still outstanding
+- Changed files:
+  - `harness/feature-ledger.json`
+  - `harness/progress.md`
+- Simplifications made:
+  - kept this session's diff strictly on `MF-079` bookkeeping after the concurrent `HEAD` update; no second feature, no code rewrite, and no attempt to re-edit files already changed by the newer commit
+  - reused the existing targeted editor test command instead of broadening scope to unrelated packages after the startup smoke exposed a pre-existing desktop-menu mismatch
+  - left `passes=false` because the required live code-fence check cannot be truthfully inferred from automated results alone
+- Verification:
+  - `pnpm harness:start` (passes)
+  - `./harness/init.sh --smoke` (fails before feature work because the dirty worktree already contains a `packages/desktop/src/main/menu.ts` / `packages/desktop/src/main/menu.test.ts` mismatch around the Clear Formatting menu location; not part of `MF-079`)
+  - `pnpm --filter @markflow/editor exec vitest run src/editor/__tests__/MarkFlowEditor.test.tsx` (passes; 1 file / 48 tests with 3 skips covering line duplication, block duplication, and undo atomicity alongside existing editor regressions)
+  - `pnpm --filter @markflow/editor lint` (passes)
+  - `pnpm --filter @markflow/editor build` (passes)
+  - `pnpm harness:verify` (passes before ledger update)
+- Review / risks:
+  - `MF-079` is implemented and automated coverage is green, but `passes` must remain false until someone performs the required live manual verification by duplicating a fenced code block in the running app and confirming both copies remain syntactically valid
+  - the shortcut currently rejects multi-cursor selections and is intentionally scoped to the single primary selection because the feature request only covered line/selection duplication, not simultaneous multi-caret duplication semantics
+  - the workspace still has unrelated pre-existing modifications, and the startup smoke failure remains outside this feature's diff
+- Newly verified features:
+  - none
+- Next recommended feature:
+  - `MF-079` - perform the pending live code-fence duplication verification, then promote `passes` / `lastVerifiedAt` only if the packaged app keeps both fence copies valid

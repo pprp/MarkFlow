@@ -2084,7 +2084,7 @@
       "category": "phase-1-functional",
       "area": "@markflow/editor",
       "priority": 3,
-      "status": "planned",
+      "status": "ready",
       "passes": false,
       "lastVerifiedAt": null,
       "dependsOn": [],
@@ -2101,7 +2101,7 @@
           "Duplicate a code fence and confirm both copies remain syntactically valid."
         ]
       },
-      "notes": "Duplicate line is a common writing-tool shortcut paralleling Typora's editing ergonomics. Source: https://support.typora.io/Shortcut-Keys/."
+      "notes": "Verified on 2026-04-16 against the implementation now present in `packages/editor/src/editor/extensions/smartInput.ts`, which binds `Mod-Shift-D` to duplicate the covered line block directly below without touching the clipboard, lands a single caret on the duplicate, preserves block selection on duplicated multi-line ranges, and isolates the change into one undo step. Covered by `packages/editor/src/editor/__tests__/MarkFlowEditor.test.tsx`. `passes` remains false because the required live code-fence duplication check was not completed in this terminal session. Source: https://support.typora.io/Shortcut-Keys/."
     },
     {
       "id": "MF-080",
