@@ -205,6 +205,49 @@
 - Next recommended feature:
   - `MF-060` - complete the pending GUI/manual crash-relaunch recovery acceptance flow with direct human control or working Accessibility permission, then update the ledger only if the prompt and restored checkpoint content truly pass
 
+### 2026-04-16 - MF-074 shipped the command palette flow while keeping the ledger honest about manual proof
+
+- Author: Codex
+- Focus: implement `MF-074` only, starting from the required session-start harness flow, then add a command palette on `Cmd/Ctrl+Shift+P` that can search and dispatch representative editor and desktop actions by name without widening scope to a second feature.
+- What changed:
+  - re-read the root `AGENTS.md`, then ran `pnpm harness:start` followed by `./harness/init.sh --smoke` before touching `MF-074`
+  - added a dedicated command palette overlay and ranking helper in `packages/editor/src/components/CommandPalette.tsx`, `packages/editor/src/components/CommandPalette.css`, and `packages/editor/src/components/commandPaletteRegistry.ts`
+  - wired `packages/editor/src/App.tsx` to open the palette on `Cmd/Ctrl+Shift+P`, register representative view/insert/export/navigation/edit/file commands, and close/refocus the editor after successful editor-side actions
+  - extended `packages/editor/src/editor/MarkFlowEditor.tsx` with a narrow imperative command bridge and exported the needed scaffold helpers from `packages/editor/src/editor/extensions/smartInput.ts` so palette-triggered edits can act on the live CodeMirror selection
+  - added automated coverage in `packages/editor/src/components/commandPalette.test.tsx` and `packages/editor/src/__tests__/App.test.tsx` for registry ordering, prefix/fuzzy filtering, execution dispatch, keyboard invocation, and editor-state preservation
+  - updated `harness/feature-ledger.json` notes for `MF-074` while keeping `status=planned`, `passes=false`, and `lastVerifiedAt=null` because this session did not complete the required manual GUI walkthrough
+- Changed files:
+  - `packages/editor/src/App.tsx`
+  - `packages/editor/src/components/CommandPalette.tsx`
+  - `packages/editor/src/components/CommandPalette.css`
+  - `packages/editor/src/components/commandPaletteRegistry.ts`
+  - `packages/editor/src/components/commandPalette.test.tsx`
+  - `packages/editor/src/editor/MarkFlowEditor.tsx`
+  - `packages/editor/src/editor/extensions/smartInput.ts`
+  - `packages/editor/src/__tests__/App.test.tsx`
+  - `harness/feature-ledger.json`
+  - `harness/progress.md`
+- Simplifications made:
+  - kept the existing file `QuickOpen` flow intact instead of trying to merge file browsing and command execution into one larger refactor
+  - used a small imperative editor command surface rather than threading raw `EditorView` references throughout `App`
+  - limited the palette registry to representative high-value actions across the required categories instead of expanding into unrelated preference or menu-system work
+- Verification:
+  - `pnpm harness:start` (passes)
+  - `./harness/init.sh --smoke` (passes; workspace smoke run completed before implementation, including desktop and editor test suites)
+  - `pnpm --filter @markflow/editor exec vitest run src/components/commandPalette.test.tsx src/__tests__/App.test.tsx` (passes; 2 files / 29 tests)
+  - `pnpm --filter @markflow/editor lint` (passes)
+  - `pnpm --filter @markflow/editor build` (passes)
+  - `pnpm harness:verify` (passes; 106 total | verified=64 | ready=17 | planned=25 | blocked=0)
+  - manual verification (blocked in this terminal session): the required five-category GUI walkthrough was not performed here, so `passes` could not be truthfully promoted
+- Review / risks:
+  - `MF-074` still cannot move to `passes=true` or receive `lastVerifiedAt` until a real GUI session exercises at least one view, insert, export, navigation, and edit command through the palette without touching menus
+  - insert scaffold commands intentionally reuse existing WYSIWYG/plain-paragraph constraints from the editor shortcuts, so the manual run should cover those commands from a valid paragraph context rather than source mode
+  - the current registry is representative rather than exhaustive; future editor or desktop actions will need explicit registration if they should appear in the palette
+- Newly verified features:
+  - none
+- Next recommended feature:
+  - `MF-074` - complete the pending manual palette walkthrough in a live GUI session, then update `passes` and `lastVerifiedAt` only if all five required command categories truly succeed
+
 ### 2026-04-16 - MF-072 added image resize handles with markdown size persistence while keeping manual proof truthful
 
 - Author: Codex

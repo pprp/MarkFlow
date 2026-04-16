@@ -401,7 +401,7 @@ function toggleCurrentLineUnorderedList(view: EditorView): boolean {
   return toggleCurrentLineBlock(view, UNORDERED_LIST_RE, (match) => `${match[1]}${match[3]}`, '- ')
 }
 
-function insertTableScaffold(view: EditorView, options?: SmartInputOptions): boolean {
+export function insertTableScaffold(view: EditorView, options?: SmartInputOptions): boolean {
   if (!canInsertParagraphScaffold(view, options)) {
     return false
   }
@@ -412,7 +412,7 @@ function insertTableScaffold(view: EditorView, options?: SmartInputOptions): boo
   }))
 }
 
-function insertCodeFenceScaffold(view: EditorView, options?: SmartInputOptions): boolean {
+export function insertCodeFenceScaffold(view: EditorView, options?: SmartInputOptions): boolean {
   if (!canInsertParagraphScaffold(view, options)) {
     return false
   }
@@ -423,7 +423,7 @@ function insertCodeFenceScaffold(view: EditorView, options?: SmartInputOptions):
   }))
 }
 
-function insertMathBlockScaffold(view: EditorView, options?: SmartInputOptions): boolean {
+export function insertMathBlockScaffold(view: EditorView, options?: SmartInputOptions): boolean {
   if (!canInsertParagraphScaffold(view, options)) {
     return false
   }

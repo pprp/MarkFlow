@@ -1,4 +1,4 @@
-import { EditorState } from '@codemirror/state'
+import { EditorSelection, EditorState } from '@codemirror/state'
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown'
 import { foldEffect, foldedRanges } from '@codemirror/language'
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
@@ -1028,6 +1028,49 @@ describe('App Quick Open integration', () => {
 
     // Panel should close
     expect(screen.queryByPlaceholderText('Search files by name...')).not.toBeInTheDocument()
+  })
+})
+
+describe('App command palette integration', () => {
+  afterEach(() => {
+    delete window.markflow
+  })
+
+  it('opens the command palette on Mod/Ctrl+Shift+P and executes editor actions without losing selection state', async () => {
+    const api = new MockMarkFlowAPI()
+    window.markflow = api
+
+    const { container } = render(<App />)
+
+    await act(async () => {
+      api.emitFileOpened({ filePath: '/docs/palette.md', content: 'Plain paragraph' })
+    })
+
+    const view = getEditorView(container)
+    act(() => {
+      view.dispatch({ selection: EditorSelection.range(0, 5) })
+    })
+    Object.defineProperty(view.scrollDOM, 'scrollTop', {
+      value: 120,
+      writable: true,
+      configurable: true,
+    })
+
+    fireEvent.keyDown(document, { key: 'p', metaKey: true, shiftKey: true })
+    fireEvent.keyDown(document, { key: 'p', ctrlKey: true, shiftKey: true })
+
+    const input = await screen.findByPlaceholderText('Search commands...')
+    fireEvent.change(input, { target: { value: 'bold selection' } })
+    fireEvent.click(screen.getByText('Bold Selection'))
+
+    await waitFor(() => {
+      expect(view.state.doc.toString()).toBe('**Plain** paragraph')
+    })
+
+    expect(view.state.selection.main.from).toBe(2)
+    expect(view.state.selection.main.to).toBe(7)
+    expect(view.scrollDOM.scrollTop).toBe(120)
+    expect(screen.queryByPlaceholderText('Search commands...')).not.toBeInTheDocument()
   })
 })
 

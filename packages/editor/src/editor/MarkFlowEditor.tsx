@@ -1,7 +1,16 @@
-import { useRef, useEffect, useState, useCallback } from 'react'
+import { forwardRef, useRef, useEffect, useState, useCallback, useImperativeHandle } from 'react'
 import { Compartment, EditorSelection, EditorState, Transaction } from '@codemirror/state'
 import { EditorView, keymap, drawSelection, highlightActiveLine } from '@codemirror/view'
-import { defaultKeymap, history, historyKeymap, indentWithTab, undoDepth } from '@codemirror/commands'
+import {
+  defaultKeymap,
+  history,
+  historyKeymap,
+  indentWithTab,
+  redo,
+  selectAll,
+  undo,
+  undoDepth,
+} from '@codemirror/commands'
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown'
 import { languages } from '@codemirror/language-data'
 import {
@@ -30,6 +39,15 @@ import { mermaidDecorations } from './decorations/mermaidDecoration'
 import { tableDecorations } from './decorations/tableDecoration'
 import { inlineHtmlDecorations } from './decorations/inlineHtmlDecoration'
 import { smartInput } from './extensions/smartInput'
+import {
+  applyBold,
+  applyItalic,
+  applyLink,
+  applyUnderline,
+  insertCodeFenceScaffold,
+  insertMathBlockScaffold,
+  insertTableScaffold,
+} from './extensions/smartInput'
 import { focusModeExtension, typewriterModeExtension } from './extensions/focusMode'
 import { smartTypographyExtension } from './extensions/smartTypography'
 import { headingFoldExtension } from './extensions/headingFold'
@@ -66,6 +84,23 @@ export interface MarkFlowEditorProps {
   navigationRequest?: { key: number; position: number } | null
   collapsedRanges?: number[]
   onCollapsedRangesChange?: (ranges: number[]) => void
+}
+
+export type MarkFlowEditorCommand =
+  | 'insert-table'
+  | 'insert-code-fence'
+  | 'insert-math-block'
+  | 'edit-bold'
+  | 'edit-italic'
+  | 'edit-underline'
+  | 'edit-link'
+  | 'edit-undo'
+  | 'edit-redo'
+  | 'edit-select-all'
+
+export interface MarkFlowEditorHandle {
+  executeCommand: (command: MarkFlowEditorCommand) => boolean
+  focus: () => void
 }
 
 const baseTheme = EditorView.theme({
@@ -281,7 +316,7 @@ function getEditorExtensions(
   ]
 }
 
-export function MarkFlowEditor({
+export const MarkFlowEditor = forwardRef<MarkFlowEditorHandle, MarkFlowEditorProps>(function MarkFlowEditor({
   content,
   viewMode,
   onChange,
@@ -301,7 +336,7 @@ export function MarkFlowEditor({
   filePath,
   navigationRequest,
   collapsedRanges,
-}: MarkFlowEditorProps) {
+}, ref) {
   const containerRef = useRef<HTMLDivElement>(null)
   const previewContainerRef = useRef<HTMLDivElement>(null)
   const previewViewRef = useRef<EditorView | null>(null)
@@ -761,6 +796,51 @@ export function MarkFlowEditor({
     }
   }, [])
 
+  useImperativeHandle(
+    ref,
+    () => ({
+      executeCommand: (command) => {
+        const view = viewRef.current
+        if (!view) {
+          return false
+        }
+
+        const smartInputOptions = {
+          isWysiwygMode: () => viewModeRef.current === 'wysiwyg',
+        }
+
+        switch (command) {
+          case 'insert-table':
+            return insertTableScaffold(view, smartInputOptions)
+          case 'insert-code-fence':
+            return insertCodeFenceScaffold(view, smartInputOptions)
+          case 'insert-math-block':
+            return insertMathBlockScaffold(view, smartInputOptions)
+          case 'edit-bold':
+            return applyBold(view)
+          case 'edit-italic':
+            return applyItalic(view)
+          case 'edit-underline':
+            return applyUnderline(view)
+          case 'edit-link':
+            return applyLink(view)
+          case 'edit-undo':
+            return undo(view)
+          case 'edit-redo':
+            return redo(view)
+          case 'edit-select-all':
+            return selectAll(view)
+          default:
+            return false
+        }
+      },
+      focus: () => {
+        viewRef.current?.focus()
+      },
+    }),
+    [],
+  )
+
   if (viewMode === 'split') {
     return (
       <div className="mf-split-container" ref={splitContainerRef}>
@@ -789,4 +869,4 @@ export function MarkFlowEditor({
       <FloatingToolbar view={editorView} />
     </div>
   )
-}
+})
