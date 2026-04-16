@@ -9,6 +9,35 @@
 
 ## Session Log
 
+### 2026-04-16 - MF-055 rerun kept the ledger honest while GUI proof is still blocked here
+
+- Author: Codex
+- Focus: obey the startup protocol, verify only `MF-055` on the current tree, and record whether this session can truthfully complete the required 2 GB Go-to-Line timing plus Activity Monitor RSS acceptance.
+- What changed:
+  - re-read the root `AGENTS.md`, then ran `pnpm harness:start` followed by `./harness/init.sh --smoke` before touching any `MF-055` records
+  - re-checked the shipped `MF-055` implementation in `packages/desktop/src/main/fileManager.ts`, `packages/desktop/src/preload/index.ts`, `packages/shared/src/index.ts`, `packages/editor/src/App.tsx`, `packages/desktop/src/main/fileManager.test.ts`, and `packages/editor/src/__tests__/App.test.tsx`
+  - reran `pnpm --filter @markflow/desktop test:run -- src/main/fileManager.test.ts`, `pnpm --filter @markflow/editor test:run -- src/__tests__/App.test.tsx`, and `pnpm harness:verify`
+  - reprobed the manual-verification path with `swift -e 'import ApplicationServices; print(AXIsProcessTrusted())'`, `osascript -e 'tell application "Activity Monitor" to activate'`, and `osascript -e 'tell application "System Events" to tell process "Activity Monitor" to count windows'`
+- Changed files:
+  - `harness/progress.md`
+- Simplifications made:
+  - kept `harness/feature-ledger.json` unchanged because this session still cannot satisfy the required GUI timing and RSS proof honestly
+  - avoided unrelated feature work, speculative instrumentation, or large-file code churn because the current blocker is environment access rather than an implementation defect
+- Verification:
+  - `pnpm harness:start` (passes)
+  - `./harness/init.sh --smoke` (passes; workspace smoke rerun completed with desktop 33/33 and editor 367 passed with 3 skips)
+  - `pnpm --filter @markflow/desktop test:run -- src/main/fileManager.test.ts` (passes; current desktop package script still runs the full desktop suite, 6 files / 33 tests, including the `MF-055` large-file windowing coverage)
+  - `pnpm --filter @markflow/editor test:run -- src/__tests__/App.test.tsx` (passes; current editor package script still runs the full editor suite, 33 files / 367 tests with 3 skips, including the `MF-055` large-file Go-to-Line bridge coverage)
+  - `pnpm harness:verify` (passes; 106 total | verified=64 | ready=19 | planned=23 | blocked=0)
+  - manual-verification capability probes (blocked): `swift -e 'import ApplicationServices; print(AXIsProcessTrusted())'` returned `false`; `osascript -e 'tell application "Activity Monitor" to activate'` succeeded; `osascript -e 'tell application "System Events" to tell process "Activity Monitor" to count windows'` failed with `System Events got an error: osascript is not allowed assistive access. (-25211)`
+- Review / risks:
+  - `MF-055` must remain `status=planned`, `passes=false`, and `lastVerifiedAt=null` until a trusted desktop session opens a synthetic 2 GB markdown file, jumps to line 1,000,000, confirms the target line appears within 2 seconds, and confirms Activity Monitor RSS stays below 512 MB
+  - the blocker remains environment-specific, not code-specific: the shipped implementation and automated coverage are green, but this terminal session still cannot complete the required GUI/manual acceptance honestly
+- Newly verified features:
+  - none
+- Next recommended feature:
+  - `MF-055` - complete the pending 2 GB desktop Go-to-Line timing and Activity Monitor RSS verification in a real Accessibility-enabled session, then update the ledger only if those checks truly pass
+
 ### 2026-04-16 - MF-055 rerun confirmed the code is green but GUI acceptance is still blocked here
 
 - Author: Codex
