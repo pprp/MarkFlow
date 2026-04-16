@@ -2,7 +2,7 @@ import { fireEvent, render } from '@testing-library/react'
 import { EditorState } from '@codemirror/state'
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown'
 import { EditorView } from '@codemirror/view'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { MarkFlowEditor } from '../MarkFlowEditor'
 import { linkDecorations, resolveImageSource } from '../decorations/linkDecoration'
 
@@ -26,6 +26,44 @@ function destroyView(view: EditorView) {
   view.dom.parentElement?.remove()
   view.destroy()
 }
+
+function ensurePointerEventSupport() {
+  if (window.PointerEvent) {
+    return
+  }
+
+  class MockPointerEvent extends MouseEvent {
+    pointerId: number
+
+    constructor(type: string, params: PointerEventInit & { pointerId?: number } = {}) {
+      super(type, params)
+      this.pointerId = params.pointerId ?? 1
+    }
+  }
+
+  vi.stubGlobal('PointerEvent', MockPointerEvent)
+}
+
+function mockRect(element: Element, params: { left: number; top: number; width: number; height: number }) {
+  Object.defineProperty(element, 'getBoundingClientRect', {
+    configurable: true,
+    value: () => ({
+      width: params.width,
+      height: params.height,
+      top: params.top,
+      left: params.left,
+      bottom: params.top + params.height,
+      right: params.left + params.width,
+      x: params.left,
+      y: params.top,
+      toJSON: () => {},
+    }),
+  })
+}
+
+afterEach(() => {
+  vi.unstubAllGlobals()
+})
 
 describe('link decorations', () => {
   it('renders unfocused markdown links as clickable anchors', () => {
@@ -114,6 +152,75 @@ describe('link decorations', () => {
     expect(view.dom.querySelector('img.mf-image-widget')).toBeNull()
     expect(fallback).not.toBeNull()
     expect(fallback).toHaveTextContent('Missing')
+    expect(view.state.doc.toString()).toBe(doc)
+
+    destroyView(view)
+  })
+
+  it('reveals resize handles and rewrites markdown with persisted image dimensions after drag-resize', () => {
+    vi.stubGlobal('IntersectionObserver', undefined)
+    ensurePointerEventSupport()
+
+    const doc = ['Intro', '', '![Diagram](./fixtures/diagram.png)'].join('\n')
+    const view = makeView(doc, 0)
+    const shell = view.dom.querySelector('.mf-image-widget-shell') as HTMLElement
+    const image = shell.querySelector('img.mf-image-widget') as HTMLImageElement
+    const handle = shell.querySelector('.mf-image-resize-handle[data-handle="se"]') as HTMLElement
+
+    expect(shell).not.toBeNull()
+    expect(image).not.toBeNull()
+    expect(handle).not.toBeNull()
+    expect(shell.querySelectorAll('.mf-image-resize-handle')).toHaveLength(8)
+
+    mockRect(shell, { left: 40, top: 20, width: 200, height: 100 })
+    mockRect(image, { left: 40, top: 20, width: 200, height: 100 })
+
+    fireEvent.pointerDown(handle, { pointerId: 1, button: 0, clientX: 240, clientY: 120 })
+    fireEvent.pointerMove(handle, { pointerId: 1, clientX: 340, clientY: 170 })
+
+    expect(image.style.width).toBe('300px')
+    expect(image.style.height).toBe('150px')
+
+    fireEvent.pointerUp(handle, { pointerId: 1, clientX: 340, clientY: 170 })
+
+    const resizedDoc = ['Intro', '', '![Diagram](./fixtures/diagram.png){width=300 height=150}'].join('\n')
+    expect(view.state.doc.toString()).toBe(resizedDoc)
+
+    const reopenedView = makeView(resizedDoc, 0)
+    const reopenedImage = reopenedView.dom.querySelector('img.mf-image-widget') as HTMLImageElement
+    expect(reopenedImage.style.width).toBe('300px')
+    expect(reopenedImage.style.height).toBe('150px')
+
+    destroyView(reopenedView)
+    destroyView(view)
+  })
+
+  it('keeps resized image markdown editable when the caret moves into a persisted size attribute', () => {
+    vi.stubGlobal('IntersectionObserver', undefined)
+
+    const doc = ['Intro', '', '![Diagram](./fixtures/diagram.png){width=300 height=150}'].join('\n')
+    const view = makeView(doc, 0)
+
+    expect(view.dom.querySelector('.mf-image-widget-shell')).not.toBeNull()
+
+    view.dispatch({ selection: { anchor: doc.indexOf('width=300') } })
+
+    expect(view.dom.querySelector('.mf-image-widget-shell')).toBeNull()
+    expect(lineText(view, 2)).toContain('![Diagram](./fixtures/diagram.png){width=300 height=150}')
+
+    destroyView(view)
+  })
+
+  it('applies existing Typora-style shorthand image size attributes on reopen', () => {
+    vi.stubGlobal('IntersectionObserver', undefined)
+
+    const doc = ['Intro', '', '![Diagram](./fixtures/diagram.png)=240x120'].join('\n')
+    const view = makeView(doc, 0)
+    const image = view.dom.querySelector('img.mf-image-widget') as HTMLImageElement
+
+    expect(image).not.toBeNull()
+    expect(image.style.width).toBe('240px')
+    expect(image.style.height).toBe('120px')
     expect(view.state.doc.toString()).toBe(doc)
 
     destroyView(view)

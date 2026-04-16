@@ -205,6 +205,42 @@
 - Next recommended feature:
   - `MF-060` - complete the pending GUI/manual crash-relaunch recovery acceptance flow with direct human control or working Accessibility permission, then update the ledger only if the prompt and restored checkpoint content truly pass
 
+### 2026-04-16 - MF-072 added image resize handles with markdown size persistence while keeping manual proof truthful
+
+- Author: Codex
+- Focus: implement only `MF-072` in `@markflow/editor`, starting with the required harness session bootstrap, then add interactive image resize handles that persist markdown size attributes without widening scope into unrelated image features.
+- What changed:
+  - re-read the root `AGENTS.md`, then ran `pnpm harness:start` followed by `./harness/init.sh --smoke` before touching the feature
+  - extended `packages/editor/src/editor/decorations/linkDecoration.ts` so markdown image widgets parse trailing `{width=... height=...}` and `=WIDTHxHEIGHT` size syntax, render hover-only corner/edge resize handles, resize live during pointer drag, and write the committed size back into markdown as canonical `{width=... height=...}`
+  - added gesture-level coverage in `packages/editor/src/editor/__tests__/linkDecoration.test.tsx` for handle rendering, live drag preview updates, markdown rewrite on release, caret re-entry into persisted size attributes, and shorthand reopen compatibility
+  - styled the new resize affordance in `packages/editor/src/styles/global.css` without changing other editor feature areas
+  - updated `harness/feature-ledger.json` for `MF-072` to `status=ready` while keeping `passes=false` and `lastVerifiedAt=null` because the required live manual drag-resize acceptance is still pending
+- Changed files:
+  - `packages/editor/src/editor/decorations/linkDecoration.ts`
+  - `packages/editor/src/editor/__tests__/linkDecoration.test.tsx`
+  - `packages/editor/src/styles/global.css`
+  - `harness/feature-ledger.json`
+  - `harness/progress.md`
+- Simplifications made:
+  - kept the writeback format canonical as `{width=... height=...}` even though the reader accepts Typora-style shorthand, which avoids branching persistence logic while preserving reopen compatibility
+  - confined the feature to the existing image decoration path instead of adding new editor-wide drag infrastructure or changing image insertion flows from `MF-029`
+- Verification:
+  - `pnpm harness:start` (passes)
+  - `./harness/init.sh --smoke` (passes; workspace smoke stayed green before implementation)
+  - `pnpm --filter @markflow/editor exec vitest run src/editor/__tests__/linkDecoration.test.tsx` (passes; focused `MF-072` coverage, 9 tests)
+  - `pnpm --filter @markflow/editor lint` (passes)
+  - `pnpm --filter @markflow/editor test:run -- src/editor/__tests__/linkDecoration.test.tsx` (passes; current package script runs the full editor suite, 32 files / 354 tests with 3 skips)
+  - `pnpm --filter @markflow/editor build` (passes)
+  - `pnpm harness:verify` (passes after ledger update; 106 total | verified=64 | ready=17 | planned=25 | blocked=0)
+- Review / risks:
+  - `MF-072` must remain `passes=false` and `lastVerifiedAt=null` until someone performs the required live-app manual drag-resize check on three consecutive images with different aspect ratios and confirms both preview and saved markdown source
+  - this implementation preserves and reopens shorthand `=WIDTHxHEIGHT`, but canonical writeback is always `{width=... height=...}`; if strict Typora output parity is later required, that should be treated as a follow-up decision rather than silently changed
+  - resize gestures depend on actual rendered image box measurements, so manual QA should include at least one unloaded-then-loaded local image and one already-sized image to confirm the live desktop behavior matches the jsdom gesture emulation
+- Newly verified features:
+  - none
+- Next recommended feature:
+  - `MF-050` - complete the pending manual performance check for the background outline/symbol-table indexer, since the repo now reports it as the next harness-recommended ready feature
+
 ### 2026-04-16 - MF-061 lazy image widgets now defer off-screen source assignment
 
 - Author: Codex

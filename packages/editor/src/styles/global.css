@@ -982,11 +982,100 @@ body {
 }
 
 /* ── Images ─────────────────────────────────────────────────── */
+.cm-editor .mf-image-widget-shell {
+  position: relative;
+  display: inline-block;
+  max-width: 100%;
+  line-height: 0;
+}
+
 .cm-editor .mf-image-widget {
   max-width: 100%;
   border-radius: var(--mf-radius);
   margin: 0.25em 0;
   display: block;
+  transition: box-shadow var(--mf-transition);
+}
+
+.cm-editor .mf-image-widget-shell:hover .mf-image-widget,
+.cm-editor .mf-image-widget-shell[data-resizing='true'] .mf-image-widget {
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--mf-accent) 32%, transparent);
+}
+
+.cm-editor .mf-image-resize-handle {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--mf-bg) 80%, white);
+  background: var(--mf-accent);
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.18);
+  opacity: 0;
+  pointer-events: auto;
+  touch-action: none;
+  transition: opacity var(--mf-transition), transform var(--mf-transition);
+  z-index: 1;
+}
+
+.cm-editor .mf-image-widget-shell:hover .mf-image-resize-handle,
+.cm-editor .mf-image-widget-shell[data-resizing='true'] .mf-image-resize-handle {
+  opacity: 1;
+}
+
+.cm-editor .mf-image-resize-handle--n {
+  top: 0;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  cursor: ns-resize;
+}
+
+.cm-editor .mf-image-resize-handle--ne {
+  top: 0;
+  right: 0;
+  transform: translate(50%, -50%);
+  cursor: nesw-resize;
+}
+
+.cm-editor .mf-image-resize-handle--e {
+  top: 50%;
+  right: 0;
+  transform: translate(50%, -50%);
+  cursor: ew-resize;
+}
+
+.cm-editor .mf-image-resize-handle--se {
+  right: 0;
+  bottom: 0;
+  transform: translate(50%, 50%);
+  cursor: nwse-resize;
+}
+
+.cm-editor .mf-image-resize-handle--s {
+  bottom: 0;
+  left: 50%;
+  transform: translate(-50%, 50%);
+  cursor: ns-resize;
+}
+
+.cm-editor .mf-image-resize-handle--sw {
+  bottom: 0;
+  left: 0;
+  transform: translate(-50%, 50%);
+  cursor: nesw-resize;
+}
+
+.cm-editor .mf-image-resize-handle--w {
+  top: 50%;
+  left: 0;
+  transform: translate(-50%, -50%);
+  cursor: ew-resize;
+}
+
+.cm-editor .mf-image-resize-handle--nw {
+  top: 0;
+  left: 0;
+  transform: translate(-50%, -50%);
+  cursor: nwse-resize;
 }
 
 .cm-editor .mf-image-error {

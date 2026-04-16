@@ -7,11 +7,49 @@ import {
   WidgetType,
 } from '@codemirror/view'
 import { syntaxTree } from '@codemirror/language'
-import { RangeSetBuilder, RangeSet } from '@codemirror/state'
+import { RangeSetBuilder, RangeSet, Text } from '@codemirror/state'
 import { getDecorationViewportWindow } from './viewportWindow'
 
 const IMAGE_WIDGET_ROOT_MARGIN = '256px 0px'
+const MIN_IMAGE_RESIZE_PX = 24
 const imageWidgetCleanup = new WeakMap<HTMLElement, () => void>()
+const IMAGE_MARKDOWN_RE = /^!\[([^\]]*)\]\((<[^>]+>|[^)\s]+)(?:\s+["'(].*)?\)$/
+const IMAGE_SIZE_TOKEN_RE = /\b(width|height)\s*=\s*["']?(\d+(?:\.\d+)?)(?:px)?["']?/gi
+const IMAGE_SHORTHAND_SIZE_RE = /^(\s*)=(\d+(?:\.\d+)?)\s*x\s*(\d+(?:\.\d+)?)/i
+
+type ImageResizeHandle = 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w' | 'nw'
+
+type ImageWidgetSource = {
+  imageFrom: number
+  imageTo: number
+  replaceTo: number
+  width?: number
+  height?: number
+}
+
+type ParsedImageSize = {
+  replaceTo: number
+  width?: number
+  height?: number
+}
+
+type ImageRenderSize = {
+  width: number
+  height: number
+  aspectRatio: number
+}
+
+type ImageResizeSession = ImageRenderSize & {
+  pointerId: number
+  handle: ImageResizeHandle
+  startX: number
+  startY: number
+  startWidth: number
+  startHeight: number
+  didMove: boolean
+}
+
+const IMAGE_RESIZE_HANDLES: readonly ImageResizeHandle[] = ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw']
 
 function applyImageSource(img: HTMLImageElement, src: string) {
   if (img.getAttribute('src') === src) {
@@ -21,7 +59,7 @@ function applyImageSource(img: HTMLImageElement, src: string) {
   img.src = src
 }
 
-function attachLazyImageSource(img: HTMLImageElement, view: EditorView, src: string) {
+function attachLazyImageSource(widgetRoot: HTMLElement, img: HTMLImageElement, view: EditorView, src: string) {
   if (!src) {
     return
   }
@@ -40,7 +78,7 @@ function attachLazyImageSource(img: HTMLImageElement, view: EditorView, src: str
     disposed = true
     observer.unobserve(img)
     observer.disconnect()
-    imageWidgetCleanup.delete(img)
+    imageWidgetCleanup.delete(widgetRoot)
   }
   // Start loading just before the image reaches the scroll viewport to reduce visible pop-in.
   const observer = new IntersectionObserver(
@@ -63,36 +101,353 @@ function attachLazyImageSource(img: HTMLImageElement, view: EditorView, src: str
     },
   )
 
-  imageWidgetCleanup.set(img, cleanup)
+  imageWidgetCleanup.set(widgetRoot, cleanup)
   observer.observe(img)
+}
+
+function parseImageDimension(raw?: string | number) {
+  if (typeof raw === 'number') {
+    return Number.isFinite(raw) && raw > 0 ? Math.round(raw) : undefined
+  }
+
+  if (!raw) {
+    return undefined
+  }
+
+  const match = raw.match(/\d+(?:\.\d+)?/)
+  if (!match) {
+    return undefined
+  }
+
+  const value = Number.parseFloat(match[0])
+  return Number.isFinite(value) && value > 0 ? Math.round(value) : undefined
+}
+
+function clampImageResizeDimension(value: number) {
+  return Math.max(MIN_IMAGE_RESIZE_PX, parseImageDimension(value) ?? MIN_IMAGE_RESIZE_PX)
+}
+
+function parseBraceImageSize(body: string) {
+  let width: number | undefined
+  let height: number | undefined
+  let matchedAny = false
+
+  IMAGE_SIZE_TOKEN_RE.lastIndex = 0
+  for (const match of body.matchAll(IMAGE_SIZE_TOKEN_RE)) {
+    matchedAny = true
+    const [, key, rawValue] = match
+    const value = parseImageDimension(rawValue)
+    if (!value) {
+      continue
+    }
+
+    if (key.toLowerCase() === 'width') {
+      width = value
+    } else if (key.toLowerCase() === 'height') {
+      height = value
+    }
+  }
+
+  if (!matchedAny) {
+    return null
+  }
+
+  IMAGE_SIZE_TOKEN_RE.lastIndex = 0
+  const remainder = body.replace(IMAGE_SIZE_TOKEN_RE, ' ').trim()
+  if (remainder) {
+    return null
+  }
+
+  return width || height ? { width, height } : null
+}
+
+function readTrailingImageSize(doc: Text, imageTo: number): ParsedImageSize {
+  const line = doc.lineAt(imageTo)
+  const trailing = doc.sliceString(imageTo, line.to)
+
+  const braceMatch = trailing.match(/^(\s*)\{([^}\n]+)\}/)
+  if (braceMatch) {
+    const parsed = parseBraceImageSize(braceMatch[2])
+    if (parsed) {
+      return {
+        replaceTo: imageTo + braceMatch[0].length,
+        ...parsed,
+      }
+    }
+  }
+
+  const shorthandMatch = trailing.match(IMAGE_SHORTHAND_SIZE_RE)
+  if (shorthandMatch) {
+    const width = parseImageDimension(shorthandMatch[2])
+    const height = parseImageDimension(shorthandMatch[3])
+    if (width && height) {
+      return {
+        replaceTo: imageTo + shorthandMatch[0].length,
+        width,
+        height,
+      }
+    }
+  }
+
+  return { replaceTo: imageTo }
+}
+
+function serializeImageSize(width: number, height: number) {
+  return `{width=${clampImageResizeDimension(width)} height=${clampImageResizeDimension(height)}}`
+}
+
+function applyRenderedImageSize(
+  widgetRoot: HTMLElement,
+  img: HTMLImageElement,
+  width?: number,
+  height?: number,
+) {
+  const nextWidth = parseImageDimension(width)
+  const nextHeight = parseImageDimension(height)
+
+  widgetRoot.style.width = nextWidth ? `${nextWidth}px` : ''
+  img.style.width = nextWidth ? `${nextWidth}px` : ''
+  if (nextWidth) {
+    img.setAttribute('width', String(nextWidth))
+  } else {
+    img.removeAttribute('width')
+  }
+
+  if (nextHeight) {
+    img.style.height = `${nextHeight}px`
+    img.setAttribute('height', String(nextHeight))
+  } else {
+    img.style.height = ''
+    img.removeAttribute('height')
+  }
+}
+
+function getRenderedImageSize(
+  widgetRoot: HTMLElement,
+  img: HTMLImageElement,
+  source: ImageWidgetSource,
+): ImageRenderSize | null {
+  const imageRect = img.getBoundingClientRect()
+  const widgetRect = widgetRoot.getBoundingClientRect()
+
+  const width = parseImageDimension(imageRect.width || widgetRect.width || source.width || img.naturalWidth || 0)
+  const height = parseImageDimension(imageRect.height || widgetRect.height || source.height || img.naturalHeight || width || 0)
+
+  if (!width || !height) {
+    return null
+  }
+
+  const aspectRatio = width / height
+  return {
+    width,
+    height,
+    aspectRatio: Number.isFinite(aspectRatio) && aspectRatio > 0 ? aspectRatio : 1,
+  }
+}
+
+function computeResizedImageSize(
+  session: ImageResizeSession,
+  clientX: number,
+  clientY: number,
+): Pick<ImageResizeSession, 'width' | 'height'> {
+  const deltaX = clientX - session.startX
+  const deltaY = clientY - session.startY
+
+  if (session.handle === 'e' || session.handle === 'w') {
+    const width = clampImageResizeDimension(
+      session.handle === 'e' ? session.startWidth + deltaX : session.startWidth - deltaX,
+    )
+    return {
+      width,
+      height: clampImageResizeDimension(width / session.aspectRatio),
+    }
+  }
+
+  if (session.handle === 'n' || session.handle === 's') {
+    const height = clampImageResizeDimension(
+      session.handle === 's' ? session.startHeight + deltaY : session.startHeight - deltaY,
+    )
+    return {
+      width: clampImageResizeDimension(height * session.aspectRatio),
+      height,
+    }
+  }
+
+  const widthDelta = session.handle.includes('e') ? deltaX : -deltaX
+  const heightDelta = session.handle.includes('s') ? deltaY : -deltaY
+  const widthScale = (session.startWidth + widthDelta) / session.startWidth
+  const heightScale = (session.startHeight + heightDelta) / session.startHeight
+  const useWidthAxis = Math.abs(widthDelta / session.startWidth) >= Math.abs(heightDelta / session.startHeight)
+  const scale = useWidthAxis ? widthScale : heightScale
+  const width = clampImageResizeDimension(session.startWidth * scale)
+
+  return {
+    width,
+    height: clampImageResizeDimension(width / session.aspectRatio),
+  }
 }
 
 class ImageWidget extends WidgetType {
   constructor(
     private src: string,
     private alt: string,
+    private source: ImageWidgetSource,
   ) {
     super()
   }
 
   toDOM(view: EditorView) {
+    const shell = document.createElement('span')
+    shell.className = 'mf-image-widget-shell'
+
     const img = document.createElement('img')
     img.alt = this.alt
     img.className = 'mf-image-widget'
     img.loading = 'lazy'
     img.decoding = 'async'
+    applyRenderedImageSize(shell, img, this.source.width, this.source.height)
+
+    let activeResize: ImageResizeSession | null = null
+
+    const updatePreviewSize = (width: number, height: number) => {
+      applyRenderedImageSize(shell, img, width, height)
+      view.requestMeasure()
+    }
+
+    const resetPreviewSize = () => {
+      applyRenderedImageSize(shell, img, this.source.width, this.source.height)
+      delete shell.dataset.resizing
+      activeResize = null
+      view.requestMeasure()
+    }
+
+    const commitResize = () => {
+      if (!activeResize) {
+        return
+      }
+
+      const { didMove, width, height } = activeResize
+      delete shell.dataset.resizing
+      activeResize = null
+
+      if (!didMove) {
+        resetPreviewSize()
+        return
+      }
+
+      const nextAttribute = serializeImageSize(width, height)
+      const currentAttribute = view.state.doc.sliceString(this.source.imageTo, this.source.replaceTo)
+      if (currentAttribute !== nextAttribute) {
+        view.dispatch({
+          changes: {
+            from: this.source.imageTo,
+            to: this.source.replaceTo,
+            insert: nextAttribute,
+          },
+        })
+      }
+    }
+
     img.onerror = () => {
+      imageWidgetCleanup.get(shell)?.()
       const span = document.createElement('span')
       span.className = 'mf-image-error'
       span.textContent = `⚠ ${this.alt || 'Image not found'}`
-      img.replaceWith(span)
+      shell.replaceChildren(span)
+      delete shell.dataset.resizing
+      activeResize = null
+      view.requestMeasure()
     }
-    attachLazyImageSource(img, view, this.src)
-    return img
+    attachLazyImageSource(shell, img, view, this.src)
+    shell.append(img)
+
+    for (const handleName of IMAGE_RESIZE_HANDLES) {
+      const handle = document.createElement('span')
+      handle.className = `mf-image-resize-handle mf-image-resize-handle--${handleName}`
+      handle.dataset.handle = handleName
+      handle.setAttribute('aria-hidden', 'true')
+
+      handle.addEventListener('pointerdown', (event) => {
+        if (event.button !== 0) {
+          return
+        }
+
+        const startingSize = getRenderedImageSize(shell, img, this.source)
+        if (!startingSize) {
+          return
+        }
+
+        activeResize = {
+          ...startingSize,
+          pointerId: event.pointerId,
+          handle: handleName,
+          startX: event.clientX,
+          startY: event.clientY,
+          startWidth: startingSize.width,
+          startHeight: startingSize.height,
+          didMove: false,
+        }
+
+        shell.dataset.resizing = 'true'
+        handle.setPointerCapture?.(event.pointerId)
+        event.preventDefault()
+        event.stopPropagation()
+      })
+
+      handle.addEventListener('pointermove', (event) => {
+        if (!activeResize || event.pointerId !== activeResize.pointerId) {
+          return
+        }
+
+        const nextSize = computeResizedImageSize(activeResize, event.clientX, event.clientY)
+        activeResize = {
+          ...activeResize,
+          ...nextSize,
+          didMove: true,
+        }
+        updatePreviewSize(nextSize.width, nextSize.height)
+        event.preventDefault()
+        event.stopPropagation()
+      })
+
+      handle.addEventListener('pointerup', (event) => {
+        if (!activeResize || event.pointerId !== activeResize.pointerId) {
+          return
+        }
+
+        handle.releasePointerCapture?.(event.pointerId)
+        commitResize()
+        event.preventDefault()
+        event.stopPropagation()
+      })
+
+      handle.addEventListener('pointercancel', (event) => {
+        if (!activeResize || event.pointerId !== activeResize.pointerId) {
+          return
+        }
+
+        handle.releasePointerCapture?.(event.pointerId)
+        resetPreviewSize()
+        event.preventDefault()
+        event.stopPropagation()
+      })
+
+      shell.append(handle)
+    }
+
+    return shell
   }
 
   eq(other: ImageWidget) {
-    return this.src === other.src && this.alt === other.alt
+    return (
+      this.src === other.src &&
+      this.alt === other.alt &&
+      this.source.imageFrom === other.source.imageFrom &&
+      this.source.imageTo === other.source.imageTo &&
+      this.source.replaceTo === other.source.replaceTo &&
+      this.source.width === other.source.width &&
+      this.source.height === other.source.height
+    )
   }
 
   destroy(dom: HTMLElement) {
@@ -301,15 +656,27 @@ export function buildLinkDecorations(
       const cursorInside = cursorHead >= from && cursorHead <= to
 
       if (node.name === 'Image') {
-        if (!cursorInside) {
+        const imageSize = readTrailingImageSize(doc, to)
+        const imageRangeTo = imageSize.replaceTo
+        const cursorInsideImage = cursorHead >= from && cursorHead <= imageRangeTo
+
+        if (!cursorInsideImage) {
           const raw = doc.sliceString(from, to)
-          const match = raw.match(/^!\[([^\]]*)\]\(([^)]*)\)/)
+          const match = raw.match(IMAGE_MARKDOWN_RE)
           if (match) {
             const [, alt, src] = match
             builder.add(
               from,
-              to,
-              Decoration.replace({ widget: new ImageWidget(resolveImageSource(src, filePath), alt) }),
+              imageRangeTo,
+              Decoration.replace({
+                widget: new ImageWidget(resolveImageSource(src, filePath), alt, {
+                  imageFrom: from,
+                  imageTo: to,
+                  replaceTo: imageRangeTo,
+                  width: imageSize.width,
+                  height: imageSize.height,
+                }),
+              }),
             )
           }
         }
