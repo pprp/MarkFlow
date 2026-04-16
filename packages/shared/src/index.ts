@@ -64,9 +64,11 @@ export interface MarkFlowThemePayload extends MarkFlowThemeSummary {
 }
 
 export type MarkFlowAppearance = 'light' | 'dark'
+export type MarkFlowAppearancePreference = MarkFlowAppearance | 'system'
 
 export interface MarkFlowThemeState {
   activeAppearance: MarkFlowAppearance
+  appearancePreference: MarkFlowAppearancePreference
   lightThemeId: string
   darkThemeId: string
   activeTheme: MarkFlowThemePayload | null
@@ -413,6 +415,9 @@ export interface MarkFlowDesktopAPI {
   setThemeForAppearance: (
     appearance: MarkFlowAppearance,
     themeId: string,
+  ) => Promise<MarkFlowThemeState | null>
+  setThemeAppearancePreference: (
+    preference: MarkFlowAppearancePreference,
   ) => Promise<MarkFlowThemeState | null>
   getSpellCheckState: () => Promise<MarkFlowSpellCheckState>
   setSpellCheckLanguage: (language: string | null) => Promise<MarkFlowSpellCheckState>

@@ -33,6 +33,7 @@ import { createExternalLinkBadgePlugin } from './plugins/externalLinkBadgePlugin
 import {
   MarkFlowPluginHost,
   type MarkFlowAppearance,
+  type MarkFlowAppearancePreference,
   type MarkFlowDesktopAPI,
   type MarkFlowQuickOpenItem,
   type MarkFlowDocument,
@@ -2268,7 +2269,24 @@ export function App() {
   )
 
   async function handleThemeChange(appearance: MarkFlowAppearance, event: ChangeEvent<HTMLSelectElement>) {
-    const nextThemeState = await window.markflow?.setThemeForAppearance(appearance, event.target.value)
+    const api = window.markflow
+    const nextThemeState = await api?.setThemeForAppearance(appearance, event.target.value)
+    if (!nextThemeState) {
+      return
+    }
+
+    applyThemeState(nextThemeState)
+
+    if (nextThemeState.activeAppearance !== appearance) {
+      const activatedThemeState = await api?.setThemeAppearancePreference(appearance)
+      if (activatedThemeState) {
+        applyThemeState(activatedThemeState)
+      }
+    }
+  }
+
+  async function handleThemeAppearancePreferenceChange(preference: MarkFlowAppearancePreference) {
+    const nextThemeState = await window.markflow?.setThemeAppearancePreference(preference)
     if (nextThemeState) {
       applyThemeState(nextThemeState)
     }
@@ -2725,6 +2743,7 @@ export function App() {
   }
 
   const activeAppearance = themeState?.activeAppearance ?? 'light'
+  const appearancePreference = themeState?.appearancePreference ?? 'system'
 
   const outlineHeadings = activeTab?.largeFile ? [] : activeTab?.symbolTable.headings ?? []
 
@@ -3015,13 +3034,35 @@ export function App() {
         <div className="mf-titlebar-right">
           {themes.length > 0 && themeState ? (
             <div className="mf-theme-controls" aria-label="Theme preferences">
-              <span className="mf-theme-appearance-pill" aria-live="polite">
-                {formatAppearanceLabel(activeAppearance)} mode
-              </span>
-              <label
-                className={`mf-theme-select-group${activeAppearance === 'light' ? ' mf-theme-select-group-active' : ''}`}
+              <button
+                type="button"
+                className={`mf-theme-appearance-pill${appearancePreference === 'system' ? '' : ' mf-theme-appearance-pill-clickable'}`}
+                aria-live="polite"
+                disabled={appearancePreference === 'system'}
+                onClick={() => void handleThemeAppearancePreferenceChange('system')}
+                title={
+                  appearancePreference === 'system'
+                    ? `Following system ${formatAppearanceLabel(activeAppearance).toLowerCase()} appearance`
+                    : 'Return to system appearance'
+                }
               >
-                <span className="mf-theme-select-label">Light</span>
+                {appearancePreference === 'system'
+                  ? `${formatAppearanceLabel(activeAppearance)} mode`
+                  : `${formatAppearanceLabel(activeAppearance)} locked`}
+              </button>
+              <div
+                className={`mf-theme-select-group${activeAppearance === 'light' ? ' mf-theme-select-group-active' : ''}`}
+                data-appearance="light"
+              >
+                <button
+                  type="button"
+                  className="mf-theme-select-label-button"
+                  onClick={() => void handleThemeAppearancePreferenceChange('light')}
+                  aria-pressed={activeAppearance === 'light'}
+                  title="Activate light appearance"
+                >
+                  Light
+                </button>
                 <select
                   className="mf-theme-select"
                   value={themeState.lightThemeId}
@@ -3034,11 +3075,20 @@ export function App() {
                     </option>
                   ))}
                 </select>
-              </label>
-              <label
+              </div>
+              <div
                 className={`mf-theme-select-group${activeAppearance === 'dark' ? ' mf-theme-select-group-active' : ''}`}
+                data-appearance="dark"
               >
-                <span className="mf-theme-select-label">Dark</span>
+                <button
+                  type="button"
+                  className="mf-theme-select-label-button"
+                  onClick={() => void handleThemeAppearancePreferenceChange('dark')}
+                  aria-pressed={activeAppearance === 'dark'}
+                  title="Activate dark appearance"
+                >
+                  Dark
+                </button>
                 <select
                   className="mf-theme-select"
                   value={themeState.darkThemeId}
@@ -3051,7 +3101,7 @@ export function App() {
                     </option>
                   ))}
                 </select>
-              </label>
+              </div>
             </div>
           ) : null}
           <button

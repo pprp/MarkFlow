@@ -4,6 +4,7 @@ import { ipcMain, nativeTheme, type BrowserWindow } from 'electron'
 import chokidar, { type FSWatcher } from 'chokidar'
 import type {
   MarkFlowAppearance,
+  MarkFlowAppearancePreference,
   MarkFlowThemePayload,
   MarkFlowThemeState,
   MarkFlowThemeSummary,
@@ -17,9 +18,11 @@ interface ThemeState {
   themeId?: string
   lightThemeId?: string
   darkThemeId?: string
+  appearancePreference?: MarkFlowAppearancePreference
 }
 
 interface ResolvedThemeState {
+  appearancePreference: MarkFlowAppearancePreference
   lightThemeId: string
   darkThemeId: string
 }
@@ -30,6 +33,7 @@ const DEFAULT_THEME_IDS: Record<MarkFlowAppearance, string> = {
 }
 
 const DEFAULT_THEME_STATE: ResolvedThemeState = {
+  appearancePreference: 'system',
   lightThemeId: DEFAULT_THEME_IDS.light,
   darkThemeId: DEFAULT_THEME_IDS.dark,
 }
@@ -271,6 +275,10 @@ export class ThemeManager {
   private themeState: ResolvedThemeState = { ...DEFAULT_THEME_STATE }
   private watcher: FSWatcher | null = null
   private readonly handleNativeThemeUpdated = () => {
+    if (this.themeState.appearancePreference !== 'system') {
+      return
+    }
+
     void this.applyThemeForAppearance(this.getCurrentAppearance(), { emit: true })
   }
 
@@ -288,6 +296,7 @@ export class ThemeManager {
     ipcMain.removeHandler('get-current-theme')
     ipcMain.removeHandler('set-theme')
     ipcMain.removeHandler('set-theme-for-appearance')
+    ipcMain.removeHandler('set-theme-appearance-preference')
 
     ipcMain.handle('get-themes', () => this.getThemes())
     ipcMain.handle('get-theme-state', () => this.getThemeState())
@@ -296,11 +305,16 @@ export class ThemeManager {
     ipcMain.handle('set-theme-for-appearance', async (_event, appearance: MarkFlowAppearance, themeId: string) =>
       this.setThemeForAppearance(appearance, themeId),
     )
+    ipcMain.handle(
+      'set-theme-appearance-preference',
+      async (_event, preference: MarkFlowAppearancePreference) => this.setThemeAppearancePreference(preference),
+    )
   }
 
   async initialize() {
     this.ensureThemeFiles()
     this.themeState = this.readPersistedThemeState()
+    nativeTheme.themeSource = this.themeState.appearancePreference
     this.currentThemeId = this.getThemeIdForAppearance(this.getCurrentAppearance())
     await this.watchThemeFile(this.currentThemeId)
     nativeTheme.removeListener('updated', this.handleNativeThemeUpdated)
@@ -334,6 +348,7 @@ export class ThemeManager {
 
     return {
       activeAppearance: this.getCurrentAppearance(),
+      appearancePreference: this.themeState.appearancePreference,
       lightThemeId: this.themeState.lightThemeId,
       darkThemeId: this.themeState.darkThemeId,
       activeTheme: theme ? this.readThemePayload(theme) : null,
@@ -371,6 +386,25 @@ export class ThemeManager {
       this.emitThemeState(state)
     }
     return state
+  }
+
+  async setThemeAppearancePreference(
+    preference: MarkFlowAppearancePreference,
+  ): Promise<MarkFlowThemeState | null> {
+    this.ensureThemeFiles()
+
+    const nextPreference =
+      preference === 'light' || preference === 'dark' || preference === 'system' ? preference : 'system'
+
+    this.themeState = {
+      ...this.themeState,
+      appearancePreference: nextPreference,
+    }
+    this.persistThemeState()
+    nativeTheme.themeSource = nextPreference
+
+    await this.applyThemeForAppearance(this.getCurrentAppearance(), { emit: true })
+    return this.getThemeState()
   }
 
   private ensureThemeFiles() {
@@ -424,12 +458,14 @@ export class ThemeManager {
       if (legacyThemeId && !state.lightThemeId && !state.darkThemeId) {
         const currentAppearance = this.getCurrentAppearance()
         return {
+          appearancePreference: 'system',
           lightThemeId: currentAppearance === 'light' ? legacyThemeId : DEFAULT_THEME_IDS.light,
           darkThemeId: currentAppearance === 'dark' ? legacyThemeId : DEFAULT_THEME_IDS.dark,
         }
       }
 
       return {
+        appearancePreference: this.resolvePersistedAppearancePreference(state.appearancePreference),
         lightThemeId: this.resolvePersistedThemeId(state.lightThemeId, 'light'),
         darkThemeId: this.resolvePersistedThemeId(state.darkThemeId, 'dark'),
       }
@@ -442,7 +478,25 @@ export class ThemeManager {
     return this.findTheme(themeId ?? '')?.id ?? DEFAULT_THEME_IDS[appearance]
   }
 
+  private resolvePersistedAppearancePreference(
+    preference: MarkFlowAppearancePreference | null | undefined,
+  ): MarkFlowAppearancePreference {
+    if (preference === 'light' || preference === 'dark' || preference === 'system') {
+      return preference
+    }
+
+    return 'system'
+  }
+
   private getCurrentAppearance(): MarkFlowAppearance {
+    if (this.themeState.appearancePreference === 'light' || this.themeState.appearancePreference === 'dark') {
+      return this.themeState.appearancePreference
+    }
+
+    if (nativeTheme.themeSource === 'light' || nativeTheme.themeSource === 'dark') {
+      return nativeTheme.themeSource
+    }
+
     return nativeTheme.shouldUseDarkColors ? 'dark' : 'light'
   }
 

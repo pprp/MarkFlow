@@ -31,6 +31,7 @@ import {
 import { computeStats } from '../editor/wordCount'
 import type {
   MarkFlowAppearance,
+  MarkFlowAppearancePreference,
   MarkFlowDesktopAPI,
   MarkFlowFileLoadProgressPayload,
   MarkFlowFilePayload,
@@ -126,6 +127,7 @@ class MockMarkFlowAPI implements MarkFlowDesktopAPI {
   ]
   private themeState: MarkFlowThemeState = {
     activeAppearance: 'light',
+    appearancePreference: 'system',
     lightThemeId: 'paper',
     darkThemeId: 'midnight',
     activeTheme: {
@@ -134,6 +136,7 @@ class MockMarkFlowAPI implements MarkFlowDesktopAPI {
       cssText: ':root { --mf-accent: #9c5f2f; }',
     },
   }
+  private systemAppearance: MarkFlowAppearance = 'light'
   private spellCheckState: MarkFlowSpellCheckState = {
     selectedLanguage: null,
     availableLanguages: ['de-DE', 'en-US', 'fr-FR'],
@@ -255,6 +258,25 @@ class MockMarkFlowAPI implements MarkFlowDesktopAPI {
       return nextState
     },
   )
+  setThemeAppearancePreference: MarkFlowDesktopAPI['setThemeAppearancePreference'] = vi.fn(
+    async (preference: MarkFlowAppearancePreference) => {
+      const nextAppearance = preference === 'system' ? this.systemAppearance : preference
+      const nextThemeId = nextAppearance === 'dark' ? this.themeState.darkThemeId : this.themeState.lightThemeId
+      const activeTheme = this.buildThemePayload(nextThemeId)
+      if (!activeTheme) {
+        return null
+      }
+
+      const nextState: MarkFlowThemeState = {
+        ...this.themeState,
+        activeAppearance: nextAppearance,
+        appearancePreference: preference,
+        activeTheme,
+      }
+      this.emitThemeUpdated(nextState)
+      return nextState
+    },
+  )
   getSpellCheckState: MarkFlowDesktopAPI['getSpellCheckState'] = vi.fn(async () => this.spellCheckState)
   setSpellCheckLanguage: MarkFlowDesktopAPI['setSpellCheckLanguage'] = vi.fn(async (language: string | null) => {
     const nextLanguage =
@@ -342,6 +364,12 @@ class MockMarkFlowAPI implements MarkFlowDesktopAPI {
   }
 
   setSystemAppearance(appearance: MarkFlowAppearance) {
+    this.systemAppearance = appearance
+
+    if (this.themeState.appearancePreference !== 'system') {
+      return
+    }
+
     const themeId = appearance === 'dark' ? this.themeState.darkThemeId : this.themeState.lightThemeId
     const activeTheme = this.buildThemePayload(themeId)
     if (!activeTheme) {
@@ -1268,7 +1296,7 @@ describe('App desktop integration', () => {
     })
   })
 
-  it('manages separate light and dark themes and reflects runtime appearance switches', async () => {
+  it('activates the selected appearance from the titlebar theme controls and can return to system mode', async () => {
     const api = new MockMarkFlowAPI()
     window.markflow = api
 
@@ -1298,8 +1326,27 @@ describe('App desktop integration', () => {
 
     await waitFor(() => {
       expect(api.setThemeForAppearance).toHaveBeenCalledWith('dark', 'night')
+      expect(api.setThemeAppearancePreference).toHaveBeenCalledWith('dark')
       expect(darkSelect.value).toBe('night')
+      expect(screen.getByText('Dark locked')).toBeInTheDocument()
+      expect(document.getElementById('mf-theme-overrides')).toHaveTextContent('--mf-bg: #1d1f21')
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Light' }))
+
+    await waitFor(() => {
+      expect(api.setThemeAppearancePreference).toHaveBeenCalledWith('light')
+      expect(screen.getByText('Light locked')).toBeInTheDocument()
       expect(document.getElementById('mf-theme-overrides')).toHaveTextContent('--mf-accent: #0366d6')
+      expect(lightSelect.value).toBe('github')
+      expect(darkSelect.value).toBe('night')
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Light locked' }))
+
+    await waitFor(() => {
+      expect(api.setThemeAppearancePreference).toHaveBeenCalledWith('system')
+      expect(screen.getByText('Light mode')).toBeInTheDocument()
     })
 
     act(() => {

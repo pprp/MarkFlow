@@ -8,6 +8,7 @@ const { handleMock, removeHandlerMock, nativeThemeMock, emitNativeThemeUpdated, 
   () => {
     const updatedListeners = new Set<() => void>()
     const nativeThemeMock = {
+      themeSource: 'system' as 'system' | 'light' | 'dark',
       shouldUseDarkColors: false,
       on: vi.fn((_event: string, listener: () => void) => {
         updatedListeners.add(listener)
@@ -28,6 +29,7 @@ const { handleMock, removeHandlerMock, nativeThemeMock, emitNativeThemeUpdated, 
       },
       resetNativeThemeMock: () => {
         updatedListeners.clear()
+        nativeThemeMock.themeSource = 'system'
         nativeThemeMock.shouldUseDarkColors = false
         nativeThemeMock.on.mockClear()
         nativeThemeMock.removeListener.mockClear()
@@ -99,6 +101,7 @@ describe('ThemeManager', () => {
     expect(manager.getThemeState()).toEqual(
       expect.objectContaining({
         activeAppearance: 'light',
+        appearancePreference: 'system',
         lightThemeId: 'paper',
         darkThemeId: 'midnight',
         activeTheme: expect.objectContaining({
@@ -112,6 +115,7 @@ describe('ThemeManager', () => {
     expect(lightState).toEqual(
       expect.objectContaining({
         activeAppearance: 'light',
+        appearancePreference: 'system',
         lightThemeId: 'github',
         darkThemeId: 'midnight',
         activeTheme: expect.objectContaining({
@@ -124,6 +128,7 @@ describe('ThemeManager', () => {
       'theme-updated',
       expect.objectContaining({
         activeAppearance: 'light',
+        appearancePreference: 'system',
         lightThemeId: 'github',
         darkThemeId: 'midnight',
         activeTheme: expect.objectContaining({ id: 'github' }),
@@ -134,6 +139,7 @@ describe('ThemeManager', () => {
     expect(darkState).toEqual(
       expect.objectContaining({
         activeAppearance: 'light',
+        appearancePreference: 'system',
         lightThemeId: 'github',
         darkThemeId: 'night',
         activeTheme: expect.objectContaining({ id: 'github' }),
@@ -142,8 +148,9 @@ describe('ThemeManager', () => {
 
     const persisted = JSON.parse(
       fs.readFileSync(path.join(tempDir, 'themes', 'theme-state.json'), 'utf8'),
-    ) as { lightThemeId: string; darkThemeId: string }
+    ) as { appearancePreference: string; lightThemeId: string; darkThemeId: string }
     expect(persisted).toEqual({
+      appearancePreference: 'system',
       lightThemeId: 'github',
       darkThemeId: 'night',
     })
@@ -157,6 +164,7 @@ describe('ThemeManager', () => {
         'theme-updated',
         expect.objectContaining({
           activeAppearance: 'dark',
+          appearancePreference: 'system',
           lightThemeId: 'github',
           darkThemeId: 'night',
           activeTheme: expect.objectContaining({ id: 'night' }),
@@ -171,6 +179,7 @@ describe('ThemeManager', () => {
     expect(restored.getThemeState()).toEqual(
       expect.objectContaining({
         activeAppearance: 'dark',
+        appearancePreference: 'system',
         lightThemeId: 'github',
         darkThemeId: 'night',
         activeTheme: expect.objectContaining({
@@ -179,6 +188,57 @@ describe('ThemeManager', () => {
       }),
     )
     await restored.dispose()
+  })
+
+  it('can lock the app to a manual appearance and later return to system mode', async () => {
+    const window = createWindowStub()
+    const manager = new ThemeManager(window as never, tempDir)
+
+    await manager.initialize()
+    await manager.setThemeForAppearance('dark', 'night')
+
+    const manualDarkState = await manager.setThemeAppearancePreference('dark')
+    expect(nativeThemeMock.themeSource).toBe('dark')
+    expect(manualDarkState).toEqual(
+      expect.objectContaining({
+        activeAppearance: 'dark',
+        appearancePreference: 'dark',
+        darkThemeId: 'night',
+        activeTheme: expect.objectContaining({ id: 'night' }),
+      }),
+    )
+
+    const persistedManual = JSON.parse(
+      fs.readFileSync(path.join(tempDir, 'themes', 'theme-state.json'), 'utf8'),
+    ) as { appearancePreference: string }
+    expect(persistedManual.appearancePreference).toBe('dark')
+
+    nativeThemeMock.shouldUseDarkColors = false
+    window.webContents.send.mockClear()
+    emitNativeThemeUpdated()
+    expect(window.webContents.send).not.toHaveBeenCalled()
+
+    const restored = new ThemeManager(createWindowStub() as never, tempDir)
+    await restored.initialize()
+    expect(restored.getThemeState()).toEqual(
+      expect.objectContaining({
+        activeAppearance: 'dark',
+        appearancePreference: 'dark',
+        activeTheme: expect.objectContaining({ id: 'night' }),
+      }),
+    )
+
+    const systemState = await restored.setThemeAppearancePreference('system')
+    expect(nativeThemeMock.themeSource).toBe('system')
+    expect(systemState).toEqual(
+      expect.objectContaining({
+        activeAppearance: 'light',
+        appearancePreference: 'system',
+      }),
+    )
+
+    await restored.dispose()
+    await manager.dispose()
   })
 
   it('hot-reloads the active theme stylesheet when the file changes', async () => {
