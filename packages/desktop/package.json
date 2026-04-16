@@ -4,6 +4,14 @@
   "private": true,
   "type": "commonjs",
   "main": "dist/main/index.js",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/pprp/MarkFlow.git"
+  },
+  "homepage": "https://github.com/pprp/MarkFlow",
+  "bugs": {
+    "url": "https://github.com/pprp/MarkFlow/issues"
+  },
   "scripts": {
     "dev": "concurrently \"pnpm --filter @markflow/editor dev\" \"tsc -p tsconfig.main.json --watch --preserveWatchOutput\" \"tsc -p tsconfig.preload.json --watch --preserveWatchOutput\" \"wait-on http://localhost:5173 file:dist/main/index.js file:dist/preload/index.js && electron .\"",
     "build": "tsc -p tsconfig.main.json && tsc -p tsconfig.preload.json",
