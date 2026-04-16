@@ -10,6 +10,63 @@ import { syntaxTree } from '@codemirror/language'
 import { RangeSetBuilder, RangeSet } from '@codemirror/state'
 import { getDecorationViewportWindow } from './viewportWindow'
 
+const IMAGE_WIDGET_ROOT_MARGIN = '256px 0px'
+const imageWidgetCleanup = new WeakMap<HTMLElement, () => void>()
+
+function applyImageSource(img: HTMLImageElement, src: string) {
+  if (img.getAttribute('src') === src) {
+    return
+  }
+
+  img.src = src
+}
+
+function attachLazyImageSource(img: HTMLImageElement, view: EditorView, src: string) {
+  if (!src) {
+    return
+  }
+
+  if (typeof IntersectionObserver !== 'function') {
+    applyImageSource(img, src)
+    return
+  }
+
+  let disposed = false
+  const cleanup = () => {
+    if (disposed) {
+      return
+    }
+
+    disposed = true
+    observer.unobserve(img)
+    observer.disconnect()
+    imageWidgetCleanup.delete(img)
+  }
+  // Start loading just before the image reaches the scroll viewport to reduce visible pop-in.
+  const observer = new IntersectionObserver(
+    (entries) => {
+      for (const entry of entries) {
+        if (entry.target !== img) {
+          continue
+        }
+
+        if (entry.isIntersecting || entry.intersectionRatio > 0) {
+          applyImageSource(img, src)
+          cleanup()
+          return
+        }
+      }
+    },
+    {
+      root: view.scrollDOM,
+      rootMargin: IMAGE_WIDGET_ROOT_MARGIN,
+    },
+  )
+
+  imageWidgetCleanup.set(img, cleanup)
+  observer.observe(img)
+}
+
 class ImageWidget extends WidgetType {
   constructor(
     private src: string,
@@ -18,22 +75,28 @@ class ImageWidget extends WidgetType {
     super()
   }
 
-  toDOM() {
+  toDOM(view: EditorView) {
     const img = document.createElement('img')
-    img.src = this.src
     img.alt = this.alt
     img.className = 'mf-image-widget'
+    img.loading = 'lazy'
+    img.decoding = 'async'
     img.onerror = () => {
       const span = document.createElement('span')
       span.className = 'mf-image-error'
       span.textContent = `⚠ ${this.alt || 'Image not found'}`
       img.replaceWith(span)
     }
+    attachLazyImageSource(img, view, this.src)
     return img
   }
 
   eq(other: ImageWidget) {
     return this.src === other.src && this.alt === other.alt
+  }
+
+  destroy(dom: HTMLElement) {
+    imageWidgetCleanup.get(dom)?.()
   }
 }
 

@@ -115,6 +115,40 @@
 - Next recommended feature:
   - `MF-060` - complete the pending GUI/manual crash-relaunch recovery acceptance flow with direct human control or working Accessibility permission, then update the ledger only if the prompt and restored checkpoint content truly pass
 
+### 2026-04-16 - MF-061 lazy image widgets now defer off-screen source assignment
+
+- Author: Codex
+- Focus: execute the ordered session-start protocol, implement only `MF-061` in `@markflow/editor`, verify the lazy image loading behavior with focused automation, and keep the ledger truthful while manual scroll/jank validation remains unavailable here.
+- What changed:
+  - re-read the root `AGENTS.md`, then ran `pnpm harness:start` followed by `./harness/init.sh --smoke` before touching `MF-061`
+  - updated `packages/editor/src/editor/decorations/linkDecoration.ts` so markdown image widgets create an `<img>` without `src`, register an `IntersectionObserver` rooted to the editor scroller, assign the resolved image source only when the widget nears the viewport, and disconnect the observer if the widget is destroyed before loading
+  - added `packages/editor/src/editor/__tests__/lazyImage.test.tsx` to cover deferred source assignment, the no-`IntersectionObserver` fallback path, and observer cleanup when the caret moves back into raw image markdown
+  - moved `MF-061` in `harness/feature-ledger.json` from `status=planned` to `status=ready`, kept `passes=false` and `lastVerifiedAt=null`, and recorded the exact automated verification commands that passed in this session
+- Changed files:
+  - `harness/feature-ledger.json`
+  - `packages/editor/src/editor/decorations/linkDecoration.ts`
+  - `packages/editor/src/editor/__tests__/lazyImage.test.tsx`
+  - `harness/progress.md`
+- Simplifications made:
+  - kept the feature inside the existing image widget decoration rather than adding a new image manager, plugin, or dependency
+  - reused the existing image source resolver and editor scroll container instead of inventing a parallel asset-loading path
+- Verification:
+  - `pnpm harness:start` (passes)
+  - `./harness/init.sh --smoke` (passes; reran workspace smoke verification, including desktop 26/26 and editor 334/337 passing before feature edits)
+  - `pnpm --filter @markflow/editor exec vitest run src/editor/__tests__/lazyImage.test.tsx` (passes; 1 file / 3 focused lazy-image tests)
+  - `pnpm --filter @markflow/editor test:run -- --grep lazy-image` (passes; current package script shape still executes the full editor suite, 30 files / 337 tests, and includes the new lazy-image coverage)
+  - `pnpm --filter @markflow/editor lint` (passes)
+  - `pnpm --filter @markflow/editor build` (passes; existing Vite chunk-size warnings only)
+  - `pnpm harness:verify` (passes; 106 total | verified=63 | ready=15 | planned=28 | blocked=0)
+- Review / risks:
+  - `MF-061` cannot move to `passes=true` or receive `lastVerifiedAt` until someone performs the required live DevTools verification: open an image-heavy document, confirm only near-viewport images decode, throttle CPU to 4x slowdown, and scroll through the document without jank
+  - because this terminal session cannot truthfully drive DevTools Network inspection or the required CPU-throttled visual scroll check, `harness/feature-ledger.json` must remain `passes=false` with `lastVerifiedAt=null`
+  - off-screen images now defer actual source assignment, so the remaining manual check should pay attention to progressive layout expansion while images load near the viewport
+- Newly verified features:
+  - none
+- Next recommended feature:
+  - `MF-050` - Background indexer builds a symbol table for headings and anchors without blocking the UI thread
+
 ### 2026-04-16 - MF-060 rerun stayed truthful on the current dirty tree while GUI recovery proof remained blocked
 
 - Author: Codex
