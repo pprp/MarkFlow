@@ -5437,3 +5437,32 @@
   - none
 - Next recommended feature:
   - `MF-101` - perform the pending mixed-document manual delete-range verification, and only then promote `passes` / `lastVerifiedAt`
+
+### 2026-04-16 - MF-101 ledger state corrected after re-verifying the existing delete-range implementation
+
+- Author: Codex
+- Focus: obey the startup protocol for `MF-101`, re-run the required automated verification against the implementation already present in the repo, correct the feature ledger state without touching unrelated features, and keep the manual-verification gate honest.
+- What changed:
+  - re-read the root `AGENTS.md`, ran `pnpm harness:start`, and ran `./harness/init.sh --smoke` at session start
+  - confirmed the `MF-101` editor implementation, command-palette wiring, shortcut remap, and regression tests were already present in the repository from commit `0286915`
+  - corrected `harness/feature-ledger.json` so `MF-101` now matches the repo's verified state as `ready` instead of stale `planned`, while leaving `passes: false` and `lastVerifiedAt: null` because live mixed-document shortcut verification still did not happen in this terminal session
+- Changed files:
+  - `harness/feature-ledger.json`
+  - `harness/progress.md`
+- Simplifications made:
+  - avoided reopening editor code that already matched the feature notes and existing commit; this session only fixed the metadata drift for `MF-101`
+  - kept the ledger update minimal by promoting only the status field and refreshing the note text to reflect this session's re-verification
+- Verification:
+  - `pnpm harness:start` (passes)
+  - `./harness/init.sh --smoke` (passes)
+  - `pnpm --filter @markflow/editor exec vitest run src/editor/__tests__/deleteRange.test.ts src/editor/__tests__/MarkFlowEditor.test.tsx src/__tests__/App.test.tsx` (passes; 3 files / 108 tests)
+  - `pnpm --filter @markflow/editor lint` (passes)
+  - `pnpm --filter @markflow/editor build` (passes)
+  - `pnpm harness:verify` (passes; ready=36, planned=5 after promoting `MF-101` to `ready`)
+- Review / risks:
+  - `MF-101` is implemented and its automated verification is green, but `passes` must remain false until someone exercises the shortcuts and command-palette actions in a real mixed markdown document
+  - this session did not add new editor behavior, so the remaining risk is purely verification drift between the honest manual gate and the ledger metadata
+- Newly verified features:
+  - none
+- Next recommended feature:
+  - `MF-101` - perform the pending mixed-document manual delete-range verification, then set `passes` / `lastVerifiedAt`
