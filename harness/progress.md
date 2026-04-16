@@ -69,6 +69,36 @@
 - Next recommended feature:
   - `MF-055` - complete the pending 2 GB desktop Go-to-Line timing and Activity Monitor RSS verification in a real Accessibility-enabled session, then update the ledger only if those checks truly pass
 
+### 2026-04-16 - MF-055 rerun confirmed the implementation is still green and the GUI proof is still blocked
+
+- Author: Codex
+- Focus: obey the startup protocol, stay scoped to `MF-055`, rerun the exact required automated verification, and determine whether this session can honestly complete the pending 2 GB Go-to-Line plus Activity Monitor RSS acceptance.
+- What changed:
+  - re-read the root `AGENTS.md`, ran `pnpm harness:start`, and reran `./harness/init.sh --smoke` before touching `MF-055`
+  - re-checked the shipped large-file read path in `packages/desktop/src/main/fileManager.ts`, the desktop bridge in `packages/desktop/src/preload/index.ts` and `packages/shared/src/index.ts`, and the renderer Go-to-Line flow in `packages/editor/src/App.tsx` plus the existing `MF-055` regression tests
+  - reran the feature's required automated verification commands exactly as listed in `harness/feature-ledger.json`: `pnpm --filter @markflow/desktop test:run -- src/main/fileManager.test.ts`, `pnpm --filter @markflow/editor test:run -- src/__tests__/App.test.tsx`, and `pnpm harness:verify`
+  - reprobed the manual-verification gate with `swift -e 'import ApplicationServices; print(AXIsProcessTrusted())'`, `osascript -e 'tell application "Activity Monitor" to activate'`, and `osascript -e 'with timeout of 5 seconds' -e 'tell application "System Events" to tell process "Activity Monitor" to count windows' -e 'end timeout'`
+  - left production code and `harness/feature-ledger.json` unchanged because `MF-055` is already implemented, the required automation is green, and this session still cannot satisfy the required GUI/RSS proof honestly
+- Changed files:
+  - `harness/progress.md`
+- Simplifications made:
+  - stayed strictly on `MF-055`; no unrelated feature edits, refactors, or ledger promotion were introduced
+  - skipped regenerating another 2 GB fixture because the blocker is still Activity Monitor accessibility, not the large-file implementation or fixture generator
+- Verification:
+  - `pnpm harness:start` (passes)
+  - `./harness/init.sh --smoke` (passes; workspace smoke rerun completed with desktop 33/33 and editor 367 passed with 3 skips)
+  - `pnpm --filter @markflow/desktop test:run -- src/main/fileManager.test.ts` (passes; current desktop package script still runs the full desktop suite, 6 files / 33 tests, including the `MF-055` large-file windowing coverage)
+  - `pnpm --filter @markflow/editor test:run -- src/__tests__/App.test.tsx` (passes; current editor package script still runs the full editor suite, 33 files / 367 tests with 3 skips, including the `MF-055` large-file Go-to-Line bridge coverage)
+  - `pnpm harness:verify` (passes; 106 total | verified=63 | ready=19 | planned=23 | blocked=1 | regression=0)
+  - manual-verification capability probes (blocked): `swift -e 'import ApplicationServices; print(AXIsProcessTrusted())'` returned `false`; `osascript -e 'tell application "Activity Monitor" to activate'` succeeded; `osascript -e 'with timeout of 5 seconds' -e 'tell application "System Events" to tell process "Activity Monitor" to count windows' -e 'end timeout'` failed with `System Events got an error: osascript is not allowed assistive access. (-25211)`
+- Review / risks:
+  - `MF-055` must remain `status=planned`, `passes=false`, and `lastVerifiedAt=null` until a trusted desktop session opens a synthetic 2 GB markdown file, jumps to line 1,000,000, confirms the target line appears within 2 seconds, and confirms Activity Monitor RSS stays below 512 MB
+  - the blocker is still environmental rather than code-level: this session cannot inspect Activity Monitor honestly without Accessibility trust, so the manual memory proof cannot be claimed
+- Newly verified features:
+  - none
+- Next recommended feature:
+  - `MF-055` - complete the pending 2 GB desktop Go-to-Line timing and Activity Monitor RSS verification in a real Accessibility-enabled session, then update the ledger only if those checks truly pass
+
 ### 2026-04-16 - MF-055 rerun reconfirmed automation and preserved the manual-verification blocker
 
 - Author: Codex
