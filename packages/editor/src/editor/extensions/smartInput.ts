@@ -1,4 +1,5 @@
 import { ensureSyntaxTree, syntaxTree } from '@codemirror/language'
+import { isolateHistory } from '@codemirror/commands'
 import { Prec } from '@codemirror/state'
 import { EditorView, KeyBinding, keymap } from '@codemirror/view'
 import { clearFormatting } from '../clearFormatting'
@@ -435,6 +436,54 @@ export function insertMathBlockScaffold(view: EditorView, options?: SmartInputOp
   }))
 }
 
+function duplicateLineOrSelection(view: EditorView): boolean {
+  const { state } = view
+
+  if (state.selection.ranges.length !== 1 || state.doc.length === 0) {
+    return false
+  }
+
+  const selection = state.selection.main
+  const firstLine = state.doc.lineAt(selection.from)
+  const lastLinePosition = selection.empty ? selection.head : Math.max(selection.from, selection.to - 1)
+  const lastLine = state.doc.lineAt(lastLinePosition)
+  const blockFrom = firstLine.from
+  const blockTo = lastLine.to
+  const duplicateText = state.doc.sliceString(blockFrom, blockTo)
+  const separator = '\n'
+  const insertedFrom = blockTo + separator.length
+
+  if (!duplicateText && blockTo === state.doc.length) {
+    return false
+  }
+
+  if (selection.empty) {
+    const column = selection.head - firstLine.from
+
+    view.dispatch({
+      changes: { from: blockTo, insert: `${separator}${duplicateText}` },
+      selection: { anchor: insertedFrom + column },
+      annotations: [isolateHistory.of('full')],
+      scrollIntoView: true,
+    })
+    return true
+  }
+
+  const anchorOffset = Math.min(Math.max(selection.anchor, blockFrom), blockTo) - blockFrom
+  const headOffset = Math.min(Math.max(selection.head, blockFrom), blockTo) - blockFrom
+
+  view.dispatch({
+    changes: { from: blockTo, insert: `${separator}${duplicateText}` },
+    selection: {
+      anchor: insertedFrom + anchorOffset,
+      head: insertedFrom + headOffset,
+    },
+    annotations: [isolateHistory.of('full')],
+    scrollIntoView: true,
+  })
+  return true
+}
+
 export function wrapSelectionOrInsert(
   view: EditorView,
   open: string,
@@ -585,6 +634,11 @@ function buildSmartInputKeymap(options?: SmartInputOptions): KeyBinding[] {
     key: 'Mod-\\',
     preventDefault: true,
     run: clearFormatting,
+  },
+  {
+    key: 'Mod-Shift-d',
+    preventDefault: true,
+    run: duplicateLineOrSelection,
   },
   {
     key: 'Shift-Enter',

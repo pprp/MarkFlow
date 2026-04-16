@@ -707,6 +707,18 @@ export function App() {
         case 'toggle-minimap':
           setShowMinimap((current) => !current)
           break
+        case 'toggle-sidebar':
+          setShowSidebar((current) => !current)
+          break
+        case 'toggle-outline':
+          setOutlineCollapsed((current) => !current)
+          break
+        case 'toggle-focus-mode':
+          toggleFocusMode()
+          break
+        case 'toggle-typewriter-mode':
+          toggleTypewriterMode()
+          break
         case 'clear-formatting':
           editorRef.current?.executeCommand('edit-clear-formatting')
           break
@@ -725,6 +737,63 @@ export function App() {
         case 'export-epub':
         case 'export-latex':
           await handlePandocExportRef.current(action)
+          break
+        case 'go-to-line':
+          setIsGoToLineOpen(true)
+          break
+        case 'command-palette':
+          setIsCommandPaletteOpen(true)
+          break
+        case 'quick-open':
+          setIsQuickOpenOpen(true)
+          break
+        case 'global-search':
+          setIsGlobalSearchOpen(true)
+          break
+        case 'format-bold':
+          editorRef.current?.executeCommand('edit-bold')
+          break
+        case 'format-italic':
+          editorRef.current?.executeCommand('edit-italic')
+          break
+        case 'format-strikethrough':
+          editorRef.current?.executeCommand('edit-strikethrough')
+          break
+        case 'format-code':
+          editorRef.current?.executeCommand('edit-inline-code')
+          break
+        case 'format-link':
+          editorRef.current?.executeCommand('edit-link')
+          break
+        case 'format-heading-1':
+          editorRef.current?.executeCommand('edit-heading-1')
+          break
+        case 'format-heading-2':
+          editorRef.current?.executeCommand('edit-heading-2')
+          break
+        case 'format-heading-3':
+          editorRef.current?.executeCommand('edit-heading-3')
+          break
+        case 'insert-image':
+          editorRef.current?.executeCommand('insert-image')
+          break
+        case 'insert-table':
+          editorRef.current?.executeCommand('insert-table')
+          break
+        case 'insert-hr':
+          editorRef.current?.executeCommand('insert-hr')
+          break
+        case 'insert-code-block':
+          editorRef.current?.executeCommand('insert-code-fence')
+          break
+        case 'insert-math':
+          editorRef.current?.executeCommand('insert-math-block')
+          break
+        case 'insert-blockquote':
+          editorRef.current?.executeCommand('insert-blockquote')
+          break
+        case 'insert-task-list':
+          editorRef.current?.executeCommand('insert-task-list')
           break
       }
     }
@@ -1956,9 +2025,9 @@ export function App() {
         {/* Spacer for macOS traffic lights (hiddenInset titleBarStyle) */}
         <div className="mf-titlebar-traffic-spacer" />
         <div className="mf-titlebar-left">
-          <svg className="mf-logo-icon" width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-            <path d="M3 14 L7 6 L10 11 L13 8 L17 14" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
-            <circle cx="10" cy="3.5" r="1.5" fill="var(--mf-accent)" opacity="0.85"/>
+          <svg className="mf-logo-icon" width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <path d="M2 13L5.5 5.5L9 10.5L12.5 7.5L16 13" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+            <circle cx="9" cy="3" r="1.3" fill="currentColor" opacity="0.7"/>
           </svg>
           <span className="mf-titlebar-appname">MarkFlow</span>
         </div>
@@ -2020,14 +2089,14 @@ export function App() {
             aria-pressed={typewriterMode}
           >
             <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-              <rect x="1" y="3" width="10" height="6.5" rx="1.2" stroke="currentColor" strokeWidth="1.2" fill="none"/>
+              <rect x="1" y="3" width="10" height="6.5" rx="1.2" stroke="currentColor" strokeWidth="1.1" fill="none"/>
               <rect x="3" y="5.5" width="1.2" height="1.2" rx="0.3" fill="currentColor"/>
               <rect x="5.4" y="5.5" width="1.2" height="1.2" rx="0.3" fill="currentColor"/>
               <rect x="7.8" y="5.5" width="1.2" height="1.2" rx="0.3" fill="currentColor"/>
-              <rect x="3.8" y="7.5" width="4.4" height="1" rx="0.3" fill="currentColor" opacity="0.6"/>
-              <rect x="3.5" y="1.2" width="5" height="1.2" rx="0.6" fill="currentColor" opacity="0.4"/>
+              <rect x="3.8" y="7.5" width="4.4" height="1" rx="0.3" fill="currentColor" opacity="0.5"/>
+              <rect x="3.5" y="1.2" width="5" height="1.2" rx="0.6" fill="currentColor" opacity="0.3"/>
             </svg>
-            TW
+            Typewriter
           </button>
           <button
             className={`mf-mode-toggle${focusMode ? ' mf-mode-active' : ''}`}
@@ -2052,6 +2121,13 @@ export function App() {
             aria-label="Toggle file sidebar"
             aria-pressed={showSidebar}
           >
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <rect x="1" y="1" width="10" height="10" rx="1.5" stroke="currentColor" strokeWidth="1.1" fill="none"/>
+              <line x1="4.5" y1="1" x2="4.5" y2="11" stroke="currentColor" strokeWidth="1.1"/>
+              <line x1="1.5" y1="4" x2="4" y2="4" stroke="currentColor" strokeWidth="0.8" strokeLinecap="round"/>
+              <line x1="1.5" y1="6" x2="4" y2="6" stroke="currentColor" strokeWidth="0.8" strokeLinecap="round"/>
+              <line x1="1.5" y1="8" x2="3.5" y2="8" stroke="currentColor" strokeWidth="0.8" strokeLinecap="round"/>
+            </svg>
             Files
           </button>
           {/* Segmented control for view mode */}
@@ -2268,7 +2344,7 @@ export function App() {
         <span className="mf-statusbar-sep" aria-hidden="true">·</span>
         <span className="mf-statusbar-stat">{docStats.lines.toLocaleString()} lines</span>
         <span className="mf-statusbar-sep" aria-hidden="true">·</span>
-        <span className="mf-statusbar-stat">{docStats.chars.toLocaleString()} chars</span>
+        <span className="mf-statusbar-stat">{docStats.chars.toLocaleString()} characters</span>
         <span className="mf-statusbar-sep" aria-hidden="true">·</span>
         <span className="mf-statusbar-stat">{docStats.readingMinutes} min read</span>
         {activeTab?.largeFile ? (

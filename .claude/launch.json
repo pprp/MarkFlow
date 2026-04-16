@@ -5,7 +5,7 @@
       "name": "markflow-editor",
       "runtimeExecutable": "pnpm",
       "runtimeArgs": ["dev"],
-      "port": 5175
+      "port": 5173
     }
   ]
 }

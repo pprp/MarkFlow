@@ -258,6 +258,85 @@ describe('MarkFlowEditor', () => {
     expect(restoredSelection.head).toBe(view.state.doc.line(3).to)
   })
 
+  it('duplicates the active line below the caret and lands on the copy', () => {
+    const content = ['alpha', 'beta', 'gamma'].join('\n')
+    const duplicatedContent = ['alpha', 'beta', 'beta', 'gamma'].join('\n')
+    const { container } = render(
+      <MarkFlowEditor content={content} viewMode="wysiwyg" onChange={vi.fn()} />,
+    )
+
+    const view = getEditorView(container)
+    view.dispatch({ selection: { anchor: view.state.doc.line(2).from + 2 } })
+
+    dispatchEditorShortcut(view, {
+      key: 'D',
+      code: 'KeyD',
+      keyCode: 68,
+      ctrlKey: true,
+      shiftKey: true,
+    })
+
+    expect(view.state.doc.toString()).toBe(duplicatedContent)
+    expect(view.state.selection.main.empty).toBe(true)
+    expect(view.state.doc.lineAt(view.state.selection.main.head).number).toBe(3)
+    expect(view.state.selection.main.head).toBe(view.state.doc.line(3).from + 2)
+  })
+
+  it('duplicates a multi-line selection as a contiguous block and keeps the copy selected', () => {
+    const content = ['one', 'two', 'three', 'four'].join('\n')
+    const duplicatedContent = ['one', 'two', 'three', 'two', 'three', 'four'].join('\n')
+    const { container } = render(
+      <MarkFlowEditor content={content} viewMode="wysiwyg" onChange={vi.fn()} />,
+    )
+
+    const view = getEditorView(container)
+    view.dispatch({
+      selection: EditorSelection.range(view.state.doc.line(2).from, view.state.doc.line(3).to),
+    })
+
+    dispatchEditorShortcut(view, {
+      key: 'D',
+      code: 'KeyD',
+      keyCode: 68,
+      ctrlKey: true,
+      shiftKey: true,
+    })
+
+    expect(view.state.doc.toString()).toBe(duplicatedContent)
+
+    const selection = view.state.selection.main
+    expect(view.state.sliceDoc(selection.from, selection.to)).toBe(['two', 'three'].join('\n'))
+    expect(selection.anchor).toBe(view.state.doc.line(4).from)
+    expect(selection.head).toBe(view.state.doc.line(5).to)
+  })
+
+  it('treats Cmd/Ctrl+Shift+D duplication as a single undoable history step', () => {
+    const content = ['start', 'middle', 'end'].join('\n')
+    const duplicatedContent = ['start', 'middle', 'middle', 'end'].join('\n')
+    const { container } = render(
+      <MarkFlowEditor content={content} viewMode="wysiwyg" onChange={vi.fn()} />,
+    )
+
+    const view = getEditorView(container)
+    view.dispatch({ selection: { anchor: view.state.doc.line(2).from + 3 } })
+
+    dispatchEditorShortcut(view, {
+      key: 'D',
+      code: 'KeyD',
+      keyCode: 68,
+      ctrlKey: true,
+      shiftKey: true,
+    })
+    expect(view.state.doc.toString()).toBe(duplicatedContent)
+
+    expect(undo(view)).toBe(true)
+    expect(view.state.doc.toString()).toBe(content)
+    expect(view.state.selection.main.head).toBe(view.state.doc.line(2).from + 3)
+
+    expect(redo(view)).toBe(true)
+    expect(view.state.doc.toString()).toBe(duplicatedContent)
+  })
+
   it('treats Alt+Arrow line moves as a single undoable history step', () => {
     const content = ['start', 'middle', 'end'].join('\n')
     const movedContent = ['start', 'end', 'middle'].join('\n')
