@@ -321,6 +321,46 @@
 - Next recommended feature:
   - `MF-060` - complete the pending GUI/manual crash-relaunch recovery acceptance flow with direct human control or working Accessibility permission, then update the ledger only if the prompt and restored checkpoint content truly pass
 
+### 2026-04-16 - MF-055 windowed large-file navigation implemented, manual RSS proof still pending
+
+- Author: Codex
+- Focus: implement the `MF-055` random-access large-file read path without loading the full document into renderer memory, then run the feature's automated verification and keep the ledger truthful about the remaining manual proof gap.
+- What changed:
+  - re-read the root `AGENTS.md`, ran `pnpm harness:start`, then ran `./harness/init.sh --smoke` before touching `MF-055`
+  - tightened `packages/desktop/src/main/fileManager.ts` so the existing windowed large-file path now slices line windows with copied buffers and without a trailing boundary newline, and so non-windowed reads stop injecting `largeFile: null` into ordinary payloads
+  - added regression coverage in `packages/desktop/src/main/fileManager.test.ts` and `packages/editor/src/__tests__/App.test.tsx`, and added `packages/editor/src/styles/global.css` coverage for the large-file banner surfaced by the current UI
+  - wrote the new automated verification commands and refreshed `MF-055` implementation notes back to `harness/feature-ledger.json` without changing `status`, `passes`, or `lastVerifiedAt`
+- Changed files:
+  - `harness/feature-ledger.json`
+  - `harness/progress.md`
+  - `packages/desktop/src/main/fileManager.ts`
+  - `packages/desktop/src/main/fileManager.test.ts`
+  - `packages/editor/src/__tests__/App.test.tsx`
+  - `packages/editor/src/styles/global.css`
+- Simplifications made:
+  - kept `MF-052` intact for sub-256 MB files and introduced the new memory-bounded path only above the new large-file threshold, so existing chunk-loader behavior and coverage remained valid
+  - reused the existing Go-to-Line dialog and editor shell instead of introducing a second large-file viewer surface; only the navigation backend switches to IPC when a tab is windowed
+- Verification:
+  - `pnpm harness:start` (passes)
+  - `./harness/init.sh --smoke` (passes; reran workspace smoke verification)
+  - `pnpm --filter @markflow/desktop test:run -- src/main/fileManager.test.ts` (passes; current desktop script still runs the full desktop suite, 6 files / 33 tests)
+  - `pnpm --filter @markflow/editor test:run -- src/__tests__/App.test.tsx` (passes; current editor script still runs the full editor suite, 33 files / 367 tests with 3 skipped)
+  - `pnpm --filter @markflow/shared build` (passes)
+  - `pnpm --filter @markflow/desktop build` (passes)
+  - `pnpm --filter @markflow/editor build` (passes)
+  - `pnpm --filter @markflow/shared lint` (passes)
+  - `pnpm --filter @markflow/desktop lint` (passes)
+  - `pnpm --filter @markflow/editor lint` (passes)
+  - `pnpm harness:verify` (passes; 106 total | verified=64 | ready=19 | planned=23 | blocked=0)
+- Review / risks:
+  - `MF-055` still cannot move to `status=verified`, `passes=true`, or receive `lastVerifiedAt` until a real GUI session opens a synthetic 2 GB file, jumps to line 1,000,000, confirms the target line is visible within 2 seconds, and confirms Activity Monitor RSS stays below 512 MB
+  - this terminal session did not perform the required manual GUI timing or Activity Monitor checks, so `harness/feature-ledger.json` must remain `status=planned`, `passes=false`, and `lastVerifiedAt=null`
+  - large-file tabs are intentionally read-only and export-disabled because the renderer only owns a sliding window, not the full document; editing semantics should not be widened without a separate write path
+- Newly verified features:
+  - none
+- Next recommended feature:
+  - `MF-055` - complete the pending manual 2 GB jump-time and Activity Monitor RSS verification in a real desktop session, then update `status`, `passes`, and `lastVerifiedAt` only if those checks truly pass
+
 ### 2026-04-16 - MF-074 shipped the command palette flow while keeping the ledger honest about manual proof
 
 - Author: Codex

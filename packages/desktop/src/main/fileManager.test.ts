@@ -219,8 +219,8 @@ describe('FileManager window sessions', () => {
 
     expect(await manager.getWindowSession()).toEqual({
       documents: [
-        { filePath: firstPath, content: '# First', largeFile: null },
-        { filePath: secondPath, content: '# Second', largeFile: null },
+        { filePath: firstPath, content: '# First' },
+        { filePath: secondPath, content: '# Second' },
       ],
       activeFilePath: secondPath,
     })
@@ -367,7 +367,7 @@ describe('FileManager chunk loader', () => {
     window.webContents.send.mockClear()
 
     expect(result?.filePath).toBe(filePath)
-    expect(result?.largeFile).toBeNull()
+    expect(result?.largeFile).toBeUndefined()
     expect(result?.content === fileContent).toBe(true)
     expect(progressCalls.length).toBeGreaterThan(1)
     expect(progressCalls[0]).toEqual(
@@ -391,8 +391,81 @@ describe('FileManager chunk loader', () => {
     expect(fileOpenedPayload).toEqual({
       filePath,
       content: fileContent,
-      largeFile: null,
     })
+  })
+})
+
+describe('FileManager large file windowing', () => {
+  beforeEach(() => {
+    handleMock.mockReset()
+    onMock.mockReset()
+    removeAllListenersMock.mockReset()
+    removeHandlerMock.mockReset()
+    showSaveDialogMock.mockReset()
+    showMessageBoxMock.mockReset()
+    appGetPathMock.mockReset()
+    appGetPathMock.mockImplementation(() => '/tmp')
+    vi.restoreAllMocks()
+  })
+
+  it('opens over-threshold files as bounded read-only windows and supports random-access jumps', async () => {
+    const window = createWindowStub()
+    const manager = new FileManager(window as never, undefined, {
+      windowedLineCheckpointInterval: 4,
+      windowedLineContextBefore: 1,
+      windowedLineWindowSize: 6,
+      windowedOpenThresholdBytes: 32,
+      windowedProgressIntervalBytes: 16,
+      windowedReadChunkSize: 16,
+    })
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'markflow-windowed-loader-'))
+    const filePath = path.join(tempDir, 'huge.md')
+    const lines = Array.from({ length: 20 }, (_, index) => `Line ${index + 1}`)
+    const fileContent = lines.join('\n')
+    const totalBytes = Buffer.byteLength(fileContent, 'utf-8')
+
+    fs.writeFileSync(filePath, fileContent, 'utf-8')
+
+    const opened = await manager.openPath(filePath)
+    const jumped = await manager.readLargeFileWindow(filePath, 12)
+    const progressCalls = window.webContents.send.mock.calls.filter(
+      ([channel]) => channel === 'file-loading-progress',
+    )
+
+    expect(opened).toEqual({
+      filePath,
+      content: lines.slice(0, 6).join('\n'),
+      largeFile: {
+        totalBytes,
+        totalLines: 20,
+        windowStartLine: 1,
+        windowEndLine: 6,
+        anchorLine: 1,
+        readOnly: true,
+      },
+    })
+    expect(jumped).toEqual({
+      filePath,
+      content: lines.slice(10, 16).join('\n'),
+      largeFile: {
+        totalBytes,
+        totalLines: 20,
+        windowStartLine: 11,
+        windowEndLine: 16,
+        anchorLine: 12,
+        readOnly: true,
+      },
+    })
+    expect(progressCalls.length).toBeGreaterThan(0)
+    expect(progressCalls.at(-1)?.[1]).toEqual(
+      expect.objectContaining({
+        filePath,
+        bytesRead: totalBytes,
+        totalBytes,
+        done: true,
+      }),
+    )
+    expect(window.webContents.send).toHaveBeenCalledWith('file-opened', opened)
   })
 })
 

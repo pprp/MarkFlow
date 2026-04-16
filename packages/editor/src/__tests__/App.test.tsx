@@ -46,6 +46,32 @@ function getOpenTabs() {
   return screen.getAllByRole('tab')
 }
 
+function buildWindowedPayload(
+  filePath: string,
+  windowStartLine: number,
+  windowEndLine: number,
+  anchorLine: number,
+  totalLines: number = 1_500_000,
+): MarkFlowFilePayload {
+  const lines: string[] = []
+  for (let lineNumber = windowStartLine; lineNumber <= windowEndLine; lineNumber += 1) {
+    lines.push(`Line ${lineNumber}`)
+  }
+
+  return {
+    filePath,
+    content: lines.join('\n'),
+    largeFile: {
+      totalBytes: 2 * 1024 * 1024 * 1024,
+      totalLines,
+      windowStartLine,
+      windowEndLine,
+      anchorLine,
+      readOnly: true,
+    },
+  }
+}
+
 class MockMarkFlowAPI implements MarkFlowDesktopAPI {
   private themes: MarkFlowThemeSummary[] = [
     { id: 'paper', name: 'Paper' },
@@ -1023,6 +1049,48 @@ describe('App desktop integration', () => {
     await waitFor(() => {
       expect(getEditorView(container).state.selection.main.head).toBe(content.indexOf('Third'))
     })
+  })
+
+  it('routes go-to-line through the large-file window bridge and keeps the editor read-only', async () => {
+    const api = new MockMarkFlowAPI()
+    const initialPayload = buildWindowedPayload('/tmp/huge.md', 1, 400, 1)
+    const jumpedPayload = buildWindowedPayload('/tmp/huge.md', 999_960, 1_000_359, 1_000_000)
+    api.readLargeFileWindow = vi.fn(async () => jumpedPayload)
+    window.markflow = api
+
+    const { container } = render(<App />)
+
+    await act(async () => {
+      api.emitFileOpened(initialPayload)
+    })
+
+    expect(getEditorView(container).state.facet(EditorView.editable)).toBe(false)
+    expect(
+      screen.getByText(/Large-file mode: showing lines 1-400 of 1,500,000\./),
+    ).toBeInTheDocument()
+
+    fireEvent.keyDown(document, { key: 'l', ctrlKey: true })
+
+    const lineInput = await screen.findByRole('textbox', { name: 'Line number' })
+    expect(screen.getByText('Line 1 of 1,500,000')).toBeInTheDocument()
+
+    fireEvent.change(lineInput, { target: { value: '1000000' } })
+    fireEvent.submit(lineInput.closest('form') as HTMLFormElement)
+
+    await waitFor(() => {
+      expect(api.readLargeFileWindow).toHaveBeenCalledWith('/tmp/huge.md', 1000000)
+    })
+
+    await waitFor(() => {
+      expect(getEditorView(container).state.selection.main.head).toBe(
+        jumpedPayload.content.indexOf('Line 1000000'),
+      )
+    })
+
+    expect(
+      screen.getByText(/showing lines 999,960-1,000,359 of 1,500,000/),
+    ).toBeInTheDocument()
+    expect(screen.getByText('line 1,000,000 / 1,500,000')).toBeInTheDocument()
   })
 
   it('routes pandoc export menu actions (docx, epub, latex) through the desktop bridge', async () => {

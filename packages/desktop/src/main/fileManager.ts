@@ -355,11 +355,7 @@ export class FileManager {
 
     const stats = await fs.promises.stat(filePath)
     if (stats.size < this.options.windowedOpenThresholdBytes) {
-      const content = await this.readFileForOpen(filePath)
-      return {
-        ...content,
-        largeFile: null,
-      }
+      return this.readFileForOpen(filePath)
     }
 
     return this.readWindowedLargeFilePayload(filePath, stats, lineNumber)
@@ -955,7 +951,6 @@ export class FileManager {
       return {
         filePath,
         content: await fs.promises.readFile(filePath, 'utf-8'),
-        largeFile: null,
       }
     }
 
@@ -1014,7 +1009,6 @@ export class FileManager {
         resolve({
           filePath,
           content: Buffer.concat(chunks).toString('utf-8'),
-          largeFile: null,
         })
       })
     })
@@ -1259,8 +1253,8 @@ export class FileManager {
           }
 
           if (collectedLineCount === desiredLineCount) {
-            segmentEnd = position + 1
-            chunks.push(chunk.subarray(0, segmentEnd))
+            segmentEnd = position
+            chunks.push(Buffer.from(chunk.subarray(0, segmentEnd)))
             return Buffer.concat(chunks).toString('utf-8')
           }
 
@@ -1268,7 +1262,7 @@ export class FileManager {
         }
 
         if (segmentEnd > 0) {
-          chunks.push(chunk.subarray(0, segmentEnd))
+          chunks.push(Buffer.from(chunk.subarray(0, segmentEnd)))
         }
 
         currentOffset += bytesRead

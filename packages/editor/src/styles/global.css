@@ -622,6 +622,22 @@ body {
   font: 12px/1.55 var(--mf-font-mono);
 }
 
+.mf-large-file-banner {
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  bottom: 16px;
+  padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, var(--mf-accent) 24%, var(--mf-border-light));
+  border-radius: var(--mf-radius);
+  background: color-mix(in srgb, var(--mf-bg-secondary) 92%, transparent);
+  color: var(--mf-fg-secondary);
+  font-size: 12px;
+  line-height: 1.45;
+  box-shadow: var(--mf-shadow);
+  z-index: 4;
+}
+
 /* ── Split view ─────────────────────────────────────────────── */
 .mf-split-container {
   display: flex;

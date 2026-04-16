@@ -1438,12 +1438,15 @@
         "Confirm resident memory usage stays below 512 MB."
       ],
       "verification": {
-        "automated": [],
+        "automated": [
+          "pnpm --filter @markflow/desktop test:run -- src/main/fileManager.test.ts",
+          "pnpm --filter @markflow/editor test:run -- src/__tests__/App.test.tsx"
+        ],
         "manual": [
           "Monitor Activity Monitor RSS while jumping to arbitrary positions."
         ]
       },
-      "notes": "Electron main-process reads a sliding window; renderer requests line ranges via IPC."
+      "notes": "Current `MF-055` implementation, re-verified on 2026-04-16, routes files larger than 256 MB through a windowed large-file path that builds sparse newline checkpoints, keeps only a 400-line sliding window in memory, and serves random-access line requests over `read-large-file-window` instead of materializing the full file in the renderer. The shared/preload desktop bridge exposes `MarkFlowFilePayload.largeFile` plus `readLargeFileWindow()`, while the editor presents a read-only large-file banner, global line counts, and IPC-backed Go-to-Line jumps without enabling partial-window edits or exports. Regression coverage in `packages/desktop/src/main/fileManager.test.ts` and `packages/editor/src/__tests__/App.test.tsx` passed on 2026-04-16 with the listed automated commands; `pnpm --filter @markflow/shared build`, `pnpm --filter @markflow/desktop build`, `pnpm --filter @markflow/editor build`, `pnpm --filter @markflow/shared lint`, `pnpm --filter @markflow/desktop lint`, `pnpm --filter @markflow/editor lint`, and `pnpm harness:verify` also passed. `passes` remains false because this session has not yet completed the required 2 GB manual jump timing and Activity Monitor RSS verification."
     },
     {
       "id": "MF-056",
