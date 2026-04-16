@@ -58,6 +58,7 @@ import { emojiAutocompleteExtension } from './extensions/emojiAutocomplete'
 import { tableCommandExtension } from './extensions/tableCommands'
 import { markdownPostProcessorExtension } from './extensions/markdownPostProcessor'
 import { readingModeExtension } from './extensions/readingMode'
+import { clearFormatting } from './clearFormatting'
 import { tocDecorations } from './decorations/tocDecoration'
 import { findHeadingAnchorPosition } from './outline'
 import { indexerExtension, symbolTableField, type SymbolTable } from './indexer'
@@ -100,6 +101,7 @@ export type MarkFlowEditorCommand =
   | 'edit-italic'
   | 'edit-underline'
   | 'edit-link'
+  | 'edit-clear-formatting'
   | 'edit-undo'
   | 'edit-redo'
   | 'edit-select-all'
@@ -948,6 +950,8 @@ export const MarkFlowEditor = forwardRef<MarkFlowEditorHandle, MarkFlowEditorPro
             return applyUnderline(view)
           case 'edit-link':
             return applyLink(view)
+          case 'edit-clear-formatting':
+            return clearFormatting(view)
           case 'edit-undo':
             return undo(view)
           case 'edit-redo':

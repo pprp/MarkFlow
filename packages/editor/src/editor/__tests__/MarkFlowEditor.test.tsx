@@ -888,6 +888,19 @@ describe('MarkFlowEditor', () => {
     expect(v2.state.doc.toString()).toBe('Click [here](url)')
   })
 
+  it('clears inline formatting with Mod-\\ while keeping adjacent wrappers intact', () => {
+    const { container } = render(
+      <MarkFlowEditor content="Prefix [alpha](url) suffix" viewMode="wysiwyg" onChange={vi.fn()} />,
+    )
+    const view = getEditorView(container)
+    const from = view.state.doc.toString().indexOf('lp')
+    view.dispatch({ selection: { anchor: from, head: from + 2 } })
+
+    fireEvent.keyDown(view.contentDOM, { key: '\\', ctrlKey: true })
+
+    expect(view.state.doc.toString()).toBe('Prefix [a](url)lp[ha](url) suffix')
+  })
+
   it('inserts bold wrapper with placeholder when no selection', () => {
     const { container } = render(
       <MarkFlowEditor content="Hello world" viewMode="wysiwyg" onChange={vi.fn()} />,

@@ -103,4 +103,24 @@ describe('createApplicationMenuTemplate', () => {
 
     expect(sendMenuAction).toHaveBeenCalledWith('toggle-minimap')
   })
+
+  it('routes clear formatting through the renderer menu bridge', () => {
+    const sendMenuAction = vi.fn()
+    const template = createApplicationMenuTemplate({
+      canRevealCurrentFile: () => true,
+      revealCurrentFileInFolder: vi.fn(() => true),
+      sendMenuAction,
+      platform: 'linux',
+    })
+    const clearFormattingItem = getMenuItem(template, 'Edit', 'Clear Formatting')
+
+    clearFormattingItem?.click?.({} as never, {} as never, {} as never)
+
+    expect(clearFormattingItem).toEqual(
+      expect.objectContaining({
+        accelerator: 'CmdOrCtrl+\\',
+      }),
+    )
+    expect(sendMenuAction).toHaveBeenCalledWith('clear-formatting')
+  })
 })

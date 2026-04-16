@@ -1238,6 +1238,32 @@ describe('App desktop integration', () => {
     })
   })
 
+  it('routes clear formatting through the menu bridge into the active editor selection', async () => {
+    const api = new MockMarkFlowAPI()
+    window.markflow = api
+
+    const { container } = render(<App />)
+
+    await act(async () => {
+      api.emitFileOpened({ filePath: '/tmp/clear-formatting.md', content: 'Prefix [alpha](url) suffix' })
+    })
+
+    const view = getEditorView(container)
+    const from = view.state.doc.toString().indexOf('lp')
+
+    act(() => {
+      view.dispatch({ selection: EditorSelection.range(from, from + 2) })
+    })
+
+    await act(async () => {
+      api.emitMenuAction('clear-formatting')
+    })
+
+    await waitFor(() => {
+      expect(view.state.doc.toString()).toBe('Prefix [a](url)lp[ha](url) suffix')
+    })
+  })
+
   it('routes pandoc export menu actions (docx, epub, latex) through the desktop bridge', async () => {
     const api = new MockMarkFlowAPI()
     window.markflow = api
@@ -1620,6 +1646,36 @@ describe('App command palette integration', () => {
     expect(view.state.selection.main.from).toBe(2)
     expect(view.state.selection.main.to).toBe(7)
     expect(view.scrollDOM.scrollTop).toBe(120)
+    expect(screen.queryByPlaceholderText('Search commands...')).not.toBeInTheDocument()
+  })
+
+  it('exposes clear formatting in the command palette and unwraps the live selection', async () => {
+    const api = new MockMarkFlowAPI()
+    window.markflow = api
+
+    const { container } = render(<App />)
+
+    await act(async () => {
+      api.emitFileOpened({ filePath: '/docs/palette-clear.md', content: 'Prefix [alpha](url) suffix' })
+    })
+
+    const view = getEditorView(container)
+    const from = view.state.doc.toString().indexOf('lp')
+
+    act(() => {
+      view.dispatch({ selection: EditorSelection.range(from, from + 2) })
+    })
+
+    fireEvent.keyDown(document, { key: 'p', ctrlKey: true, shiftKey: true })
+
+    const input = await screen.findByPlaceholderText('Search commands...')
+    fireEvent.change(input, { target: { value: 'clear formatting' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+
+    await waitFor(() => {
+      expect(view.state.doc.toString()).toBe('Prefix [a](url)lp[ha](url) suffix')
+    })
+
     expect(screen.queryByPlaceholderText('Search commands...')).not.toBeInTheDocument()
   })
 

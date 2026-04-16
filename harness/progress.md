@@ -4874,3 +4874,49 @@
   - none
 - Next recommended feature:
   - `MF-071` - perform the pending live dictionary-switching/manual custom-word verification, then promote `passes` / `lastVerifiedAt` only if the real-app spellcheck highlights and dictionary additions behave as expected
+
+### 2026-04-16 - MF-077 clear formatting unwraps inline markup without lying about manual verification
+
+- Author: Codex
+- Focus: obey the startup protocol for `MF-077`, implement only the clear-formatting feature in `@markflow/editor`, run the requested automated verification plus `pnpm harness:verify`, and keep the ledger honest because the required nested-formatting manual check was not completed in this terminal session.
+- What changed:
+  - re-read the root `AGENTS.md`, ran `pnpm harness:start`, and reran `./harness/init.sh --smoke` before touching `MF-077`
+  - added `packages/editor/src/editor/clearFormatting.ts` so the editor can clear formatting by splitting or unwrapping supported inline wrappers around the current selection instead of flattening surrounding text; the helper now handles strong/emphasis, inline code, strikethrough, highlight, underline, and link labels while preserving unselected neighbors
+  - updated `packages/editor/src/editor/extensions/smartInput.ts`, `packages/editor/src/editor/MarkFlowEditor.tsx`, `packages/editor/src/App.tsx`, `packages/shared/src/index.ts`, and `packages/desktop/src/main/menu.ts` so Clear Formatting is available through `Cmd/Ctrl+\`, the imperative editor command bridge, the command palette, and the desktop menu bridge
+  - added focused coverage in `packages/editor/src/editor/__tests__/clearFormatting.test.ts` and extended `packages/editor/src/editor/__tests__/MarkFlowEditor.test.tsx`, `packages/editor/src/__tests__/App.test.tsx`, and `packages/desktop/src/main/menu.test.ts`, then updated `harness/feature-ledger.json` for `MF-077` only to `status=ready` while keeping `passes=false` and `lastVerifiedAt=null` because manual verification is still outstanding
+- Changed files:
+  - `packages/editor/src/editor/clearFormatting.ts`
+  - `packages/editor/src/editor/extensions/smartInput.ts`
+  - `packages/editor/src/editor/MarkFlowEditor.tsx`
+  - `packages/editor/src/App.tsx`
+  - `packages/editor/src/editor/__tests__/clearFormatting.test.ts`
+  - `packages/editor/src/editor/__tests__/MarkFlowEditor.test.tsx`
+  - `packages/editor/src/__tests__/App.test.tsx`
+  - `packages/shared/src/index.ts`
+  - `packages/desktop/src/main/menu.ts`
+  - `packages/desktop/src/main/menu.test.ts`
+  - `harness/feature-ledger.json`
+  - `harness/progress.md`
+- Simplifications made:
+  - kept scope strictly on `MF-077`; no second feature, no broader rich-text refactor, and no new dependency were introduced
+  - implemented clear formatting as a bounded inline-wrapper rewrite instead of replacing the whole raw source selection with plain text, which would have broken surrounding formatting on partial selections
+  - reused the existing editor/menu/palette command plumbing rather than inventing a new action surface for this one command
+- Verification:
+  - `pnpm harness:start` (passes)
+  - `./harness/init.sh --smoke` (passes; workspace smoke reran harness verification plus desktop/editor test suites)
+  - `pnpm --filter @markflow/editor exec vitest run src/editor/__tests__/clearFormatting.test.ts src/editor/__tests__/MarkFlowEditor.test.tsx src/__tests__/App.test.tsx` (passes; 3 files / 88 tests with 3 skips covering unwrap logic and shortcut/menu/palette integration)
+  - `pnpm --filter @markflow/desktop exec vitest run src/main/menu.test.ts` (passes; 1 file / 6 tests covering the desktop menu bridge entry)
+  - `pnpm --filter @markflow/shared lint` (passes)
+  - `pnpm --filter @markflow/shared build` (passes)
+  - `pnpm --filter @markflow/editor lint` (passes)
+  - `pnpm --filter @markflow/editor build` (passes)
+  - `pnpm --filter @markflow/desktop lint` (passes)
+  - `pnpm --filter @markflow/desktop build` (passes)
+  - `pnpm harness:verify` (passes before ledger update)
+- Review / risks:
+  - `MF-077` is implemented and automated coverage is green, but `passes` must remain false until someone performs the required live manual verification on nested formatting such as bold+italic+link and confirms every layer strips cleanly in the actual UI
+  - the rewrite logic currently targets the inline wrappers MarkFlow already exposes or renders explicitly; if new inline syntaxes are added later, `clearFormatting.ts` and `clearFormatting.test.ts` need to be extended together
+- Newly verified features:
+  - none
+- Next recommended feature:
+  - `MF-077` - perform the pending live nested-formatting manual verification, then promote `passes` / `lastVerifiedAt` only if the packaged app clears every inline layer without disturbing adjacent text

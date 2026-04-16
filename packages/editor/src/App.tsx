@@ -707,6 +707,9 @@ export function App() {
         case 'toggle-minimap':
           setShowMinimap((current) => !current)
           break
+        case 'clear-formatting':
+          editorRef.current?.executeCommand('edit-clear-formatting')
+          break
         case 'copy':
         case 'copy-as-markdown':
         case 'copy-as-html-code':
@@ -1653,6 +1656,16 @@ export function App() {
       shortcut: 'Mod+K',
       focusEditorAfterRun: true,
       run: () => editorRef.current?.executeCommand('edit-link') ?? false,
+    },
+    {
+      id: 'edit.clear-formatting',
+      label: 'Clear Formatting',
+      category: 'Edit',
+      description: 'Strip inline markdown wrappers from the current selection',
+      keywords: ['plain text', 'remove style', 'unwrap link', 'format'],
+      shortcut: 'Mod+\\',
+      focusEditorAfterRun: true,
+      run: () => editorRef.current?.executeCommand('edit-clear-formatting') ?? false,
     },
     {
       id: 'edit.undo',

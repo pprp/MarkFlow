@@ -2032,7 +2032,7 @@
       "category": "phase-2-functional",
       "area": "@markflow/editor",
       "priority": 3,
-      "status": "planned",
+      "status": "ready",
       "passes": false,
       "lastVerifiedAt": null,
       "dependsOn": ["MF-066"],
@@ -2049,7 +2049,7 @@
           "Run the action on nested formatting (e.g. bold+italic+link) and confirm every layer strips cleanly."
         ]
       },
-      "notes": "Typora's Format menu exposes Clear Formatting. Sources: https://support.typora.io/Shortcut-Keys/ and https://support.typora.io/Markdown-Reference/."
+      "notes": "Implemented on 2026-04-16 in `packages/editor/src/editor/clearFormatting.ts`, `packages/editor/src/editor/extensions/smartInput.ts`, `packages/editor/src/editor/MarkFlowEditor.tsx`, `packages/editor/src/App.tsx`, `packages/shared/src/index.ts`, and `packages/desktop/src/main/menu.ts`. This run adds a selection-aware clear-formatting transform that unwraps or splits supported inline wrappers (bold, italic, inline code, strikethrough, highlight, underline, and links) so the selected text becomes plain text while adjacent unselected text keeps its original formatting. The action is now exposed through `Cmd/Ctrl+\\`, the command palette, and the desktop menu bridge. Automated coverage in `packages/editor/src/editor/__tests__/clearFormatting.test.ts`, `packages/editor/src/editor/__tests__/MarkFlowEditor.test.tsx`, `packages/editor/src/__tests__/App.test.tsx`, and `packages/desktop/src/main/menu.test.ts` passed for partial-range unwrapping plus shortcut/menu/palette dispatch, but `passes` remains false because the required live nested-formatting manual verification was not completed in this terminal session. Sources: https://support.typora.io/Shortcut-Keys/ and https://support.typora.io/Markdown-Reference/."
     },
     {
       "id": "MF-078",

@@ -1,6 +1,7 @@
 import { ensureSyntaxTree, syntaxTree } from '@codemirror/language'
 import { Prec } from '@codemirror/state'
 import { EditorView, KeyBinding, keymap } from '@codemirror/view'
+import { clearFormatting } from '../clearFormatting'
 
 const STRUCTURAL_PAIRS: Record<string, string> = {
   '(': ')',
@@ -579,6 +580,11 @@ function buildSmartInputKeymap(options?: SmartInputOptions): KeyBinding[] {
     key: 'Mod-k',
     preventDefault: true,
     run: applyLink,
+  },
+  {
+    key: 'Mod-\\',
+    preventDefault: true,
+    run: clearFormatting,
   },
   {
     key: 'Shift-Enter',

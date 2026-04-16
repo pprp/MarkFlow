@@ -88,6 +88,7 @@ export type MarkFlowMenuAction =
   | 'next-tab'
   | 'previous-tab'
   | 'toggle-minimap'
+  | 'clear-formatting'
   | 'copy'
   | 'copy-as-markdown'
   | 'copy-as-html-code'

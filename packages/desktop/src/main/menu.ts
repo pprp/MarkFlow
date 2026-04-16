@@ -71,6 +71,8 @@ export function createApplicationMenuTemplate({
         { type: 'separator' },
         { role: 'paste' },
         { role: 'selectAll' },
+        { type: 'separator' },
+        { label: 'Clear Formatting', accelerator: 'CmdOrCtrl+\\', click: () => sendMenuAction('clear-formatting') },
       ],
     },
     {
