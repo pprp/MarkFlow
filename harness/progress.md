@@ -9,6 +9,39 @@
 
 ## Session Log
 
+### 2026-04-16 - MF-055 live 2 GB jumps passed but RSS proof stayed ambiguous
+
+- Author: Codex
+- Focus: obey the startup protocol for `MF-055`, rerun the exact required automation, and determine whether this session can truthfully close the pending 2 GB jump-time plus memory acceptance.
+- What changed:
+  - re-read the root `AGENTS.md`, ran `pnpm harness:start`, and reran `./harness/init.sh --smoke` before touching `MF-055`
+  - rechecked the shipped `MF-055` implementation in `packages/desktop/src/main/fileManager.ts`, `packages/desktop/src/preload/index.ts`, `packages/shared/src/index.ts`, `packages/editor/src/App.tsx`, `packages/desktop/src/main/fileManager.test.ts`, and `packages/editor/src/__tests__/App.test.tsx`; no production code changes were required because the windowed large-file path, desktop bridge, and read-only Go-to-Line flow are already in place
+  - generated a temporary 2 GB fixture at `harness/fixtures/mf-large-2gb.md`, launched the packaged desktop app from `dist-mac/mac-arm64/MarkFlow.app` with `--remote-debugging-port=9236`, and drove the real renderer through Chromium CDP instead of adding product hooks
+  - ran two live packaged-app jumps, then compared the packaged-app process tree in both Activity Monitor's visible Memory column and raw `ps rss` output
+  - left `harness/feature-ledger.json` unchanged because the jump-time requirement passed but the memory proof still conflicts on metric/threshold interpretation in this session
+- Changed files:
+  - `harness/progress.md`
+- Simplifications made:
+  - kept scope on `MF-055`; no unrelated feature edits, speculative large-file refactors, or ledger promotion were introduced
+  - used the already-built packaged app and external automation only; no temporary product instrumentation was added
+- Verification:
+  - `pnpm harness:start` (passes)
+  - `./harness/init.sh --smoke` (passes; reran workspace smoke verification with desktop 33/33 and editor 367 passed with 3 skips)
+  - `pnpm --filter @markflow/desktop test:run -- src/main/fileManager.test.ts` (passes; 6 files / 33 tests, including the `MF-055` large-file windowing coverage)
+  - `pnpm --filter @markflow/editor test:run -- src/__tests__/App.test.tsx` (passes; 33 files / 367 tests with 3 skips, including the `MF-055` large-file Go-to-Line bridge coverage)
+  - `pnpm harness:verify` (passes; `106 total | verified=63 | ready=19 | planned=23 | blocked=1 | regression=0`)
+  - packaged-app live jump proof against `harness/fixtures/mf-large-2gb.md` (jump-time passes): Go-to-Line to line `1,000,000` completed in `58 ms`, updated the banner to `showing lines 999,960-1,000,359 of 21,505,716`, and rendered `## Section 500`; a second jump to line `20,000,000` completed in `70 ms`, updated the banner to `showing lines 19,999,960-20,000,359 of 21,505,716`, and rendered `## Section 10000`
+  - Activity Monitor visible Memory rows for the packaged app process set (pids `53161`, `53163`, `53160`, `53162`) stayed below the threshold: `120.2 MB + 58.9 MB + 41.3 MB + 12.6 MB = 233.0 MB`
+  - stricter raw resident-set probe for the same packaged-app process tree stayed slightly above the threshold: `ps -o rss=` reported `525,872 KB`, `525,808 KB`, and `525,808 KB` across repeated samples, all above `524,288 KB` (`512 MB`)
+- Review / risks:
+  - `MF-055` jump latency is satisfied in the packaged app on this machine, and the live renderer clearly stays on the bounded large-file window path
+  - I did not mark `MF-055` verified or set `passes=true` / `lastVerifiedAt` because the manual memory requirement is still ambiguous: Activity Monitor's exposed Memory column stays below `512 MB`, but raw `ps rss` for the same process tree stays slightly above `512 MB`, and this session did not surface a more explicit Activity Monitor RSS reading to resolve the mismatch honestly
+- Newly verified features:
+  - none
+- Next recommended feature:
+  - `MF-055` - make the Electron memory acceptance metric explicit or reduce the packaged-app process-tree RSS below `512 MB`, then rerun the same 2 GB jump plus Activity Monitor/RSS checks before promoting the ledger
+
+
 ### 2026-04-16 - MF-055 rerun restored harness startup and kept the ledger truthful
 
 - Author: Codex
