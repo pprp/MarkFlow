@@ -1817,7 +1817,7 @@
       "category": "phase-2-functional",
       "area": "@markflow/editor",
       "priority": 3,
-      "status": "planned",
+      "status": "ready",
       "passes": false,
       "lastVerifiedAt": null,
       "dependsOn": [
@@ -1836,7 +1836,7 @@
           "Resize multiple columns in a wide table and verify keyboard navigation plus selection behavior still works."
         ]
       },
-      "notes": "Typora documents draggable table column resizing; MarkFlow `tableDecoration.ts` currently decorates rows/cells but has no resize handles or width persistence path. Sources: https://support.typora.io/Table-Editing/ and https://support.typora.io/Markdown-Reference/."
+      "notes": "Updated on 2026-04-16: `packages/editor/src/editor/decorations/tableDecoration.ts` now renders WYSIWYG table cells with width ratios and alignment derived from the markdown separator row, exposes draggable header-boundary resize handles, and persists resize intent by rewriting only the separator row with wider/narrower dash runs while preserving alignment colons. `packages/editor/src/styles/global.css` adds the resize affordance visuals, and focused integration coverage in `packages/editor/src/editor/__tests__/tableDecoration.test.ts` now exercises handle rendering, drag-resize live width updates, separator-row markdown persistence, and reopen rehydration. Automated verification passed on 2026-04-16 via `pnpm --filter @markflow/editor exec vitest run src/editor/__tests__/tableDecoration.test.ts`, `pnpm --filter @markflow/editor lint`, `pnpm --filter @markflow/editor build`, `pnpm --filter @markflow/editor test:run`, and `pnpm harness:verify`. `passes` remains false because the required live manual verification for multi-column resizing, keyboard navigation, and selection behavior was not performed in this terminal session. Sources: https://support.typora.io/Table-Editing/ and https://support.typora.io/Markdown-Reference/."
     },
     {
       "id": "MF-070",

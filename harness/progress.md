@@ -4788,3 +4788,39 @@
   - none
 - Next recommended feature:
   - `MF-063` - perform the pending live 1,000-line visual minimap check, then promote `passes` / `lastVerifiedAt` only if the rendered overview, proportional click navigation, and viewport highlight all hold in the real app
+
+### 2026-04-16 - MF-069 table column resizing landed with truthful manual-verification status
+
+- Author: Codex
+- Focus: obey the startup protocol for `MF-069`, implement only rendered-table column resizing in `@markflow/editor`, run the feature's editor-side automated verification, and keep the ledger honest because the required live wide-table keyboard/selection check was not completed in this terminal session.
+- What changed:
+  - re-read the root `AGENTS.md`, ran `pnpm harness:start`, and reran `./harness/init.sh --smoke` before touching `MF-069`
+  - extended `packages/editor/src/editor/decorations/tableDecoration.ts` so rendered markdown tables now derive visible column widths and text alignment from the separator row, expose draggable resize handles on header boundaries in WYSIWYG mode, and persist width intent by rewriting only the separator row with updated dash counts while preserving alignment colons
+  - updated `packages/editor/src/styles/global.css` with the resize affordance visuals plus separator-row collapsing so the rendered table no longer shows the raw markdown delimiter line while handles remain discoverable on header hover and during drag
+  - rewrote `packages/editor/src/editor/__tests__/tableDecoration.test.ts` into an interaction-focused integration suite that covers handle rendering, source reveal when the caret enters the table, live drag width updates, separator-row markdown persistence, and reopen rehydration of width/alignment intent
+  - updated `harness/feature-ledger.json` for `MF-069` only to `status=ready` while keeping `passes=false` and `lastVerifiedAt=null` because the required manual verification is still outstanding
+- Changed files:
+  - `packages/editor/src/editor/decorations/tableDecoration.ts`
+  - `packages/editor/src/editor/__tests__/tableDecoration.test.ts`
+  - `packages/editor/src/styles/global.css`
+  - `harness/feature-ledger.json`
+  - `harness/progress.md`
+- Simplifications made:
+  - kept scope strictly on `MF-069`; no unrelated table-command refactors, desktop work, or second feature work was introduced
+  - reused markdown-compatible separator-row dash lengths as the persistence format instead of inventing a new table metadata syntax
+  - limited markdown rewrites to the separator row so resizing does not rewrite header/body content unnecessarily
+- Verification:
+  - `pnpm harness:start` (passes)
+  - `./harness/init.sh --smoke` (passes; workspace smoke reran the current harness verification plus desktop/editor test suites)
+  - `pnpm --filter @markflow/editor exec vitest run src/editor/__tests__/tableDecoration.test.ts` (passes; 1 file / 5 tests covering resize handle rendering and persistence behavior)
+  - `pnpm --filter @markflow/editor lint` (passes)
+  - `pnpm --filter @markflow/editor build` (passes)
+  - `pnpm --filter @markflow/editor test:run` (passes; 34 files / 370 tests with 3 skips)
+  - `pnpm harness:verify` (passes before the ledger update)
+- Review / risks:
+  - `MF-069` is implemented and automated coverage is green, but `passes` must remain false until someone performs the required live manual verification on a wide table and confirms repeated resizing does not break keyboard navigation or selection behavior
+  - this session verified markdown-compatible persistence through separator-row serialization and reopen, but it did not prove real-app pointer feel or cross-platform cursor affordance fidelity beyond the editor integration tests
+- Newly verified features:
+  - none
+- Next recommended feature:
+  - `MF-069` - complete the pending live wide-table manual resize verification, then promote `passes` / `lastVerifiedAt` only if keyboard navigation and selection behavior truly remain intact after resizing

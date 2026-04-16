@@ -1418,10 +1418,76 @@ body {
   }
 }
 
-/* ── Tables (MF-013) ────────────────────────────────────────── */
-.cm-editor .mf-table-row { display: flex; border-bottom: 1px solid var(--mf-border, rgba(60,60,67,0.18)); }
-.cm-editor .mf-table-header-row { font-weight: 600; background: var(--mf-fill-tertiary, rgba(120,120,128,0.05)); border-bottom: 2px solid var(--mf-border, rgba(60,60,67,0.18)); }
-.cm-editor .mf-table-cell { flex: 1; min-width: 0; padding: 0.3em 0.75em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* ── Tables (MF-013, MF-069) ───────────────────────────────── */
+.cm-editor .mf-table-row {
+  display: flex;
+  align-items: stretch;
+  border-bottom: 1px solid var(--mf-border, rgba(60,60,67,0.18));
+}
+
+.cm-editor .mf-table-header-row {
+  font-weight: 600;
+  background: var(--mf-fill-tertiary, rgba(120,120,128,0.05));
+  border-bottom: 2px solid var(--mf-border, rgba(60,60,67,0.18));
+}
+
+.cm-editor .mf-table-separator-row {
+  height: 0;
+  min-height: 0;
+  border: 0;
+  padding: 0;
+  font-size: 0;
+  line-height: 0;
+}
+
+.cm-editor .mf-table-cell {
+  min-width: 0;
+  padding: 0.3em 0.75em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  box-sizing: border-box;
+}
+
+.cm-editor .mf-table-cell--empty {
+  color: transparent;
+  user-select: none;
+}
+
+.cm-editor .mf-table-resize-boundary {
+  position: relative;
+  flex: 0 0 0;
+  width: 0;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.cm-editor .mf-table-resize-handle {
+  position: absolute;
+  inset-block: -2px;
+  inset-inline-start: -4px;
+  width: 8px;
+  cursor: col-resize;
+  opacity: 0;
+  pointer-events: auto;
+  z-index: 2;
+}
+
+.cm-editor .mf-table-resize-handle::before {
+  content: '';
+  position: absolute;
+  inset-block: 2px;
+  inset-inline-start: 3px;
+  width: 2px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--mf-accent, #4a9cf6) 80%, white 20%);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--mf-bg, white) 70%, transparent);
+}
+
+.cm-editor .mf-table-header-row:hover .mf-table-resize-handle,
+.cm-editor .mf-table-resize-boundary[data-resizing='true'] .mf-table-resize-handle {
+  opacity: 1;
+}
 
 /* ── Callout / admonition blocks (MF-034) ───────────────────── */
 .cm-editor .mf-callout { border-left: 3px solid; padding: 0.5em 1em; border-radius: 0 4px 4px 0; margin: 0.5em 0; }
