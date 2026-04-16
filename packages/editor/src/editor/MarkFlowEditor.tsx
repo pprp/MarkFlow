@@ -70,6 +70,7 @@ export interface MarkFlowEditorProps {
   content: string
   viewMode: ViewMode
   editable?: boolean
+  spellCheckLanguage?: string | null
   initialSnapshot?: MarkFlowEditorSnapshot | null
   onChange?: (content: string) => void
   onCursorPositionChange?: (position: number) => void
@@ -221,6 +222,7 @@ function getEditorExtensions(
   editable: boolean,
   focusMode: boolean,
   typewriterMode: boolean,
+  spellCheckLanguage: string | null | undefined,
   filePath: string | undefined,
   pluginHost: MarkFlowPluginHost | undefined,
   onChangeRef: React.MutableRefObject<MarkFlowEditorProps['onChange']>,
@@ -239,6 +241,7 @@ function getEditorExtensions(
   editableCompartment: Compartment,
   focusModeCompartment: Compartment,
   typewriterModeCompartment: Compartment,
+  spellCheckCompartment: Compartment,
 ) {
   return [
     baseTheme,
@@ -311,7 +314,7 @@ function getEditorExtensions(
     smartPasteExtension(),
     emojiAutocompleteExtension(),
     headingFoldExtension(),
-    spellCheckExtension(),
+    spellCheckCompartment.of(spellCheckExtension({ language: spellCheckLanguage })),
     indexerExtension(),
     EditorView.lineWrapping,
     EditorView.updateListener.of((update) => {
@@ -354,6 +357,7 @@ export const MarkFlowEditor = forwardRef<MarkFlowEditorHandle, MarkFlowEditorPro
   content,
   viewMode,
   editable = true,
+  spellCheckLanguage,
   initialSnapshot,
   onChange,
   onCursorPositionChange,
@@ -397,6 +401,7 @@ export const MarkFlowEditor = forwardRef<MarkFlowEditorHandle, MarkFlowEditorPro
   const editableCompartmentRef = useRef(new Compartment())
   const focusModeCompartmentRef = useRef(new Compartment())
   const typewriterModeCompartmentRef = useRef(new Compartment())
+  const spellCheckCompartmentRef = useRef(new Compartment())
   const [editorView, setEditorView] = useState<EditorView | null>(null)
 
   useEffect(() => {
@@ -465,6 +470,7 @@ export const MarkFlowEditor = forwardRef<MarkFlowEditorHandle, MarkFlowEditorPro
       editable,
       focusMode,
       typewriterMode,
+      spellCheckLanguage,
       filePathRef.current,
       pluginHost,
       onChangeRef,
@@ -483,6 +489,7 @@ export const MarkFlowEditor = forwardRef<MarkFlowEditorHandle, MarkFlowEditorPro
       editableCompartmentRef.current,
       focusModeCompartmentRef.current,
       typewriterModeCompartmentRef.current,
+      spellCheckCompartmentRef.current,
     )
     const nextState = pruneHistoryState(view.state, nextExtensions)
     if (nextState !== view.state) {
@@ -498,6 +505,7 @@ export const MarkFlowEditor = forwardRef<MarkFlowEditorHandle, MarkFlowEditorPro
       editable,
       focusMode,
       typewriterMode,
+      spellCheckLanguage,
       filePath,
       pluginHost,
       onChangeRef,
@@ -516,6 +524,7 @@ export const MarkFlowEditor = forwardRef<MarkFlowEditorHandle, MarkFlowEditorPro
       editableCompartmentRef.current,
       focusModeCompartmentRef.current,
       typewriterModeCompartmentRef.current,
+      spellCheckCompartmentRef.current,
     )
     const state = initialSnapshot
       ? EditorState.fromJSON(initialSnapshot.state, { extensions }, { history: historyField })
@@ -719,6 +728,17 @@ export const MarkFlowEditor = forwardRef<MarkFlowEditorHandle, MarkFlowEditorPro
       ),
     })
   }, [typewriterMode])
+
+  useEffect(() => {
+    const view = viewRef.current
+    if (!view) return
+
+    view.dispatch({
+      effects: spellCheckCompartmentRef.current.reconfigure(
+        spellCheckExtension({ language: spellCheckLanguage }),
+      ),
+    })
+  }, [spellCheckLanguage])
 
   // Split view: create/destroy the preview pane
   useEffect(() => {

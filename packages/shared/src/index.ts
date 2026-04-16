@@ -72,6 +72,12 @@ export interface MarkFlowThemeState {
   activeTheme: MarkFlowThemePayload | null
 }
 
+export interface MarkFlowSpellCheckState {
+  selectedLanguage: string | null
+  availableLanguages: string[]
+  customWords: string[]
+}
+
 export type MarkFlowMenuAction =
   | 'new-file'
   | 'open-file'
@@ -317,6 +323,10 @@ export interface MarkFlowDesktopAPI {
     appearance: MarkFlowAppearance,
     themeId: string,
   ) => Promise<MarkFlowThemeState | null>
+  getSpellCheckState: () => Promise<MarkFlowSpellCheckState>
+  setSpellCheckLanguage: (language: string | null) => Promise<MarkFlowSpellCheckState>
+  addSpellCheckWord: (word: string) => Promise<MarkFlowSpellCheckState>
+  removeSpellCheckWord: (word: string) => Promise<MarkFlowSpellCheckState>
   openFolder: () => Promise<{ folderPath: string } | null>
   getVaultFiles: (folderPath: string) => Promise<string[]>
   renameFile: (oldPath: string, newPath: string) => Promise<void>

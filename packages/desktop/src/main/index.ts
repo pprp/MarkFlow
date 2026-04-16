@@ -5,6 +5,7 @@ import { FileManager } from './fileManager'
 import type { MarkFlowMenuAction } from '@markflow/shared'
 import { createWindowOpenHandler, handleWillNavigate } from './externalLinks'
 import { ThemeManager } from './themeManager'
+import { SpellCheckManager } from './spellCheckManager'
 import { createApplicationMenuTemplate } from './menu'
 
 const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged
@@ -12,6 +13,7 @@ const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged
 let mainWindow: BrowserWindow | null = null
 let fileManager: FileManager
 let themeManager: ThemeManager | null = null
+let spellCheckManager: SpellCheckManager | null = null
 let pendingOpenFilePath: string | null = null
 
 function sendMenuAction(action: MarkFlowMenuAction) {
@@ -60,6 +62,9 @@ function createWindow() {
   themeManager = new ThemeManager(mainWindow, app.getPath('userData'))
   themeManager.registerIpcHandlers()
   void themeManager.initialize()
+  spellCheckManager = new SpellCheckManager(mainWindow, app.getPath('userData'))
+  spellCheckManager.registerIpcHandlers()
+  void spellCheckManager.initialize()
   buildMenu()
 
   if (isDev) {
@@ -73,6 +78,7 @@ function createWindow() {
     fileManager.dispose()
     void themeManager?.dispose()
     themeManager = null
+    spellCheckManager = null
     mainWindow = null
   })
 

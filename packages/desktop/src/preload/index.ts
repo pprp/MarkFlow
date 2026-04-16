@@ -9,6 +9,7 @@ import type {
   MarkFlowRecoveryDraft,
   MarkFlowSavePayload,
   MarkFlowSaveResult,
+  MarkFlowSpellCheckState,
   SearchResult,
   MarkFlowWindowSession,
   MarkFlowWindowSessionState,
@@ -61,6 +62,14 @@ const api: MarkFlowDesktopAPI = {
   setTheme: (themeId: string) => ipcRenderer.invoke('set-theme', themeId),
   setThemeForAppearance: (appearance: MarkFlowAppearance, themeId: string) =>
     ipcRenderer.invoke('set-theme-for-appearance', appearance, themeId),
+  getSpellCheckState: () =>
+    ipcRenderer.invoke('get-spellcheck-state') as Promise<MarkFlowSpellCheckState>,
+  setSpellCheckLanguage: (language: string | null) =>
+    ipcRenderer.invoke('set-spellcheck-language', language) as Promise<MarkFlowSpellCheckState>,
+  addSpellCheckWord: (word: string) =>
+    ipcRenderer.invoke('add-spellcheck-word', word) as Promise<MarkFlowSpellCheckState>,
+  removeSpellCheckWord: (word: string) =>
+    ipcRenderer.invoke('remove-spellcheck-word', word) as Promise<MarkFlowSpellCheckState>,
   openFolder: () => ipcRenderer.invoke('open-folder'),
   getVaultFiles: (folderPath: string) => ipcRenderer.invoke('get-vault-files', folderPath) as Promise<string[]>,
   renameFile: (oldPath: string, newPath: string) => ipcRenderer.invoke('rename-file', oldPath, newPath),

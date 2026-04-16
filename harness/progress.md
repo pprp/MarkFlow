@@ -4824,3 +4824,53 @@
   - none
 - Next recommended feature:
   - `MF-069` - complete the pending live wide-table manual resize verification, then promote `passes` / `lastVerifiedAt` only if keyboard navigation and selection behavior truly remain intact after resizing
+
+### 2026-04-16 - MF-071 spellcheck settings landed with truthful manual-verification status
+
+- Author: Codex
+- Focus: obey the startup protocol for `MF-071`, implement only spellcheck language/custom-dictionary controls in `@markflow/editor`, run the feature's automated verification, and keep the ledger honest because the required live dictionary-switching check was not completed in this terminal session.
+- What changed:
+  - re-read the root `AGENTS.md`, ran `pnpm harness:start`, and reran `./harness/init.sh --smoke` before touching `MF-071`
+  - extended `packages/shared/src/index.ts`, `packages/desktop/src/preload/index.ts`, and new `packages/desktop/src/main/spellCheckManager.ts` so the desktop app now exposes a persisted spellcheck profile with a selected dictionary language plus add/remove operations for custom words backed by Electron's spellchecker session and a profile JSON file under user data
+  - updated `packages/editor/src/App.tsx`, new `packages/editor/src/spellCheckProfile.ts`, and `packages/editor/src/styles/global.css` to add an in-editor spellcheck settings popover in the status bar, let users switch between default and explicit dictionary languages, and manage custom dictionary words while falling back to `localStorage` outside the desktop bridge
+  - updated `packages/editor/src/editor/extensions/spellCheck.ts` and `packages/editor/src/editor/MarkFlowEditor.tsx` so the CodeMirror content layer now reconfigures its `lang` attribute from the active spellcheck profile while preserving the existing no-spellcheck exclusion decorations for code, links, URLs, and YAML front matter
+  - extended `packages/editor/src/editor/__tests__/spellCheck.test.ts`, `packages/editor/src/__tests__/App.test.tsx`, and new `packages/desktop/src/main/spellCheckManager.test.ts`, then updated `harness/feature-ledger.json` for `MF-071` only to `status=ready` while keeping `passes=false` and `lastVerifiedAt=null` because manual verification is still outstanding
+- Changed files:
+  - `packages/shared/src/index.ts`
+  - `packages/desktop/src/main/index.ts`
+  - `packages/desktop/src/main/spellCheckManager.ts`
+  - `packages/desktop/src/main/spellCheckManager.test.ts`
+  - `packages/desktop/src/preload/index.ts`
+  - `packages/editor/src/App.tsx`
+  - `packages/editor/src/spellCheckProfile.ts`
+  - `packages/editor/src/editor/MarkFlowEditor.tsx`
+  - `packages/editor/src/editor/extensions/spellCheck.ts`
+  - `packages/editor/src/editor/__tests__/spellCheck.test.ts`
+  - `packages/editor/src/__tests__/App.test.tsx`
+  - `packages/editor/src/styles/global.css`
+  - `harness/feature-ledger.json`
+  - `harness/progress.md`
+- Simplifications made:
+  - kept scope strictly on `MF-071`; no generic preferences framework, document-level spellcheck overrides, or unrelated settings work was introduced
+  - reused Electron's built-in spellchecker language and custom-dictionary APIs instead of adding a separate spelling engine dependency
+  - limited renderer-side spellcheck reconfiguration to the content `lang` attribute so the existing exclusion-range logic stayed intact and covered by the prior extension tests
+- Verification:
+  - `pnpm harness:start` (passes)
+  - `./harness/init.sh --smoke` (passes; workspace smoke reran harness verification plus desktop/editor test suites)
+  - `pnpm --filter @markflow/editor exec vitest run src/editor/__tests__/spellCheck.test.ts src/__tests__/App.test.tsx` (passes; 2 files / 42 tests covering spellcheck language plumbing and profile UI interactions)
+  - `pnpm --filter @markflow/desktop exec vitest run src/main/spellCheckManager.test.ts` (passes; 1 file / 2 tests covering persisted language and custom dictionary behavior)
+  - `pnpm --filter @markflow/shared lint` (passes)
+  - `pnpm --filter @markflow/shared build` (passes)
+  - `pnpm --filter @markflow/editor lint` (passes)
+  - `pnpm --filter @markflow/editor build` (passes after rerunning sequentially behind the shared build because the first parallel attempt hit the project-reference dependency order)
+  - `pnpm --filter @markflow/desktop lint` (passes)
+  - `pnpm --filter @markflow/desktop build` (passes)
+  - `pnpm --filter @markflow/editor test:run` (passes; 34 files / 372 tests with 3 skips)
+  - `pnpm --filter @markflow/desktop test:run` (passes; 7 files / 36 tests)
+- Review / risks:
+  - `MF-071` is implemented and automated coverage is green, but `passes` must remain false until someone performs the required live manual verification by switching between two real dictionaries on the same text and confirming the misspelling highlights actually differ in the packaged app
+  - on macOS Electron delegates more of spellchecking to the OS; the profile language picker still updates the editor `lang` attribute, but the real cross-platform effect of explicit dictionary selection still needs live confirmation
+- Newly verified features:
+  - none
+- Next recommended feature:
+  - `MF-071` - perform the pending live dictionary-switching/manual custom-word verification, then promote `passes` / `lastVerifiedAt` only if the real-app spellcheck highlights and dictionary additions behave as expected

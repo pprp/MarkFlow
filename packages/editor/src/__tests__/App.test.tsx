@@ -17,6 +17,7 @@ import type {
   MarkFlowMenuActionPayload,
   MarkFlowRecoveryCheckpoint,
   MarkFlowSavePayload,
+  MarkFlowSpellCheckState,
   MarkFlowThemePayload,
   MarkFlowThemeState,
   MarkFlowThemeSummary,
@@ -89,6 +90,11 @@ class MockMarkFlowAPI implements MarkFlowDesktopAPI {
       cssText: ':root { --mf-accent: #9c5f2f; }',
     },
   }
+  private spellCheckState: MarkFlowSpellCheckState = {
+    selectedLanguage: null,
+    availableLanguages: ['de-DE', 'en-US', 'fr-FR'],
+    customWords: [],
+  }
   private windowSession: MarkFlowWindowSession | null = null
   private confirmTabCloseAction: 'save' | 'discard' | 'cancel' = 'cancel'
   openFile: MarkFlowDesktopAPI['openFile'] = vi.fn(async () => null)
@@ -150,6 +156,48 @@ class MockMarkFlowAPI implements MarkFlowDesktopAPI {
       return nextState
     },
   )
+  getSpellCheckState: MarkFlowDesktopAPI['getSpellCheckState'] = vi.fn(async () => this.spellCheckState)
+  setSpellCheckLanguage: MarkFlowDesktopAPI['setSpellCheckLanguage'] = vi.fn(async (language: string | null) => {
+    const nextLanguage =
+      language && this.spellCheckState.availableLanguages.includes(language) ? language : null
+
+    this.spellCheckState = {
+      ...this.spellCheckState,
+      selectedLanguage: nextLanguage,
+    }
+
+    return this.spellCheckState
+  })
+  addSpellCheckWord: MarkFlowDesktopAPI['addSpellCheckWord'] = vi.fn(async (word: string) => {
+    const normalized = word.trim()
+    if (normalized.length === 0) {
+      return this.spellCheckState
+    }
+
+    const existingWord = this.spellCheckState.customWords.find(
+      (currentWord) => currentWord.toLocaleLowerCase() === normalized.toLocaleLowerCase(),
+    )
+    if (existingWord) {
+      return this.spellCheckState
+    }
+
+    this.spellCheckState = {
+      ...this.spellCheckState,
+      customWords: [...this.spellCheckState.customWords, normalized].sort((left, right) =>
+        left.localeCompare(right),
+      ),
+    }
+
+    return this.spellCheckState
+  })
+  removeSpellCheckWord: MarkFlowDesktopAPI['removeSpellCheckWord'] = vi.fn(async (word: string) => {
+    this.spellCheckState = {
+      ...this.spellCheckState,
+      customWords: this.spellCheckState.customWords.filter((currentWord) => currentWord !== word),
+    }
+
+    return this.spellCheckState
+  })
 
   private fileOpenedListeners = new Set<(data: MarkFlowFilePayload) => void>()
   private fileLoadingProgressListeners = new Set<(data: MarkFlowFileLoadProgressPayload) => void>()
@@ -265,6 +313,9 @@ class MockMarkFlowAPI implements MarkFlowDesktopAPI {
 describe('App desktop integration', () => {
   afterEach(() => {
     delete window.markflow
+    if (typeof window.localStorage?.removeItem === 'function') {
+      window.localStorage.removeItem('markflow.spellcheck-profile.v1')
+    }
   })
 
   it('hydrates an already-open desktop document on mount', async () => {
@@ -954,6 +1005,46 @@ describe('App desktop integration', () => {
       expect(document.getElementById('mf-theme-overrides')).toHaveTextContent('--mf-bg: #1d1f21')
       expect(lightSelect.value).toBe('github')
       expect(darkSelect.value).toBe('night')
+    })
+  })
+
+  it('opens spellcheck settings, switches dictionaries, and updates the custom dictionary through the profile API', async () => {
+    const api = new MockMarkFlowAPI()
+    window.markflow = api
+
+    render(<App />)
+
+    const spellCheckButton = await screen.findByRole('button', { name: 'Spellcheck settings' })
+    expect(spellCheckButton).toHaveTextContent('Spell: Default')
+
+    fireEvent.click(spellCheckButton)
+
+    const languageSelect = (await screen.findByLabelText('Spellcheck language')) as HTMLSelectElement
+    expect(languageSelect.value).toBe('')
+
+    fireEvent.change(languageSelect, { target: { value: 'de-DE' } })
+
+    await waitFor(() => {
+      expect(api.setSpellCheckLanguage).toHaveBeenCalledWith('de-DE')
+      expect(languageSelect.value).toBe('de-DE')
+      expect(spellCheckButton).toHaveTextContent('Spell: de-DE')
+    })
+
+    const customWordInput = (screen.getByLabelText('Add custom spellcheck word')) as HTMLInputElement
+    fireEvent.change(customWordInput, { target: { value: 'MarkFlow' } })
+    fireEvent.submit(customWordInput.closest('form') as HTMLFormElement)
+
+    await waitFor(() => {
+      expect(api.addSpellCheckWord).toHaveBeenCalledWith('MarkFlow')
+      expect(screen.getByRole('button', { name: 'Remove MarkFlow from custom dictionary' })).toBeInTheDocument()
+      expect(customWordInput.value).toBe('')
+    })
+
+    fireEvent.change(languageSelect, { target: { value: '' } })
+
+    await waitFor(() => {
+      expect(api.setSpellCheckLanguage).toHaveBeenCalledWith(null)
+      expect(spellCheckButton).toHaveTextContent('Spell: Default')
     })
   })
 

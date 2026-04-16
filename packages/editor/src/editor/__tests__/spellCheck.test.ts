@@ -5,15 +5,15 @@ import { markdown, markdownLanguage } from '@codemirror/lang-markdown'
 import { languages } from '@codemirror/language-data'
 import { spellCheckExtension, spellCheckExclusionPlugin } from '../extensions/spellCheck'
 
-function createEditor(doc: string) {
+function createEditor(doc: string, language?: string | null) {
   const state = EditorState.create({
     doc,
     extensions: [
       markdown({ base: markdownLanguage, codeLanguages: languages }),
-      spellCheckExtension()
-    ]
+      spellCheckExtension({ language }),
+    ],
   })
-  
+
   const parent = document.createElement('div')
   // We must append it to the document to allow visibleRanges calculation
   document.body.appendChild(parent)
@@ -21,10 +21,24 @@ function createEditor(doc: string) {
   return { view, parent }
 }
 
+function destroyEditor(view: EditorView, parent: HTMLElement) {
+  view.destroy()
+  document.body.removeChild(parent)
+}
+
 describe('spellCheckExtension', () => {
+  it('applies spellcheck content attributes including the selected language', () => {
+    const { view, parent } = createEditor('Guten tag wrd', 'de-DE')
+
+    expect(view.contentDOM.getAttribute('spellcheck')).toBe('true')
+    expect(view.contentDOM.getAttribute('lang')).toBe('de-DE')
+
+    destroyEditor(view, parent)
+  })
+
   it('excludes inline code from spell checking', () => {
     const { view, parent } = createEditor('This is normal prose and `this is inline code`')
-    
+
     // The language parser might be async or require a force parsing step for small docs
     const pluginInstance = view.plugin(spellCheckExclusionPlugin)
     const decorations = pluginInstance?.decorations
@@ -41,9 +55,8 @@ describe('spellCheckExtension', () => {
     expect(excludedRanges.length).toBeGreaterThan(0)
     expect(excludedRanges[0].from).toBe(25)
     expect(excludedRanges[0].to).toBe(46)
-    
-    view.destroy()
-    document.body.removeChild(parent)
+
+    destroyEditor(view, parent)
   })
 
   it('excludes fenced code blocks from spell checking', () => {
@@ -65,8 +78,7 @@ describe('spellCheckExtension', () => {
     const match = excludedRanges.find(r => r.from === codeStart && r.to === codeEnd)
     expect(match).toBeDefined()
 
-    view.destroy()
-    document.body.removeChild(parent)
+    destroyEditor(view, parent)
   })
 
   it('excludes links and URLs from spell checking', () => {
@@ -81,8 +93,7 @@ describe('spellCheckExtension', () => {
     // Should find the link range and the URL range
     expect(excludedRanges.length).toBe(2)
     
-    view.destroy()
-    document.body.removeChild(parent)
+    destroyEditor(view, parent)
   })
 
   it('excludes YAML front matter from spell checking', () => {
@@ -102,7 +113,6 @@ describe('spellCheckExtension', () => {
     const match = excludedRanges.find(r => r.from === fmStart && r.to === fmEnd)
     expect(match).toBeDefined()
 
-    view.destroy()
-    document.body.removeChild(parent)
+    destroyEditor(view, parent)
   })
 })

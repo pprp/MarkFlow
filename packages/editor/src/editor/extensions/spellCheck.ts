@@ -3,6 +3,10 @@ import { RangeSetBuilder } from '@codemirror/state'
 import { syntaxTree } from '@codemirror/language'
 import { detectFrontMatter } from '../decorations/yamlFrontMatter'
 
+export interface SpellCheckExtensionOptions {
+  language?: string | null
+}
+
 /**
  * Builds a decoration set that marks code/link regions with spellcheck=false
  * so the browser skips spell checking inside code and links.
@@ -77,9 +81,15 @@ export const spellCheckExclusionPlugin = ViewPlugin.fromClass(
  * Spell check extension: enables browser native spell checking on the editor
  * but excludes code blocks, inline code, and links from spell checking.
  */
-export function spellCheckExtension() {
+export function spellCheckExtension(options: SpellCheckExtensionOptions = {}) {
+  const contentAttributes: Record<string, string> = { spellcheck: 'true' }
+
+  if (options.language) {
+    contentAttributes.lang = options.language
+  }
+
   return [
-    EditorView.contentAttributes.of({ spellcheck: 'true' }),
+    EditorView.contentAttributes.of(contentAttributes),
     spellCheckExclusionPlugin,
   ]
 }

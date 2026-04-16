@@ -832,6 +832,7 @@ body {
 
 /* ── Status bar — macOS bottom bar ─────────────────────────── */
 .mf-statusbar {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 5px;
@@ -854,6 +855,165 @@ body {
 
 .mf-statusbar-selection {
   color: var(--mf-accent);
+}
+
+.mf-statusbar-actions {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  position: relative;
+  -webkit-app-region: no-drag;
+}
+
+.mf-statusbar-button {
+  display: inline-flex;
+  align-items: center;
+  height: 18px;
+  padding: 0 8px;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--mf-fg-secondary);
+  font: inherit;
+  cursor: default;
+  transition: background-color var(--mf-transition-fast), color var(--mf-transition-fast);
+}
+
+.mf-statusbar-button:hover {
+  background: var(--mf-fill-secondary);
+  color: var(--mf-fg);
+}
+
+.mf-statusbar-button-active {
+  background: var(--mf-accent-light);
+  color: var(--mf-accent);
+}
+
+.mf-spellcheck-popover {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 10px);
+  width: min(24rem, calc(100vw - 24px));
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--mf-border-light);
+  border-radius: var(--mf-radius-lg);
+  background: color-mix(in srgb, var(--mf-bg-tertiary) 94%, transparent);
+  box-shadow: var(--mf-shadow-lg);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  z-index: 8;
+}
+
+.mf-spellcheck-popover-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.mf-spellcheck-popover-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--mf-fg);
+}
+
+.mf-spellcheck-popover-copy {
+  margin-top: 2px;
+  color: var(--mf-fg-secondary);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.mf-spellcheck-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.mf-spellcheck-field-label {
+  color: var(--mf-fg-secondary);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.mf-spellcheck-add-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.mf-spellcheck-input {
+  width: 100%;
+  height: 30px;
+  padding: 0 10px;
+  border: 1px solid var(--mf-border-light);
+  border-radius: var(--mf-radius-sm);
+  background: var(--mf-bg);
+  color: var(--mf-fg);
+  font: inherit;
+}
+
+.mf-spellcheck-input::placeholder {
+  color: var(--mf-fg-muted);
+}
+
+.mf-spellcheck-input:focus {
+  outline: 2px solid color-mix(in srgb, var(--mf-accent) 22%, transparent);
+  outline-offset: 1px;
+}
+
+.mf-spellcheck-submit {
+  align-self: flex-start;
+  height: 28px;
+  padding: 0 11px;
+  border: 1px solid color-mix(in srgb, var(--mf-accent) 28%, var(--mf-border-light));
+  border-radius: var(--mf-radius-sm);
+  background: var(--mf-accent-light);
+  color: var(--mf-accent);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: default;
+}
+
+.mf-spellcheck-submit:disabled {
+  opacity: 0.45;
+}
+
+.mf-spellcheck-word-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.mf-spellcheck-word-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 26px;
+  padding: 0 10px;
+  border: 1px solid var(--mf-border-light);
+  border-radius: 999px;
+  background: var(--mf-fill-secondary);
+  color: var(--mf-fg-secondary);
+  font: inherit;
+  font-size: 11px;
+  cursor: default;
+  transition: background-color var(--mf-transition-fast), color var(--mf-transition-fast);
+}
+
+.mf-spellcheck-word-chip:hover {
+  background: var(--mf-fill);
+  color: var(--mf-fg);
+}
+
+.mf-spellcheck-empty {
+  color: var(--mf-fg-secondary);
+  font-size: 11px;
 }
 
 /* ── CodeMirror base ────────────────────────────────────────── */

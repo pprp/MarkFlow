@@ -1,4 +1,4 @@
-import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { type ChangeEvent, type FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   MarkFlowEditor,
   type MarkFlowEditorHandle,
@@ -31,6 +31,7 @@ import {
   type MarkFlowLargeFileWindow,
   type MarkFlowMenuAction,
   type MarkFlowRecoveryCheckpoint,
+  type MarkFlowSpellCheckState,
   type MarkFlowTabCloseAction,
   type MarkFlowThemeState,
   type MarkFlowThemeSummary,
@@ -38,6 +39,12 @@ import {
   type MarkFlowWindowSessionState,
   type SearchResult,
 } from '@markflow/shared'
+import {
+  loadLocalSpellCheckState,
+  normalizeSpellCheckState,
+  persistLocalSpellCheckState,
+  sanitizeSpellCheckWord,
+} from './spellCheckProfile'
 
 const THEME_STYLE_ELEMENT_ID = 'mf-theme-overrides'
 const EDITOR_ROOT_SELECTOR = '.cm-editor'
@@ -148,6 +155,10 @@ function getLineNumberAtPosition(content: string, position: number) {
 
 function formatAppearanceLabel(appearance: MarkFlowAppearance) {
   return appearance === 'dark' ? 'Dark' : 'Light'
+}
+
+function formatSpellCheckLanguageLabel(language: string | null) {
+  return language ?? 'Default'
 }
 
 function isEditorCopyContext() {
@@ -314,6 +325,11 @@ export function App() {
   const [showMinimap, setShowMinimap] = useState(false)
   const [vaultPath, setVaultPath] = useState<string | null>(null)
   const [vaultFiles, setVaultFiles] = useState<string[]>([])
+  const [spellCheckState, setSpellCheckState] = useState<MarkFlowSpellCheckState>(() =>
+    loadLocalSpellCheckState(),
+  )
+  const [isSpellCheckSettingsOpen, setIsSpellCheckSettingsOpen] = useState(false)
+  const [spellCheckWordInput, setSpellCheckWordInput] = useState('')
   const [isGlobalSearchOpen, setIsGlobalSearchOpen] = useState(false)
   const [isGoToLineOpen, setIsGoToLineOpen] = useState(false)
   const [themes, setThemes] = useState<MarkFlowThemeSummary[]>([])
@@ -350,11 +366,30 @@ export function App() {
   const editorNavigationKeyRef = useRef(0)
   const pluginHostRef = useRef<MarkFlowPluginHost | null>(null)
   const editorRef = useRef<MarkFlowEditorHandle | null>(null)
+  const spellCheckButtonRef = useRef<HTMLButtonElement | null>(null)
+  const spellCheckPanelRef = useRef<HTMLDivElement | null>(null)
 
   if (pluginHostRef.current === null) {
     pluginHostRef.current = new MarkFlowPluginHost()
     pluginHostRef.current.setPlugins([createExternalLinkBadgePlugin()])
   }
+
+  const applySpellCheckState = useCallback((nextState: MarkFlowSpellCheckState) => {
+    const normalizedState = normalizeSpellCheckState(nextState)
+    setSpellCheckState(normalizedState)
+    return normalizedState
+  }, [])
+
+  const updateLocalSpellCheckState = useCallback(
+    (updater: (currentState: MarkFlowSpellCheckState) => MarkFlowSpellCheckState) => {
+      setSpellCheckState((currentState) => {
+        const nextState = normalizeSpellCheckState(updater(currentState))
+        persistLocalSpellCheckState(nextState)
+        return nextState
+      })
+    },
+    [],
+  )
 
   const activeTab = useMemo(() => {
     const byId = tabs.find((tab) => tab.id === activeTabId)
@@ -451,6 +486,48 @@ export function App() {
   useEffect(() => () => {
     pluginHostRef.current?.dispose()
   }, [])
+
+  useEffect(() => {
+    const api = window.markflow
+    if (!api) {
+      return
+    }
+
+    void api.getSpellCheckState().then((nextState) => {
+      applySpellCheckState(nextState)
+    })
+  }, [applySpellCheckState])
+
+  useEffect(() => {
+    if (!isSpellCheckSettingsOpen) {
+      return
+    }
+
+    const handlePointerDown = (event: PointerEvent) => {
+      const target = event.target
+      if (
+        (target instanceof Node && spellCheckPanelRef.current?.contains(target)) ||
+        (target instanceof Node && spellCheckButtonRef.current?.contains(target))
+      ) {
+        return
+      }
+
+      setIsSpellCheckSettingsOpen(false)
+    }
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsSpellCheckSettingsOpen(false)
+      }
+    }
+
+    document.addEventListener('pointerdown', handlePointerDown)
+    document.addEventListener('keydown', handleKeyDown)
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown)
+      document.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [isSpellCheckSettingsOpen])
 
   function applyThemeState(nextThemeState: MarkFlowThemeState | null) {
     const existing = document.getElementById(THEME_STYLE_ELEMENT_ID) as HTMLStyleElement | null
@@ -1301,6 +1378,58 @@ export function App() {
     }
   }
 
+  async function handleSpellCheckLanguageChange(event: ChangeEvent<HTMLSelectElement>) {
+    const nextLanguage = event.target.value || null
+    const api = window.markflow
+
+    if (api) {
+      const nextState = await api.setSpellCheckLanguage(nextLanguage)
+      applySpellCheckState(nextState)
+      return
+    }
+
+    updateLocalSpellCheckState((currentState) => ({
+      ...currentState,
+      selectedLanguage: nextLanguage,
+    }))
+  }
+
+  async function handleSpellCheckWordSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    const nextWord = sanitizeSpellCheckWord(spellCheckWordInput)
+    if (!nextWord) {
+      return
+    }
+
+    const api = window.markflow
+    if (api) {
+      const nextState = await api.addSpellCheckWord(nextWord)
+      applySpellCheckState(nextState)
+    } else {
+      updateLocalSpellCheckState((currentState) => ({
+        ...currentState,
+        customWords: [...currentState.customWords, nextWord],
+      }))
+    }
+
+    setSpellCheckWordInput('')
+  }
+
+  async function handleSpellCheckWordRemove(word: string) {
+    const api = window.markflow
+
+    if (api) {
+      const nextState = await api.removeSpellCheckWord(word)
+      applySpellCheckState(nextState)
+      return
+    }
+
+    updateLocalSpellCheckState((currentState) => ({
+      ...currentState,
+      customWords: currentState.customWords.filter((currentWord) => currentWord !== word),
+    }))
+  }
+
   useEffect(() => {
     handleCopyActionRef.current = handleCopyAction
     handleExportRef.current = handleExport
@@ -2048,6 +2177,7 @@ export function App() {
                 initialSnapshot={activeTab.snapshot}
                 content={activeTab.content}
                 editable={activeTab.largeFile == null}
+                spellCheckLanguage={spellCheckState.selectedLanguage}
                 viewMode={viewMode}
                 onChange={handleContentChange}
                 onCursorPositionChange={handleCursorPositionChange}
@@ -2148,6 +2278,88 @@ export function App() {
             </span>
           </>
         )}
+        <div className="mf-statusbar-actions">
+          <button
+            ref={spellCheckButtonRef}
+            type="button"
+            className={`mf-statusbar-button${isSpellCheckSettingsOpen ? ' mf-statusbar-button-active' : ''}`}
+            aria-haspopup="dialog"
+            aria-expanded={isSpellCheckSettingsOpen}
+            aria-label="Spellcheck settings"
+            onClick={() => setIsSpellCheckSettingsOpen((current) => !current)}
+          >
+            Spell: {formatSpellCheckLanguageLabel(spellCheckState.selectedLanguage)}
+          </button>
+          {isSpellCheckSettingsOpen ? (
+            <section
+              ref={spellCheckPanelRef}
+              className="mf-spellcheck-popover"
+              role="dialog"
+              aria-label="Spellcheck settings"
+            >
+              <div className="mf-spellcheck-popover-header">
+                <div>
+                  <p className="mf-spellcheck-popover-title">Spellcheck</p>
+                  <p className="mf-spellcheck-popover-copy">Applies to this MarkFlow profile.</p>
+                </div>
+              </div>
+              <label className="mf-spellcheck-field">
+                <span className="mf-spellcheck-field-label">Dictionary language</span>
+                <select
+                  className="mf-theme-select"
+                  value={spellCheckState.selectedLanguage ?? ''}
+                  onChange={(event) => void handleSpellCheckLanguageChange(event)}
+                  aria-label="Spellcheck language"
+                >
+                  <option value="">Default</option>
+                  {spellCheckState.availableLanguages.map((language) => (
+                    <option key={language} value={language}>
+                      {language}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <form className="mf-spellcheck-add-form" onSubmit={(event) => void handleSpellCheckWordSubmit(event)}>
+                <label className="mf-spellcheck-field">
+                  <span className="mf-spellcheck-field-label">Custom dictionary</span>
+                  <input
+                    className="mf-spellcheck-input"
+                    type="text"
+                    value={spellCheckWordInput}
+                    onChange={(event) => setSpellCheckWordInput(event.target.value)}
+                    placeholder="Add a domain term"
+                    aria-label="Add custom spellcheck word"
+                  />
+                </label>
+                <button
+                  type="submit"
+                  className="mf-spellcheck-submit"
+                  disabled={sanitizeSpellCheckWord(spellCheckWordInput) == null}
+                >
+                  Add word
+                </button>
+              </form>
+              <div className="mf-spellcheck-word-list" aria-label="Custom spellcheck words">
+                {spellCheckState.customWords.length > 0 ? (
+                  spellCheckState.customWords.map((word) => (
+                    <button
+                      key={word}
+                      type="button"
+                      className="mf-spellcheck-word-chip"
+                      aria-label={`Remove ${word} from custom dictionary`}
+                      onClick={() => void handleSpellCheckWordRemove(word)}
+                    >
+                      <span>{word}</span>
+                      <span aria-hidden="true">×</span>
+                    </button>
+                  ))
+                ) : (
+                  <p className="mf-spellcheck-empty">No custom words yet.</p>
+                )}
+              </div>
+            </section>
+          ) : null}
+        </div>
       </footer>
 
       <CommandPalette
@@ -2183,6 +2395,7 @@ export function App() {
         <div id="mf-export-container" style={{ position: 'absolute', left: '-9999px', top: 0, width: '800px', height: 'auto' }}>
           <MarkFlowEditor
             content={activeTab?.content ?? ''}
+            spellCheckLanguage={spellCheckState.selectedLanguage}
             viewMode="wysiwyg"
             onChange={() => {}}
             onCursorPositionChange={() => {}}
