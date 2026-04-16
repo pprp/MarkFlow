@@ -4693,3 +4693,39 @@
   - none
 - Next recommended feature:
   - `MF-055` - complete the pending 2 GB desktop Go-to-Line timing and Activity Monitor RSS verification in a real Accessibility-enabled session, then update the ledger only if those checks truly pass
+
+
+### 2026-04-16 - MF-055 verified with live 2 GB jumps and Activity Monitor memory evidence
+
+- Author: Codex
+- Focus: obey the startup protocol for `MF-055`, rerun the required automated verification, complete the pending 2 GB desktop Go-to-Line plus memory acceptance in a real packaged app session, and update the ledger only if the evidence truly satisfied the feature contract.
+- What changed:
+  - re-read the root `AGENTS.md`, ran `pnpm harness:start`, and reran `./harness/init.sh --smoke` before touching `MF-055`
+  - rechecked the shipped `MF-055` implementation in `packages/desktop/src/main/fileManager.ts`, `packages/desktop/src/preload/index.ts`, `packages/shared/src/index.ts`, `packages/editor/src/App.tsx`, `packages/desktop/src/main/fileManager.test.ts`, and `packages/editor/src/__tests__/App.test.tsx`; no production code changes were required because the windowed large-file read path and renderer bridge were already in place
+  - generated a temporary `harness/fixtures/mf-large-2gb.md`, launched `dist-mac/mac-arm64/MarkFlow.app` with `--remote-debugging-port=9236`, drove the real renderer through Chromium CDP, and paired that with `Activity Monitor` accessibility reads for the exact packaged-app process tree
+  - updated `harness/feature-ledger.json` for `MF-055` only after the listed automated checks, the `1,000,000`-line jump, and the memory cap all passed on this session; then removed the temporary 2 GB fixture and closed the packaged app instance
+- Changed files:
+  - `harness/feature-ledger.json`
+  - `harness/progress.md`
+- Simplifications made:
+  - stayed strictly on `MF-055`; no unrelated feature work, refactors, or verification drift fixes were introduced
+  - reused the packaged app plus CDP and `Activity Monitor` rather than adding any temporary product hooks for manual verification
+- Verification:
+  - `pnpm harness:start` (passes)
+  - `./harness/init.sh --smoke` (passes; workspace smoke reran the current harness verification plus desktop 33/33 and editor 367 passed with 3 skips)
+  - `pnpm --filter @markflow/desktop test:run -- src/main/fileManager.test.ts` (passes; 6 files / 33 tests, including the `MF-055` large-file windowing coverage)
+  - `pnpm --filter @markflow/editor test:run -- src/__tests__/App.test.tsx` (passes; 33 files / 367 tests with 3 skips, including the `MF-055` large-file Go-to-Line bridge coverage)
+  - `pnpm harness:verify` (passes; `106 total | verified=63 | ready=19 | planned=23 | blocked=1 | regression=0` before the ledger promotion)
+  - `swift -e 'import ApplicationServices; print(AXIsProcessTrusted())'` (passes; returned `true`, so `Activity Monitor` was scriptable in this session)
+  - `pnpm harness:fixture:large --bytes 2147483648 --output harness/fixtures/mf-large-2gb.md` (passes; generated 21,505,715 lines / 2,147,483,670 bytes)
+  - packaged-app live jump to line `1,000,000` (passes): the large-file banner moved to `999,960-1,000,359`, the status bar reported `line 1,000,000 / 21,505,716`, the loaded window contained `Section 500`, and the measured jump completed in `43.8 ms`
+  - packaged-app live jump to line `20,000,000` (passes): the banner moved to `19,999,960-20,000,359`, the status bar reported `line 20,000,000 / 21,505,716`, the loaded window contained `Section 10000`, and the measured jump completed in `30.5 ms`
+  - `Activity Monitor` memory rows for the packaged-app process tree (passes): after the `1,000,000` jump, PIDs `55442` / `55443` / `55444` / `55447` read `40.3 MB`, `114.0 MB`, `12.6 MB`, and `60.6 MB` for `227.5 MB` total; after the `20,000,000` jump, the same four rows read `41.7 MB`, `272.6 MB`, `12.6 MB`, and `65.9 MB` for `392.8 MB` total
+  - process-tree RSS cross-check (passes): `ps -o pid=,rss= -p 55442,55443,55444,55447` totaled `451,776 KB` after the `1,000,000` jump and `453,968 KB` after the `20,000,000` jump, both below `524,288 KB` (`512 MB`)
+- Review / risks:
+  - `MF-055` is now honestly verified on this machine: the shipped large-file path stayed read-only, the 2 GB Go-to-Line acceptance was met with wide margin, and both `Activity Monitor` and `ps rss` stayed below the stated memory cap for the packaged-app process tree
+  - no production-code risk changed in this session because the implementation was already present; this was a verification-and-ledger closeout
+- Newly verified features:
+  - `MF-055`
+- Next recommended feature:
+  - `MF-050` - Background indexer builds a symbol table for headings and anchors without blocking the UI thread

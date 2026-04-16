@@ -1425,9 +1425,9 @@
       "category": "phase-2-performance",
       "area": "@markflow/desktop",
       "priority": 3,
-      "status": "planned",
-      "passes": false,
-      "lastVerifiedAt": null,
+      "status": "verified",
+      "passes": true,
+      "lastVerifiedAt": "2026-04-16",
       "dependsOn": [
         "MF-052"
       ],
@@ -1446,7 +1446,7 @@
           "Monitor Activity Monitor RSS while jumping to arbitrary positions."
         ]
       },
-      "notes": "Current `MF-055` implementation, re-verified on 2026-04-16, routes files larger than 256 MB through a windowed large-file path that builds sparse newline checkpoints, keeps only a 400-line sliding window in memory, and serves random-access line requests over `read-large-file-window` instead of materializing the full file in the renderer. The shared/preload desktop bridge exposes `MarkFlowFilePayload.largeFile` plus `readLargeFileWindow()`, while the editor presents a read-only large-file banner, global line counts, and IPC-backed Go-to-Line jumps without enabling partial-window edits or exports. Regression coverage in `packages/desktop/src/main/fileManager.test.ts` and `packages/editor/src/__tests__/App.test.tsx` passed on 2026-04-16 with the listed automated commands; `pnpm --filter @markflow/shared build`, `pnpm --filter @markflow/desktop build`, `pnpm --filter @markflow/editor build`, `pnpm --filter @markflow/shared lint`, `pnpm --filter @markflow/desktop lint`, `pnpm --filter @markflow/editor lint`, and `pnpm harness:verify` also passed. `passes` remains false because this session has not yet completed the required 2 GB manual jump timing and Activity Monitor RSS verification."
+      "notes": "Current `MF-055` implementation, re-verified on 2026-04-16, routes files larger than 256 MB through a windowed large-file path that builds sparse newline checkpoints, keeps only a 400-line sliding window in memory, and serves random-access line requests over `read-large-file-window` instead of materializing the full file in the renderer. The shared/preload desktop bridge exposes `MarkFlowFilePayload.largeFile` plus `readLargeFileWindow()`, while the editor presents a read-only large-file banner, global line counts, and IPC-backed Go-to-Line jumps without enabling partial-window edits or exports. Regression coverage in `packages/desktop/src/main/fileManager.test.ts` and `packages/editor/src/__tests__/App.test.tsx` passed again on 2026-04-16 with the listed automated commands, and `pnpm harness:verify` also passed. Manual verification completed on 2026-04-16 in the packaged desktop app against a synthetic 2 GB fixture: Go-to-Line reached line 1,000,000 in 43.8 ms and line 20,000,000 in 30.5 ms, the renderer updated to windows `999,960-1,000,359` and `19,999,960-20,000,359` while showing `Section 500` and `Section 10000`, and Activity Monitor rows for the MarkFlow process tree (PIDs `55442`, `55443`, `55444`, `55447`) stayed below 512 MB in aggregate at both checkpoints (`227.5 MB`, then `392.8 MB`). Matching `ps rss` totals for the same four processes also stayed below the cap (`451,776 KB`, then `453,968 KB`)."
     },
     {
       "id": "MF-056",
