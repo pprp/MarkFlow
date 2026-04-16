@@ -950,6 +950,24 @@ body {
   z-index: 8;
 }
 
+.mf-image-upload-popover {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 10px);
+  width: min(26rem, calc(100vw - 24px));
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--mf-border-light);
+  border-radius: var(--mf-radius-lg);
+  background: color-mix(in srgb, var(--mf-bg-tertiary) 94%, transparent);
+  box-shadow: var(--mf-shadow-lg);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  z-index: 8;
+}
+
 .mf-spellcheck-popover-header {
   display: flex;
   align-items: flex-start;
@@ -987,6 +1005,19 @@ body {
   display: flex;
   flex-direction: column;
   gap: 10px;
+}
+
+.mf-image-upload-checkbox {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  color: var(--mf-fg-secondary);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.mf-image-upload-checkbox input {
+  margin: 2px 0 0;
 }
 
 .mf-spellcheck-input {
@@ -1033,6 +1064,12 @@ body {
   gap: 8px;
 }
 
+.mf-image-upload-copy {
+  color: var(--mf-fg-secondary);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
 .mf-spellcheck-word-chip {
   display: inline-flex;
   align-items: center;
@@ -1057,6 +1094,30 @@ body {
 .mf-spellcheck-empty {
   color: var(--mf-fg-secondary);
   font-size: 11px;
+}
+
+.mf-toast-stack {
+  position: fixed;
+  right: 18px;
+  bottom: 48px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  z-index: 16;
+  pointer-events: none;
+}
+
+.mf-toast {
+  min-width: 240px;
+  max-width: min(28rem, calc(100vw - 36px));
+  padding: 11px 14px;
+  border: 1px solid color-mix(in srgb, #d04b35 24%, var(--mf-border-light));
+  border-radius: var(--mf-radius-md);
+  background: color-mix(in srgb, #d04b35 10%, var(--mf-bg));
+  box-shadow: var(--mf-shadow-lg);
+  color: var(--mf-fg);
+  font-size: 12px;
+  line-height: 1.45;
 }
 
 /* ── CodeMirror base ────────────────────────────────────────── */

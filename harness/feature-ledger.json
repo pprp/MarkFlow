@@ -2134,7 +2134,7 @@
       "category": "phase-2-functional",
       "area": "@markflow/desktop",
       "priority": 3,
-      "status": "planned",
+      "status": "ready",
       "passes": false,
       "lastVerifiedAt": null,
       "dependsOn": ["MF-029", "MF-070"],
@@ -2151,7 +2151,7 @@
           "Upload three images through a real PicGo instance and verify each ends up in the remote store."
         ]
       },
-      "notes": "Typora documents image upload via custom commands and PicGo. Source: https://support.typora.io/Upload-Image/."
+      "notes": "Implemented on 2026-04-16 in `packages/desktop/src/main/imageUploadManager.ts`, `packages/desktop/src/preload/index.ts`, `packages/editor/src/App.tsx`, `packages/editor/src/editor/MarkFlowEditor.tsx`, and `packages/editor/src/editor/extensions/smartPaste.ts`. MarkFlow now persists PicGo-core/custom-command upload preferences, materializes pasted/dropped images into a managed local asset path, auto-runs uploader commands with the image path appended, rewrites markdown to the returned remote URL on success, and preserves the local asset with an error toast on failure. Focused coverage in `packages/desktop/src/main/imageUploadManager.test.ts` verifies success/failure/timeout, while `packages/editor/src/__tests__/App.test.tsx` verifies the URL rewrite and failure-fallback paths. Automated verification passed on 2026-04-16 via the targeted desktop/editor vitest runs, `pnpm --filter @markflow/shared lint`, `pnpm --filter @markflow/shared build`, `pnpm --filter @markflow/editor lint`, `pnpm --filter @markflow/editor build`, `pnpm --filter @markflow/desktop lint`, `pnpm --filter @markflow/desktop build`, and `pnpm harness:verify`. `passes` remains false because the required real PicGo manual upload verification was not performed in this terminal session. Sources: https://support.typora.io/Upload-Image/ and https://github.com/PicGo/PicGo-Core."
     },
     {
       "id": "MF-082",

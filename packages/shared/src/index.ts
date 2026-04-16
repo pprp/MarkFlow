@@ -78,6 +78,43 @@ export interface MarkFlowSpellCheckState {
   customWords: string[]
 }
 
+export type MarkFlowImageUploaderKind = 'disabled' | 'picgo-core' | 'custom-command'
+
+export interface MarkFlowImageUploadSettings {
+  autoUploadOnInsert: boolean
+  uploaderKind: MarkFlowImageUploaderKind
+  command: string
+  arguments: string
+  timeoutMs: number
+  assetDirectoryName: string
+  keepLocalCopyAfterUpload: boolean
+}
+
+export interface MarkFlowImageIngestRequest {
+  fileName: string
+  mimeType: string
+  documentFilePath: string | null
+  sourcePath?: string | null
+  data?: Uint8Array
+}
+
+export interface MarkFlowImageIngestResult {
+  localFilePath: string
+  markdownSource: string
+}
+
+export interface MarkFlowImageUploadRequest {
+  filePath: string
+  documentFilePath: string | null
+}
+
+export interface MarkFlowImageUploadResult {
+  success: boolean
+  remoteUrl?: string
+  error?: string
+  timedOut?: boolean
+}
+
 export type MarkFlowMenuAction =
   | 'new-file'
   | 'open-file'
@@ -351,6 +388,12 @@ export interface MarkFlowDesktopAPI {
   setSpellCheckLanguage: (language: string | null) => Promise<MarkFlowSpellCheckState>
   addSpellCheckWord: (word: string) => Promise<MarkFlowSpellCheckState>
   removeSpellCheckWord: (word: string) => Promise<MarkFlowSpellCheckState>
+  getImageUploadSettings: () => Promise<MarkFlowImageUploadSettings>
+  setImageUploadSettings: (
+    settings: MarkFlowImageUploadSettings,
+  ) => Promise<MarkFlowImageUploadSettings>
+  ingestImage: (request: MarkFlowImageIngestRequest) => Promise<MarkFlowImageIngestResult>
+  uploadImage: (request: MarkFlowImageUploadRequest) => Promise<MarkFlowImageUploadResult>
   openFolder: () => Promise<{ folderPath: string } | null>
   getVaultFiles: (folderPath: string) => Promise<string[]>
   renameFile: (oldPath: string, newPath: string) => Promise<void>

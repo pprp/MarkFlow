@@ -2,6 +2,11 @@ import { clipboard, contextBridge, ipcRenderer } from 'electron'
 import type {
   MarkFlowAppearance,
   MarkFlowDesktopAPI,
+  MarkFlowImageIngestRequest,
+  MarkFlowImageIngestResult,
+  MarkFlowImageUploadRequest,
+  MarkFlowImageUploadResult,
+  MarkFlowImageUploadSettings,
   MarkFlowFileLoadProgressPayload,
   MarkFlowFilePayload,
   MarkFlowMenuActionPayload,
@@ -70,6 +75,14 @@ const api: MarkFlowDesktopAPI = {
     ipcRenderer.invoke('add-spellcheck-word', word) as Promise<MarkFlowSpellCheckState>,
   removeSpellCheckWord: (word: string) =>
     ipcRenderer.invoke('remove-spellcheck-word', word) as Promise<MarkFlowSpellCheckState>,
+  getImageUploadSettings: () =>
+    ipcRenderer.invoke('get-image-upload-settings') as Promise<MarkFlowImageUploadSettings>,
+  setImageUploadSettings: (settings: MarkFlowImageUploadSettings) =>
+    ipcRenderer.invoke('set-image-upload-settings', settings) as Promise<MarkFlowImageUploadSettings>,
+  ingestImage: (request: MarkFlowImageIngestRequest) =>
+    ipcRenderer.invoke('ingest-image', request) as Promise<MarkFlowImageIngestResult>,
+  uploadImage: (request: MarkFlowImageUploadRequest) =>
+    ipcRenderer.invoke('upload-image', request) as Promise<MarkFlowImageUploadResult>,
   openFolder: () => ipcRenderer.invoke('open-folder'),
   getVaultFiles: (folderPath: string) => ipcRenderer.invoke('get-vault-files', folderPath) as Promise<string[]>,
   renameFile: (oldPath: string, newPath: string) => ipcRenderer.invoke('rename-file', oldPath, newPath),

@@ -28,6 +28,7 @@ import {
   type MarkFlowDocument,
   type MarkFlowFilePayload,
   type MarkFlowFileLoadProgressPayload,
+  type MarkFlowImageUploadSettings,
   type MarkFlowLargeFileWindow,
   type MarkFlowMenuAction,
   type MarkFlowRecoveryCheckpoint,
@@ -159,6 +160,67 @@ function formatAppearanceLabel(appearance: MarkFlowAppearance) {
 
 function formatSpellCheckLanguageLabel(language: string | null) {
   return language ?? 'Default'
+}
+
+type AppToast = {
+  id: number
+  message: string
+}
+
+type EditorImageInsertDetail = {
+  file: File & { path?: string }
+  markdownText: string
+  occurrenceIndex: number
+}
+
+function rewriteImageMarkdownSource(markdownText: string, nextSource: string) {
+  const match = markdownText.match(/^(!\[[^\]]*\]\()([^)]*)(\).*)$/)
+  if (!match) {
+    return markdownText
+  }
+
+  return `${match[1]}${nextSource}${match[3]}`
+}
+
+function replaceNthOccurrence(
+  text: string,
+  searchText: string,
+  replacementText: string,
+  occurrenceIndex: number,
+) {
+  if (!searchText) {
+    return null
+  }
+
+  let fromIndex = 0
+  let currentOccurrence = 0
+  while (fromIndex <= text.length) {
+    const foundAt = text.indexOf(searchText, fromIndex)
+    if (foundAt < 0) {
+      return null
+    }
+
+    if (currentOccurrence === occurrenceIndex) {
+      return (
+        text.slice(0, foundAt) +
+        replacementText +
+        text.slice(foundAt + searchText.length)
+      )
+    }
+
+    currentOccurrence += 1
+    fromIndex = foundAt + searchText.length
+  }
+
+  return null
+}
+
+function formatImageUploadStatus(settings: MarkFlowImageUploadSettings | null) {
+  if (!settings || !settings.autoUploadOnInsert || settings.uploaderKind === 'disabled') {
+    return 'Uploads: Off'
+  }
+
+  return settings.uploaderKind === 'picgo-core' ? 'Uploads: PicGo' : 'Uploads: Custom'
 }
 
 function isEditorCopyContext() {
@@ -330,10 +392,13 @@ export function App() {
   )
   const [isSpellCheckSettingsOpen, setIsSpellCheckSettingsOpen] = useState(false)
   const [spellCheckWordInput, setSpellCheckWordInput] = useState('')
+  const [imageUploadSettings, setImageUploadSettings] = useState<MarkFlowImageUploadSettings | null>(null)
+  const [isImageUploadSettingsOpen, setIsImageUploadSettingsOpen] = useState(false)
   const [isGlobalSearchOpen, setIsGlobalSearchOpen] = useState(false)
   const [isGoToLineOpen, setIsGoToLineOpen] = useState(false)
   const [themes, setThemes] = useState<MarkFlowThemeSummary[]>([])
   const [themeState, setThemeState] = useState<MarkFlowThemeState | null>(null)
+  const [toasts, setToasts] = useState<AppToast[]>([])
   const [editorNavigationRequest, setEditorNavigationRequest] = useState<{
     key: number
     position: number
@@ -366,8 +431,12 @@ export function App() {
   const editorNavigationKeyRef = useRef(0)
   const pluginHostRef = useRef<MarkFlowPluginHost | null>(null)
   const editorRef = useRef<MarkFlowEditorHandle | null>(null)
+  const editorShellRef = useRef<HTMLDivElement | null>(null)
   const spellCheckButtonRef = useRef<HTMLButtonElement | null>(null)
   const spellCheckPanelRef = useRef<HTMLDivElement | null>(null)
+  const imageUploadButtonRef = useRef<HTMLButtonElement | null>(null)
+  const imageUploadPanelRef = useRef<HTMLDivElement | null>(null)
+  const toastIdRef = useRef(0)
 
   if (pluginHostRef.current === null) {
     pluginHostRef.current = new MarkFlowPluginHost()
@@ -499,7 +568,18 @@ export function App() {
   }, [applySpellCheckState])
 
   useEffect(() => {
-    if (!isSpellCheckSettingsOpen) {
+    const api = window.markflow
+    if (!api) {
+      return
+    }
+
+    void api.getImageUploadSettings().then((nextSettings) => {
+      setImageUploadSettings(nextSettings)
+    })
+  }, [])
+
+  useEffect(() => {
+    if (!isSpellCheckSettingsOpen && !isImageUploadSettingsOpen) {
       return
     }
 
@@ -507,17 +587,21 @@ export function App() {
       const target = event.target
       if (
         (target instanceof Node && spellCheckPanelRef.current?.contains(target)) ||
-        (target instanceof Node && spellCheckButtonRef.current?.contains(target))
+        (target instanceof Node && spellCheckButtonRef.current?.contains(target)) ||
+        (target instanceof Node && imageUploadPanelRef.current?.contains(target)) ||
+        (target instanceof Node && imageUploadButtonRef.current?.contains(target))
       ) {
         return
       }
 
       setIsSpellCheckSettingsOpen(false)
+      setIsImageUploadSettingsOpen(false)
     }
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         setIsSpellCheckSettingsOpen(false)
+        setIsImageUploadSettingsOpen(false)
       }
     }
 
@@ -527,7 +611,7 @@ export function App() {
       document.removeEventListener('pointerdown', handlePointerDown)
       document.removeEventListener('keydown', handleKeyDown)
     }
-  }, [isSpellCheckSettingsOpen])
+  }, [isImageUploadSettingsOpen, isSpellCheckSettingsOpen])
 
   function applyThemeState(nextThemeState: MarkFlowThemeState | null) {
     const existing = document.getElementById(THEME_STYLE_ELEMENT_ID) as HTMLStyleElement | null
@@ -1375,6 +1459,151 @@ export function App() {
       await api.exportPdf(html, defaultName)
     }
   }
+
+  const showToast = useCallback((message: string) => {
+    toastIdRef.current += 1
+    const nextToast = {
+      id: toastIdRef.current,
+      message,
+    }
+    setToasts((currentToasts) => [...currentToasts, nextToast])
+    window.setTimeout(() => {
+      setToasts((currentToasts) => currentToasts.filter((toast) => toast.id !== nextToast.id))
+    }, 4_000)
+  }, [])
+
+  const replaceTabTextOccurrence = useCallback(
+    (tabId: string, searchText: string, replacementText: string, occurrenceIndex: number) => {
+      let didReplace = false
+      if (activeTabIdRef.current === tabId) {
+        editorRef.current?.replaceTextOccurrence(searchText, replacementText, occurrenceIndex)
+      }
+
+      updateTab(tabId, (tab) => {
+        const nextContent = replaceNthOccurrence(tab.content, searchText, replacementText, occurrenceIndex)
+        if (nextContent == null || nextContent === tab.content) {
+          return tab
+        }
+
+        didReplace = true
+        return {
+          ...tab,
+          content: nextContent,
+          isDirty: nextContent !== tab.persistedContent,
+        }
+      })
+
+      return didReplace
+    },
+    [updateTab],
+  )
+
+  const persistImageUploadSettings = useCallback(
+    async (nextSettings: MarkFlowImageUploadSettings) => {
+      const api = window.markflow
+      if (!api) {
+        setImageUploadSettings(nextSettings)
+        return
+      }
+
+      const persistedSettings = await api.setImageUploadSettings(nextSettings)
+      setImageUploadSettings(persistedSettings)
+    },
+    [],
+  )
+
+  const updateImageUploadSettings = useCallback(
+    (patch: Partial<MarkFlowImageUploadSettings>) => {
+      if (!imageUploadSettings) {
+        return
+      }
+
+      void persistImageUploadSettings({
+        ...imageUploadSettings,
+        ...patch,
+      })
+    },
+    [imageUploadSettings, persistImageUploadSettings],
+  )
+
+  useEffect(() => {
+    const shell = editorShellRef.current
+    const api = window.markflow
+    if (!shell || !api) {
+      return
+    }
+
+    const handleImageInsert = (event: Event) => {
+      const detail = (event as CustomEvent<EditorImageInsertDetail>).detail
+      const currentActiveTabId = activeTabIdRef.current
+      const currentTab = currentActiveTabId
+        ? tabsRef.current.find((tab) => tab.id === currentActiveTabId) ?? null
+        : null
+
+      if (!currentActiveTabId || !currentTab || currentTab.largeFile) {
+        return
+      }
+
+      const documentFilePath = currentTab.filePath
+      void (async () => {
+        try {
+          const sourcePath =
+            typeof detail.file.path === 'string' && detail.file.path.length > 0 ? detail.file.path : null
+          const imageBuffer = sourcePath
+            ? null
+            : typeof detail.file.arrayBuffer === 'function'
+              ? await detail.file.arrayBuffer()
+              : await new Response(detail.file).arrayBuffer()
+          const data = imageBuffer ? new Uint8Array(imageBuffer) : undefined
+          const ingestResult = await api.ingestImage({
+            fileName: detail.file.name || 'image.png',
+            mimeType: detail.file.type || 'image/png',
+            documentFilePath,
+            sourcePath,
+            data,
+          })
+          const localMarkdown = rewriteImageMarkdownSource(
+            detail.markdownText,
+            ingestResult.markdownSource,
+          )
+
+          replaceTabTextOccurrence(
+            currentActiveTabId,
+            detail.markdownText,
+            localMarkdown,
+            detail.occurrenceIndex,
+          )
+
+          if (!imageUploadSettings?.autoUploadOnInsert || imageUploadSettings.uploaderKind === 'disabled') {
+            return
+          }
+
+          const uploadResult = await api.uploadImage({
+            filePath: ingestResult.localFilePath,
+            documentFilePath,
+          })
+          if (!uploadResult.success || !uploadResult.remoteUrl) {
+            showToast(uploadResult.error ?? 'Image upload failed.')
+            return
+          }
+
+          const remoteMarkdown = rewriteImageMarkdownSource(localMarkdown, uploadResult.remoteUrl)
+          replaceTabTextOccurrence(currentActiveTabId, localMarkdown, remoteMarkdown, 0)
+        } catch (error) {
+          showToast(
+            error instanceof Error ? error.message : 'Image upload failed before the local asset was preserved.',
+          )
+        }
+      })()
+    }
+
+    shell.addEventListener('mf-image-paste', handleImageInsert as EventListener)
+    shell.addEventListener('mf-image-drop', handleImageInsert as EventListener)
+    return () => {
+      shell.removeEventListener('mf-image-paste', handleImageInsert as EventListener)
+      shell.removeEventListener('mf-image-drop', handleImageInsert as EventListener)
+    }
+  }, [imageUploadSettings, replaceTabTextOccurrence, showToast])
 
   function handleContentChange(content: string) {
     const currentActiveTabId = activeTabIdRef.current
@@ -2229,7 +2458,7 @@ export function App() {
           </div>
         )}
         <div className="mf-body">
-          <div className="mf-editor-shell">
+          <div ref={editorShellRef} className="mf-editor-shell">
             {loadingFile ? (
               <section className="mf-file-loading" aria-live="polite">
                 <div className="mf-file-loading-header">
@@ -2368,6 +2597,147 @@ export function App() {
           </>
         )}
         <div className="mf-statusbar-actions">
+          {imageUploadSettings ? (
+            <>
+              <button
+                ref={imageUploadButtonRef}
+                type="button"
+                className={`mf-statusbar-button${isImageUploadSettingsOpen ? ' mf-statusbar-button-active' : ''}`}
+                aria-haspopup="dialog"
+                aria-expanded={isImageUploadSettingsOpen}
+                aria-label="Image upload preferences"
+                onClick={() => {
+                  setIsSpellCheckSettingsOpen(false)
+                  setIsImageUploadSettingsOpen((current) => !current)
+                }}
+              >
+                {formatImageUploadStatus(imageUploadSettings)}
+              </button>
+              {isImageUploadSettingsOpen ? (
+                <section
+                  ref={imageUploadPanelRef}
+                  className="mf-image-upload-popover"
+                  role="dialog"
+                  aria-label="Image upload preferences"
+                >
+                  <div className="mf-spellcheck-popover-header">
+                    <div>
+                      <p className="mf-spellcheck-popover-title">Image Upload</p>
+                      <p className="mf-spellcheck-popover-copy">
+                        Auto-routes pasted and dropped images through PicGo-compatible commands.
+                      </p>
+                    </div>
+                  </div>
+                  <label className="mf-image-upload-checkbox">
+                    <input
+                      type="checkbox"
+                      checked={imageUploadSettings.autoUploadOnInsert}
+                      onChange={(event) =>
+                        updateImageUploadSettings({ autoUploadOnInsert: event.target.checked })
+                      }
+                    />
+                    <span>Upload pasted and dropped images automatically</span>
+                  </label>
+                  <label className="mf-spellcheck-field">
+                    <span className="mf-spellcheck-field-label">Uploader preset</span>
+                    <select
+                      className="mf-theme-select"
+                      value={imageUploadSettings.uploaderKind}
+                      onChange={(event) =>
+                        updateImageUploadSettings({
+                          uploaderKind: event.target.value as MarkFlowImageUploadSettings['uploaderKind'],
+                        })
+                      }
+                      aria-label="Image uploader type"
+                    >
+                      <option value="disabled">Disabled</option>
+                      <option value="picgo-core">PicGo Core</option>
+                      <option value="custom-command">Custom command</option>
+                    </select>
+                  </label>
+                  {imageUploadSettings.uploaderKind !== 'disabled' ? (
+                    <>
+                      <label className="mf-spellcheck-field">
+                        <span className="mf-spellcheck-field-label">Command</span>
+                        <input
+                          className="mf-spellcheck-input"
+                          type="text"
+                          value={imageUploadSettings.command}
+                          onChange={(event) =>
+                            updateImageUploadSettings({ command: event.target.value })
+                          }
+                          placeholder={imageUploadSettings.uploaderKind === 'picgo-core' ? 'picgo' : '/path/to/upload-image'}
+                          aria-label="Image uploader command"
+                        />
+                      </label>
+                      <label className="mf-spellcheck-field">
+                        <span className="mf-spellcheck-field-label">Arguments</span>
+                        <input
+                          className="mf-spellcheck-input"
+                          type="text"
+                          value={imageUploadSettings.arguments}
+                          onChange={(event) =>
+                            updateImageUploadSettings({ arguments: event.target.value })
+                          }
+                          placeholder={imageUploadSettings.uploaderKind === 'picgo-core' ? 'upload' : '--flag value'}
+                          aria-label="Image uploader arguments"
+                        />
+                      </label>
+                      <label className="mf-spellcheck-field">
+                        <span className="mf-spellcheck-field-label">Asset directory</span>
+                        <input
+                          className="mf-spellcheck-input"
+                          type="text"
+                          value={imageUploadSettings.assetDirectoryName}
+                          onChange={(event) =>
+                            updateImageUploadSettings({ assetDirectoryName: event.target.value })
+                          }
+                          placeholder="assets"
+                          aria-label="Image asset directory"
+                        />
+                      </label>
+                      <label className="mf-spellcheck-field">
+                        <span className="mf-spellcheck-field-label">Timeout (ms)</span>
+                        <input
+                          className="mf-spellcheck-input"
+                          type="number"
+                          min={1000}
+                          step={1000}
+                          value={imageUploadSettings.timeoutMs}
+                          onChange={(event) =>
+                            updateImageUploadSettings({
+                              timeoutMs: Number.parseInt(event.target.value || '0', 10),
+                            })
+                          }
+                          aria-label="Image upload timeout"
+                        />
+                      </label>
+                      <label className="mf-image-upload-checkbox">
+                        <input
+                          type="checkbox"
+                          checked={imageUploadSettings.keepLocalCopyAfterUpload}
+                          onChange={(event) =>
+                            updateImageUploadSettings({
+                              keepLocalCopyAfterUpload: event.target.checked,
+                            })
+                          }
+                        />
+                        <span>Keep the managed local copy after a successful upload</span>
+                      </label>
+                      <p className="mf-image-upload-copy">
+                        {'`${filename}` and `${filepath}` expand against the current markdown file, and the image path is appended as the final command argument.'}
+                      </p>
+                    </>
+                  ) : (
+                    <p className="mf-image-upload-copy">
+                      Enable a preset to rewrite inserted local images to remote URLs while keeping a local
+                      fallback on upload failure.
+                    </p>
+                  )}
+                </section>
+              ) : null}
+            </>
+          ) : null}
           <button
             ref={spellCheckButtonRef}
             type="button"
@@ -2375,7 +2745,10 @@ export function App() {
             aria-haspopup="dialog"
             aria-expanded={isSpellCheckSettingsOpen}
             aria-label="Spellcheck settings"
-            onClick={() => setIsSpellCheckSettingsOpen((current) => !current)}
+            onClick={() => {
+              setIsImageUploadSettingsOpen(false)
+              setIsSpellCheckSettingsOpen((current) => !current)
+            }}
           >
             Spell: {formatSpellCheckLanguageLabel(spellCheckState.selectedLanguage)}
           </button>
@@ -2450,6 +2823,15 @@ export function App() {
           ) : null}
         </div>
       </footer>
+      {toasts.length > 0 ? (
+        <div className="mf-toast-stack" aria-live="assertive" aria-label="Notifications">
+          {toasts.map((toast) => (
+            <div key={toast.id} className="mf-toast" role="alert">
+              {toast.message}
+            </div>
+          ))}
+        </div>
+      ) : null}
 
       <CommandPalette
         isOpen={isCommandPaletteOpen}

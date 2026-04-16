@@ -5,6 +5,7 @@ import { foldEffect, foldedRanges } from '@codemirror/language'
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { EditorView } from '@codemirror/view'
 import { act } from 'react'
+import * as path from 'path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { App } from '../App'
 import { headingFoldExtension } from '../editor/extensions/headingFold'
@@ -13,6 +14,8 @@ import type {
   MarkFlowDesktopAPI,
   MarkFlowFileLoadProgressPayload,
   MarkFlowFilePayload,
+  MarkFlowImageUploadResult,
+  MarkFlowImageUploadSettings,
   MarkFlowMenuAction,
   MarkFlowMenuActionPayload,
   MarkFlowRecoveryCheckpoint,
@@ -95,6 +98,19 @@ class MockMarkFlowAPI implements MarkFlowDesktopAPI {
     availableLanguages: ['de-DE', 'en-US', 'fr-FR'],
     customWords: [],
   }
+  private imageUploadSettings: MarkFlowImageUploadSettings = {
+    autoUploadOnInsert: false,
+    uploaderKind: 'disabled',
+    command: 'picgo',
+    arguments: 'upload',
+    timeoutMs: 5_000,
+    assetDirectoryName: 'assets',
+    keepLocalCopyAfterUpload: true,
+  }
+  private nextImageUploadResult: MarkFlowImageUploadResult = {
+    success: true,
+    remoteUrl: 'https://cdn.example.com/diagram.png',
+  }
   private windowSession: MarkFlowWindowSession | null = null
   private confirmTabCloseAction: 'save' | 'discard' | 'cancel' = 'cancel'
   openFile: MarkFlowDesktopAPI['openFile'] = vi.fn(async () => null)
@@ -131,6 +147,30 @@ class MockMarkFlowAPI implements MarkFlowDesktopAPI {
   deleteFile: MarkFlowDesktopAPI['deleteFile'] = vi.fn(async () => {})
   searchFiles: MarkFlowDesktopAPI['searchFiles'] = vi.fn(async () => [])
   writeClipboard: MarkFlowDesktopAPI['writeClipboard'] = vi.fn(async () => {})
+  getImageUploadSettings: MarkFlowDesktopAPI['getImageUploadSettings'] = vi.fn(
+    async () => this.imageUploadSettings,
+  )
+  setImageUploadSettings: MarkFlowDesktopAPI['setImageUploadSettings'] = vi.fn(
+    async (settings: MarkFlowImageUploadSettings) => {
+      this.imageUploadSettings = settings
+      return this.imageUploadSettings
+    },
+  )
+  ingestImage: MarkFlowDesktopAPI['ingestImage'] = vi.fn(async (request) => {
+    const baseDirectory = request.documentFilePath
+      ? path.join(path.dirname(request.documentFilePath), this.imageUploadSettings.assetDirectoryName)
+      : path.join('/tmp', 'markflow-staged')
+    const localFilePath = path.join(baseDirectory, request.fileName)
+    const markdownSource = request.documentFilePath
+      ? `./${this.imageUploadSettings.assetDirectoryName}/${request.fileName}`
+      : localFilePath
+
+    return {
+      localFilePath,
+      markdownSource,
+    }
+  })
+  uploadImage: MarkFlowDesktopAPI['uploadImage'] = vi.fn(async () => this.nextImageUploadResult)
 
   getThemes: MarkFlowDesktopAPI['getThemes'] = vi.fn(async () => this.themes)
   getThemeState: MarkFlowDesktopAPI['getThemeState'] = vi.fn(async () => this.themeState)
@@ -261,6 +301,14 @@ class MockMarkFlowAPI implements MarkFlowDesktopAPI {
 
   setConfirmTabCloseAction(action: 'save' | 'discard' | 'cancel') {
     this.confirmTabCloseAction = action
+  }
+
+  setImageUploadSettingsState(settings: MarkFlowImageUploadSettings) {
+    this.imageUploadSettings = settings
+  }
+
+  setNextImageUploadResult(result: MarkFlowImageUploadResult) {
+    this.nextImageUploadResult = result
   }
 
   onFileOpened(cb: (data: MarkFlowFilePayload) => void) {
@@ -882,6 +930,12 @@ describe('App desktop integration', () => {
 
     const { container } = render(<App />)
 
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Image upload preferences' })).toHaveTextContent(
+        'Uploads: Off',
+      )
+    })
+
     await act(async () => {
       api.emitFileOpened({
         filePath: '/Users/pprp/docs/note.md',
@@ -900,6 +954,143 @@ describe('App desktop integration', () => {
 
     await waitFor(() => {
       expect(container.querySelector('.mf-segment-btn.mf-segment-active')).toHaveTextContent('Source')
+    })
+  })
+
+  it('rewrites pasted image markdown to the uploaded remote URL when auto-upload is enabled', async () => {
+    const api = new MockMarkFlowAPI()
+    api.setImageUploadSettingsState({
+      autoUploadOnInsert: true,
+      uploaderKind: 'picgo-core',
+      command: 'picgo',
+      arguments: 'upload',
+      timeoutMs: 5_000,
+      assetDirectoryName: 'assets',
+      keepLocalCopyAfterUpload: true,
+    })
+    api.setNextImageUploadResult({
+      success: true,
+      remoteUrl: 'https://cdn.example.com/diagram.png',
+    })
+    window.markflow = api
+
+    const { container } = render(<App />)
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Image upload preferences' })).toHaveTextContent(
+        'Uploads: PicGo',
+      )
+    })
+
+    await act(async () => {
+      api.emitFileOpened({
+        filePath: '/Users/pprp/docs/note.md',
+        content: 'Intro',
+      })
+    })
+
+    const view = getEditorView(container)
+    const placeholder = '\n\n![image](./diagram.png)'
+    act(() => {
+      view.dispatch({
+        changes: { from: view.state.doc.length, insert: placeholder },
+        selection: { anchor: view.state.doc.length + placeholder.length },
+      })
+    })
+
+    const imageFile = new File(['image'], 'diagram.png', { type: 'image/png' })
+
+    await act(async () => {
+      view.dom.dispatchEvent(
+        new CustomEvent('mf-image-paste', {
+          detail: {
+            file: imageFile,
+            markdownText: '![image](./diagram.png)',
+            occurrenceIndex: 0,
+          },
+          bubbles: true,
+          composed: true,
+        }),
+      )
+    })
+
+    await waitFor(() => {
+      expect(view.state.doc.toString()).toContain('![image](https://cdn.example.com/diagram.png)')
+    })
+
+    expect(api.ingestImage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        fileName: 'diagram.png',
+        documentFilePath: '/Users/pprp/docs/note.md',
+      }),
+    )
+    expect(api.uploadImage).toHaveBeenCalledWith({
+      filePath: '/Users/pprp/docs/assets/diagram.png',
+      documentFilePath: '/Users/pprp/docs/note.md',
+    })
+  })
+
+  it('keeps the managed local image path and shows an error toast when upload fails', async () => {
+    const api = new MockMarkFlowAPI()
+    api.setImageUploadSettingsState({
+      autoUploadOnInsert: true,
+      uploaderKind: 'custom-command',
+      command: '/usr/local/bin/upload-image',
+      arguments: '--token test',
+      timeoutMs: 5_000,
+      assetDirectoryName: 'assets',
+      keepLocalCopyAfterUpload: true,
+    })
+    api.setNextImageUploadResult({
+      success: false,
+      error: 'PicGo authentication failed',
+      timedOut: false,
+    })
+    window.markflow = api
+
+    const { container } = render(<App />)
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Image upload preferences' })).toHaveTextContent(
+        'Uploads: Custom',
+      )
+    })
+
+    await act(async () => {
+      api.emitFileOpened({
+        filePath: '/Users/pprp/docs/note.md',
+        content: 'Intro',
+      })
+    })
+
+    const view = getEditorView(container)
+    const placeholder = '\n\n![image](./diagram.png)'
+    act(() => {
+      view.dispatch({
+        changes: { from: view.state.doc.length, insert: placeholder },
+        selection: { anchor: view.state.doc.length + placeholder.length },
+      })
+    })
+
+    const imageFile = new File(['image'], 'diagram.png', { type: 'image/png' })
+
+    await act(async () => {
+      view.dom.dispatchEvent(
+        new CustomEvent('mf-image-paste', {
+          detail: {
+            file: imageFile,
+            markdownText: '![image](./diagram.png)',
+            occurrenceIndex: 0,
+          },
+          bubbles: true,
+          composed: true,
+        }),
+      )
+    })
+
+    await waitFor(() => {
+      expect(view.state.doc.toString()).toContain('![image](./assets/diagram.png)')
+      expect(screen.getByRole('alert')).toHaveTextContent('PicGo authentication failed')
     })
   })
 

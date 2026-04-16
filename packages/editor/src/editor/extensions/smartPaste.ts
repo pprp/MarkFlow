@@ -81,6 +81,27 @@ function insertTextAtCursor(view: EditorView, text: string) {
     changes: { from, to, insert: text },
     selection: { anchor: from + text.length },
   })
+  return { from, to, insertedText: text }
+}
+
+function countOccurrencesBefore(text: string, searchText: string, beforeIndex: number) {
+  if (!searchText) {
+    return 0
+  }
+
+  let occurrenceCount = 0
+  let fromIndex = 0
+  while (fromIndex < beforeIndex) {
+    const foundAt = text.indexOf(searchText, fromIndex)
+    if (foundAt < 0 || foundAt >= beforeIndex) {
+      break
+    }
+
+    occurrenceCount += 1
+    fromIndex = foundAt + searchText.length
+  }
+
+  return occurrenceCount
 }
 
 export function smartPasteExtension() {
@@ -118,12 +139,22 @@ export function smartPasteExtension() {
         if (imageFile) {
           event.preventDefault()
           const fileName = imageFile.name || 'image.png'
-          insertTextAtCursor(view, `![image](./${fileName})`)
+          const placeholderMarkdown = `![image](./${fileName})`
+          const occurrenceIndex = countOccurrencesBefore(
+            view.state.doc.toString(),
+            placeholderMarkdown,
+            view.state.selection.main.from,
+          )
+          insertTextAtCursor(view, placeholderMarkdown)
 
           // Fire a custom event so the desktop layer can copy the file
           view.dom.dispatchEvent(
             new CustomEvent('mf-image-paste', {
-              detail: { file: imageFile },
+              detail: {
+                file: imageFile,
+                markdownText: placeholderMarkdown,
+                occurrenceIndex,
+              },
               bubbles: true,
               composed: true,
             }),

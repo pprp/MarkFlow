@@ -118,6 +118,7 @@ export type MarkFlowEditorCommand =
 export interface MarkFlowEditorHandle {
   captureSnapshot: () => MarkFlowEditorSnapshot | null
   executeCommand: (command: MarkFlowEditorCommand) => boolean
+  replaceTextOccurrence: (searchText: string, replacementText: string, occurrenceIndex?: number) => boolean
   focus: () => void
 }
 
@@ -141,6 +142,50 @@ const baseTheme = EditorView.theme({
     overflow: 'auto',
   },
 })
+
+function findNthOccurrence(text: string, searchText: string, occurrenceIndex: number) {
+  if (!searchText) {
+    return null
+  }
+
+  let fromIndex = 0
+  let currentOccurrence = 0
+  while (fromIndex <= text.length) {
+    const foundAt = text.indexOf(searchText, fromIndex)
+    if (foundAt < 0) {
+      return null
+    }
+
+    if (currentOccurrence === occurrenceIndex) {
+      return foundAt
+    }
+
+    currentOccurrence += 1
+    fromIndex = foundAt + searchText.length
+  }
+
+  return null
+}
+
+function countOccurrencesBefore(text: string, searchText: string, beforeIndex: number) {
+  if (!searchText) {
+    return 0
+  }
+
+  let occurrenceCount = 0
+  let fromIndex = 0
+  while (fromIndex < beforeIndex) {
+    const foundAt = text.indexOf(searchText, fromIndex)
+    if (foundAt < 0 || foundAt >= beforeIndex) {
+      break
+    }
+
+    occurrenceCount += 1
+    fromIndex = foundAt + searchText.length
+  }
+
+  return occurrenceCount
+}
 
 function getRenderedExtensions(
   renderedViewMode: MarkFlowRenderedViewMode,
@@ -613,14 +658,24 @@ export const MarkFlowEditor = forwardRef<MarkFlowEditorHandle, MarkFlowEditorPro
           handled = true
           const pos = view.posAtCoords({ x: event.clientX, y: event.clientY }) ?? view.state.doc.length
           const fileName = file.name
+          const placeholderMarkdown = `![${fileName}](./${fileName})`
+          const occurrenceIndex = countOccurrencesBefore(
+            view.state.doc.toString(),
+            placeholderMarkdown,
+            pos,
+          )
           view.dispatch({
-            changes: { from: pos, to: pos, insert: `![${fileName}](./${fileName})` },
-            selection: { anchor: pos + `![${fileName}](./${fileName})`.length },
+            changes: { from: pos, to: pos, insert: placeholderMarkdown },
+            selection: { anchor: pos + placeholderMarkdown.length },
           })
           // Fire custom event for desktop layer
           view.dom.dispatchEvent(
             new CustomEvent('mf-image-drop', {
-              detail: { file },
+              detail: {
+                file,
+                markdownText: placeholderMarkdown,
+                occurrenceIndex,
+              },
               bubbles: true,
               composed: true,
             }),
@@ -970,6 +1025,27 @@ export const MarkFlowEditor = forwardRef<MarkFlowEditorHandle, MarkFlowEditorPro
           default:
             return false
         }
+      },
+      replaceTextOccurrence: (searchText, replacementText, occurrenceIndex = 0) => {
+        const view = viewRef.current
+        if (!view || !searchText) {
+          return false
+        }
+
+        const from = findNthOccurrence(view.state.doc.toString(), searchText, occurrenceIndex)
+        if (from == null) {
+          return false
+        }
+
+        view.dispatch({
+          changes: {
+            from,
+            to: from + searchText.length,
+            insert: replacementText,
+          },
+          annotations: Transaction.addToHistory.of(false),
+        })
+        return true
       },
       focus: () => {
         viewRef.current?.focus()

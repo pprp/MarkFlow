@@ -4952,3 +4952,51 @@
   - none
 - Next recommended feature:
   - `MF-079` - perform the pending live code-fence duplication verification, then promote `passes` / `lastVerifiedAt` only if the packaged app keeps both fence copies valid
+
+### 2026-04-16 - MF-081 image uploads route pasted/dropped assets through a PicGo-compatible command bridge
+
+- Author: Codex
+- Focus: obey the startup protocol for `MF-081`, implement only the PicGo-compatible image-upload feature in `@markflow/desktop`, run the requested automated verification plus `pnpm harness:verify`, and keep the ledger honest because the required real PicGo manual validation was not completed in this terminal session.
+- What changed:
+  - re-read the root `AGENTS.md`, ran `pnpm harness:start`, and then ran `./harness/init.sh --smoke` before touching `MF-081`
+  - added `packages/desktop/src/main/imageUploadManager.ts` plus `packages/desktop/src/main/imageUploadManager.test.ts` so the desktop layer persists image-upload preferences, stages pasted/dropped images into managed local files, runs PicGo-core or custom commands with Typora-style `${filename}` / `${filepath}` substitutions plus the image path appended, parses returned URLs, and reports success/failure/timeout deterministically
+  - wired the new image-upload bridge through `packages/shared/src/index.ts`, `packages/desktop/src/preload/index.ts`, and `packages/desktop/src/main/index.ts`
+  - updated `packages/editor/src/App.tsx`, `packages/editor/src/editor/MarkFlowEditor.tsx`, and `packages/editor/src/editor/extensions/smartPaste.ts` so pasted/dropped images emit stable rewrite metadata, land on a managed local fallback path first, rewrite to the uploaded remote URL on success, and surface an error toast without dropping the local asset when upload fails
+  - extended `packages/editor/src/__tests__/App.test.tsx` for the URL-rewrite and failure-fallback paths, refreshed `packages/editor/src/styles/global.css` for the image-upload preferences popover and toast UI, and updated `harness/feature-ledger.json` for `MF-081` only to `status=ready` while keeping `passes=false` and `lastVerifiedAt=null`
+- Changed files:
+  - `packages/desktop/src/main/imageUploadManager.ts`
+  - `packages/desktop/src/main/imageUploadManager.test.ts`
+  - `packages/desktop/src/main/index.ts`
+  - `packages/desktop/src/preload/index.ts`
+  - `packages/editor/src/App.tsx`
+  - `packages/editor/src/__tests__/App.test.tsx`
+  - `packages/editor/src/editor/MarkFlowEditor.tsx`
+  - `packages/editor/src/editor/extensions/smartPaste.ts`
+  - `packages/editor/src/styles/global.css`
+  - `packages/shared/src/index.ts`
+  - `harness/feature-ledger.json`
+  - `harness/progress.md`
+- Simplifications made:
+  - kept the uploader surface command-based only: one PicGo Core preset and one generic custom-command lane, rather than adding a second PicGo server integration in the same feature
+  - reused the existing status-bar popover pattern for preferences instead of opening a separate desktop preferences window just for this feature
+  - used targeted in-editor occurrence rewrites for placeholder -> local path -> remote URL so uploads do not rely on whole-document resets or new editor abstractions
+- Verification:
+  - `pnpm harness:start` (passes)
+  - `./harness/init.sh --smoke` (fails before feature work because the workspace already contains an unrelated `packages/desktop/src/main/menu.test.ts` failure around the Clear Formatting menu bridge; not part of `MF-081`)
+  - `pnpm --filter @markflow/desktop exec vitest run src/main/imageUploadManager.test.ts` (passes; 1 file / 3 tests covering uploader success, command failure, and timeout handling)
+  - `pnpm --filter @markflow/editor exec vitest run src/__tests__/App.test.tsx` (passes; 1 file / 41 tests covering the image-upload rewrite path, failure toast fallback, and existing desktop/editor integration regressions)
+  - `pnpm --filter @markflow/shared lint` (passes)
+  - `pnpm --filter @markflow/shared build` (passes)
+  - `pnpm --filter @markflow/editor lint` (passes)
+  - `pnpm --filter @markflow/editor build` (passes)
+  - `pnpm --filter @markflow/desktop lint` (passes)
+  - `pnpm --filter @markflow/desktop build` (passes)
+  - `pnpm harness:verify` (passes)
+- Review / risks:
+  - `MF-081` is implemented and automated coverage is green, but `passes` must remain false until someone runs the feature against a real PicGo-compatible uploader and confirms three pasted/dropped images all land in remote storage
+  - the command adapter intentionally trusts stdout for the returned remote URL, so future uploader presets need to preserve the “last URL-like line wins” contract or extend `imageUploadManager.ts` with preset-specific parsing
+  - `./harness/init.sh --smoke` still reports the unrelated pre-existing desktop menu test failure; this session did not alter that area because the task was scoped to `MF-081`
+- Newly verified features:
+  - none
+- Next recommended feature:
+  - `MF-081` - perform the pending real PicGo manual verification, then promote `passes` / `lastVerifiedAt` only if three pasted/dropped images all rewrite to working remote URLs
