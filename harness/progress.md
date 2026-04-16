@@ -9,6 +9,46 @@
 
 ## Session Log
 
+### 2026-04-16 - MF-093 Source mode now exposes a configurable line-number gutter
+
+- Author: Codex
+- Focus: obey the startup protocol for `MF-093`, implement only the source-mode line-number gutter feature in `@markflow/editor`, run the listed automated verification plus `pnpm harness:verify`, keep the ledger honest because live manual alignment checks were not completed here, and finish with a Lore-protocol commit.
+- What changed:
+  - re-read the root `AGENTS.md`, ran `pnpm harness:start`, and ran `./harness/init.sh --smoke` before implementation
+  - added `packages/editor/src/sourceLineNumbers.ts` to persist a renderer-local source-line-number preference that defaults to enabled and survives constrained test storage environments
+  - updated `packages/editor/src/editor/MarkFlowEditor.tsx` so Source mode reconfigures a real CodeMirror `lineNumbers()` gutter without recreating the editor, while Preview/WYSIWYG, Reading, and Split modes continue to omit the line-number column
+  - updated `packages/editor/src/App.tsx` and `packages/editor/src/styles/global.css` so the status bar now exposes a `Source line-number settings` popover and the gutter uses the existing mono/tabular editorial styling
+  - expanded `packages/editor/src/editor/__tests__/MarkFlowEditor.test.tsx` and `packages/editor/src/__tests__/App.test.tsx` to lock source-mode presence, preference-toggle removal, WYSIWYG absence, and persisted preference wiring
+  - updated `harness/feature-ledger.json` for `MF-093` only to `status=ready` while keeping `passes=false` and `lastVerifiedAt=null`
+- Changed files:
+  - `packages/editor/src/sourceLineNumbers.ts`
+  - `packages/editor/src/editor/MarkFlowEditor.tsx`
+  - `packages/editor/src/App.tsx`
+  - `packages/editor/src/styles/global.css`
+  - `packages/editor/src/editor/__tests__/MarkFlowEditor.test.tsx`
+  - `packages/editor/src/__tests__/App.test.tsx`
+  - `harness/feature-ledger.json`
+  - `harness/progress.md`
+- Simplifications made:
+  - kept the preference renderer-local, matching the existing heading-numbering pattern, instead of introducing new desktop IPC or shared settings contracts
+  - reused the existing `viewMode` reconfiguration compartment so toggling the gutter does not recreate the `EditorView` or disturb selection/folding state
+  - limited scope to the requested Source-mode line-number gutter and status-bar preference without extending menus or unrelated view-mode behavior
+- Verification:
+  - `pnpm harness:start` (passes)
+  - `./harness/init.sh --smoke` before implementation (passes; workspace smoke green at session start)
+  - `pnpm --filter @markflow/editor exec vitest run src/editor/__tests__/MarkFlowEditor.test.tsx src/__tests__/App.test.tsx` (passes; 2 files / 94 tests with 3 skips covering gutter presence, preference toggling, and app wiring)
+  - `pnpm --filter @markflow/editor lint` (passes)
+  - `pnpm --filter @markflow/editor build` (passes)
+  - `pnpm harness:verify` (passes)
+- Review / risks:
+  - `MF-093` is implemented and automated coverage is green, but `passes` must remain false until someone manually checks gutter alignment on a 100+ line document and after folding sections in a live editor session
+  - the preference currently lives in renderer-local storage, so cross-window/profile sync is intentionally out of scope for this feature slice
+  - Split view intentionally keeps the source pane free of the line-number column because this session only implemented the requested Source-mode behavior
+- Newly verified features:
+  - none
+- Next recommended feature:
+  - `MF-093` - perform the pending manual alignment verification on a 100+ line file and folded sections, then set `passes=true` and `lastVerifiedAt` only if the gutter stays aligned and Source-only in the live app
+
 ### 2026-04-16 - MF-092 Back/forward navigation history now restores visited headings and files
 
 - Author: Codex

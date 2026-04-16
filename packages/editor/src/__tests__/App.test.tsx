@@ -16,6 +16,10 @@ import {
   loadLocalHeadingNumberingPreference,
   persistLocalHeadingNumberingPreference,
 } from '../headingNumbering'
+import {
+  loadLocalSourceLineNumbersPreference,
+  persistLocalSourceLineNumbersPreference,
+} from '../sourceLineNumbers'
 import type {
   MarkFlowAppearance,
   MarkFlowDesktopAPI,
@@ -52,6 +56,12 @@ function getCollapsedRanges(view: EditorView) {
     ranges.push(from, to)
   })
   return ranges
+}
+
+function getVisibleLineNumbers(container: HTMLElement) {
+  return Array.from(container.querySelectorAll('.cm-lineNumbers .cm-gutterElement'))
+    .filter((element) => !element.getAttribute('style')?.includes('visibility: hidden'))
+    .map((element) => element.textContent)
 }
 
 function getOpenTabs() {
@@ -403,6 +413,7 @@ describe('App desktop integration', () => {
   afterEach(() => {
     delete window.markflow
     persistLocalHeadingNumberingPreference(false)
+    persistLocalSourceLineNumbersPreference(true)
     if (typeof window.localStorage?.removeItem === 'function') {
       window.localStorage.removeItem('markflow.spellcheck-profile.v1')
     }
@@ -1326,6 +1337,41 @@ describe('App desktop integration', () => {
     )
     expect(container.querySelector('.cm-line.mf-h1')?.textContent).toBe('# Intro')
     expect(getEditorView(container).state.doc.toString()).toBe(content)
+  })
+
+  it('toggles source line numbers in preferences and only shows the gutter in source mode', async () => {
+    const api = new MockMarkFlowAPI()
+    window.markflow = api
+
+    const { container } = render(<App />)
+
+    const sourceLineNumbersButton = await screen.findByRole('button', { name: 'Source line-number settings' })
+    expect(sourceLineNumbersButton).toHaveTextContent('Source lines: On')
+    expect(container.querySelector('.cm-lineNumbers')).toBeNull()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Source mode' }))
+
+    await waitFor(() => {
+      expect(container.querySelector('.cm-lineNumbers')).not.toBeNull()
+      expect(getVisibleLineNumbers(container).slice(0, 3)).toEqual(['1', '2', '3'])
+    })
+
+    fireEvent.click(sourceLineNumbersButton)
+
+    const checkbox = await screen.findByRole('checkbox', { name: 'Show line numbers in source mode' })
+    fireEvent.click(checkbox)
+
+    await waitFor(() => {
+      expect(sourceLineNumbersButton).toHaveTextContent('Source lines: Off')
+      expect(loadLocalSourceLineNumbersPreference()).toBe(false)
+      expect(container.querySelector('.cm-lineNumbers')).toBeNull()
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Preview mode' }))
+
+    await waitFor(() => {
+      expect(container.querySelector('.cm-lineNumbers')).toBeNull()
+    })
   })
 
   it('shows an outline that mirrors heading hierarchy and navigates to the active heading', async () => {

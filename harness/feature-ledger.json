@@ -2435,7 +2435,7 @@
       "category": "phase-1-functional",
       "area": "@markflow/editor",
       "priority": 3,
-      "status": "planned",
+      "status": "ready",
       "passes": false,
       "lastVerifiedAt": null,
       "dependsOn": ["MF-004"],
@@ -2446,13 +2446,13 @@
       ],
       "verification": {
         "automated": [
-          "Add an editor test asserting gutter presence/absence by mode and by preference toggle."
+          "pnpm --filter @markflow/editor exec vitest run src/editor/__tests__/MarkFlowEditor.test.tsx src/__tests__/App.test.tsx"
         ],
         "manual": [
           "Verify gutter alignment across 100+ line files and after folding sections."
         ]
       },
-      "notes": "Typora exposes line numbers in source code mode under Preferences. Source: https://support.typora.io/Preferences/."
+      "notes": "Implemented on 2026-04-16 in `packages/editor/src/sourceLineNumbers.ts`, `packages/editor/src/editor/MarkFlowEditor.tsx`, `packages/editor/src/App.tsx`, `packages/editor/src/styles/global.css`, `packages/editor/src/editor/__tests__/MarkFlowEditor.test.tsx`, and `packages/editor/src/__tests__/App.test.tsx`. MarkFlow now enables a 1-based CodeMirror line-number gutter by default in Source mode only, exposes a renderer-local `Source line-number settings` preference that can hide the gutter without recreating the editor, and keeps Preview/WYSIWYG, Reading, and Split views free of the line-number column regardless of the preference state. Automated verification passed with `pnpm --filter @markflow/editor exec vitest run src/editor/__tests__/MarkFlowEditor.test.tsx src/__tests__/App.test.tsx`, `pnpm --filter @markflow/editor lint`, `pnpm --filter @markflow/editor build`, and `pnpm harness:verify`. `passes` remains false because the required 100+ line gutter-alignment and folded-section manual verification was not truthfully completed in this terminal session. Source: https://support.typora.io/Preferences/."
     },
     {
       "id": "MF-094",

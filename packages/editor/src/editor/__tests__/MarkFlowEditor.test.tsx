@@ -25,6 +25,12 @@ function getEditorView(container: HTMLElement) {
   return view as EditorView
 }
 
+function getVisibleLineNumbers(container: HTMLElement) {
+  return Array.from(container.querySelectorAll('.cm-lineNumbers .cm-gutterElement'))
+    .filter((element) => !element.getAttribute('style')?.includes('visibility: hidden'))
+    .map((element) => element.textContent)
+}
+
 function dispatchEditorShortcut(
   view: EditorView,
   init: KeyboardEventInit & { key: string; keyCode?: number },
@@ -100,6 +106,55 @@ describe('MarkFlowEditor', () => {
     expect(updatedView).toBe(view)
     expect(updatedView.state.doc.toString()).toBe('# Opened file')
     expect(updatedView.state.selection.main.head).toBe(0)
+  })
+
+  it('shows source-mode line numbers only while the source-mode preference is enabled', async () => {
+    const content = ['# Intro', 'Second line', 'Third line'].join('\n')
+    const { container, rerender } = render(
+      <MarkFlowEditor
+        content={content}
+        viewMode="source"
+        showSourceLineNumbers
+        onChange={vi.fn()}
+      />,
+    )
+
+    const view = getEditorView(container)
+    const secondLinePosition = view.state.doc.line(2).from + 2
+    view.dispatch({ selection: { anchor: secondLinePosition } })
+
+    await waitFor(() => {
+      expect(getVisibleLineNumbers(container)).toEqual(['1', '2', '3'])
+    })
+
+    rerender(
+      <MarkFlowEditor
+        content={content}
+        viewMode="source"
+        showSourceLineNumbers={false}
+        onChange={vi.fn()}
+      />,
+    )
+
+    await waitFor(() => {
+      expect(getEditorView(container)).toBe(view)
+      expect(container.querySelector('.cm-lineNumbers')).toBeNull()
+      expect(view.state.selection.main.head).toBe(secondLinePosition)
+    })
+
+    rerender(
+      <MarkFlowEditor
+        content={content}
+        viewMode="wysiwyg"
+        showSourceLineNumbers
+        onChange={vi.fn()}
+      />,
+    )
+
+    await waitFor(() => {
+      expect(getEditorView(container)).toBe(view)
+      expect(container.querySelector('.cm-lineNumbers')).toBeNull()
+    })
   })
 
   it('publishes symbol table updates from the background indexer', async () => {

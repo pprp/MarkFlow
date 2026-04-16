@@ -65,6 +65,10 @@ import {
   loadLocalHeadingNumberingPreference,
   persistLocalHeadingNumberingPreference,
 } from './headingNumbering'
+import {
+  loadLocalSourceLineNumbersPreference,
+  persistLocalSourceLineNumbersPreference,
+} from './sourceLineNumbers'
 
 const THEME_STYLE_ELEMENT_ID = 'mf-theme-overrides'
 const EDITOR_ROOT_SELECTOR = '.cm-editor'
@@ -183,6 +187,10 @@ function formatSpellCheckLanguageLabel(language: string | null) {
 
 function formatHeadingNumberingStatus(enabled: boolean) {
   return enabled ? 'Headings: 1.2' : 'Headings: Plain'
+}
+
+function formatSourceLineNumbersStatus(enabled: boolean) {
+  return enabled ? 'Source lines: On' : 'Source lines: Off'
 }
 
 type AppToast = {
@@ -421,6 +429,9 @@ export function App() {
   const [headingNumberingEnabled, setHeadingNumberingEnabled] = useState(() =>
     loadLocalHeadingNumberingPreference(),
   )
+  const [sourceLineNumbersEnabled, setSourceLineNumbersEnabled] = useState(() =>
+    loadLocalSourceLineNumbersPreference(),
+  )
   const [isDistractionFreeMode, setIsDistractionFreeMode] = useState(false)
   const [windowState, setWindowState] = useState<MarkFlowWindowState>({
     isAlwaysOnTop: false,
@@ -435,6 +446,7 @@ export function App() {
   )
   const [isSpellCheckSettingsOpen, setIsSpellCheckSettingsOpen] = useState(false)
   const [isHeadingNumberingSettingsOpen, setIsHeadingNumberingSettingsOpen] = useState(false)
+  const [isSourceLineNumbersSettingsOpen, setIsSourceLineNumbersSettingsOpen] = useState(false)
   const [spellCheckWordInput, setSpellCheckWordInput] = useState('')
   const [imageUploadSettings, setImageUploadSettings] = useState<MarkFlowImageUploadSettings | null>(null)
   const [isImageUploadSettingsOpen, setIsImageUploadSettingsOpen] = useState(false)
@@ -485,6 +497,8 @@ export function App() {
   const editorShellRef = useRef<HTMLDivElement | null>(null)
   const headingNumberingButtonRef = useRef<HTMLButtonElement | null>(null)
   const headingNumberingPanelRef = useRef<HTMLDivElement | null>(null)
+  const sourceLineNumbersButtonRef = useRef<HTMLButtonElement | null>(null)
+  const sourceLineNumbersPanelRef = useRef<HTMLDivElement | null>(null)
   const spellCheckButtonRef = useRef<HTMLButtonElement | null>(null)
   const spellCheckPanelRef = useRef<HTMLDivElement | null>(null)
   const imageUploadButtonRef = useRef<HTMLButtonElement | null>(null)
@@ -632,7 +646,12 @@ export function App() {
   }, [])
 
   useEffect(() => {
-    if (!isHeadingNumberingSettingsOpen && !isSpellCheckSettingsOpen && !isImageUploadSettingsOpen) {
+    if (
+      !isHeadingNumberingSettingsOpen &&
+      !isSourceLineNumbersSettingsOpen &&
+      !isSpellCheckSettingsOpen &&
+      !isImageUploadSettingsOpen
+    ) {
       return
     }
 
@@ -641,6 +660,8 @@ export function App() {
       if (
         (target instanceof Node && headingNumberingPanelRef.current?.contains(target)) ||
         (target instanceof Node && headingNumberingButtonRef.current?.contains(target)) ||
+        (target instanceof Node && sourceLineNumbersPanelRef.current?.contains(target)) ||
+        (target instanceof Node && sourceLineNumbersButtonRef.current?.contains(target)) ||
         (target instanceof Node && spellCheckPanelRef.current?.contains(target)) ||
         (target instanceof Node && spellCheckButtonRef.current?.contains(target)) ||
         (target instanceof Node && imageUploadPanelRef.current?.contains(target)) ||
@@ -650,6 +671,7 @@ export function App() {
       }
 
       setIsHeadingNumberingSettingsOpen(false)
+      setIsSourceLineNumbersSettingsOpen(false)
       setIsSpellCheckSettingsOpen(false)
       setIsImageUploadSettingsOpen(false)
     }
@@ -657,6 +679,7 @@ export function App() {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         setIsHeadingNumberingSettingsOpen(false)
+        setIsSourceLineNumbersSettingsOpen(false)
         setIsSpellCheckSettingsOpen(false)
         setIsImageUploadSettingsOpen(false)
       }
@@ -668,7 +691,12 @@ export function App() {
       document.removeEventListener('pointerdown', handlePointerDown)
       document.removeEventListener('keydown', handleKeyDown)
     }
-  }, [isHeadingNumberingSettingsOpen, isImageUploadSettingsOpen, isSpellCheckSettingsOpen])
+  }, [
+    isHeadingNumberingSettingsOpen,
+    isImageUploadSettingsOpen,
+    isSourceLineNumbersSettingsOpen,
+    isSpellCheckSettingsOpen,
+  ])
 
   const isImmersiveMode = windowState.isFullscreen || isDistractionFreeMode
 
@@ -1947,6 +1975,11 @@ export function App() {
     setHeadingNumberingEnabled(enabled)
   }, [])
 
+  const updateSourceLineNumbersPreference = useCallback((enabled: boolean) => {
+    persistLocalSourceLineNumbersPreference(enabled)
+    setSourceLineNumbersEnabled(enabled)
+  }, [])
+
   const replaceTabTextOccurrence = useCallback(
     (tabId: string, searchText: string, replacementText: string, occurrenceIndex: number) => {
       let didReplace = false
@@ -3049,6 +3082,7 @@ export function App() {
                 editable={activeTab.largeFile == null}
                 spellCheckLanguage={spellCheckState.selectedLanguage}
                 viewMode={viewMode}
+                showSourceLineNumbers={sourceLineNumbersEnabled}
                 onChange={handleContentChange}
                 onCursorPositionChange={handleCursorPositionChange}
                 onViewportPositionChange={handleViewportPositionChange}
@@ -3159,6 +3193,7 @@ export function App() {
             aria-expanded={isHeadingNumberingSettingsOpen}
             aria-label="Heading numbering settings"
             onClick={() => {
+              setIsSourceLineNumbersSettingsOpen(false)
               setIsSpellCheckSettingsOpen(false)
               setIsImageUploadSettingsOpen(false)
               setIsHeadingNumberingSettingsOpen((current) => !current)
@@ -3192,6 +3227,48 @@ export function App() {
               </label>
             </section>
           ) : null}
+          <button
+            ref={sourceLineNumbersButtonRef}
+            type="button"
+            className={`mf-statusbar-button${isSourceLineNumbersSettingsOpen ? ' mf-statusbar-button-active' : ''}`}
+            aria-haspopup="dialog"
+            aria-expanded={isSourceLineNumbersSettingsOpen}
+            aria-label="Source line-number settings"
+            onClick={() => {
+              setIsHeadingNumberingSettingsOpen(false)
+              setIsSpellCheckSettingsOpen(false)
+              setIsImageUploadSettingsOpen(false)
+              setIsSourceLineNumbersSettingsOpen((current) => !current)
+            }}
+          >
+            {formatSourceLineNumbersStatus(sourceLineNumbersEnabled)}
+          </button>
+          {isSourceLineNumbersSettingsOpen ? (
+            <section
+              ref={sourceLineNumbersPanelRef}
+              className="mf-spellcheck-popover"
+              role="dialog"
+              aria-label="Source line-number settings"
+            >
+              <div className="mf-spellcheck-popover-header">
+                <div>
+                  <p className="mf-spellcheck-popover-title">Source Line Numbers</p>
+                  <p className="mf-spellcheck-popover-copy">
+                    Shows a 1-based gutter only in Source mode so raw markdown keeps line context
+                    without adding chrome to Preview, Reading, or Split views.
+                  </p>
+                </div>
+              </div>
+              <label className="mf-image-upload-checkbox">
+                <input
+                  type="checkbox"
+                  checked={sourceLineNumbersEnabled}
+                  onChange={(event) => updateSourceLineNumbersPreference(event.target.checked)}
+                />
+                <span>Show line numbers in source mode</span>
+              </label>
+            </section>
+          ) : null}
           {imageUploadSettings ? (
             <>
               <button
@@ -3203,6 +3280,7 @@ export function App() {
                 aria-label="Image upload preferences"
                 onClick={() => {
                   setIsHeadingNumberingSettingsOpen(false)
+                  setIsSourceLineNumbersSettingsOpen(false)
                   setIsSpellCheckSettingsOpen(false)
                   setIsImageUploadSettingsOpen((current) => !current)
                 }}
@@ -3343,6 +3421,7 @@ export function App() {
             aria-label="Spellcheck settings"
             onClick={() => {
               setIsHeadingNumberingSettingsOpen(false)
+              setIsSourceLineNumbersSettingsOpen(false)
               setIsImageUploadSettingsOpen(false)
               setIsSpellCheckSettingsOpen((current) => !current)
             }}

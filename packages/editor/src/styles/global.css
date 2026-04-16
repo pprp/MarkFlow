@@ -1182,14 +1182,24 @@ body {
   border-radius: 1px;
 }
 
-/* Hide gutters (except fold gutter for MF-036) */
+/* Shared gutter chrome */
 .cm-editor .cm-gutters {
   border-right: none;
   background: transparent;
 }
-.cm-editor .cm-lineNumbers,
 .cm-editor .cm-breakpointGutter {
   display: none;
+}
+.cm-editor .cm-lineNumbers {
+  color: var(--mf-fg-muted);
+}
+.cm-editor .cm-lineNumbers .cm-gutterElement {
+  min-width: 2.5ch;
+  padding: 0 10px 0 6px;
+  font-family: var(--mf-font-mono);
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
 }
 
 /* ── Heading styles — Editorial display typography ──────────── */

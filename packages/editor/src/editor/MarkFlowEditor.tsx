@@ -1,6 +1,6 @@
 import { forwardRef, useRef, useEffect, useState, useCallback, useImperativeHandle } from 'react'
 import { Compartment, EditorSelection, EditorState, Transaction } from '@codemirror/state'
-import { EditorView, keymap, drawSelection, highlightActiveLine } from '@codemirror/view'
+import { EditorView, keymap, drawSelection, highlightActiveLine, lineNumbers } from '@codemirror/view'
 import {
   defaultKeymap,
   history,
@@ -70,6 +70,7 @@ import { applyCollapsedRanges, getCollapsedRanges } from './foldingState'
 export interface MarkFlowEditorProps {
   content: string
   viewMode: ViewMode
+  showSourceLineNumbers?: boolean
   editable?: boolean
   spellCheckLanguage?: string | null
   initialSnapshot?: MarkFlowEditorSnapshot | null
@@ -251,13 +252,22 @@ function openReplacePanel(view: EditorView) {
   return true
 }
 
-function getViewModeExtensions(viewMode: ViewMode, filePath?: string, pluginHost?: MarkFlowPluginHost) {
+function getViewModeExtensions(
+  viewMode: ViewMode,
+  showSourceLineNumbers: boolean,
+  filePath?: string,
+  pluginHost?: MarkFlowPluginHost,
+) {
   if (viewMode === 'wysiwyg') {
     return getRenderedExtensions('wysiwyg', filePath, pluginHost)
   }
 
   if (viewMode === 'reading') {
     return [...getRenderedExtensions('reading', filePath, pluginHost), ...readingModeExtension()]
+  }
+
+  if (viewMode === 'source') {
+    return showSourceLineNumbers ? [lineNumbers()] : []
   }
 
   return []
@@ -276,6 +286,7 @@ function publishScrollMetrics(
 
 function getEditorExtensions(
   viewMode: ViewMode,
+  showSourceLineNumbers: boolean,
   editable: boolean,
   focusMode: boolean,
   typewriterMode: boolean,
@@ -404,7 +415,7 @@ function getEditorExtensions(
         onCollapsedRangesChangeRef.current?.(getCollapsedRanges(update.state))
       }
     }),
-    viewModeCompartment.of(getViewModeExtensions(viewMode, filePath, pluginHost)),
+    viewModeCompartment.of(getViewModeExtensions(viewMode, showSourceLineNumbers, filePath, pluginHost)),
     focusModeCompartment.of(focusMode ? focusModeExtension() : []),
     typewriterModeCompartment.of(typewriterMode ? typewriterModeExtension() : []),
   ]
@@ -413,6 +424,7 @@ function getEditorExtensions(
 export const MarkFlowEditor = forwardRef<MarkFlowEditorHandle, MarkFlowEditorProps>(function MarkFlowEditor({
   content,
   viewMode,
+  showSourceLineNumbers = true,
   editable = true,
   spellCheckLanguage,
   initialSnapshot,
@@ -524,6 +536,7 @@ export const MarkFlowEditor = forwardRef<MarkFlowEditorHandle, MarkFlowEditorPro
 
     const nextExtensions = getEditorExtensions(
       viewMode,
+      showSourceLineNumbers,
       editable,
       focusMode,
       typewriterMode,
@@ -559,6 +572,7 @@ export const MarkFlowEditor = forwardRef<MarkFlowEditorHandle, MarkFlowEditorPro
 
     const extensions = getEditorExtensions(
       viewMode,
+      showSourceLineNumbers,
       editable,
       focusMode,
       typewriterMode,
@@ -759,10 +773,10 @@ export const MarkFlowEditor = forwardRef<MarkFlowEditorHandle, MarkFlowEditorPro
 
     view.dispatch({
       effects: viewModeCompartmentRef.current.reconfigure(
-        getViewModeExtensions(viewMode, filePath, pluginHost),
+        getViewModeExtensions(viewMode, showSourceLineNumbers, filePath, pluginHost),
       ),
     })
-  }, [filePath, pluginHost, viewMode])
+  }, [filePath, pluginHost, showSourceLineNumbers, viewMode])
 
   useEffect(() => {
     const view = viewRef.current
