@@ -62,6 +62,7 @@ import { tocDecorations } from './decorations/tocDecoration'
 import { findHeadingAnchorPosition } from './outline'
 import { indexerExtension, symbolTableField, type SymbolTable } from './indexer'
 import { FloatingToolbar } from '../components/FloatingToolbar'
+import type { MinimapScrollMetrics } from '../components/Minimap'
 import { MAX_UNDO_HISTORY_EVENTS, pruneHistoryState } from './historyLimit'
 import { applyCollapsedRanges, getCollapsedRanges } from './foldingState'
 
@@ -73,6 +74,7 @@ export interface MarkFlowEditorProps {
   onChange?: (content: string) => void
   onCursorPositionChange?: (position: number) => void
   onViewportPositionChange?: (position: number) => void
+  onScrollMetricsChange?: (metrics: MinimapScrollMetrics) => void
   onSymbolTableChange?: (table: SymbolTable, content: string) => void
   onNavigationHandled?: () => void
   onOpenPath?: (filePath: string) => void | Promise<unknown>
@@ -203,6 +205,17 @@ function getViewModeExtensions(viewMode: ViewMode, filePath?: string, pluginHost
   return []
 }
 
+function publishScrollMetrics(
+  view: EditorView,
+  callback: ((metrics: MinimapScrollMetrics) => void) | undefined,
+) {
+  callback?.({
+    scrollTop: view.scrollDOM.scrollTop,
+    scrollHeight: view.scrollDOM.scrollHeight,
+    clientHeight: view.scrollDOM.clientHeight,
+  })
+}
+
 function getEditorExtensions(
   viewMode: ViewMode,
   editable: boolean,
@@ -213,6 +226,7 @@ function getEditorExtensions(
   onChangeRef: React.MutableRefObject<MarkFlowEditorProps['onChange']>,
   onCursorPositionChangeRef: React.MutableRefObject<MarkFlowEditorProps['onCursorPositionChange']>,
   onViewportPositionChangeRef: React.MutableRefObject<MarkFlowEditorProps['onViewportPositionChange']>,
+  onScrollMetricsChangeRef: React.MutableRefObject<MarkFlowEditorProps['onScrollMetricsChange']>,
   onSymbolTableChangeRef: React.MutableRefObject<MarkFlowEditorProps['onSymbolTableChange']>,
   onSelectionChangeRef: React.MutableRefObject<MarkFlowEditorProps['onSelectionChange']>,
   onToggleModeRef: React.MutableRefObject<MarkFlowEditorProps['onToggleMode']>,
@@ -307,6 +321,7 @@ function getEditorExtensions(
       }
       if (update.viewportChanged) {
         onViewportPositionChangeRef.current?.(update.view.viewport.from)
+        publishScrollMetrics(update.view, onScrollMetricsChangeRef.current)
       }
       if (update.selectionSet || update.docChanged) {
         const selection = update.state.selection.main
@@ -343,6 +358,7 @@ export const MarkFlowEditor = forwardRef<MarkFlowEditorHandle, MarkFlowEditorPro
   onChange,
   onCursorPositionChange,
   onViewportPositionChange,
+  onScrollMetricsChange,
   onSymbolTableChange,
   onNavigationHandled,
   onOpenPath,
@@ -365,6 +381,7 @@ export const MarkFlowEditor = forwardRef<MarkFlowEditorHandle, MarkFlowEditorPro
   const onChangeRef = useRef(onChange)
   const onCursorPositionChangeRef = useRef(onCursorPositionChange)
   const onViewportPositionChangeRef = useRef(onViewportPositionChange)
+  const onScrollMetricsChangeRef = useRef(onScrollMetricsChange)
   const onSymbolTableChangeRef = useRef(onSymbolTableChange)
   const onNavigationHandledRef = useRef(onNavigationHandled)
   const onOpenPathRef = useRef(onOpenPath)
@@ -393,6 +410,10 @@ export const MarkFlowEditor = forwardRef<MarkFlowEditorHandle, MarkFlowEditorPro
   useEffect(() => {
     onViewportPositionChangeRef.current = onViewportPositionChange
   }, [onViewportPositionChange])
+
+  useEffect(() => {
+    onScrollMetricsChangeRef.current = onScrollMetricsChange
+  }, [onScrollMetricsChange])
 
   useEffect(() => {
     onSymbolTableChangeRef.current = onSymbolTableChange
@@ -449,6 +470,7 @@ export const MarkFlowEditor = forwardRef<MarkFlowEditorHandle, MarkFlowEditorPro
       onChangeRef,
       onCursorPositionChangeRef,
       onViewportPositionChangeRef,
+      onScrollMetricsChangeRef,
       onSymbolTableChangeRef,
       onSelectionChangeRef,
       onToggleModeRef,
@@ -481,6 +503,7 @@ export const MarkFlowEditor = forwardRef<MarkFlowEditorHandle, MarkFlowEditorPro
       onChangeRef,
       onCursorPositionChangeRef,
       onViewportPositionChangeRef,
+      onScrollMetricsChangeRef,
       onSymbolTableChangeRef,
       onSelectionChangeRef,
       onToggleModeRef,
@@ -602,8 +625,17 @@ export const MarkFlowEditor = forwardRef<MarkFlowEditorHandle, MarkFlowEditorPro
     view.dom.addEventListener('drop', handleDrop)
     const handleViewportScroll = () => {
       onViewportPositionChangeRef.current?.(view.viewport.from)
+      publishScrollMetrics(view, onScrollMetricsChangeRef.current)
     }
     view.scrollDOM.addEventListener('scroll', handleViewportScroll, { passive: true })
+    const resizeObserver =
+      typeof ResizeObserver === 'undefined'
+        ? null
+        : new ResizeObserver(() => {
+            publishScrollMetrics(view, onScrollMetricsChangeRef.current)
+          })
+
+    resizeObserver?.observe(view.scrollDOM)
 
     viewRef.current = view
     setEditorView(view)
@@ -614,6 +646,7 @@ export const MarkFlowEditor = forwardRef<MarkFlowEditorHandle, MarkFlowEditorPro
     onSymbolTableChangeRef.current?.(view.state.field(symbolTableField), view.state.doc.toString())
     onCollapsedRangesChangeRef.current?.(getCollapsedRanges(view.state))
     onViewportPositionChangeRef.current?.(view.viewport.from)
+    publishScrollMetrics(view, onScrollMetricsChangeRef.current)
 
     const nextCollapsedRanges = initialSnapshot?.collapsedRanges ?? collapsedRanges
     if (nextCollapsedRanges && nextCollapsedRanges.length > 0) {
@@ -627,6 +660,7 @@ export const MarkFlowEditor = forwardRef<MarkFlowEditorHandle, MarkFlowEditorPro
 
         view.scrollDOM.scrollTop = initialSnapshot.scrollTop
         onViewportPositionChangeRef.current?.(view.viewport.from)
+        publishScrollMetrics(view, onScrollMetricsChangeRef.current)
       })
     }
 
@@ -634,6 +668,7 @@ export const MarkFlowEditor = forwardRef<MarkFlowEditorHandle, MarkFlowEditorPro
       view.dom.removeEventListener('click', handleClick)
       view.dom.removeEventListener('drop', handleDrop)
       view.scrollDOM.removeEventListener('scroll', handleViewportScroll)
+      resizeObserver?.disconnect()
       view.destroy()
       viewRef.current = null
       setEditorView(null)
@@ -809,6 +844,14 @@ export const MarkFlowEditor = forwardRef<MarkFlowEditorHandle, MarkFlowEditorPro
       changes: { from: 0, to: currentContent.length, insert: content },
       selection: EditorSelection.cursor(0),
       annotations: Transaction.addToHistory.of(false),
+    })
+
+    requestAnimationFrame(() => {
+      if (viewRef.current !== view) {
+        return
+      }
+
+      publishScrollMetrics(view, onScrollMetricsChangeRef.current)
     })
   }, [content])
 

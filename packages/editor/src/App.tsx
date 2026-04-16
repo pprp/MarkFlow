@@ -12,6 +12,7 @@ import { QuickOpen } from './components/QuickOpen'
 import { VaultSidebar } from './components/VaultSidebar'
 import { GlobalSearch } from './components/GlobalSearch'
 import { GoToLine } from './components/GoToLine'
+import { Minimap, type MinimapScrollMetrics } from './components/Minimap'
 import type {
   CommandPaletteAction,
   RegisteredCommandPaletteAction,
@@ -310,6 +311,7 @@ export function App() {
   const [focusMode, setFocusMode] = useState(false)
   const [typewriterMode, setTypewriterMode] = useState(false)
   const [showSidebar, setShowSidebar] = useState(false)
+  const [showMinimap, setShowMinimap] = useState(false)
   const [vaultPath, setVaultPath] = useState<string | null>(null)
   const [vaultFiles, setVaultFiles] = useState<string[]>([])
   const [isGlobalSearchOpen, setIsGlobalSearchOpen] = useState(false)
@@ -329,6 +331,7 @@ export function App() {
   const [activeTabId, setActiveTabId] = useState<string | null>(null)
   const [closedTabs, setClosedTabs] = useState<ClosedDocumentTabState[]>([])
   const [loadingFile, setLoadingFile] = useState<MarkFlowFileLoadProgressPayload | null>(null)
+  const [editorScrollMetrics, setEditorScrollMetrics] = useState<MinimapScrollMetrics | null>(null)
   const tabsRef = useRef<DocumentTabState[]>(tabs)
   const activeTabIdRef = useRef<string | null>(null)
   const handleSaveTabRef = useRef<(tabId: string | null, forceSaveAs?: boolean) => Promise<boolean>>(
@@ -624,6 +627,9 @@ export function App() {
         case 'previous-tab':
           handleCycleTabsRef.current(-1)
           break
+        case 'toggle-minimap':
+          setShowMinimap((current) => !current)
+          break
         case 'copy':
         case 'copy-as-markdown':
         case 'copy-as-html-code':
@@ -745,6 +751,10 @@ export function App() {
   function toggleTypewriterMode() {
     setTypewriterMode((v) => !v)
   }
+
+  useEffect(() => {
+    setEditorScrollMetrics(null)
+  }, [activeTab?.id])
 
   const handleOpenCommandPalette = useCallback(() => {
     setIsQuickOpenOpen(false)
@@ -1324,6 +1334,18 @@ export function App() {
       },
     },
     {
+      id: 'view.toggle-minimap',
+      label: 'Toggle Minimap',
+      category: 'View',
+      description: showMinimap ? 'Hide the document minimap' : 'Show a right-side document minimap',
+      keywords: ['overview', 'canvas', 'scroll map'],
+      focusEditorAfterRun: true,
+      run: () => {
+        setShowMinimap((current) => !current)
+        return true
+      },
+    },
+    {
       id: 'view.toggle-focus-mode',
       label: 'Toggle Focus Mode',
       category: 'View',
@@ -1734,6 +1756,44 @@ export function App() {
     )
   }, [updateTab])
 
+  const handleScrollMetricsChange = useCallback((metrics: MinimapScrollMetrics) => {
+    setEditorScrollMetrics((current) => {
+      if (
+        current &&
+        current.scrollTop === metrics.scrollTop &&
+        current.scrollHeight === metrics.scrollHeight &&
+        current.clientHeight === metrics.clientHeight
+      ) {
+        return current
+      }
+
+      return metrics
+    })
+  }, [])
+
+  const handleMinimapNavigate = useCallback((lineNumber: number) => {
+    const currentActiveTabId = activeTabIdRef.current
+    if (!currentActiveTabId || !activeTab || activeTab.largeFile) {
+      return
+    }
+
+    const position = getLineStartPosition(activeTab.content, lineNumber)
+    updateTab(currentActiveTabId, (tab) =>
+      tab.id !== currentActiveTabId
+        ? tab
+        : {
+            ...tab,
+            cursorPosition: position,
+            viewportPosition: position,
+          },
+    )
+    editorNavigationKeyRef.current += 1
+    setEditorNavigationRequest({
+      key: editorNavigationKeyRef.current,
+      position,
+    })
+  }, [activeTab, updateTab])
+
   const docStats = useMemo(
     () => computeStats(activeTab?.content ?? '', activeTab?.selectionText ?? ''),
     [activeTab?.content, activeTab?.selectionText],
@@ -1992,6 +2052,7 @@ export function App() {
                 onChange={handleContentChange}
                 onCursorPositionChange={handleCursorPositionChange}
                 onViewportPositionChange={handleViewportPositionChange}
+                onScrollMetricsChange={handleScrollMetricsChange}
                 onSymbolTableChange={handleSymbolTableChange}
                 onNavigationHandled={() => setEditorNavigationRequest(null)}
                 onOpenPath={handleOpenPath}
@@ -2009,6 +2070,13 @@ export function App() {
               />
             ) : null}
           </div>
+          {showMinimap && activeTab && !activeTab.largeFile ? (
+            <Minimap
+              content={activeTab.content}
+              scrollMetrics={editorScrollMetrics}
+              onNavigate={handleMinimapNavigate}
+            />
+          ) : null}
           {outlineHeadings.length > 0 ? (
             <aside className={`mf-outline-panel${outlineCollapsed ? ' mf-outline-panel-collapsed' : ''}`}>
               <div className="mf-outline-header">

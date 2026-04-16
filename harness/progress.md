@@ -41,7 +41,6 @@
 - Next recommended feature:
   - `MF-055` - make the Electron memory acceptance metric explicit or reduce the packaged-app process-tree RSS below `512 MB`, then rerun the same 2 GB jump plus Activity Monitor/RSS checks before promoting the ledger
 
-
 ### 2026-04-16 - MF-055 rerun restored harness startup and kept the ledger truthful
 
 - Author: Codex
@@ -4633,6 +4632,19 @@
 - Next recommended feature:
   - `MF-060` - complete the pending GUI/manual crash-relaunch recovery acceptance flow with direct human control or working Accessibility permission, then update the ledger only if the prompt and restored checkpoint content truly pass
 
+## 2026-04-16 — Detailed bug audit (Claude)
+
+- Session goal: ran a detailed bug-hunting pass across the editor preview and annotated `harness/feature-ledger.json` with findings.
+- Environment: `pnpm dev` on `localhost:5173` driven through Claude Preview; all automated suites green before investigation (editor 367 pass / 3 skipped, desktop 33 pass, shared none; `pnpm lint` clean).
+- Bugs found and marked in feature-ledger.json:
+  - **MF-037 (Superscript/subscript)** — demoted from `verified/passes=true` to `status=regression, passes=false`. The regex `/\^([^^\n]+)\^/g` in `packages/editor/src/editor/decorations/inlineDecorations.ts:30` does not exclude footnote reference `[^label]` tokens, so two adjacent references on one line (e.g. the starter document's `This has a footnote[^1] and another[^2].`) make the intervening ` and another` render with `class="mf-superscript"` (`vertical-align: super`, `font-size: 0.75em`). Confirmed live via `preview_eval` returning `fontSize: 11.25px / verticalAlign: super` for that literal text. There is also no automated test coverage for superscript/subscript; the "add inlineDecorations.test.tsx cases" TODO from the MF-037 note was never completed.
+  - **MF-022 (Footnote references)** — cross-reference note added so the failure is not lost. Footnote decoration itself is correct; the bug is triggered by MF-037's overreaching regex and visibly regresses the canonical "footnote references render cleanly" scenario in the starter document.
+  - **MF-051 (Outline scroll-sync)** — note updated to describe the exact failure mode. `activeOutlineAnchor` depends on `activeTab.cursorPosition ?? activeTab.viewportPosition ?? 0` (`packages/editor/src/App.tsx:1592`), fed from `update.view.viewport.from` and `view.scrollDOM` scroll events in `packages/editor/src/editor/MarkFlowEditor.tsx:303–310, 603–606`. `view.viewport.from` is CodeMirror's virtualized line range start, not the scrolled-to position — for the starter document (which fits the viewport) `viewport.from` stays at 0 regardless of `scrollDOM.scrollTop`, so the active outline item never advances. Reproduced: `scroller.scrollTop = 2000` left `.mf-outline-item-active` on "Welcome to MarkFlow"; on first paint the active item was the LAST heading ("Footnote") despite `scrollTop = 0`. `passes` was already `false`, so status was left as `ready`.
+  - **MF-104 (System dark mode)** — note updated. Editor chrome switches correctly, but the CodeMirror syntax-highlight palette is not theme-aware: keyword tokens (class `ͼb`, e.g. `function`, `return`) stay at `rgb(119, 0, 136)` dark purple and type tokens (`ͼi`, e.g. `string`) stay at `rgb(0, 136, 85)` dark green against the dark-mode editor background `rgb(28, 28, 30)` — low-contrast code in dark mode. Confirmed via `preview_inspect` on the starter `function greet(...)` example under `preview_resize colorScheme: dark`.
+- Out-of-scope observations (not marked because they are content/UX rather than feature regressions):
+  - The starter document references `https://via.placeholder.com/400x120?text=MarkFlow+Image+Test` (`packages/editor/src/App.tsx:121`); that service no longer resolves, so the broken-image fallback (`mf-image-error`) is always shown to new users. The fallback itself is MF-011 working as designed.
+  - At narrow viewports (~670px) the titlebar ("MarkFlow" logo, document title, and view-mode buttons) overlap visually. Not tied to a specific feature row; MarkFlow targets desktop so this was not marked as a regression.
+- No source fixes were applied — only ledger/progress edits. Re-running `pnpm test` after the edits was not required because no source code changed; the audit's purpose was to record truthful status, not implement fixes.
 
 ### 2026-04-16 - MF-055 rerun regenerated the 2 GB fixture but kept the ledger truthful
 
@@ -4664,6 +4676,7 @@
   - none
 - Next recommended feature:
   - `MF-055` - complete the pending 2 GB desktop Go-to-Line timing and Activity Monitor RSS verification in a real Accessibility-enabled session, then update the ledger only if those checks truly pass
+
 ### 2026-04-16 - MF-055 rerun kept the ledger truthful while Activity Monitor proof stayed blocked
 
 - Author: Codex
@@ -4693,7 +4706,6 @@
   - none
 - Next recommended feature:
   - `MF-055` - complete the pending 2 GB desktop Go-to-Line timing and Activity Monitor RSS verification in a real Accessibility-enabled session, then update the ledger only if those checks truly pass
-
 
 ### 2026-04-16 - MF-055 verified with live 2 GB jumps and Activity Monitor memory evidence
 
@@ -4729,3 +4741,50 @@
   - `MF-055`
 - Next recommended feature:
   - `MF-050` - Background indexer builds a symbol table for headings and anchors without blocking the UI thread
+
+### 2026-04-16 - MF-063 minimap implementation landed with truthful manual-verification status
+
+- Author: Codex
+- Focus: obey the startup protocol for `MF-063`, implement only the minimap feature in `@markflow/editor`, run the exact automated verification added for the feature, and keep the ledger honest because the required 1,000-line live visual check was not completed in this terminal session.
+- What changed:
+  - re-read the root `AGENTS.md`, ran `pnpm harness:start`, and reran `./harness/init.sh --smoke` before touching `MF-063`
+  - added a right-side minimap in `packages/editor/src/components/Minimap.tsx`, wired through `packages/editor/src/App.tsx` and styled in `packages/editor/src/styles/global.css`; the minimap renders a 1 px-per-line canvas raster with compact glyph bars, shows a viewport highlight box, and maps clicks back to proportional line navigation
+  - extended `packages/editor/src/editor/MarkFlowEditor.tsx` to publish live scroll metrics from the active CodeMirror scroller so the minimap viewport box tracks scroll state without rebuilding editor state
+  - exposed the feature from the desktop `View` menu by adding a new `toggle-minimap` renderer action in `packages/shared/src/index.ts` plus `packages/desktop/src/main/menu.ts`
+  - added focused coverage in `packages/editor/src/components/minimap.test.tsx`, `packages/editor/src/editor/__tests__/MarkFlowEditor.test.tsx`, `packages/editor/src/__tests__/App.test.tsx`, and `packages/desktop/src/main/menu.test.ts`, then updated `harness/feature-ledger.json` for `MF-063` only to `status=ready` with the real automated verification list while keeping `passes=false` and `lastVerifiedAt=null`
+- Changed files:
+  - `packages/editor/src/components/Minimap.tsx`
+  - `packages/editor/src/components/minimap.test.tsx`
+  - `packages/editor/src/editor/MarkFlowEditor.tsx`
+  - `packages/editor/src/editor/__tests__/MarkFlowEditor.test.tsx`
+  - `packages/editor/src/App.tsx`
+  - `packages/editor/src/__tests__/App.test.tsx`
+  - `packages/editor/src/styles/global.css`
+  - `packages/desktop/src/main/menu.ts`
+  - `packages/desktop/src/main/menu.test.ts`
+  - `packages/shared/src/index.ts`
+  - `harness/feature-ledger.json`
+  - `harness/progress.md`
+- Simplifications made:
+  - kept scope strictly on `MF-063`; no unrelated editor feature work or broader scroll-sync refactors were introduced
+  - reused the existing editor navigation path for minimap clicks instead of inventing a second scroll controller
+  - used a small canvas-only raster with one row per line rather than adding DOM-heavy per-line minimap elements
+- Verification:
+  - `pnpm harness:start` (passes)
+  - `./harness/init.sh --smoke` (passes; workspace smoke reran harness verification plus desktop/editor test suites)
+  - `pnpm --filter @markflow/editor exec vitest run src/components/minimap.test.tsx src/editor/__tests__/MarkFlowEditor.test.tsx src/__tests__/App.test.tsx` (passes; 3 files, 81 tests passed with 3 skipped)
+  - `pnpm --filter @markflow/desktop exec vitest run src/main/menu.test.ts` (passes; 1 file, 5 tests)
+  - `pnpm --filter @markflow/shared lint` (passes)
+  - `pnpm --filter @markflow/shared build` (passes)
+  - `pnpm --filter @markflow/editor lint` (passes)
+  - `pnpm --filter @markflow/editor build` (passes after refreshing the shared project reference)
+  - `pnpm --filter @markflow/desktop lint` (passes)
+  - `pnpm --filter @markflow/desktop build` (passes)
+  - `pnpm harness:verify` (passes before and after the ledger update)
+- Review / risks:
+  - `MF-063` is implemented and automated coverage is green, but `passes` must remain false until someone performs the required live visual check on a 1,000-line document and confirms the glyph map, click-to-scroll behavior, and viewport box in the actual app
+  - the minimap is intentionally hidden for large-file windowed sessions because those tabs do not have the full-document text needed to render an honest full-document overview
+- Newly verified features:
+  - none
+- Next recommended feature:
+  - `MF-063` - perform the pending live 1,000-line visual minimap check, then promote `passes` / `lastVerifiedAt` only if the rendered overview, proportional click navigation, and viewport highlight all hold in the real app

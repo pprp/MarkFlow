@@ -571,7 +571,7 @@
           "Optional in-app spot-check: verify multi-paragraph footnotes and long hover-preview text remain readable while the raw `[^label]: ...` definitions stay editable."
         ]
       },
-      "notes": "Implemented with `packages/editor/src/editor/decorations/footnoteDecoration.ts`, which renders `[^label]` references as superscript markers, derives hover-preview text from matching `[^label]: ...` definitions, and keeps raw markdown visible whenever the caret enters the reference or definition. `packages/editor/src/editor/decorations/linkDecoration.ts` now skips footnote-shaped `Link` nodes so definitions are not misclassified as regular links, and `packages/editor/src/editor/__tests__/footnoteDecoration.test.tsx` covers caret reveal, repeated references, definition-edit round trips, missing definitions, and code/non-footnote false-positive avoidance. Sources: https://support.typora.io/media/export/Markdown-Reference.pdf and https://typora.io/."
+      "notes": "Implemented with `packages/editor/src/editor/decorations/footnoteDecoration.ts`, which renders `[^label]` references as superscript markers, derives hover-preview text from matching `[^label]: ...` definitions, and keeps raw markdown visible whenever the caret enters the reference or definition. `packages/editor/src/editor/decorations/linkDecoration.ts` now skips footnote-shaped `Link` nodes so definitions are not misclassified as regular links, and `packages/editor/src/editor/__tests__/footnoteDecoration.test.tsx` covers caret reveal, repeated references, definition-edit round trips, missing definitions, and code/non-footnote false-positive avoidance. Sources: https://support.typora.io/media/export/Markdown-Reference.pdf and https://typora.io/. BUG (found 2026-04-16, detailed live-preview test): Footnote rendering is visually correct in isolation, but when two references appear on the same line (e.g. the starter document's `This has a footnote[^1] and another[^2].`), the superscript regex in `inlineDecorations.ts` pairs the `^` of the first reference with the `^` of the second and wrongly renders the intervening ` and another` as a superscript span. Root cause and fix belong to MF-037, but this regresses the \"footnote references render cleanly\" guarantee in the mainline starter document; cross-reference added here so the failure is not lost if MF-037 is deferred."
     },
     {
       "id": "MF-023",
@@ -938,9 +938,9 @@
       "category": "phase-2-functional",
       "area": "@markflow/editor",
       "priority": 4,
-      "status": "verified",
-      "passes": true,
-      "lastVerifiedAt": "2026-04-11T05:17:16.127Z",
+      "status": "blocked",
+      "passes": false,
+      "lastVerifiedAt": null,
       "dependsOn": [
         "MF-002"
       ],
@@ -957,7 +957,7 @@
           "Write a chemistry formula and a footnote reference using both syntaxes and verify rendered output is legible in WYSIWYG mode."
         ]
       },
-      "notes": "Superscript (`^`) and subscript (`~`) are standard Pandoc and Typora Markdown extensions heavily used by academics writing chemistry, physics, and mathematics prose. Implementing them in `inlineDecorations.ts` using the same cursor-aware replace-decoration pattern as bold/italic requires minimal net-new code."
+      "notes": "BUG (found 2026-04-16, detailed live-preview test): The superscript pattern `/\\^([^^\\n]+)\\^/g` in `packages/editor/src/editor/decorations/inlineDecorations.ts:30` does not exclude footnote references (`[^label]`) and therefore matches across two adjacent references. In the starter document the line `This has a footnote[^1] and another[^2].` renders the literal text ` and another` with `class=\"mf-superscript\"` (vertical-align: super, font-size: 0.75em), because the regex greedily pairs the `^` in `[^1]` with the `^` in `[^2]`. Confirmed via `preview_eval` — `.mf-superscript` span with text ' and another' shows `fontSize: 11.25px` and `verticalAlign: super`. There is also no dedicated test coverage for superscript/subscript (the \"not-done\" TODO from the notes was never completed); `footnoteDecoration.test.tsx` exercises footnotes alone but never in combination with the superscript extension. Fix should either (a) reject matches that overlap a footnote/LinkReference node, (b) require a non-`^` non-`[` boundary before the opening `^`, or (c) run the footnote replacement first and skip ranges already replaced."
     },
     {
       "id": "MF-038",
@@ -1335,7 +1335,7 @@
           "Manual scroll-sync check with a multi-section document."
         ]
       },
-      "notes": "Implemented on 2026-04-15 in `packages/editor/src/App.tsx` and `packages/editor/src/editor/MarkFlowEditor.tsx` by sourcing outline entries from the background symbol table, keeping heading additions/renames asynchronous, and combining explicit navigation intent with editor scroll events so the active outline item tracks the current section without blocking on full-document reparses. Automated coverage in `src/__tests__/App.test.tsx`, `src/editor/__tests__/MarkFlowEditor.test.tsx`, and `src/editor/__tests__/outline.test.ts` passed on 2026-04-15 with the listed editor test command. `passes` remains false because the manual desktop scroll-sync check is still pending."
+      "notes": "Implemented on 2026-04-15 in `packages/editor/src/App.tsx` and `packages/editor/src/editor/MarkFlowEditor.tsx` by sourcing outline entries from the background symbol table, keeping heading additions/renames asynchronous, and combining explicit navigation intent with editor scroll events so the active outline item tracks the current section without blocking on full-document reparses. Automated coverage in `src/__tests__/App.test.tsx`, `src/editor/__tests__/MarkFlowEditor.test.tsx`, and `src/editor/__tests__/outline.test.ts` passed on 2026-04-15 with the listed editor test command. `passes` remains false because the manual desktop scroll-sync check is still pending. BUG (found 2026-04-16, detailed live-preview test, starter document): The active-heading indicator does NOT track scroll when the document fits the rendered viewport. `activeOutlineAnchor` is computed from `activeTab.cursorPosition ?? activeTab.viewportPosition ?? 0` (App.tsx ~line 1592), and `viewportPosition` is fed by `update.view.viewport.from` / `view.scrollDOM scroll handler` in `MarkFlowEditor.tsx` (~lines 303–310 and 603–606). But `view.viewport.from` is CodeMirror's virtualized range start, not the currently scrolled-to position — for a small doc `viewport.from` stays at 0 regardless of `scrollDOM.scrollTop`. Reproduced live: after `document.querySelector('.cm-scroller').scrollTop = 2000` on the starter document, `.mf-outline-item-active` remained on \"Welcome to MarkFlow\". On initial load the active outline item was the LAST heading (\"Footnote\") while `scrollTop` was 0 — symptom of an initial cursor/viewport value past the last heading. Fix should derive the active anchor from the topmost visible line, e.g. `view.posAtCoords({x: 0, y: view.documentTop})` or the line at `view.scrollDOM.scrollTop`, not `view.viewport.from`."
     },
     {
       "id": "MF-052",
@@ -1639,7 +1639,7 @@
       "category": "phase-2-functional",
       "area": "@markflow/editor",
       "priority": 3,
-      "status": "planned",
+      "status": "ready",
       "passes": false,
       "lastVerifiedAt": null,
       "dependsOn": [
@@ -1652,12 +1652,22 @@
         "Confirm the viewport highlight box tracks scrolling."
       ],
       "verification": {
-        "automated": [],
+        "automated": [
+          "pnpm --filter @markflow/editor exec vitest run src/components/minimap.test.tsx src/editor/__tests__/MarkFlowEditor.test.tsx src/__tests__/App.test.tsx",
+          "pnpm --filter @markflow/desktop exec vitest run src/main/menu.test.ts",
+          "pnpm --filter @markflow/shared lint",
+          "pnpm --filter @markflow/shared build",
+          "pnpm --filter @markflow/editor lint",
+          "pnpm --filter @markflow/editor build",
+          "pnpm --filter @markflow/desktop lint",
+          "pnpm --filter @markflow/desktop build",
+          "pnpm harness:verify"
+        ],
         "manual": [
           "Visual check on a 1 000-line document."
         ]
       },
-      "notes": "Render the minimap on a canvas element using a 1 px-per-line rasterisation approach."
+      "notes": "Implemented on 2026-04-16 in `packages/editor/src/components/Minimap.tsx`, `packages/editor/src/editor/MarkFlowEditor.tsx`, `packages/editor/src/App.tsx`, `packages/editor/src/styles/global.css`, `packages/editor/src/components/minimap.test.tsx`, `packages/editor/src/editor/__tests__/MarkFlowEditor.test.tsx`, `packages/editor/src/__tests__/App.test.tsx`, `packages/desktop/src/main/menu.ts`, `packages/desktop/src/main/menu.test.ts`, and `packages/shared/src/index.ts`. The View menu now exposes `Toggle Minimap`, the editor renders a right-side canvas minimap that rasterises one row per document line into compact glyph bars, clicks map back to proportional line navigation, and a translucent viewport box tracks live scroll metrics from the active CodeMirror scroller. Automated verification passed on 2026-04-16 with the listed editor/desktop/shared commands plus `pnpm harness:verify`. `passes` remains false because this terminal session did not truthfully complete the required live visual check on a 1,000-line document."
     },
     {
       "id": "MF-064",
@@ -2730,7 +2740,7 @@
           "Open the desktop app, set distinct light and dark themes, switch the macOS or Windows appearance while the app stays open, and confirm the rendered theme and the active appearance indicator update immediately."
         ]
       },
-      "notes": "Typora documents separate light and dark theme behavior that follows system appearance automatically. This run extends `packages/desktop/src/main/themeManager.ts`, `packages/desktop/src/preload/index.ts`, `packages/shared/src/index.ts`, and `packages/editor/src/App.tsx` so MarkFlow persists independent light/dark theme ids, exposes them to the renderer, and updates the active theme on Electron `nativeTheme` changes; focused desktop and renderer tests were added, but manual OS-level verification is still pending so `passes` remains false. Sources: https://support.typora.io/Dark-Mode/ and https://support.typora.io/."
+      "notes": "Typora documents separate light and dark theme behavior that follows system appearance automatically. This run extends `packages/desktop/src/main/themeManager.ts`, `packages/desktop/src/preload/index.ts`, `packages/shared/src/index.ts`, and `packages/editor/src/App.tsx` so MarkFlow persists independent light/dark theme ids, exposes them to the renderer, and updates the active theme on Electron `nativeTheme` changes; focused desktop and renderer tests were added, but manual OS-level verification is still pending so `passes` remains false. Sources: https://support.typora.io/Dark-Mode/ and https://support.typora.io/. BUG (found 2026-04-16, live-preview test with `prefers-color-scheme: dark`): In dark mode the editor chrome (`.cm-editor` background `rgb(28, 28, 30)`, default text `rgb(255, 255, 255)`) is swapped correctly, but the CodeMirror syntax-highlight token colors are NOT theme-aware — keyword tokens (class `ͼb`, e.g. `function`, `return`) stay at `rgb(119, 0, 136)` (dark purple) and type tokens (class `ͼi`, e.g. `string`) stay at `rgb(0, 136, 85)` (dark green). Both produce very low contrast against the dark background and fail WCAG AA readability for code blocks. Confirmed via `preview_inspect` on the `function greet(...)` starter example. Fix should either (a) ship a dark-palette HighlightStyle switched on appearance, or (b) wire the existing light/dark theme CSS to override the default `@codemirror/language` `defaultHighlightStyle` colors."
     },
     {
       "id": "MF-105",

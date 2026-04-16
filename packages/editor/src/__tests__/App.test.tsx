@@ -1093,6 +1093,60 @@ describe('App desktop integration', () => {
     expect(screen.getByText('line 1,000,000 / 1,500,000')).toBeInTheDocument()
   })
 
+  it('toggles the minimap from the View menu bridge and clicks through to proportional navigation', async () => {
+    const api = new MockMarkFlowAPI()
+    window.markflow = api
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({
+      clearRect: vi.fn(),
+      fillRect: vi.fn(),
+      fillStyle: '',
+      globalAlpha: 1,
+    } as unknown as CanvasRenderingContext2D)
+
+    const content = Array.from({ length: 100 }, (_, index) => `Line ${index + 1}`).join('\n')
+    const { container } = render(<App />)
+
+    await act(async () => {
+      api.emitFileOpened({ filePath: '/tmp/minimap.md', content })
+    })
+
+    expect(screen.queryByRole('button', { name: 'Document minimap' })).not.toBeInTheDocument()
+
+    await act(async () => {
+      api.emitMenuAction('toggle-minimap')
+    })
+
+    const minimap = await screen.findByRole('button', { name: 'Document minimap' })
+    Object.defineProperty(minimap, 'getBoundingClientRect', {
+      configurable: true,
+      value: () => ({
+        width: 56,
+        height: 200,
+        top: 0,
+        left: 0,
+        right: 56,
+        bottom: 200,
+        x: 0,
+        y: 0,
+        toJSON: () => ({}),
+      }),
+    })
+
+    fireEvent.click(minimap, { clientY: 150 })
+
+    await waitFor(() => {
+      expect(getEditorView(container).state.selection.main.head).toBe(content.indexOf('Line 76'))
+    })
+
+    await act(async () => {
+      api.emitMenuAction('toggle-minimap')
+    })
+
+    await waitFor(() => {
+      expect(screen.queryByRole('button', { name: 'Document minimap' })).not.toBeInTheDocument()
+    })
+  })
+
   it('routes pandoc export menu actions (docx, epub, latex) through the desktop bridge', async () => {
     const api = new MockMarkFlowAPI()
     window.markflow = api

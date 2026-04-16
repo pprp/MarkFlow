@@ -126,22 +126,33 @@ describe('MarkFlowEditor', () => {
 
   it('reports viewport updates when the editor scroll container scrolls', async () => {
     const handleViewportPositionChange = vi.fn()
+    const handleScrollMetricsChange = vi.fn()
     const { container } = render(
       <MarkFlowEditor
         content={['# Intro', '', '## Setup', '', '## Details'].join('\n')}
         viewMode="wysiwyg"
         onChange={vi.fn()}
         onViewportPositionChange={handleViewportPositionChange}
+        onScrollMetricsChange={handleScrollMetricsChange}
       />,
     )
 
     handleViewportPositionChange.mockClear()
+    handleScrollMetricsChange.mockClear()
 
     const view = getEditorView(container)
+    Object.defineProperty(view.scrollDOM, 'scrollHeight', { configurable: true, value: 1200 })
+    Object.defineProperty(view.scrollDOM, 'clientHeight', { configurable: true, value: 300 })
+    Object.defineProperty(view.scrollDOM, 'scrollTop', { configurable: true, value: 450, writable: true })
     fireEvent.scroll(view.scrollDOM)
 
     await waitFor(() => {
       expect(handleViewportPositionChange).toHaveBeenCalledWith(view.viewport.from)
+      expect(handleScrollMetricsChange).toHaveBeenCalledWith({
+        scrollTop: 450,
+        scrollHeight: 1200,
+        clientHeight: 300,
+      })
     })
   })
 

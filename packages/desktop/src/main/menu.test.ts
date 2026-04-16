@@ -88,4 +88,19 @@ describe('createApplicationMenuTemplate', () => {
     expect(sendMenuAction.mock.calls).toContainEqual(['close-tab'])
     expect(sendMenuAction.mock.calls).toContainEqual(['reopen-closed-tab'])
   })
+
+  it('routes the View minimap toggle through the renderer menu bridge', () => {
+    const sendMenuAction = vi.fn()
+    const template = createApplicationMenuTemplate({
+      canRevealCurrentFile: () => true,
+      revealCurrentFileInFolder: vi.fn(() => true),
+      sendMenuAction,
+      platform: 'linux',
+    })
+    const minimapItem = getMenuItem(template, 'View', 'Toggle Minimap')
+
+    minimapItem?.click?.({} as never, {} as never, {} as never)
+
+    expect(sendMenuAction).toHaveBeenCalledWith('toggle-minimap')
+  })
 })

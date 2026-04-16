@@ -79,6 +79,8 @@ export function createApplicationMenuTemplate({
         { role: 'reload' },
         { role: 'toggleDevTools' },
         { type: 'separator' },
+        { label: 'Toggle Minimap', click: () => sendMenuAction('toggle-minimap') },
+        { type: 'separator' },
         { role: 'resetZoom' },
         { role: 'zoomIn' },
         { role: 'zoomOut' },
