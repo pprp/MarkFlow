@@ -1,7 +1,7 @@
 import fs from 'node:fs'
 import { countByStatus, getNextFeature, harnessDir, ledgerPath, progressPath, readLedger } from './shared.mjs'
 
-const VALID_STATUS = new Set(['verified', 'ready', 'planned', 'blocked'])
+const VALID_STATUS = new Set(['verified', 'ready', 'planned', 'blocked', 'regression'])
 
 const failures = []
 
@@ -97,7 +97,9 @@ const counts = countByStatus(ledger.features)
 const next = getNextFeature(ledger)
 
 console.log('Harness verification passed.')
-console.log(`features: ${ledger.features.length} total | verified=${counts.verified ?? 0} | ready=${counts.ready ?? 0} | planned=${counts.planned ?? 0} | blocked=${counts.blocked ?? 0}`)
+console.log(
+  `features: ${ledger.features.length} total | verified=${counts.verified ?? 0} | ready=${counts.ready ?? 0} | planned=${counts.planned ?? 0} | blocked=${counts.blocked ?? 0} | regression=${counts.regression ?? 0}`,
+)
 if (next) {
   console.log(`next: ${next.id} - ${next.title}`)
 } else {

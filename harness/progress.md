@@ -9,6 +9,37 @@
 
 ## Session Log
 
+### 2026-04-16 - MF-055 rerun restored harness startup and kept the ledger truthful
+
+- Author: Codex
+- Focus: obey the startup protocol, keep scope on `MF-055`, repair the minimal harness blocker that prevented smoke verification, and record whether this session can truthfully complete the required 2 GB Go-to-Line plus Activity Monitor RSS acceptance.
+- What changed:
+  - re-read the root `AGENTS.md`, ran `pnpm harness:start`, and hit an initial `./harness/init.sh --smoke` failure because `scripts/harness/verify.mjs` still rejected the ledger's `regression` status shape
+  - updated `scripts/harness/verify.mjs` and `scripts/harness/start-session.mjs` so harness validation and session summaries accept/report `regression` without forcing unrelated ledger churn
+  - reran `pnpm harness:start` and `./harness/init.sh --smoke`, then reran the required `MF-055` automated verification commands on the current tree
+  - rechecked the manual-verification path with `swift -e 'import ApplicationServices; print(AXIsProcessTrusted())'`, `osascript -e 'tell application "Activity Monitor" to activate'`, and `osascript -e 'tell application "System Events" to tell process "Activity Monitor" to count windows'`
+- Changed files:
+  - `scripts/harness/verify.mjs`
+  - `scripts/harness/start-session.mjs`
+  - `harness/progress.md`
+- Simplifications made:
+  - kept production `MF-055` large-file code and `harness/feature-ledger.json` unchanged because the shipped implementation is already green under automation and the remaining gap is manual GUI proof
+  - limited the prerequisite fix to harness status parsing/reporting instead of reclassifying unrelated feature records just to make smoke pass
+- Verification:
+  - `pnpm harness:start` (passes after the harness status fix; reports `106 total | verified=63 | ready=19 | planned=23 | blocked=1 | regression=0`)
+  - `./harness/init.sh --smoke` (passes; reran workspace smoke verification with desktop 33/33 and editor 367 passed with 3 skips)
+  - `pnpm --filter @markflow/desktop test:run -- src/main/fileManager.test.ts` (passes; current desktop package script still runs the full desktop suite, 6 files / 33 tests, including the `MF-055` large-file windowing coverage)
+  - `pnpm --filter @markflow/editor test:run -- src/__tests__/App.test.tsx` (passes; current editor package script still runs the full editor suite, 33 files / 367 tests with 3 skips, including the `MF-055` large-file Go-to-Line bridge coverage)
+  - `pnpm harness:verify` (passes; `106 total | verified=63 | ready=19 | planned=23 | blocked=1 | regression=0`)
+  - manual-verification capability probes (blocked): `swift -e 'import ApplicationServices; print(AXIsProcessTrusted())'` returned `false`; `osascript -e 'tell application "Activity Monitor" to activate'` succeeded; `osascript -e 'tell application "System Events" to tell process "Activity Monitor" to count windows'` failed with `System Events got an error: osascript is not allowed assistive access. (-25211)`
+- Review / risks:
+  - `MF-055` must remain `status=planned`, `passes=false`, and `lastVerifiedAt=null` until a trusted desktop session opens a synthetic 2 GB markdown file, jumps to line 1,000,000, confirms the target line appears within 2 seconds, and confirms Activity Monitor RSS stays below 512 MB
+  - the remaining blocker is environment-specific, not code-specific: this terminal session still lacks the Accessibility trust required to drive or inspect the manual Activity Monitor RSS check honestly
+- Newly verified features:
+  - none
+- Next recommended feature:
+  - `MF-055` - complete the pending 2 GB desktop Go-to-Line timing and Activity Monitor RSS verification in a real Accessibility-enabled session, then update the ledger only if those checks truly pass
+
 ### 2026-04-16 - MF-055 rerun kept the ledger honest while GUI proof is still blocked here
 
 - Author: Codex
@@ -4445,3 +4476,4 @@
   - none
 - Next recommended feature:
   - `MF-060` - complete the pending GUI/manual crash-relaunch recovery acceptance flow with direct human control or working Accessibility permission, then update the ledger only if the prompt and restored checkpoint content truly pass
+

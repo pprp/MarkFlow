@@ -11,7 +11,9 @@ console.log('MarkFlow harness session start')
 console.log(`repo: ${repoRoot}`)
 console.log(`branch: ${branch}`)
 console.log('')
-console.log(`features: ${ledger.features.length} total | verified=${counts.verified ?? 0} | ready=${counts.ready ?? 0} | planned=${counts.planned ?? 0} | blocked=${counts.blocked ?? 0}`)
+console.log(
+  `features: ${ledger.features.length} total | verified=${counts.verified ?? 0} | ready=${counts.ready ?? 0} | planned=${counts.planned ?? 0} | blocked=${counts.blocked ?? 0} | regression=${counts.regression ?? 0}`,
+)
 console.log('')
 console.log('recent git log:')
 console.log(recentLog)
