@@ -73,6 +73,7 @@ export interface MarkFlowThemeState {
 }
 
 export interface MarkFlowWindowState {
+  isAlwaysOnTop: boolean
   isFullscreen: boolean
 }
 

@@ -8,14 +8,17 @@ import { ThemeManager } from './themeManager'
 import { SpellCheckManager } from './spellCheckManager'
 import { ImageUploadManager } from './imageUploadManager'
 import { createApplicationMenuTemplate } from './menu'
+import { WindowStateManager } from './windowStateManager'
 
 const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged
+const PRIMARY_WINDOW_STATE_ID = 'primary'
 
 let mainWindow: BrowserWindow | null = null
 let fileManager: FileManager
 let themeManager: ThemeManager | null = null
 let spellCheckManager: SpellCheckManager | null = null
 let imageUploadManager: ImageUploadManager | null = null
+let windowStateManager: WindowStateManager | null = null
 let pendingOpenFilePath: string | null = null
 
 function sendMenuAction(action: MarkFlowMenuAction, payload: Omit<MarkFlowMenuActionPayload, 'action'> = {}) {
@@ -24,6 +27,7 @@ function sendMenuAction(action: MarkFlowMenuAction, payload: Omit<MarkFlowMenuAc
 
 function getWindowState(): MarkFlowWindowState {
   return {
+    isAlwaysOnTop: mainWindow?.isAlwaysOnTop() ?? false,
     isFullscreen: mainWindow?.isFullScreen() ?? false,
   }
 }
@@ -38,6 +42,14 @@ function toggleFullscreen() {
   }
 
   mainWindow.setFullScreen(!mainWindow.isFullScreen())
+}
+
+async function toggleAlwaysOnTop() {
+  if (!windowStateManager) {
+    return
+  }
+
+  await windowStateManager.toggleAlwaysOnTop()
 }
 
 function queueFileOpen(filePath: string) {
@@ -88,6 +100,11 @@ function createWindow() {
   imageUploadManager = new ImageUploadManager(app.getPath('userData'))
   imageUploadManager.registerIpcHandlers()
   void imageUploadManager.initialize()
+  windowStateManager = new WindowStateManager(mainWindow, app.getPath('userData'), PRIMARY_WINDOW_STATE_ID, () => {
+    buildMenu()
+    sendWindowState()
+  })
+  void windowStateManager.initialize()
   buildMenu()
 
   if (isDev) {
@@ -103,6 +120,8 @@ function createWindow() {
     themeManager = null
     spellCheckManager = null
     imageUploadManager = null
+    windowStateManager?.dispose()
+    windowStateManager = null
     mainWindow = null
   })
 
@@ -143,6 +162,10 @@ function buildMenu() {
         },
         revealCurrentFileInFolder: () => fileManager?.revealCurrentFileInFolder() ?? false,
         sendMenuAction: (action) => sendMenuAction(action),
+        isAlwaysOnTop: windowStateManager?.isAlwaysOnTop() ?? false,
+        toggleAlwaysOnTop: () => {
+          void toggleAlwaysOnTop()
+        },
         toggleFullscreen,
       }),
     ),

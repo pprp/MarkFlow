@@ -5171,3 +5171,46 @@
   - none
 - Next recommended feature:
   - `MF-090` - perform the pending restart-based manual verification for `Open Recent`, Quick Open, and OS-native recents, then promote `passes` / `lastVerifiedAt` only if the saved history stays aligned across all three surfaces
+
+### 2026-04-16 - MF-091 Always-on-top window toggle now persists across relaunches
+
+- Author: Codex
+- Focus: obey the startup protocol for `MF-091`, implement only the desktop always-on-top persistence feature, run the feature-specific automated verification plus repository-wide verification, keep the ledger honest because platform/manual checks were not performed here, and finish with a Lore-protocol commit.
+- What changed:
+  - re-read the root `AGENTS.md`, ran `pnpm harness:start`, and ran `./harness/init.sh --smoke` before implementation
+  - added `packages/desktop/src/main/windowStateManager.ts` to persist a window-scoped `alwaysOnTop` flag under the user-data profile and restore it on launch before rebuilding the app menu
+  - wired `View -> Always on Top` into `packages/desktop/src/main/menu.ts` and `packages/desktop/src/main/index.ts` as a checkbox action that toggles the active editor window directly and republishes window-state changes to the renderer/menu layer
+  - expanded `packages/desktop/src/main/menu.test.ts` and added `packages/desktop/src/main/windowStateManager.test.ts` to cover checkbox serialization, toggle dispatch, persisted read/write, restore-on-launch behavior, callback notifications, and per-window identifier isolation
+  - widened `MarkFlowWindowState` in `packages/shared/src/index.ts` and synchronized the default desktop window-state handling in `packages/editor/src/App.tsx` plus `packages/editor/src/__tests__/App.test.tsx` so the shared contract still builds cleanly after the new main-process flag was added
+- Changed files:
+  - `packages/desktop/src/main/index.ts`
+  - `packages/desktop/src/main/menu.ts`
+  - `packages/desktop/src/main/menu.test.ts`
+  - `packages/desktop/src/main/windowStateManager.ts`
+  - `packages/desktop/src/main/windowStateManager.test.ts`
+  - `packages/shared/src/index.ts`
+  - `packages/editor/src/App.tsx`
+  - `packages/editor/src/__tests__/App.test.tsx`
+  - `harness/feature-ledger.json`
+  - `harness/progress.md`
+- Simplifications made:
+  - isolated Always-on-Top persistence into a dedicated main-process manager instead of folding another responsibility into `FileManager` or `ThemeManager`
+  - kept the persistence model window-scoped by identifier so the state format can support multiple editor windows later without changing the on-disk schema again
+  - limited the implementation to the explicit menu-toggle path instead of depending on Electron event typings that are not exposed in the current repo's `BrowserWindow` declaration surface
+- Verification:
+  - `pnpm harness:start` (passes)
+  - `./harness/init.sh --smoke` before implementation (passes; session smoke green at start)
+  - `pnpm --filter @markflow/desktop exec vitest run src/main/windowStateManager.test.ts src/main/menu.test.ts` (passes; 2 files / 13 tests covering toggle dispatch, persistence read/write, restore behavior, and per-window state isolation)
+  - `pnpm --filter @markflow/editor exec vitest run src/__tests__/App.test.tsx` (passes; 1 file / 45 tests covering the shared desktop window-state contract after the type update)
+  - `pnpm lint` (passes)
+  - `pnpm test` (passes)
+  - `pnpm build` (passes)
+  - `pnpm harness:verify` (passes)
+- Review / risks:
+  - `MF-091` is implemented and automated coverage is green, but `passes` must remain false until someone manually confirms restart persistence plus platform behavior across macOS Spaces and Windows multi-monitor setups
+  - the current desktop shell still centers on a single editor window, so the "per-window when multiple windows are open" requirement is covered in automation through distinct persisted window identifiers rather than an end-to-end multi-window UI flow
+  - the feature intentionally persists only the explicit MarkFlow menu toggle path; if future work introduces other Always-on-Top entry points, they should route through the same manager to keep persistence consistent
+- Newly verified features:
+  - none
+- Next recommended feature:
+  - `MF-091` - perform the pending manual verification for restart persistence, macOS Spaces behavior, Windows multi-monitor behavior, and any available multi-window flow before promoting `passes` / `lastVerifiedAt`

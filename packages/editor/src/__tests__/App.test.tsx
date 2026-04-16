@@ -120,6 +120,7 @@ class MockMarkFlowAPI implements MarkFlowDesktopAPI {
     remoteUrl: 'https://cdn.example.com/diagram.png',
   }
   private windowState: MarkFlowWindowState = {
+    isAlwaysOnTop: false,
     isFullscreen: false,
   }
   private windowSession: MarkFlowWindowSession | null = null
@@ -1587,7 +1588,7 @@ describe('App desktop integration', () => {
     expect(screen.getByRole('button', { name: 'Document minimap' })).toBeInTheDocument()
 
     await act(async () => {
-      api.emitWindowStateChanged({ isFullscreen: true })
+      api.emitWindowStateChanged({ isAlwaysOnTop: false, isFullscreen: true })
     })
 
     await waitFor(() => {
@@ -1602,7 +1603,7 @@ describe('App desktop integration', () => {
     })
 
     await act(async () => {
-      api.emitWindowStateChanged({ isFullscreen: false })
+      api.emitWindowStateChanged({ isAlwaysOnTop: false, isFullscreen: false })
     })
 
     await waitFor(() => {

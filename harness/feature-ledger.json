@@ -2385,7 +2385,7 @@
       "category": "phase-2-functional",
       "area": "@markflow/desktop",
       "priority": 3,
-      "status": "planned",
+      "status": "ready",
       "passes": false,
       "lastVerifiedAt": null,
       "dependsOn": [],
@@ -2402,7 +2402,7 @@
           "Confirm behavior across macOS Spaces and Windows multi-monitor setups."
         ]
       },
-      "notes": "Typora documents an Always on Top toggle. Source: https://support.typora.io/Menu/."
+      "notes": "Implemented with a persisted `WindowStateManager` in `packages/desktop/src/main/windowStateManager.ts`, `View -> Always on Top` checkbox wiring in `packages/desktop/src/main/menu.ts` and `packages/desktop/src/main/index.ts`, and shared window-state typing updates in `packages/shared/src/index.ts` plus `packages/editor/src/App.tsx`. Automated coverage in `packages/desktop/src/main/windowStateManager.test.ts` and `packages/desktop/src/main/menu.test.ts` passed on 2026-04-16, alongside `pnpm --filter @markflow/editor exec vitest run src/__tests__/App.test.tsx`, `pnpm lint`, `pnpm test`, and `pnpm build`. `passes` remains false until manual verification confirms restart persistence and platform behavior across macOS Spaces and Windows multi-monitor setups; the current desktop shell still centers on a single editor window, so true multi-window behavior was only covered at the per-window state-manager level in automation. Source: https://support.typora.io/Menu/."
     },
     {
       "id": "MF-092",

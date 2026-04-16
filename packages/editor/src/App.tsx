@@ -400,7 +400,10 @@ export function App() {
     loadLocalHeadingNumberingPreference(),
   )
   const [isDistractionFreeMode, setIsDistractionFreeMode] = useState(false)
-  const [windowState, setWindowState] = useState<MarkFlowWindowState>({ isFullscreen: false })
+  const [windowState, setWindowState] = useState<MarkFlowWindowState>({
+    isAlwaysOnTop: false,
+    isFullscreen: false,
+  })
   const [showSidebar, setShowSidebar] = useState(false)
   const [showMinimap, setShowMinimap] = useState(false)
   const [vaultPath, setVaultPath] = useState<string | null>(null)

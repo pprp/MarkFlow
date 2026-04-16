@@ -20,9 +20,11 @@ function createOpenRecentOptions() {
 function createMenuTemplate(overrides: Partial<Parameters<typeof createApplicationMenuTemplate>[0]> = {}) {
   return createApplicationMenuTemplate({
     canRevealCurrentFile: () => true,
+    isAlwaysOnTop: false,
     openRecent: createOpenRecentOptions(),
     revealCurrentFileInFolder: vi.fn(() => true),
     sendMenuAction: vi.fn(),
+    toggleAlwaysOnTop: vi.fn(),
     toggleFullscreen: vi.fn(),
     platform: 'linux',
     ...overrides,
@@ -172,6 +174,34 @@ describe('createApplicationMenuTemplate', () => {
       }),
     )
     expect(toggleFullscreen).toHaveBeenCalledTimes(1)
+  })
+
+  it('reflects and toggles the Always on Top window state from the View menu', () => {
+    const toggleAlwaysOnTop = vi.fn()
+    const uncheckedTemplate = createMenuTemplate({
+      toggleAlwaysOnTop,
+    })
+    const checkedTemplate = createMenuTemplate({
+      isAlwaysOnTop: true,
+      toggleAlwaysOnTop,
+    })
+    const uncheckedItem = getMenuItem(uncheckedTemplate, 'View', 'Always on Top')
+    const checkedItem = getMenuItem(checkedTemplate, 'View', 'Always on Top')
+
+    uncheckedItem?.click?.({} as never, {} as never, {} as never)
+
+    expect(uncheckedItem).toEqual(
+      expect.objectContaining({
+        type: 'checkbox',
+        checked: false,
+      }),
+    )
+    expect(checkedItem).toEqual(
+      expect.objectContaining({
+        checked: true,
+      }),
+    )
+    expect(toggleAlwaysOnTop).toHaveBeenCalledTimes(1)
   })
 
   it('serializes pinned folders, recent entries, and clear actions under File > Open Recent', () => {

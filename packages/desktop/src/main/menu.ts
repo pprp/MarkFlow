@@ -23,9 +23,11 @@ export interface OpenRecentMenuOptions {
 
 interface ApplicationMenuOptions {
   canRevealCurrentFile: () => boolean
+  isAlwaysOnTop: boolean
   openRecent: OpenRecentMenuOptions
   revealCurrentFileInFolder: () => boolean
   sendMenuAction: (action: MarkFlowMenuAction) => void
+  toggleAlwaysOnTop: () => void
   toggleFullscreen: () => void
   platform?: NodeJS.Platform
 }
@@ -116,9 +118,11 @@ function buildOpenRecentSubmenu(openRecent: OpenRecentMenuOptions): MenuItemCons
 
 export function createApplicationMenuTemplate({
   canRevealCurrentFile,
+  isAlwaysOnTop,
   openRecent,
   revealCurrentFileInFolder,
   sendMenuAction,
+  toggleAlwaysOnTop,
   toggleFullscreen,
   platform = process.platform,
 }: ApplicationMenuOptions): MenuItemConstructorOptions[] {
@@ -244,6 +248,12 @@ export function createApplicationMenuTemplate({
         { role: 'zoomIn' },
         { role: 'zoomOut' },
         { type: 'separator' },
+        {
+          label: 'Always on Top',
+          type: 'checkbox',
+          checked: isAlwaysOnTop,
+          click: () => toggleAlwaysOnTop(),
+        },
         {
           label: 'Toggle Fullscreen',
           accelerator: isMac ? 'Ctrl+Command+F' : 'F11',
