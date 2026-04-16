@@ -9,6 +9,44 @@
 
 ## Session Log
 
+### 2026-04-16 - MF-085 heading auto-numbering now flows through editor, outline, and export markup
+
+- Author: Codex
+- Focus: obey the startup protocol for `MF-085`, implement only the heading auto-numbering preference/rendering feature in `@markflow/editor`, run the listed automated verification plus `pnpm harness:verify`, keep the ledger honest because manual export verification was not completed here, and finish with a Lore-protocol commit.
+- What changed:
+  - re-read the root `AGENTS.md`, ran `pnpm harness:start`, and ran `./harness/init.sh --smoke` before implementation
+  - added `packages/editor/src/headingNumbering.ts` to hold the local preference loader/persister plus the shared CSS-counter stylesheet used by the editor, outline, and export markup
+  - updated `packages/editor/src/App.tsx` so the status bar now exposes a `Heading numbering settings` popover, the app root/export body carry a `data-mf-heading-numbering` flag, outline items declare their heading level, and HTML/PDF export includes the numbering stylesheet and enabled state without touching markdown source text
+  - extended `packages/editor/src/__tests__/headingNumbering.test.ts` and `packages/editor/src/__tests__/App.test.tsx` so automated coverage now locks the CSS counter content rules, the persisted preference toggle, the outline/export wiring, and the guarantee that the underlying markdown still contains raw heading markers like `# Intro`
+  - updated `harness/feature-ledger.json` for `MF-085` only to `status=ready` while keeping `passes=false` and `lastVerifiedAt=null`
+- Changed files:
+  - `packages/editor/src/App.tsx`
+  - `packages/editor/src/headingNumbering.ts`
+  - `packages/editor/src/__tests__/App.test.tsx`
+  - `packages/editor/src/__tests__/headingNumbering.test.ts`
+  - `harness/feature-ledger.json`
+  - `harness/progress.md`
+- Simplifications made:
+  - kept the feature renderer-local by persisting the preference in the editor profile instead of introducing new desktop IPC or shared settings plumbing
+  - reused one stylesheet/attribute contract for editor, outline, and export so the numbering behavior stays consistent without duplicating counter logic in multiple places
+  - left raw outline button labels and markdown document text untouched; numbering is visual only through CSS counters
+- Verification:
+  - `pnpm harness:start` (passes)
+  - `./harness/init.sh --smoke` before implementation (passes)
+  - `pnpm --filter @markflow/editor exec vitest run src/__tests__/headingNumbering.test.ts src/__tests__/App.test.tsx` (passes; 2 files / 47 tests covering CSS counter rules, preference persistence, outline wiring, export markup, and untouched markdown source)
+  - `pnpm --filter @markflow/editor exec eslint src/App.tsx src/headingNumbering.ts src/__tests__/App.test.tsx src/__tests__/headingNumbering.test.ts` (passes)
+  - `pnpm --filter @markflow/editor build` (passes)
+  - `./harness/init.sh --smoke` after implementation (passes; shared 0 tests, desktop 42 tests, editor 393 tests with 3 skips)
+  - `pnpm harness:verify` (passes before ledger update)
+- Review / risks:
+  - `MF-085` is implemented and automated coverage is green, but `passes` must remain false until someone exports a numbered document to real HTML and PDF artifacts and confirms the visible numbering survives outside the test harness
+  - the preference currently lives in renderer-local storage, so desktop profile sync or cross-window synchronization is intentionally out of scope for this feature
+  - CSS counters follow heading hierarchy as-authored; malformed heading sequences such as a document starting at `##` will inherit standard CSS-counter behavior rather than a custom renumbering heuristic
+- Newly verified features:
+  - none
+- Next recommended feature:
+  - `MF-085` - perform the pending manual HTML/PDF export verification, then set `passes=true` and `lastVerifiedAt` only if the exported numbering is visually correct in both artifacts
+
 ### 2026-04-16 - MF-055 live 2 GB jumps passed but RSS proof stayed ambiguous
 
 - Author: Codex

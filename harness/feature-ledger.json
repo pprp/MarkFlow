@@ -2234,7 +2234,7 @@
       "category": "phase-2-functional",
       "area": "@markflow/editor",
       "priority": 3,
-      "status": "planned",
+      "status": "ready",
       "passes": false,
       "lastVerifiedAt": null,
       "dependsOn": ["MF-001", "MF-020"],
@@ -2251,7 +2251,7 @@
           "Export the numbered document to PDF and HTML and confirm the numbering survives."
         ]
       },
-      "notes": "Typora supports heading auto-numbering via `sidebar.heading` CSS counters and export settings. Sources: https://support.typora.io/Auto-Numbering/ and https://support.typora.io/Preferences/."
+      "notes": "Implemented on 2026-04-16 in `packages/editor/src/App.tsx`, `packages/editor/src/headingNumbering.ts`, `packages/editor/src/__tests__/App.test.tsx`, and `packages/editor/src/__tests__/headingNumbering.test.ts`. MarkFlow now persists a local heading auto-numbering preference, exposes it through a status-bar preferences popover, applies CSS-counter prefixes to rendered CodeMirror headings plus the outline panel, and carries the same counter stylesheet/attribute into HTML and PDF export markup without mutating markdown source text. Automated verification passed on 2026-04-16 with `pnpm --filter @markflow/editor exec vitest run src/__tests__/headingNumbering.test.ts src/__tests__/App.test.tsx`, `pnpm --filter @markflow/editor exec eslint src/App.tsx src/headingNumbering.ts src/__tests__/App.test.tsx src/__tests__/headingNumbering.test.ts`, `pnpm --filter @markflow/editor build`, `./harness/init.sh --smoke`, and `pnpm harness:verify`. `passes` remains false because the required manual HTML/PDF export check was not performed in this terminal session. Sources: https://support.typora.io/Auto-Numbering/ and https://support.typora.io/Preferences/."
     },
     {
       "id": "MF-086",

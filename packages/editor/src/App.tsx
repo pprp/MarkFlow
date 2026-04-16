@@ -47,6 +47,14 @@ import {
   persistLocalSpellCheckState,
   sanitizeSpellCheckWord,
 } from './spellCheckProfile'
+import {
+  HEADING_NUMBERING_ATTRIBUTE,
+  HEADING_NUMBERING_CSS,
+  HEADING_NUMBERING_OUTLINE_LEVEL_ATTRIBUTE,
+  HEADING_NUMBERING_STYLE_ELEMENT_ID,
+  loadLocalHeadingNumberingPreference,
+  persistLocalHeadingNumberingPreference,
+} from './headingNumbering'
 
 const THEME_STYLE_ELEMENT_ID = 'mf-theme-overrides'
 const EDITOR_ROOT_SELECTOR = '.cm-editor'
@@ -161,6 +169,10 @@ function formatAppearanceLabel(appearance: MarkFlowAppearance) {
 
 function formatSpellCheckLanguageLabel(language: string | null) {
   return language ?? 'Default'
+}
+
+function formatHeadingNumberingStatus(enabled: boolean) {
+  return enabled ? 'Headings: 1.2' : 'Headings: Plain'
 }
 
 type AppToast = {
@@ -384,6 +396,9 @@ export function App() {
   const [viewMode, setViewMode] = useState<ViewMode>('wysiwyg')
   const [focusMode, setFocusMode] = useState(false)
   const [typewriterMode, setTypewriterMode] = useState(false)
+  const [headingNumberingEnabled, setHeadingNumberingEnabled] = useState(() =>
+    loadLocalHeadingNumberingPreference(),
+  )
   const [isDistractionFreeMode, setIsDistractionFreeMode] = useState(false)
   const [windowState, setWindowState] = useState<MarkFlowWindowState>({ isFullscreen: false })
   const [showSidebar, setShowSidebar] = useState(false)
@@ -394,6 +409,7 @@ export function App() {
     loadLocalSpellCheckState(),
   )
   const [isSpellCheckSettingsOpen, setIsSpellCheckSettingsOpen] = useState(false)
+  const [isHeadingNumberingSettingsOpen, setIsHeadingNumberingSettingsOpen] = useState(false)
   const [spellCheckWordInput, setSpellCheckWordInput] = useState('')
   const [imageUploadSettings, setImageUploadSettings] = useState<MarkFlowImageUploadSettings | null>(null)
   const [isImageUploadSettingsOpen, setIsImageUploadSettingsOpen] = useState(false)
@@ -435,6 +451,8 @@ export function App() {
   const pluginHostRef = useRef<MarkFlowPluginHost | null>(null)
   const editorRef = useRef<MarkFlowEditorHandle | null>(null)
   const editorShellRef = useRef<HTMLDivElement | null>(null)
+  const headingNumberingButtonRef = useRef<HTMLButtonElement | null>(null)
+  const headingNumberingPanelRef = useRef<HTMLDivElement | null>(null)
   const spellCheckButtonRef = useRef<HTMLButtonElement | null>(null)
   const spellCheckPanelRef = useRef<HTMLDivElement | null>(null)
   const imageUploadButtonRef = useRef<HTMLButtonElement | null>(null)
@@ -582,13 +600,15 @@ export function App() {
   }, [])
 
   useEffect(() => {
-    if (!isSpellCheckSettingsOpen && !isImageUploadSettingsOpen) {
+    if (!isHeadingNumberingSettingsOpen && !isSpellCheckSettingsOpen && !isImageUploadSettingsOpen) {
       return
     }
 
     const handlePointerDown = (event: PointerEvent) => {
       const target = event.target
       if (
+        (target instanceof Node && headingNumberingPanelRef.current?.contains(target)) ||
+        (target instanceof Node && headingNumberingButtonRef.current?.contains(target)) ||
         (target instanceof Node && spellCheckPanelRef.current?.contains(target)) ||
         (target instanceof Node && spellCheckButtonRef.current?.contains(target)) ||
         (target instanceof Node && imageUploadPanelRef.current?.contains(target)) ||
@@ -597,12 +617,14 @@ export function App() {
         return
       }
 
+      setIsHeadingNumberingSettingsOpen(false)
       setIsSpellCheckSettingsOpen(false)
       setIsImageUploadSettingsOpen(false)
     }
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
+        setIsHeadingNumberingSettingsOpen(false)
         setIsSpellCheckSettingsOpen(false)
         setIsImageUploadSettingsOpen(false)
       }
@@ -614,7 +636,7 @@ export function App() {
       document.removeEventListener('pointerdown', handlePointerDown)
       document.removeEventListener('keydown', handleKeyDown)
     }
-  }, [isImageUploadSettingsOpen, isSpellCheckSettingsOpen])
+  }, [isHeadingNumberingSettingsOpen, isImageUploadSettingsOpen, isSpellCheckSettingsOpen])
 
   const isImmersiveMode = windowState.isFullscreen || isDistractionFreeMode
 
@@ -1459,7 +1481,7 @@ export function App() {
     .cm-content { padding: 0 !important; }
   </style>
 </head>
-<body class="mf-export-body">
+<body class="mf-export-body" ${HEADING_NUMBERING_ATTRIBUTE}="${headingNumberingEnabled ? 'true' : 'false'}">
   <div class="mf-editor-shell">
     <div class="mf-editor-container">
       <div class="cm-editor">
@@ -1498,6 +1520,11 @@ export function App() {
     window.setTimeout(() => {
       setToasts((currentToasts) => currentToasts.filter((toast) => toast.id !== nextToast.id))
     }, 4_000)
+  }, [])
+
+  const updateHeadingNumberingPreference = useCallback((enabled: boolean) => {
+    persistLocalHeadingNumberingPreference(enabled)
+    setHeadingNumberingEnabled(enabled)
   }, [])
 
   const replaceTabTextOccurrence = useCallback(
@@ -2299,7 +2326,8 @@ export function App() {
     .join(' ')
 
   return (
-    <div className={appClassName}>
+    <div className={appClassName} {...{ [HEADING_NUMBERING_ATTRIBUTE]: headingNumberingEnabled ? 'true' : 'false' }}>
+      <style id={HEADING_NUMBERING_STYLE_ELEMENT_ID}>{HEADING_NUMBERING_CSS}</style>
       {!isImmersiveMode ? (
         <header className="mf-titlebar">
         {/* Spacer for macOS traffic lights (hiddenInset titleBarStyle) */}
@@ -2608,6 +2636,7 @@ export function App() {
                         key={`${heading.anchor}:${heading.from}`}
                         type="button"
                         className={`mf-outline-item${isActive ? ' mf-outline-item-active' : ''}`}
+                        {...{ [HEADING_NUMBERING_OUTLINE_LEVEL_ATTRIBUTE]: String(heading.level) }}
                         style={{ paddingLeft: `${12 + (heading.level - 1) * 14}px` }}
                         aria-current={isActive ? 'true' : undefined}
                         onClick={() => handleOutlineNavigate(heading.from)}
@@ -2652,6 +2681,47 @@ export function App() {
           </>
         )}
         <div className="mf-statusbar-actions">
+          <button
+            ref={headingNumberingButtonRef}
+            type="button"
+            className={`mf-statusbar-button${isHeadingNumberingSettingsOpen ? ' mf-statusbar-button-active' : ''}`}
+            aria-haspopup="dialog"
+            aria-expanded={isHeadingNumberingSettingsOpen}
+            aria-label="Heading numbering settings"
+            onClick={() => {
+              setIsSpellCheckSettingsOpen(false)
+              setIsImageUploadSettingsOpen(false)
+              setIsHeadingNumberingSettingsOpen((current) => !current)
+            }}
+          >
+            {formatHeadingNumberingStatus(headingNumberingEnabled)}
+          </button>
+          {isHeadingNumberingSettingsOpen ? (
+            <section
+              ref={headingNumberingPanelRef}
+              className="mf-spellcheck-popover"
+              role="dialog"
+              aria-label="Heading numbering settings"
+            >
+              <div className="mf-spellcheck-popover-header">
+                <div>
+                  <p className="mf-spellcheck-popover-title">Heading Numbering</p>
+                  <p className="mf-spellcheck-popover-copy">
+                    Adds CSS-counter prefixes to rendered headings, the outline, and HTML/PDF exports
+                    without rewriting the markdown source.
+                  </p>
+                </div>
+              </div>
+              <label className="mf-image-upload-checkbox">
+                <input
+                  type="checkbox"
+                  checked={headingNumberingEnabled}
+                  onChange={(event) => updateHeadingNumberingPreference(event.target.checked)}
+                />
+                <span>Enable heading auto-numbering</span>
+              </label>
+            </section>
+          ) : null}
           {imageUploadSettings ? (
             <>
               <button
@@ -2662,6 +2732,7 @@ export function App() {
                 aria-expanded={isImageUploadSettingsOpen}
                 aria-label="Image upload preferences"
                 onClick={() => {
+                  setIsHeadingNumberingSettingsOpen(false)
                   setIsSpellCheckSettingsOpen(false)
                   setIsImageUploadSettingsOpen((current) => !current)
                 }}
@@ -2801,6 +2872,7 @@ export function App() {
             aria-expanded={isSpellCheckSettingsOpen}
             aria-label="Spellcheck settings"
             onClick={() => {
+              setIsHeadingNumberingSettingsOpen(false)
               setIsImageUploadSettingsOpen(false)
               setIsSpellCheckSettingsOpen((current) => !current)
             }}

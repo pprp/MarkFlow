@@ -9,6 +9,13 @@ import * as path from 'path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { App } from '../App'
 import { headingFoldExtension } from '../editor/extensions/headingFold'
+import {
+  HEADING_NUMBERING_ATTRIBUTE,
+  HEADING_NUMBERING_OUTLINE_LEVEL_ATTRIBUTE,
+  HEADING_NUMBERING_STYLE_ELEMENT_ID,
+  loadLocalHeadingNumberingPreference,
+  persistLocalHeadingNumberingPreference,
+} from '../headingNumbering'
 import type {
   MarkFlowAppearance,
   MarkFlowDesktopAPI,
@@ -377,6 +384,7 @@ class MockMarkFlowAPI implements MarkFlowDesktopAPI {
 describe('App desktop integration', () => {
   afterEach(() => {
     delete window.markflow
+    persistLocalHeadingNumberingPreference(false)
     if (typeof window.localStorage?.removeItem === 'function') {
       window.localStorage.removeItem('markflow.spellcheck-profile.v1')
     }
@@ -1255,6 +1263,53 @@ describe('App desktop integration', () => {
     })
   })
 
+  it('toggles heading numbering in preferences without mutating markdown source or outline labels', async () => {
+    const api = new MockMarkFlowAPI()
+    window.markflow = api
+
+    const content = ['# Intro', '', '## Setup', '', '### Deep Dive', '', '#### Details'].join('\n')
+    const { container } = render(<App />)
+
+    await act(async () => {
+      api.emitFileOpened({ filePath: '/tmp/headings.md', content })
+    })
+
+    const headingButton = await screen.findByRole('button', { name: 'Heading numbering settings' })
+    expect(headingButton).toHaveTextContent('Headings: Plain')
+
+    fireEvent.click(headingButton)
+
+    const checkbox = await screen.findByRole('checkbox', { name: 'Enable heading auto-numbering' })
+    fireEvent.click(checkbox)
+
+    await waitFor(() => {
+      expect(headingButton).toHaveTextContent('Headings: 1.2')
+      expect(container.firstElementChild).toHaveAttribute(HEADING_NUMBERING_ATTRIBUTE, 'true')
+      expect(loadLocalHeadingNumberingPreference()).toBe(true)
+    })
+
+    const outline = await screen.findByRole('navigation', { name: 'Outline' })
+    const outlineButtons = within(outline).getAllByRole('button')
+    expect(outlineButtons.map((button) => button.textContent)).toEqual([
+      'Intro',
+      'Setup',
+      'Deep Dive',
+      'Details',
+    ])
+    expect(outlineButtons.map((button) => button.getAttribute(HEADING_NUMBERING_OUTLINE_LEVEL_ATTRIBUTE))).toEqual([
+      '1',
+      '2',
+      '3',
+      '4',
+    ])
+
+    expect(document.getElementById(HEADING_NUMBERING_STYLE_ELEMENT_ID)).toHaveTextContent(
+      'content: counter(mf-editor-h1) "." counter(mf-editor-h2) ". ";',
+    )
+    expect(container.querySelector('.cm-line.mf-h1')?.textContent).toBe('# Intro')
+    expect(getEditorView(container).state.doc.toString()).toBe(content)
+  })
+
   it('shows an outline that mirrors heading hierarchy and navigates to the active heading', async () => {
     const api = new MockMarkFlowAPI()
     window.markflow = api
@@ -2086,5 +2141,32 @@ describe('App export integration', () => {
     expect(callArgs[0]).toContain('Hello')
     expect(callArgs[0]).toContain('Some text')
     expect(callArgs[1]).toBe('/docs/exportme.html')
+  })
+
+  it('includes heading numbering counters in HTML export when the preference is enabled', async () => {
+    const api = new MockMarkFlowAPI()
+    persistLocalHeadingNumberingPreference(true)
+    window.markflow = api
+
+    render(<App />)
+
+    await act(async () => {
+      api.emitFileOpened({ filePath: '/docs/numbered-export.md', content: '# Hello\n\n## Setup\n\n### Details' })
+    })
+
+    await act(async () => {
+      api.emitMenuAction('export-html')
+    })
+
+    await waitFor(() => {
+      expect(api.exportHtml).toHaveBeenCalled()
+    }, { timeout: 2000 })
+
+    const callArgs = (api.exportHtml as ReturnType<typeof vi.fn>).mock.calls[0]
+    expect(callArgs[0]).toContain(`${HEADING_NUMBERING_ATTRIBUTE}="true"`)
+    expect(callArgs[0]).toContain('content: counter(mf-editor-h1) ". ";')
+    expect(callArgs[0]).toContain('content: counter(mf-editor-h1) "." counter(mf-editor-h2) ". ";')
+    expect(callArgs[0]).toContain('content: counter(mf-outline-h1) "." counter(mf-outline-h2) ". ";')
+    expect(callArgs[1]).toBe('/docs/numbered-export.html')
   })
 })
