@@ -5000,3 +5000,51 @@
   - none
 - Next recommended feature:
   - `MF-081` - perform the pending real PicGo manual verification, then promote `passes` / `lastVerifiedAt` only if three pasted/dropped images all rewrite to working remote URLs
+
+### 2026-04-16 - MF-084 fullscreen and distraction-free modes now hide chrome and restore panel state
+
+- Author: Codex
+- Focus: obey the startup protocol for `MF-084`, implement only the fullscreen/distraction-free shell feature in `@markflow/desktop`, run the feature-specific automated verification plus `pnpm harness:verify`, keep the ledger honest because manual long-document flicker validation was not performed here, and finish with a Lore-protocol commit.
+- What changed:
+  - re-read the root `AGENTS.md`, ran `pnpm harness:start`, and ran `./harness/init.sh --smoke` before implementation
+  - extended `packages/shared/src/index.ts`, `packages/desktop/src/preload/index.ts`, and `packages/desktop/src/main/index.ts` so the desktop shell exposes a real fullscreen window-state bridge (`getWindowState`, `onWindowStateChanged`) and pushes `enter-full-screen` / `leave-full-screen` updates into the renderer
+  - updated `packages/desktop/src/main/menu.ts` so View now exposes `Distraction Free Mode` through the renderer bridge and an explicit `Toggle Fullscreen` item with `F11` on Windows/Linux and `Ctrl+Command+F` on macOS, plus refreshed `packages/desktop/src/main/menu.test.ts` coverage for both paths
+  - updated `packages/editor/src/App.tsx` and `packages/editor/src/styles/global.css` so fullscreen and distraction-free share an immersive layout that hides titlebar, tabstrip, statusbar, sidebar, outline, and minimap while centering the document and preserving the pre-mode panel state for exact restoration on exit
+  - extended `packages/editor/src/__tests__/App.test.tsx` so renderer coverage now asserts distraction-free restore behavior and fullscreen restore behavior, including preserving a collapsed outline state and a previously hidden sidebar
+  - updated `harness/feature-ledger.json` for `MF-084` only to `status=ready` while keeping `passes=false` and `lastVerifiedAt=null`
+- Changed files:
+  - `packages/shared/src/index.ts`
+  - `packages/desktop/src/preload/index.ts`
+  - `packages/desktop/src/main/index.ts`
+  - `packages/desktop/src/main/menu.ts`
+  - `packages/desktop/src/main/menu.test.ts`
+  - `packages/editor/src/App.tsx`
+  - `packages/editor/src/styles/global.css`
+  - `packages/editor/src/__tests__/App.test.tsx`
+  - `harness/feature-ledger.json`
+  - `harness/progress.md`
+- Simplifications made:
+  - reused the existing `menu-action` bridge for distraction-free instead of adding a second renderer-only command transport
+  - treated fullscreen and distraction-free as one shared immersive render path in `App.tsx`, with fullscreen driven by real window-state events and distraction-free driven by a local toggle, instead of duplicating two hide/show implementations
+  - preserved sidebar/minimap/outline state by leaving the user preference booleans untouched during immersive mode and gating actual rendering instead of serializing/restoring a larger snapshot object
+- Verification:
+  - `pnpm harness:start` (passes)
+  - `./harness/init.sh --smoke` before implementation (fails at session start because `packages/desktop/src/main/menu.test.ts` still expected `Clear Formatting` under the wrong menu section)
+  - `pnpm --filter @markflow/desktop exec vitest run src/main/menu.test.ts` (passes; 1 file / 8 tests covering renderer menu bridging, fullscreen accelerators, and the tiny prerequisite clear-formatting test repair)
+  - `pnpm --filter @markflow/editor exec vitest run src/__tests__/App.test.tsx` (passes; 1 file / 43 tests covering fullscreen/distraction-free restore behavior and existing renderer regressions)
+  - `pnpm --filter @markflow/shared lint` (passes)
+  - `pnpm --filter @markflow/shared build` (passes)
+  - `pnpm --filter @markflow/editor lint` (passes)
+  - `pnpm --filter @markflow/editor build` (passes)
+  - `pnpm --filter @markflow/desktop lint` (passes)
+  - `pnpm --filter @markflow/desktop build` (passes)
+  - `./harness/init.sh --smoke` after implementation (passes; full shared/desktop/editor smoke suites green)
+  - `pnpm harness:verify` (passes)
+- Review / risks:
+  - `MF-084` is implemented and automated coverage is green, but `passes` must remain false until someone alternates between fullscreen, distraction-free, and default view on a long document and confirms there is no flicker
+  - immersive mode currently unmounts side panels instead of CSS-hiding them, so panel-local transient UI state is intentionally reset when the user exits back to normal mode
+  - command palette, quick open, and other modal overlays are not auto-dismissed on immersive entry; only the status-bar spellcheck/image-upload popovers are explicitly closed
+- Newly verified features:
+  - none
+- Next recommended feature:
+  - `MF-084` - perform the pending long-document manual fullscreen/distraction-free flicker check, then promote `passes` / `lastVerifiedAt` only if the transition remains stable throughout repeated toggles

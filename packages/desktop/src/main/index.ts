@@ -1,8 +1,8 @@
-import { app, BrowserWindow, shell, Menu } from 'electron'
+import { app, BrowserWindow, ipcMain, shell, Menu } from 'electron'
 import * as path from 'path'
 import * as fs from 'fs'
 import { FileManager } from './fileManager'
-import type { MarkFlowMenuAction } from '@markflow/shared'
+import type { MarkFlowMenuAction, MarkFlowWindowState } from '@markflow/shared'
 import { createWindowOpenHandler, handleWillNavigate } from './externalLinks'
 import { ThemeManager } from './themeManager'
 import { SpellCheckManager } from './spellCheckManager'
@@ -20,6 +20,24 @@ let pendingOpenFilePath: string | null = null
 
 function sendMenuAction(action: MarkFlowMenuAction) {
   mainWindow?.webContents.send('menu-action', { action })
+}
+
+function getWindowState(): MarkFlowWindowState {
+  return {
+    isFullscreen: mainWindow?.isFullScreen() ?? false,
+  }
+}
+
+function sendWindowState() {
+  mainWindow?.webContents.send('window-state-changed', getWindowState())
+}
+
+function toggleFullscreen() {
+  if (!mainWindow) {
+    return
+  }
+
+  mainWindow.setFullScreen(!mainWindow.isFullScreen())
 }
 
 function queueFileOpen(filePath: string) {
@@ -88,6 +106,9 @@ function createWindow() {
     mainWindow = null
   })
 
+  mainWindow.on('enter-full-screen', sendWindowState)
+  mainWindow.on('leave-full-screen', sendWindowState)
+
   // Handle file drops
   mainWindow.webContents.on('will-navigate', (event, url) => {
     handleWillNavigate(event, url, shell.openExternal)
@@ -98,6 +119,7 @@ function createWindow() {
 
   mainWindow.webContents.once('did-finish-load', () => {
     flushPendingFileOpen()
+    sendWindowState()
   })
 }
 
@@ -108,10 +130,13 @@ function buildMenu() {
         canRevealCurrentFile: () => fileManager?.canRevealCurrentFile() ?? false,
         revealCurrentFileInFolder: () => fileManager?.revealCurrentFileInFolder() ?? false,
         sendMenuAction,
+        toggleFullscreen,
       }),
     ),
   )
 }
+
+ipcMain.handle('get-window-state', () => getWindowState())
 
 const cliFile = process.argv.find((arg) => arg.endsWith('.md'))
 if (cliFile && fs.existsSync(cliFile)) {

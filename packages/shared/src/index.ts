@@ -72,6 +72,10 @@ export interface MarkFlowThemeState {
   activeTheme: MarkFlowThemePayload | null
 }
 
+export interface MarkFlowWindowState {
+  isFullscreen: boolean
+}
+
 export interface MarkFlowSpellCheckState {
   selectedLanguage: string | null
   availableLanguages: string[]
@@ -127,6 +131,7 @@ export type MarkFlowMenuAction =
   | 'toggle-minimap'
   | 'toggle-sidebar'
   | 'toggle-outline'
+  | 'toggle-distraction-free'
   | 'toggle-focus-mode'
   | 'toggle-typewriter-mode'
   | 'clear-formatting'
@@ -374,6 +379,7 @@ export interface MarkFlowDesktopAPI {
   getQuickOpenList: () => Promise<MarkFlowQuickOpenItem[]>
   getCurrentDocument: () => Promise<MarkFlowFilePayload | null>
   getWindowSession: () => Promise<MarkFlowWindowSession | null>
+  getWindowState: () => Promise<MarkFlowWindowState>
   saveWindowSession: (session: MarkFlowWindowSessionState) => Promise<void>
   confirmTabClose: (documentName: string) => Promise<MarkFlowTabCloseAction>
   getThemes: () => Promise<MarkFlowThemeSummary[]>
@@ -404,5 +410,6 @@ export interface MarkFlowDesktopAPI {
   onFileLoadingProgress: (cb: (data: MarkFlowFileLoadProgressPayload) => void) => () => void
   onFileSaved: (cb: (data: MarkFlowSavePayload) => void) => () => void
   onMenuAction: (cb: (data: MarkFlowMenuActionPayload) => void) => () => void
+  onWindowStateChanged: (cb: (data: MarkFlowWindowState) => void) => () => void
   onThemeUpdated: (cb: (data: MarkFlowThemeState) => void) => () => void
 }

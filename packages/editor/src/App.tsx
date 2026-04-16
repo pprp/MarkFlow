@@ -37,6 +37,7 @@ import {
   type MarkFlowThemeState,
   type MarkFlowThemeSummary,
   type ViewMode,
+  type MarkFlowWindowState,
   type MarkFlowWindowSessionState,
   type SearchResult,
 } from '@markflow/shared'
@@ -383,6 +384,8 @@ export function App() {
   const [viewMode, setViewMode] = useState<ViewMode>('wysiwyg')
   const [focusMode, setFocusMode] = useState(false)
   const [typewriterMode, setTypewriterMode] = useState(false)
+  const [isDistractionFreeMode, setIsDistractionFreeMode] = useState(false)
+  const [windowState, setWindowState] = useState<MarkFlowWindowState>({ isFullscreen: false })
   const [showSidebar, setShowSidebar] = useState(false)
   const [showMinimap, setShowMinimap] = useState(false)
   const [vaultPath, setVaultPath] = useState<string | null>(null)
@@ -613,6 +616,8 @@ export function App() {
     }
   }, [isImageUploadSettingsOpen, isSpellCheckSettingsOpen])
 
+  const isImmersiveMode = windowState.isFullscreen || isDistractionFreeMode
+
   function applyThemeState(nextThemeState: MarkFlowThemeState | null) {
     const existing = document.getElementById(THEME_STYLE_ELEMENT_ID) as HTMLStyleElement | null
     const style = existing ?? document.createElement('style')
@@ -797,6 +802,9 @@ export function App() {
         case 'toggle-outline':
           setOutlineCollapsed((current) => !current)
           break
+        case 'toggle-distraction-free':
+          toggleDistractionFreeMode()
+          break
         case 'toggle-focus-mode':
           toggleFocusMode()
           break
@@ -907,6 +915,9 @@ export function App() {
     const unsubscribeMenuAction = api.onMenuAction((payload) => {
       void handleMenuAction(payload)
     })
+    const unsubscribeWindowStateChanged = api.onWindowStateChanged((nextWindowState) => {
+      setWindowState(nextWindowState)
+    })
     const unsubscribeThemeUpdated = api.onThemeUpdated(applyThemeState)
 
     void (async () => {
@@ -958,6 +969,9 @@ export function App() {
 
       await applyRecoveredDocuments(recoveryCheckpoint, persistedDocuments)
     })()
+    void api.getWindowState().then((nextWindowState) => {
+      setWindowState(nextWindowState)
+    })
     void api.getThemes().then(setThemes)
     void api.getThemeState().then((nextThemeState) => {
       applyThemeState(nextThemeState)
@@ -968,6 +982,7 @@ export function App() {
       unsubscribeFileLoadingProgress()
       unsubscribeFileSaved()
       unsubscribeMenuAction()
+      unsubscribeWindowStateChanged()
       unsubscribeThemeUpdated()
       document.getElementById(THEME_STYLE_ELEMENT_ID)?.remove()
     }
@@ -984,6 +999,19 @@ export function App() {
   function toggleTypewriterMode() {
     setTypewriterMode((v) => !v)
   }
+
+  function toggleDistractionFreeMode() {
+    setIsDistractionFreeMode((v) => !v)
+  }
+
+  useEffect(() => {
+    if (!isImmersiveMode) {
+      return
+    }
+
+    setIsSpellCheckSettingsOpen(false)
+    setIsImageUploadSettingsOpen(false)
+  }, [isImmersiveMode])
 
   useEffect(() => {
     setEditorScrollMetrics(null)
@@ -1776,11 +1804,25 @@ export function App() {
       },
     },
     {
+      id: 'view.toggle-distraction-free',
+      label: 'Toggle Distraction-Free Mode',
+      category: 'View',
+      description: isDistractionFreeMode
+        ? 'Restore chrome and side panels'
+        : 'Hide chrome and side panels around the editor',
+      keywords: ['immersive', 'centered', 'zen', 'chrome', 'panels'],
+      focusEditorAfterRun: true,
+      run: () => {
+        toggleDistractionFreeMode()
+        return true
+      },
+    },
+    {
       id: 'view.toggle-focus-mode',
       label: 'Toggle Focus Mode',
       category: 'View',
       description: focusMode ? 'Leave focus mode' : 'Dim non-active paragraphs',
-      keywords: ['distraction free', 'spotlight'],
+      keywords: ['spotlight', 'active paragraph'],
       shortcut: 'Mod+Shift+F',
       focusEditorAfterRun: true,
       run: () => {
@@ -2247,10 +2289,19 @@ export function App() {
   const loadingProgressPercent = loadingFile
     ? Math.min(100, Math.round((loadingFile.bytesRead / Math.max(loadingFile.totalBytes, 1)) * 100))
     : 0
+  const appClassName = [
+    'mf-app',
+    isImmersiveMode ? 'mf-app-immersive' : '',
+    windowState.isFullscreen ? 'mf-app-fullscreen' : '',
+    isDistractionFreeMode ? 'mf-app-distraction-free' : '',
+  ]
+    .filter(Boolean)
+    .join(' ')
 
   return (
-    <div className="mf-app">
-      <header className="mf-titlebar">
+    <div className={appClassName}>
+      {!isImmersiveMode ? (
+        <header className="mf-titlebar">
         {/* Spacer for macOS traffic lights (hiddenInset titleBarStyle) */}
         <div className="mf-titlebar-traffic-spacer" />
         <div className="mf-titlebar-left">
@@ -2410,8 +2461,10 @@ export function App() {
             </button>
           </div>
         </div>
-      </header>
-      <div className="mf-tabstrip" role="tablist" aria-label="Open documents">
+        </header>
+      ) : null}
+      {!isImmersiveMode ? (
+        <div className="mf-tabstrip" role="tablist" aria-label="Open documents">
         {tabs.map((tab) => {
           const isActive = tab.id === activeTab?.id
           const tabLabel = getTabLabel(tab)
@@ -2442,9 +2495,10 @@ export function App() {
             </div>
           )
         })}
-      </div>
+        </div>
+      ) : null}
       <main className="mf-main">
-        {showSidebar && (
+        {showSidebar && !isImmersiveMode ? (
           <div className="mf-sidebar">
             <VaultSidebar
               folderPath={vaultPath}
@@ -2456,7 +2510,7 @@ export function App() {
               onOpenFolder={() => void handleOpenFolder()}
             />
           </div>
-        )}
+        ) : null}
         <div className="mf-body">
           <div ref={editorShellRef} className="mf-editor-shell">
             {loadingFile ? (
@@ -2518,14 +2572,14 @@ export function App() {
               />
             ) : null}
           </div>
-          {showMinimap && activeTab && !activeTab.largeFile ? (
+          {showMinimap && !isImmersiveMode && activeTab && !activeTab.largeFile ? (
             <Minimap
               content={activeTab.content}
               scrollMetrics={editorScrollMetrics}
               onNavigate={handleMinimapNavigate}
             />
           ) : null}
-          {outlineHeadings.length > 0 ? (
+          {outlineHeadings.length > 0 && !isImmersiveMode ? (
             <aside className={`mf-outline-panel${outlineCollapsed ? ' mf-outline-panel-collapsed' : ''}`}>
               <div className="mf-outline-header">
                 {!outlineCollapsed && <span className="mf-outline-header-label">Outline</span>}
@@ -2568,7 +2622,8 @@ export function App() {
           ) : null}
         </div>
       </main>
-      <footer className="mf-statusbar" aria-label="Document statistics">
+      {!isImmersiveMode ? (
+        <footer className="mf-statusbar" aria-label="Document statistics">
         <span className="mf-statusbar-stat">{docStats.words.toLocaleString()} words</span>
         <span className="mf-statusbar-sep" aria-hidden="true">·</span>
         <span className="mf-statusbar-stat">{docStats.lines.toLocaleString()} lines</span>
@@ -2822,7 +2877,8 @@ export function App() {
             </section>
           ) : null}
         </div>
-      </footer>
+        </footer>
+      ) : null}
       {toasts.length > 0 ? (
         <div className="mf-toast-stack" aria-live="assertive" aria-label="Notifications">
           {toasts.map((toast) => (

@@ -19,6 +19,7 @@ import type {
   MarkFlowWindowSession,
   MarkFlowWindowSessionState,
   MarkFlowThemeState,
+  MarkFlowWindowState,
 } from '@markflow/shared'
 
 function subscribe<T>(channel: string, cb: (data: T) => void) {
@@ -57,6 +58,7 @@ const api: MarkFlowDesktopAPI = {
   getQuickOpenList: () => ipcRenderer.invoke('get-quick-open-list'),
   getCurrentDocument: () => ipcRenderer.invoke('get-current-document'),
   getWindowSession: () => ipcRenderer.invoke('get-window-session') as Promise<MarkFlowWindowSession | null>,
+  getWindowState: () => ipcRenderer.invoke('get-window-state') as Promise<MarkFlowWindowState>,
   saveWindowSession: (session: MarkFlowWindowSessionState) =>
     ipcRenderer.invoke('save-window-session', session) as Promise<void>,
   confirmTabClose: (documentName: string) =>
@@ -105,6 +107,8 @@ const api: MarkFlowDesktopAPI = {
     subscribe('file-loading-progress', cb),
   onFileSaved: (cb: (data: MarkFlowSavePayload) => void) => subscribe('file-saved', cb),
   onMenuAction: (cb: (data: MarkFlowMenuActionPayload) => void) => subscribe('menu-action', cb),
+  onWindowStateChanged: (cb: (data: MarkFlowWindowState) => void) =>
+    subscribe('window-state-changed', cb),
   onThemeUpdated: (cb: (data: MarkFlowThemeState) => void) => subscribe('theme-updated', cb),
 }
 

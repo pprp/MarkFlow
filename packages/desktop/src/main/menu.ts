@@ -5,6 +5,7 @@ interface ApplicationMenuOptions {
   canRevealCurrentFile: () => boolean
   revealCurrentFileInFolder: () => boolean
   sendMenuAction: (action: MarkFlowMenuAction) => void
+  toggleFullscreen: () => void
   platform?: NodeJS.Platform
 }
 
@@ -24,6 +25,7 @@ export function createApplicationMenuTemplate({
   canRevealCurrentFile,
   revealCurrentFileInFolder,
   sendMenuAction,
+  toggleFullscreen,
   platform = process.platform,
 }: ApplicationMenuOptions): MenuItemConstructorOptions[] {
   const isMac = platform === 'darwin'
@@ -139,6 +141,7 @@ export function createApplicationMenuTemplate({
         { label: 'Toggle Outline', click: () => sendMenuAction('toggle-outline') },
         { label: 'Toggle Minimap', click: () => sendMenuAction('toggle-minimap') },
         { type: 'separator' },
+        { label: 'Distraction Free Mode', click: () => sendMenuAction('toggle-distraction-free') },
         { label: 'Focus Mode', click: () => sendMenuAction('toggle-focus-mode') },
         { label: 'Typewriter Mode', click: () => sendMenuAction('toggle-typewriter-mode') },
         { type: 'separator' },
@@ -146,7 +149,11 @@ export function createApplicationMenuTemplate({
         { role: 'zoomIn' },
         { role: 'zoomOut' },
         { type: 'separator' },
-        { role: 'togglefullscreen' },
+        {
+          label: 'Toggle Fullscreen',
+          accelerator: isMac ? 'Ctrl+Command+F' : 'F11',
+          click: () => toggleFullscreen(),
+        },
       ],
     },
     {

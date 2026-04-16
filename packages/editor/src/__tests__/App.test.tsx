@@ -24,6 +24,7 @@ import type {
   MarkFlowThemePayload,
   MarkFlowThemeState,
   MarkFlowThemeSummary,
+  MarkFlowWindowState,
   MarkFlowWindowSession,
   MarkFlowWindowSessionState,
 } from '@markflow/shared'
@@ -111,6 +112,9 @@ class MockMarkFlowAPI implements MarkFlowDesktopAPI {
     success: true,
     remoteUrl: 'https://cdn.example.com/diagram.png',
   }
+  private windowState: MarkFlowWindowState = {
+    isFullscreen: false,
+  }
   private windowSession: MarkFlowWindowSession | null = null
   private confirmTabCloseAction: 'save' | 'discard' | 'cancel' = 'cancel'
   openFile: MarkFlowDesktopAPI['openFile'] = vi.fn(async () => null)
@@ -128,6 +132,7 @@ class MockMarkFlowAPI implements MarkFlowDesktopAPI {
   getQuickOpenList: MarkFlowDesktopAPI['getQuickOpenList'] = vi.fn(async () => [])
   getCurrentDocument: MarkFlowDesktopAPI['getCurrentDocument'] = vi.fn(async () => null)
   getWindowSession: MarkFlowDesktopAPI['getWindowSession'] = vi.fn(async () => this.windowSession)
+  getWindowState: MarkFlowDesktopAPI['getWindowState'] = vi.fn(async () => this.windowState)
   saveWindowSession: MarkFlowDesktopAPI['saveWindowSession'] = vi.fn(async (session: MarkFlowWindowSessionState) => {
     this.windowSession = {
       documents: session.filePaths.map((filePath) => ({ filePath, content: '' })),
@@ -243,6 +248,7 @@ class MockMarkFlowAPI implements MarkFlowDesktopAPI {
   private fileLoadingProgressListeners = new Set<(data: MarkFlowFileLoadProgressPayload) => void>()
   private fileSavedListeners = new Set<(data: MarkFlowSavePayload) => void>()
   private menuActionListeners = new Set<(data: MarkFlowMenuActionPayload) => void>()
+  private windowStateChangedListeners = new Set<(data: MarkFlowWindowState) => void>()
   private themeUpdatedListeners = new Set<(data: MarkFlowThemeState) => void>()
 
   private buildThemePayload(themeId: string): MarkFlowThemePayload | null {
@@ -331,6 +337,11 @@ class MockMarkFlowAPI implements MarkFlowDesktopAPI {
     return () => this.menuActionListeners.delete(cb)
   }
 
+  onWindowStateChanged(cb: (data: MarkFlowWindowState) => void) {
+    this.windowStateChangedListeners.add(cb)
+    return () => this.windowStateChangedListeners.delete(cb)
+  }
+
   onThemeUpdated(cb: (data: MarkFlowThemeState) => void) {
     this.themeUpdatedListeners.add(cb)
     return () => this.themeUpdatedListeners.delete(cb)
@@ -350,6 +361,11 @@ class MockMarkFlowAPI implements MarkFlowDesktopAPI {
 
   emitMenuAction(action: MarkFlowMenuAction) {
     for (const listener of this.menuActionListeners) listener({ action })
+  }
+
+  emitWindowStateChanged(data: MarkFlowWindowState) {
+    this.windowState = data
+    for (const listener of this.windowStateChangedListeners) listener(data)
   }
 
   emitThemeUpdated(data: MarkFlowThemeState) {
@@ -1426,6 +1442,123 @@ describe('App desktop integration', () => {
 
     await waitFor(() => {
       expect(screen.queryByRole('button', { name: 'Document minimap' })).not.toBeInTheDocument()
+    })
+  })
+
+  it('hides chrome and restores panel visibility when toggling distraction-free mode', async () => {
+    const api = new MockMarkFlowAPI()
+    window.markflow = api
+
+    const content = '# Heading\n\nBody paragraph\n\n## Details\n\nMore text'
+    const { container } = render(<App />)
+    const appRoot = container.firstElementChild as HTMLElement
+
+    await act(async () => {
+      api.emitFileOpened({ filePath: '/tmp/distraction-free.md', content })
+    })
+
+    await act(async () => {
+      api.emitMenuAction('toggle-sidebar')
+      api.emitMenuAction('toggle-minimap')
+    })
+
+    await screen.findByRole('navigation', { name: 'Outline' })
+    await screen.findByRole('button', { name: 'Document minimap' })
+
+    expect(container.querySelector('.mf-titlebar')).toBeInTheDocument()
+    expect(container.querySelector('.mf-tabstrip')).toBeInTheDocument()
+    expect(container.querySelector('.mf-statusbar')).toBeInTheDocument()
+    expect(container.querySelector('.mf-sidebar')).toBeInTheDocument()
+    expect(screen.getByRole('navigation', { name: 'Outline' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Document minimap' })).toBeInTheDocument()
+
+    await act(async () => {
+      api.emitMenuAction('toggle-distraction-free')
+    })
+
+    await waitFor(() => {
+      expect(appRoot).toHaveClass('mf-app-immersive')
+      expect(appRoot).toHaveClass('mf-app-distraction-free')
+      expect(container.querySelector('.mf-titlebar')).not.toBeInTheDocument()
+      expect(container.querySelector('.mf-tabstrip')).not.toBeInTheDocument()
+      expect(container.querySelector('.mf-statusbar')).not.toBeInTheDocument()
+      expect(container.querySelector('.mf-sidebar')).not.toBeInTheDocument()
+      expect(screen.queryByRole('navigation', { name: 'Outline' })).not.toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'Document minimap' })).not.toBeInTheDocument()
+    })
+
+    await act(async () => {
+      api.emitMenuAction('toggle-distraction-free')
+    })
+
+    await waitFor(() => {
+      expect(appRoot).not.toHaveClass('mf-app-immersive')
+      expect(appRoot).not.toHaveClass('mf-app-distraction-free')
+      expect(container.querySelector('.mf-titlebar')).toBeInTheDocument()
+      expect(container.querySelector('.mf-tabstrip')).toBeInTheDocument()
+      expect(container.querySelector('.mf-statusbar')).toBeInTheDocument()
+      expect(container.querySelector('.mf-sidebar')).toBeInTheDocument()
+      expect(screen.getByRole('navigation', { name: 'Outline' })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Document minimap' })).toBeInTheDocument()
+    })
+  })
+
+  it('restores the previous panel state after fullscreen exits', async () => {
+    const api = new MockMarkFlowAPI()
+    window.markflow = api
+
+    const content = '# Heading\n\nBody paragraph\n\n## Details\n\nMore text'
+    const { container } = render(<App />)
+    const appRoot = container.firstElementChild as HTMLElement
+
+    await act(async () => {
+      api.emitFileOpened({ filePath: '/tmp/fullscreen.md', content })
+    })
+
+    await act(async () => {
+      api.emitMenuAction('toggle-minimap')
+    })
+
+    await screen.findByRole('button', { name: 'Document minimap' })
+    fireEvent.click(await screen.findByRole('button', { name: 'Collapse outline' }))
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Expand outline' })).toBeInTheDocument()
+      expect(screen.queryByRole('navigation', { name: 'Outline' })).not.toBeInTheDocument()
+    })
+
+    expect(container.querySelector('.mf-sidebar')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Document minimap' })).toBeInTheDocument()
+
+    await act(async () => {
+      api.emitWindowStateChanged({ isFullscreen: true })
+    })
+
+    await waitFor(() => {
+      expect(appRoot).toHaveClass('mf-app-immersive')
+      expect(appRoot).toHaveClass('mf-app-fullscreen')
+      expect(container.querySelector('.mf-titlebar')).not.toBeInTheDocument()
+      expect(container.querySelector('.mf-tabstrip')).not.toBeInTheDocument()
+      expect(container.querySelector('.mf-statusbar')).not.toBeInTheDocument()
+      expect(container.querySelector('.mf-sidebar')).not.toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'Document minimap' })).not.toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'Expand outline' })).not.toBeInTheDocument()
+    })
+
+    await act(async () => {
+      api.emitWindowStateChanged({ isFullscreen: false })
+    })
+
+    await waitFor(() => {
+      expect(appRoot).not.toHaveClass('mf-app-immersive')
+      expect(appRoot).not.toHaveClass('mf-app-fullscreen')
+      expect(container.querySelector('.mf-titlebar')).toBeInTheDocument()
+      expect(container.querySelector('.mf-tabstrip')).toBeInTheDocument()
+      expect(container.querySelector('.mf-statusbar')).toBeInTheDocument()
+      expect(container.querySelector('.mf-sidebar')).not.toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Document minimap' })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Expand outline' })).toBeInTheDocument()
+      expect(screen.queryByRole('navigation', { name: 'Outline' })).not.toBeInTheDocument()
     })
   })
 

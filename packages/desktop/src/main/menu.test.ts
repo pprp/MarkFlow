@@ -18,6 +18,7 @@ describe('createApplicationMenuTemplate', () => {
       canRevealCurrentFile: () => false,
       revealCurrentFileInFolder: vi.fn(() => false),
       sendMenuAction: vi.fn(),
+      toggleFullscreen: vi.fn(),
       platform: 'darwin',
     })
 
@@ -34,6 +35,7 @@ describe('createApplicationMenuTemplate', () => {
       canRevealCurrentFile: () => true,
       revealCurrentFileInFolder,
       sendMenuAction: vi.fn(),
+      toggleFullscreen: vi.fn(),
       platform: 'linux',
     })
     const revealItem = getMenuItem(template, 'File', 'Show in Folder')
@@ -54,6 +56,7 @@ describe('createApplicationMenuTemplate', () => {
       canRevealCurrentFile: () => true,
       revealCurrentFileInFolder: vi.fn(() => true),
       sendMenuAction,
+      toggleFullscreen: vi.fn(),
       platform: 'linux',
     })
     const copyItem = getMenuItem(template, 'Edit', 'Copy')
@@ -77,6 +80,7 @@ describe('createApplicationMenuTemplate', () => {
       canRevealCurrentFile: () => true,
       revealCurrentFileInFolder: vi.fn(() => true),
       sendMenuAction,
+      toggleFullscreen: vi.fn(),
       platform: 'linux',
     })
     const closeTabItem = getMenuItem(template, 'File', 'Close Tab')
@@ -95,6 +99,7 @@ describe('createApplicationMenuTemplate', () => {
       canRevealCurrentFile: () => true,
       revealCurrentFileInFolder: vi.fn(() => true),
       sendMenuAction,
+      toggleFullscreen: vi.fn(),
       platform: 'linux',
     })
     const minimapItem = getMenuItem(template, 'View', 'Toggle Minimap')
@@ -110,9 +115,10 @@ describe('createApplicationMenuTemplate', () => {
       canRevealCurrentFile: () => true,
       revealCurrentFileInFolder: vi.fn(() => true),
       sendMenuAction,
+      toggleFullscreen: vi.fn(),
       platform: 'linux',
     })
-    const clearFormattingItem = getMenuItem(template, 'Edit', 'Clear Formatting')
+    const clearFormattingItem = getMenuItem(template, 'Format', 'Clear Formatting')
 
     clearFormattingItem?.click?.({} as never, {} as never, {} as never)
 
@@ -122,5 +128,55 @@ describe('createApplicationMenuTemplate', () => {
       }),
     )
     expect(sendMenuAction).toHaveBeenCalledWith('clear-formatting')
+  })
+
+  it('routes distraction-free mode through the renderer menu bridge', () => {
+    const sendMenuAction = vi.fn()
+    const template = createApplicationMenuTemplate({
+      canRevealCurrentFile: () => true,
+      revealCurrentFileInFolder: vi.fn(() => true),
+      sendMenuAction,
+      toggleFullscreen: vi.fn(),
+      platform: 'linux',
+    })
+    const distractionFreeItem = getMenuItem(template, 'View', 'Distraction Free Mode')
+
+    distractionFreeItem?.click?.({} as never, {} as never, {} as never)
+
+    expect(sendMenuAction).toHaveBeenCalledWith('toggle-distraction-free')
+  })
+
+  it('uses platform-specific fullscreen accelerators and toggles the window directly', () => {
+    const toggleFullscreen = vi.fn()
+    const linuxTemplate = createApplicationMenuTemplate({
+      canRevealCurrentFile: () => true,
+      revealCurrentFileInFolder: vi.fn(() => true),
+      sendMenuAction: vi.fn(),
+      toggleFullscreen,
+      platform: 'linux',
+    })
+    const macTemplate = createApplicationMenuTemplate({
+      canRevealCurrentFile: () => true,
+      revealCurrentFileInFolder: vi.fn(() => true),
+      sendMenuAction: vi.fn(),
+      toggleFullscreen,
+      platform: 'darwin',
+    })
+    const linuxFullscreenItem = getMenuItem(linuxTemplate, 'View', 'Toggle Fullscreen')
+    const macFullscreenItem = getMenuItem(macTemplate, 'View', 'Toggle Fullscreen')
+
+    linuxFullscreenItem?.click?.({} as never, {} as never, {} as never)
+
+    expect(linuxFullscreenItem).toEqual(
+      expect.objectContaining({
+        accelerator: 'F11',
+      }),
+    )
+    expect(macFullscreenItem).toEqual(
+      expect.objectContaining({
+        accelerator: 'Ctrl+Command+F',
+      }),
+    )
+    expect(toggleFullscreen).toHaveBeenCalledTimes(1)
   })
 })

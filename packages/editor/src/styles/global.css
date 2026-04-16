@@ -184,6 +184,22 @@ body {
   background: var(--mf-bg);
 }
 
+.mf-app-immersive .mf-main {
+  padding: clamp(16px, 3vw, 32px);
+}
+
+.mf-app-immersive .mf-body {
+  width: 100%;
+  justify-content: center;
+}
+
+.mf-app-immersive .mf-editor-shell {
+  flex: 0 1 min(100%, 56rem);
+  width: min(100%, 56rem);
+  max-width: min(100%, 56rem);
+  min-width: 0;
+}
+
 /* ── Titlebar — refined editorial chrome ─────────────────────── */
 .mf-titlebar {
   display: grid;
