@@ -40,6 +40,40 @@
 - Next recommended feature:
   - `MF-055` - complete the pending 2 GB desktop Go-to-Line timing and Activity Monitor RSS verification in a real Accessibility-enabled session, then update the ledger only if those checks truly pass
 
+### 2026-04-16 - MF-055 packaged-app manual proof passed, but the listed editor verification command is now blocked by an unrelated folding regression
+
+- Author: Codex
+- Focus: obey the startup protocol for `MF-055`, rerun the feature's required automation on the current tree, then push the pending 2 GB desktop Go-to-Line and RSS proof as far as this session could truthfully take it without widening into unrelated feature fixes.
+- What changed:
+  - re-read the root `AGENTS.md`, ran `pnpm harness:start`, and reran `./harness/init.sh --smoke` before touching `MF-055`
+  - re-ran `pnpm --filter @markflow/desktop test:run -- src/main/fileManager.test.ts`, `pnpm --filter @markflow/editor test:run -- src/__tests__/App.test.tsx`, and `pnpm harness:verify`, then added one exact-file supplemental check with `pnpm --filter @markflow/editor exec vitest run src/__tests__/App.test.tsx` to isolate the `MF-055` renderer coverage from the current package-script spillover
+  - generated `harness/fixtures/mf-large-2gb.md` (21,505,715 lines / 2,147,483,670 bytes), launched the packaged desktop app from `dist-mac/mac-arm64/MarkFlow.app` with `--remote-debugging-port=9236`, and drove the live renderer through CDP instead of changing product code
+  - in the packaged app, opened the Go-to-Line dialog, jumped to line `1,000,000`, confirmed the status bar moved to `line 1,000,000 / 21,505,716`, and confirmed the loaded window contained `## Section 500`; a second arbitrary-position jump to `20,000,000` also completed successfully and rendered `## Section 10000`
+  - activated Activity Monitor and sampled the packaged app's resident set via the exact MarkFlow process tree (`MarkFlow` main + GPU/helper + renderer child processes) while the large-file jumps completed
+- Changed files:
+  - `harness/progress.md`
+- Simplifications made:
+  - kept scope on `MF-055`; I did not fix the unrelated `folding` regression that currently poisons the listed editor package-script command
+  - used the already-built packaged app instead of dev Electron so DevTools would not inflate the RSS measurement and make the memory proof dishonest
+- Verification:
+  - `pnpm harness:start` (passes)
+  - `./harness/init.sh --smoke` (passes; workspace smoke reran `pnpm harness:verify` plus the current desktop/editor suites)
+  - `pnpm --filter @markflow/desktop test:run -- src/main/fileManager.test.ts` (passes; current desktop package script still runs the full desktop suite, 6 files / 33 tests, including the `MF-055` large-file windowing coverage)
+  - `pnpm --filter @markflow/editor test:run -- src/__tests__/App.test.tsx` (fails on the current tree because the package script still runs the whole editor suite and hits unrelated `src/editor/__tests__/folding.test.tsx`; the failing assertion is `expected { from: 16, to: 53 } to deeply equal { from: 16, to: 79 }`)
+  - `pnpm --filter @markflow/editor exec vitest run src/__tests__/App.test.tsx` (passes; 1 file / 35 tests, including `routes go-to-line through the large-file window bridge and keeps the editor read-only`)
+  - `pnpm harness:verify` (passes; 106 total | verified=63 | ready=19 | planned=23 | blocked=1 | regression=0)
+  - packaged-app live verification against `harness/fixtures/mf-large-2gb.md` (manual proof passes): Go-to-Line jump to line `1,000,000` completed in `56 ms`, updated the banner to `showing lines 999,960-1,000,359 of 21,505,716`, and rendered `## Section 500`; a second jump to line `20,000,000` completed in `58 ms`, updated the banner to `showing lines 19,999,960-20,000,359 of 21,505,716`, and rendered `## Section 10000`
+  - resident-memory sampling while the packaged app stayed on large-file windows (passes): the MarkFlow process tree at PIDs `48349 48367 48368 48369` measured `476,096 KB (464.9 MB)` after the `1,000,000` jump and `477,776 KB (466.6 MB)` after the `20,000,000` jump, both below the `512 MB` acceptance limit
+  - Activity Monitor availability probe (passes): `swift -e 'import ApplicationServices; print(AXIsProcessTrusted())'` returned `true`, `osascript -e 'tell application "Activity Monitor" to activate'` succeeded, and `System Events` saw window `Activity Monitor – My Processes`
+- Review / risks:
+  - the packaged-app manual portion of `MF-055` is now materially satisfied on this machine: a synthetic 2 GB file opened, the Go-to-Line dialog reached line `1,000,000` well under 2 seconds, and resident memory stayed below 512 MB while jumping to another arbitrary position
+  - `harness/feature-ledger.json` still must not move to `passes=true` or receive `lastVerifiedAt` in this session, because one of the feature's listed automated verification commands now fails on an unrelated editor-suite regression outside `MF-055`
+  - the current blocker is verification drift, not the large-file implementation itself: the exact `App.test.tsx` coverage and the live packaged-app proof are green, but the listed package-script command is no longer clean on the current tree
+- Newly verified features:
+  - none
+- Next recommended feature:
+  - `MF-055` - once the unrelated editor folding regression no longer breaks `pnpm --filter @markflow/editor test:run -- src/__tests__/App.test.tsx`, rerun the listed verification commands and promote the ledger only if the current manual evidence still holds
+
 ### 2026-04-16 - MF-055 rerun kept the feature truthful while Activity Monitor access stayed blocked
 
 - Author: Codex
