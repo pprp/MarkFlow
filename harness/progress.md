@@ -1,3 +1,27 @@
+### 2026-04-17 - MF-051 required-flow rerun (automation pass, manual desktop verification blocked)
+
+- Author: Codex
+- Focus: execute `MF-051` startup + smoke + required targeted automation and harness verification in this session.
+- What changed:
+  - Re-ran `pnpm harness:start`.
+  - Re-ran `./harness/init.sh --smoke`.
+  - Re-ran MF-051 automated verification:
+    - `pnpm --filter @markflow/editor test:run -- src/__tests__/App.test.tsx src/editor/__tests__/MarkFlowEditor.test.tsx src/editor/__tests__/outline.test.ts`
+  - Re-ran `pnpm harness:verify`.
+- Verification summary:
+  - `pnpm harness:start`: pass
+  - `./harness/init.sh --smoke`: pass
+  - MF-051 automation: `40` files / `451` tests passed, `3` skipped
+  - `pnpm harness:verify`: pass (`features: 121 total | verified=66 | ready=39 | planned=15 | blocked=1`)
+- Blocker / remaining risk:
+  - Manual desktop scroll-sync proof for `MF-051` (multi-section document, viewport scroll updates active outline item) remains blocked in this environment.
+  - Therefore `harness/feature-ledger.json` was intentionally unchanged:
+    - `MF-051.status = ready`
+    - `MF-051.passes = false`
+    - `MF-051.lastVerifiedAt = null`
+- Next recommended feature:
+  - `MF-051` - run trusted manual desktop verification for scroll-sync, then set `status`, `passes`, `lastVerifiedAt` only after proof is captured.
+
 ### 2026-04-17 - MF-051 session pass-through (automation verified, manual desktop scroll-sync blocked)
 
 - Author: Codex
