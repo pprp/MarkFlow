@@ -1,3 +1,24 @@
+### 2026-04-17T14:02:30Z - MF-051 protocol loop (automation verified, manual UI blocked)
+
+- Author: Codex
+- Focus: continue one-feature loop for `MF-051` (outline live scroll-sync and heading jump navigation), preserving ledger truthfulness when manual desktop check cannot run.
+- What changed:
+  - Re-ran `pnpm harness:start`.
+  - Re-ran `./harness/init.sh --smoke`.
+  - Re-ran feature verification command:
+    - `pnpm --filter @markflow/editor test:run -- src/__tests__/App.test.tsx src/editor/__tests__/MarkFlowEditor.test.tsx src/editor/__tests__/outline.test.ts`
+  - Re-ran `pnpm harness:verify`.
+- Verification:
+  - Feature automation passed: `40` test files, `451` tests passed, `3` skipped, `0` failed.
+  - `./harness/init.sh --smoke` passed (executes full test pipeline in this workspace).
+  - `pnpm harness:verify` passed (`features: 121 total | verified=66 | ready=39 | planned=15 | blocked=1 | regression=0`).
+- Remaining risk / blocker:
+  - Trusted manual desktop scroll-sync validation for `MF-051` is blocked in this environment (no trusted UI session), so active-outline behavior against real multi-section scroll remains unverified here.
+- Ledger decision:
+  - Kept `harness/feature-ledger.json` unchanged (`MF-051.status=ready`, `MF-051.passes=false`, `MF-051.lastVerifiedAt` unchanged) to avoid false completion.
+- Next recommended feature:
+  - Continue with `MF-071` only after completing trusted manual `MF-051` scroll-sync validation in an environment with desktop UI access, then update ledger only when both automated and manual checks are true.
+
 ### 2026-04-17T21:58:45Z - MF-051 protocol-compliant session (automation + no-op source edits)
 
 - Author: Codex
