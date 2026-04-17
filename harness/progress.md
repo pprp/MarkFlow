@@ -9,6 +9,32 @@
 
 ## Session Log
 
+### 2026-04-17 - MF-051 strict rerun with feature automation + harness verify
+
+- Author: Codex
+- Focus: execute the required startup + smoke sequence, re-run MF-051 automation, and keep ledger metadata truthful without trusted manual evidence.
+- What changed:
+  - Re-ran `pnpm harness:start`.
+  - Re-ran `./harness/init.sh --smoke`.
+  - Re-ran MF-051 automated verification:
+    - `pnpm --filter @markflow/editor test:run -- src/__tests__/App.test.tsx src/editor/__tests__/MarkFlowEditor.test.tsx src/editor/__tests__/outline.test.ts`
+  - Re-ran `pnpm harness:verify`.
+- Simplifications made:
+  - No source or test edits were required; all current MF-051 checks already existed and passed in-tree.
+  - Kept scope strictly to one feature and did not modify unrelated worktree areas.
+- Verification:
+  - `pnpm harness:start` (pass)
+  - `./harness/init.sh --smoke` (pass)
+  - MF-051 automated verification (pass; `40 files / 451 tests`, `3 skipped`)
+  - `pnpm harness:verify` (pass; `features: 121 total | verified=66 | ready=39 | planned=15 | blocked=1`)
+- Review / risks:
+  - Trusted desktop/manual multi-section scroll-sync check for MF-051 is still blocked in this environment, so no evidence exists for active-outline-on-scroll behavior in real UI.
+  - `harness/feature-ledger.json` remains unchanged (`passes=false`, `status=ready`, `lastVerifiedAt=null`) to keep verification claims truthful.
+- Newly verified features:
+  - none
+- Next recommended feature:
+  - `MF-051` - complete trusted desktop/manual scroll-sync validation with a multi-section document before updating ledger metadata.
+
 ### 2026-04-17 - MF-051 protocol rerun completed; manual scroll-sync still unverified in this environment
 
 - Author: Codex
