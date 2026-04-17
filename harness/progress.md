@@ -1,3 +1,25 @@
+### 2026-04-17 - MF-051 strict rerun: automation pass, manual scroll-sync still not completed
+
+- Author: Codex
+- Focus: complete one-feature protocol for MF-051 with required startup + smoke + targeted automated verification, while preserving ledger truth.
+- What changed:
+  - Ran `pnpm harness:start`.
+  - Ran `./harness/init.sh --smoke`.
+  - Ran MF-051 automated verification:
+    - `pnpm --filter @markflow/editor test:run -- src/__tests__/App.test.tsx src/editor/__tests__/MarkFlowEditor.test.tsx src/editor/__tests__/outline.test.ts`
+  - Ran `pnpm harness:verify`.
+  - No source changes were required in this session; MF-051 behavior + regressions are already present in-tree.
+- Verification:
+  - `pnpm harness:start` (pass)
+  - `./harness/init.sh --smoke` (pass)
+  - feature automated verification (pass; 40 files / 451 tests, 3 skipped)
+  - `pnpm harness:verify` (pass; `features: 121 total | verified=66 | ready=39 | planned=15 | blocked=1`)
+- Review / risks:
+  - Required manual desktop check "scroll editor and confirm active heading tracks viewport" cannot be completed reliably in this environment.
+  - Did not update `harness/feature-ledger.json` in this session: `MF-051.status` remains `ready`, `passes` remains `false`, `lastVerifiedAt` remains `null`.
+- Next recommended feature:
+  - `MF-051` - complete trusted manual desktop scroll-sync check with a multi-section document before setting `passes=true`.
+
 # MarkFlow Harness Progress
 
 ## Working Agreements
