@@ -6555,3 +6555,26 @@
   - `harness/feature-ledger.json` remains unchanged (`status` still `ready`, `passes=false`, `lastVerifiedAt=null`) to keep state truthful.
 - Next recommended feature:
   - `MF-051` - run trusted desktop manual check for active-outline-on-scroll, then set `passes=true` and `lastVerifiedAt` only when successful.
+
+### 2026-04-17 - MF-051 verification loop (this session): automation confirms, manual blocked
+
+- Author: Codex
+- Focus: strict one-feature MF-051 execution with startup + required verifications.
+- What changed:
+  - Re-ran `pnpm harness:start` at session start.
+  - Re-ran `./harness/init.sh --smoke`.
+  - Re-ran feature automated verification:
+    - `pnpm --filter @markflow/editor test:run -- src/__tests__/App.test.tsx src/editor/__tests__/MarkFlowEditor.test.tsx src/editor/__tests__/outline.test.ts`
+  - Re-ran `pnpm harness:verify`.
+  - No source changes were required for this feature in this session; implementation artifacts were already present.
+- Verification:
+  - `pnpm harness:start` (pass)
+  - `./harness/init.sh --smoke` (pass)
+  - `pnpm --filter @markflow/editor test:run -- src/__tests__/App.test.tsx src/editor/__tests__/MarkFlowEditor.test.tsx src/editor/__tests__/outline.test.ts` (pass; 40 files / 451 tests, 3 skipped)
+  - `pnpm harness:verify` (pass; next remains MF-051)
+- Risks / blocker:
+  - Trusted manual desktop check for multi-section viewport scroll-sync is still not possible in this environment, so the feature cannot be fully promoted.
+- Ledger handling:
+  - Kept `harness/feature-ledger.json` for `MF-051` unchanged (`status=ready`, `passes=false`, `lastVerifiedAt=null`) to keep protocol truthfulness while manual verification is blocked.
+- Next recommended feature:
+  - `MF-051` - run a trusted desktop/manual scroll-sync validation in a real UI session, then update `harness/feature-ledger.json` (`status`, `passes`, `lastVerifiedAt`) only when both automated and manual conditions are met.
