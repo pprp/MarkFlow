@@ -9,6 +9,33 @@
 
 ## Session Log
 
+### 2026-04-17 - MF-051: automation rechecked; manual desktop scroll-sync blocked by environment
+
+- Author: Codex
+- Focus: execute MF-051 protocol closure in this session only, keep scope single-feature, and keep ledger truthfulness with explicit blocker notes.
+- What changed:
+  - started the session with `pnpm harness:start` (next feature remains MF-051)
+  - ran `./harness/init.sh --smoke`
+  - ran feature automated verification:
+    - `pnpm --filter @markflow/editor test:run -- src/__tests__/App.test.tsx src/editor/__tests__/MarkFlowEditor.test.tsx src/editor/__tests__/outline.test.ts`
+  - ran `pnpm harness:verify`
+  - kept changes strictly to the session record (no unrelated feature/code-path edits in this round)
+- Simplifications made:
+  - no source changes were needed this round because the required feature behavior and regression coverage are already in the tree
+  - did not modify `harness/feature-ledger.json` because this session cannot truthfully satisfy the required manual verification
+- Verification:
+  - `pnpm harness:start` (pass)
+  - `./harness/init.sh --smoke` (pass)
+  - feature automated verification command (pass)
+  - `pnpm harness:verify` (pass; `features: 121 total | verified=66 | ready=39 | planned=15 | blocked=1`)
+- Review / risks:
+  - this environment cannot complete the required manual scroll-sync check in a trusted desktop editor session
+  - until a multi-section document desktop run confirms active outline updates while scrolling, `MF-051` should not be promoted
+- Newly verified features:
+  - none
+- Next recommended feature:
+  - `MF-051` - perform manual desktop scroll-sync verification (`多节文档滚动时大纲焦点跟随视窗)`, then set `passes=true` and `lastVerifiedAt` in `harness/feature-ledger.json`.
+
 ### 2026-04-17 - MF-051 re-ran required automation; manual scroll-sync still blocked by environment
 
 - Author: Codex
