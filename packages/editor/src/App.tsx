@@ -1350,14 +1350,14 @@ export function App() {
     [activeTab?.cursorPosition, activeTab?.viewportPosition, outlineHeadings],
   )
 
-  const handleSymbolTableChange = useCallback((table: SymbolTable, content: string) => {
+  const handleSymbolTableChange = useCallback((table: SymbolTable) => {
     const currentActiveTabId = activeTabIdRef.current
     if (!currentActiveTabId) {
       return
     }
 
     updateTab(currentActiveTabId, (tab) => {
-      if (tab.largeFile || content !== tab.content) {
+      if (tab.largeFile) {
         return tab
       }
 

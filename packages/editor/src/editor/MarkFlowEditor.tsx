@@ -91,7 +91,7 @@ export interface MarkFlowEditorProps {
   onCursorPositionChange?: (position: number) => void
   onViewportPositionChange?: (position: number) => void
   onScrollMetricsChange?: (metrics: MinimapScrollMetrics) => void
-  onSymbolTableChange?: (table: SymbolTable, content: string) => void
+  onSymbolTableChange?: (table: SymbolTable) => void
   onNavigationHandled?: () => void
   onOpenPath?: (filePath: string) => void | Promise<unknown>
   onToggleMode?: () => void
@@ -441,7 +441,7 @@ function getEditorExtensions(
       const nextTable = update.state.field(symbolTableField)
       const previousTable = update.startState.field(symbolTableField)
       if (nextTable !== previousTable) {
-        onSymbolTableChangeRef.current?.(nextTable, update.state.doc.toString())
+        onSymbolTableChangeRef.current?.(nextTable)
       }
 
       const nextFoldState = update.state.field(foldState, false)
@@ -783,7 +783,7 @@ export const MarkFlowEditor = forwardRef<MarkFlowEditorHandle, MarkFlowEditorPro
     const selectedText = selection.empty ? '' : view.state.doc.sliceString(selection.from, selection.to)
     onCursorPositionChangeRef.current?.(view.state.selection.main.head)
     onSelectionChangeRef.current?.(selectedText)
-    onSymbolTableChangeRef.current?.(view.state.field(symbolTableField), view.state.doc.toString())
+    onSymbolTableChangeRef.current?.(view.state.field(symbolTableField))
     onCollapsedRangesChangeRef.current?.(getCollapsedRanges(view.state))
     onViewportPositionChangeRef.current?.(view.viewport.from)
     publishScrollMetrics(view, onScrollMetricsChangeRef.current)

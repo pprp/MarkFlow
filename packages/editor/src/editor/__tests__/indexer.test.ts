@@ -72,6 +72,21 @@ describe('indexer: buildSymbolTable', () => {
     expect(table.anchors.has('not-a-heading')).toBe(false)
   })
 
+  it('tracks setext headings and ignores fenced headings across line boundaries', () => {
+    const doc = ['```md', '# Hidden', '```', '', 'Visible title', '---'].join('\n')
+    const table = buildSymbolTable(doc)
+
+    expect(table.headings).toEqual([
+      {
+        anchor: 'visible-title',
+        from: doc.indexOf('Visible title'),
+        level: 2,
+        lineNumber: 5,
+        text: 'Visible title',
+      },
+    ])
+  })
+
   it('uses the active markdown mode when indexing ATX headings without whitespace', () => {
     const doc = ['###Header', '', '### Header'].join('\n')
 
@@ -177,6 +192,31 @@ describe('indexer: DocumentIndexer', () => {
     expect(finalTable.anchors.has('first-heading')).toBe(true)
     expect(finalTable.anchors.has('second-heading')).toBe(true)
     expect(finalTable.anchors.has('third-heading')).toBe(true)
+
+    indexer.dispose()
+  })
+
+  it('indexBatched preserves headings that cross batch boundaries', async () => {
+    const results: ReturnType<typeof buildSymbolTable>[] = []
+    const indexer = new DocumentIndexer((table) => results.push(table), {
+      debounceMs: 0,
+      schedule: (fn) => setTimeout(fn, 0),
+    })
+
+    const doc = ['```md', '# Hidden', '```', 'Visible title', '---', '# Tail'].join('\n')
+
+    indexer.indexBatchedImmediately(doc, 4)
+
+    vi.advanceTimersByTime(50)
+    await Promise.resolve()
+
+    const finalTable = results.at(-1)
+    expect(finalTable?.headings.map((heading) => heading.text)).toEqual([
+      'Visible title',
+      'Tail',
+    ])
+    expect(finalTable?.anchors.get('visible-title')).toBe(doc.indexOf('Visible title'))
+    expect(finalTable?.anchors.get('tail')).toBe(doc.indexOf('# Tail'))
 
     indexer.dispose()
   })

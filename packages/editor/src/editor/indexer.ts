@@ -2,11 +2,10 @@
  * Background document indexer — builds a symbol table for headings and
  * anchor links without blocking the UI thread.
  *
- * Scheduling strategy: microtask queue (Promise.resolve). In environments
+ * Scheduling strategy: macrotask queue (`setTimeout(…, 0)`). In environments
  * that support it, the caller can swap in a real Web Worker by providing a
- * custom `schedule` function. The default microtask-based schedule lets the
- * current JS task finish (and therefore keeps the editor responsive) before
- * the scan runs.
+ * custom `schedule` function. The default macrotask-based schedule yields
+ * between batches so large documents do not monopolise the main thread.
  *
  * For very large documents the content is split into batches so the main
  * thread is never monopolised by a single synchronous pass.
@@ -14,7 +13,7 @@
 
 import { StateEffect, StateField, type Extension } from '@codemirror/state'
 import { ViewPlugin, type ViewUpdate } from '@codemirror/view'
-import { extractOutlineHeadings, type OutlineHeading } from './outline'
+import { normalizeHeadingAnchor, type OutlineHeading } from './outline'
 import {
   DEFAULT_MARKDOWN_MODE,
   type MarkFlowMarkdownMode,
@@ -50,12 +49,268 @@ export function buildSymbolTable(
   content: string,
   markdownMode: MarkFlowMarkdownMode = DEFAULT_MARKDOWN_MODE,
 ): SymbolTable {
-  const headings = extractOutlineHeadings(content, markdownMode)
-  const anchors = new Map<string, number>()
-  for (const heading of headings) {
-    anchors.set(heading.anchor, heading.from)
+  const builder = new SymbolTableBuilder(markdownMode)
+  const lines = content.split('\n')
+  for (let index = 0; index < lines.length; index += 1) {
+    builder.appendLine(lines[index], index < lines.length - 1)
   }
-  return { headings, anchors }
+  return builder.toSymbolTable()
+}
+
+type FenceState = {
+  marker: '`' | '~'
+  size: number
+}
+
+type PendingSetextLine = {
+  from: number
+  lineNumber: number
+  text: string
+}
+
+function readIndent(line: string) {
+  let column = 0
+  let index = 0
+
+  while (index < line.length) {
+    const next = line[index]
+    if (next === ' ') {
+      column += 1
+      index += 1
+      continue
+    }
+
+    if (next === '\t') {
+      column += 4 - (column % 4)
+      index += 1
+      continue
+    }
+
+    break
+  }
+
+  return { column, index }
+}
+
+function getLineContentStart(line: string, fallbackIndex: number) {
+  for (let index = fallbackIndex; index < line.length; index += 1) {
+    const next = line[index]
+    if (next !== ' ' && next !== '\t') {
+      return index
+    }
+  }
+
+  return fallbackIndex
+}
+
+function parseFence(line: string) {
+  const { column, index } = readIndent(line)
+  if (column > 3 || index >= line.length) {
+    return null
+  }
+
+  const marker = line[index]
+  if (marker !== '`' && marker !== '~') {
+    return null
+  }
+
+  let end = index
+  while (end < line.length && line[end] === marker) {
+    end += 1
+  }
+
+  const size = end - index
+  if (size < 3) {
+    return null
+  }
+
+  return {
+    marker,
+    size,
+    rest: line.slice(end),
+  } as const
+}
+
+function parseSetextUnderline(line: string) {
+  const { column, index } = readIndent(line)
+  if (column > 3) {
+    return null
+  }
+
+  const trimmed = line.slice(index).trim()
+  if (!trimmed) {
+    return null
+  }
+
+  if (/^=+$/.test(trimmed)) {
+    return 1
+  }
+
+  if (/^-+$/.test(trimmed)) {
+    return 2
+  }
+
+  return null
+}
+
+function parseAtxHeading(
+  line: string,
+  markdownMode: MarkFlowMarkdownMode,
+): { from: number; level: number; text: string } | null {
+  const { column, index } = readIndent(line)
+  if (column > 3 || line[index] !== '#') {
+    return null
+  }
+
+  let markerEnd = index
+  while (markerEnd < line.length && line[markerEnd] === '#') {
+    markerEnd += 1
+  }
+
+  const level = markerEnd - index
+  if (level === 0 || level > 6) {
+    return null
+  }
+
+  const nextChar = line[markerEnd]
+  const hasRequiredWhitespace = nextChar == null || nextChar === ' ' || nextChar === '\t'
+  if (markdownMode === 'strict' && !hasRequiredWhitespace) {
+    return null
+  }
+
+  const rawHeading = line.slice(index)
+  const text = rawHeading
+    .replace(/^#{1,6}\s*/, '')
+    .replace(/\s*#*\s*$/, '')
+    .trim()
+  if (!text) {
+    return null
+  }
+
+  return {
+    from: index,
+    level,
+    text,
+  }
+}
+
+class SymbolTableBuilder {
+  private readonly headings: OutlineHeading[] = []
+  private readonly anchors = new Map<string, number>()
+  private readonly seenAnchors = new Map<string, number>()
+  private fence: FenceState | null = null
+  private pendingSetext: PendingSetextLine | null = null
+  private offset = 0
+  private lineNumber = 1
+
+  constructor(private readonly markdownMode: MarkFlowMarkdownMode) {}
+
+  get headingCount() {
+    return this.headings.length
+  }
+
+  appendLine(line: string, hasTrailingNewline: boolean) {
+    const lineStart = this.offset
+    const currentLineNumber = this.lineNumber
+    const advance = () => {
+      this.offset += line.length + (hasTrailingNewline ? 1 : 0)
+      this.lineNumber += 1
+    }
+
+    if (this.fence) {
+      const fence = parseFence(line)
+      if (
+        fence &&
+        fence.marker === this.fence.marker &&
+        fence.size >= this.fence.size &&
+        fence.rest.trim() === ''
+      ) {
+        this.fence = null
+      }
+      this.pendingSetext = null
+      advance()
+      return
+    }
+
+    const openingFence = parseFence(line)
+    if (openingFence) {
+      this.fence = {
+        marker: openingFence.marker,
+        size: openingFence.size,
+      }
+      this.pendingSetext = null
+      advance()
+      return
+    }
+
+    const underlineLevel = parseSetextUnderline(line)
+    if (underlineLevel !== null) {
+      if (this.pendingSetext) {
+        this.addHeading(
+          this.pendingSetext.text,
+          this.pendingSetext.from,
+          underlineLevel,
+          this.pendingSetext.lineNumber,
+        )
+      }
+      this.pendingSetext = null
+      advance()
+      return
+    }
+
+    const atxHeading = parseAtxHeading(line, this.markdownMode)
+    if (atxHeading) {
+      this.pendingSetext = null
+      this.addHeading(
+        atxHeading.text,
+        lineStart + atxHeading.from,
+        atxHeading.level,
+        currentLineNumber,
+      )
+      advance()
+      return
+    }
+
+    const { column, index } = readIndent(line)
+    const contentStart = getLineContentStart(line, index)
+    const text = column > 3 ? '' : line.slice(contentStart).trim()
+    this.pendingSetext = text
+      ? {
+          from: lineStart + contentStart,
+          lineNumber: currentLineNumber,
+          text,
+        }
+      : null
+
+    advance()
+  }
+
+  toSymbolTable(): SymbolTable {
+    return {
+      headings: this.headings.slice(),
+      anchors: new Map(this.anchors),
+    }
+  }
+
+  private addHeading(text: string, from: number, level: number, lineNumber: number) {
+    const baseAnchor = normalizeHeadingAnchor(text)
+    if (!baseAnchor) {
+      return
+    }
+
+    const duplicateIndex = this.seenAnchors.get(baseAnchor) ?? 0
+    this.seenAnchors.set(baseAnchor, duplicateIndex + 1)
+
+    const anchor = duplicateIndex === 0 ? baseAnchor : `${baseAnchor}-${duplicateIndex}`
+    this.headings.push({
+      anchor,
+      from,
+      level,
+      lineNumber,
+      text,
+    })
+    this.anchors.set(anchor, from)
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -86,7 +341,9 @@ export class DocumentIndexer {
     this.onResult = onResult
     this.debounceMs = options.debounceMs ?? DEFAULT_DEBOUNCE_MS
     this.markdownMode = options.markdownMode ?? DEFAULT_MARKDOWN_MODE
-    this.schedule = options.schedule ?? ((fn) => Promise.resolve().then(fn))
+    this.schedule = options.schedule ?? ((fn) => {
+      setTimeout(fn, 0)
+    })
   }
 
   private clearDebounceTimer() {
@@ -99,16 +356,13 @@ export class DocumentIndexer {
   /** Queue a new indexing run. Rapid successive calls are debounced. */
   index(content: string): void {
     this.pendingContent = content
-    const runId = ++this.generation
     this.clearDebounceTimer()
     this.debounceTimer = setTimeout(() => {
       this.debounceTimer = null
-      if (runId !== this.generation) {
-        return
-      }
       const snapshot = this.pendingContent
       if (snapshot !== null) {
         this.pendingContent = null
+        const runId = ++this.generation
         this.schedule(() => {
           if (runId !== this.generation) {
             return
@@ -130,16 +384,13 @@ export class DocumentIndexer {
    */
   indexBatched(content: string, batchSize = INDEXER_BATCH_SIZE): void {
     this.pendingContent = content
-    const runId = ++this.generation
     this.clearDebounceTimer()
     this.debounceTimer = setTimeout(() => {
       this.debounceTimer = null
-      if (runId !== this.generation) {
-        return
-      }
       const snapshot = this.pendingContent
       if (snapshot !== null) {
         this.pendingContent = null
+        const runId = ++this.generation
         this.runBatched(snapshot, batchSize, runId)
       }
     }, this.debounceMs)
@@ -158,36 +409,31 @@ export class DocumentIndexer {
     }
     const lines = content.split('\n')
     let batchStart = 0
+    const builder = new SymbolTableBuilder(this.markdownMode)
 
     const processNextBatch = () => {
       if (runId !== this.generation) {
         return
       }
       const batchEnd = Math.min(batchStart + batchSize, lines.length)
-      // Keep a running character offset so heading positions are absolute
-      const chunkContent = lines.slice(0, batchEnd).join('\n')
-
-      if (batchEnd >= lines.length) {
-        // Final batch — deliver the authoritative full-document table
-        this.schedule(() => {
-          if (runId !== this.generation) {
-            return
-          }
-          const table = buildSymbolTable(content, this.markdownMode)
-          this.onResult(table)
-        })
-        return
-      }
-
-      // Intermediate batch: partial table from content seen so far
       this.schedule(() => {
         if (runId !== this.generation) {
           return
         }
-        const partialTable = buildSymbolTable(chunkContent, this.markdownMode)
-        this.onResult(partialTable)
+
+        const headingCountBeforeBatch = builder.headingCount
+        for (let index = batchStart; index < batchEnd; index += 1) {
+          builder.appendLine(lines[index], index < lines.length - 1)
+        }
+
+        if (builder.headingCount > headingCountBeforeBatch || batchEnd >= lines.length) {
+          this.onResult(builder.toSymbolTable())
+        }
+
         batchStart = batchEnd
-        processNextBatch()
+        if (batchStart < lines.length) {
+          processNextBatch()
+        }
       })
     }
 

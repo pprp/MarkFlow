@@ -5704,3 +5704,42 @@
   - `MF-110`
 - Next recommended feature:
   - `MF-050` - perform the pending manual 180k-line outline/anchor verification and promote it only if the live async indexing behavior remains responsive
+
+### 2026-04-17 - MF-050 batching cleanup improved the indexer path, but the 180k live gate still fails
+
+- Author: Codex
+- Focus: obey the startup protocol for `MF-050`, change only the background-indexer path plus the smallest adjacent plumbing needed to verify it, rerun the feature's automated checks truthfully, attempt a clean-profile 180k live probe again, and leave the ledger honest if the real app still misses the acceptance gate.
+- What changed:
+  - re-read the root `AGENTS.md`, ran `pnpm harness:start`, and ran `./harness/init.sh --smoke` before touching `MF-050`
+  - rewrote `packages/editor/src/editor/indexer.ts` so batched indexing scans one line batch at a time instead of rebuilding ever-larger prefix strings, publishes intermediate symbol tables from accumulated state, yields through macrotasks by default, and only cancels an in-flight run when the newer debounced restart actually begins
+  - removed the extra full-document `toString()` call from symbol-table publications in `packages/editor/src/editor/MarkFlowEditor.tsx`, and kept `packages/editor/src/App.tsx` on a direct symbol-table update path after a brief experiment with `startTransition` proved it could starve outline DOM updates under continuous typing
+  - added regression coverage in `packages/editor/src/editor/__tests__/indexer.test.ts` for fenced/setext handling and for batch-boundary headings, and adjusted the affected outline-history app test timing in `packages/editor/src/__tests__/App.test.tsx`
+  - updated `harness/features/MF-050.md` with this session's truthful automation rerun and live 180k failure evidence; `harness/feature-ledger.json` was intentionally left unchanged because `MF-050` still does not satisfy the manual gate
+- Changed files:
+  - `packages/editor/src/editor/indexer.ts`
+  - `packages/editor/src/editor/MarkFlowEditor.tsx`
+  - `packages/editor/src/App.tsx`
+  - `packages/editor/src/editor/__tests__/indexer.test.ts`
+  - `packages/editor/src/__tests__/App.test.tsx`
+  - `harness/features/MF-050.md`
+  - `harness/progress.md`
+- Simplifications made:
+  - kept the symbol-table builder local to the indexer instead of introducing a new worker transport or a new shared parsing abstraction
+  - reused the existing `symbolTableField` / `onSymbolTableChange` flow instead of inventing a second outline data channel
+  - left `harness/feature-ledger.json` untouched because the real desktop proof is still red; only narrative evidence moved forward
+- Verification:
+  - `pnpm harness:start` (passes at session start; `MF-050` remains the next recommended feature)
+  - `./harness/init.sh --smoke` (passes at session start)
+  - `pnpm --filter @markflow/editor test:run -- src/editor/__tests__/indexer.test.ts src/editor/__tests__/outline.test.ts src/editor/__tests__/MarkFlowEditor.test.tsx src/__tests__/App.test.tsx` (passes; the package script still executes the full editor Vitest suite, 40 files / 440 tests with 3 skipped)
+  - `pnpm --filter @markflow/editor lint` (passes)
+  - `pnpm --filter @markflow/editor build` (passes)
+  - `pnpm harness:verify` (passes before closeout; `121 total | verified=65 | ready=40 | planned=15 | blocked=1 | regression=0`)
+  - URL-targeted clean-profile Electron CDP probe against `/tmp/mf050-live-180k.md` (fails; the file opens, but after `10s` idle the outline still shows only `1` item and does not reach `Section 1`, and three scripted keystrokes near `Paragraph 5` took about `1476ms`, `1467ms`, and `1535ms`)
+- Review / risks:
+  - the new batching logic is demonstrably better-covered and no longer does prefix-sized rebuild work, but the live probe shows the dominant 180k lag is still elsewhere in the editor update/render pipeline
+  - because the real desktop gate still fails, `MF-050` must remain `status=ready`, `passes=false`, and `lastVerifiedAt=null`
+  - the next debugging slice should concentrate on the large-document edit/render path around active-editor text sync and any remaining full-document work triggered per keystroke
+- Newly verified features:
+  - none
+- Next recommended feature:
+  - `MF-050` - continue profiling the live 180k edit path, especially per-keystroke full-document synchronization and any render/decorations work that still blocks input after the indexer cleanup

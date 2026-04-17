@@ -1697,7 +1697,7 @@ describe('App desktop integration', () => {
       })
     })
 
-    fireEvent.click(screen.getByRole('button', { name: 'Setup' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Setup' }))
 
     await waitFor(() => {
       expect(getEditorView(container).state.selection.main.head).toBe(content.indexOf('## Setup'))
