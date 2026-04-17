@@ -6,7 +6,10 @@ const repoRoot = path.resolve(import.meta.dirname, '../..')
 const targets = [
   path.join(repoRoot, 'packages/editor/dist'),
   path.join(repoRoot, 'packages/desktop/dist'),
+  path.join(repoRoot, 'dist-desktop'),
   path.join(repoRoot, 'dist-mac'),
+  path.join(repoRoot, 'dist-win'),
+  path.join(repoRoot, 'dist-linux'),
 ]
 
 for (const target of targets) {

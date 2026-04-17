@@ -1902,7 +1902,10 @@
       "status": "ready",
       "passes": false,
       "lastVerifiedAt": null,
-      "dependsOn": ["MF-011", "MF-029"],
+      "dependsOn": [
+        "MF-011",
+        "MF-029"
+      ],
       "steps": [
         "Render a markdown image in WYSIWYG mode and hover to reveal corner/edge resize handles.",
         "Drag a handle and confirm the preview resizes live without corrupting markdown syntax.",
@@ -2008,7 +2011,9 @@
       "status": "ready",
       "passes": false,
       "lastVerifiedAt": null,
-      "dependsOn": ["MF-026"],
+      "dependsOn": [
+        "MF-026"
+      ],
       "steps": [
         "Copy rich-text content from an external source.",
         "Press Cmd/Ctrl+Shift+V in the editor and confirm the inserted text contains no markdown conversion and no HTML residue.",
@@ -2035,7 +2040,9 @@
       "status": "ready",
       "passes": false,
       "lastVerifiedAt": null,
-      "dependsOn": ["MF-066"],
+      "dependsOn": [
+        "MF-066"
+      ],
       "steps": [
         "Select a span containing bold, italic, inline code, and a link.",
         "Run Clear Formatting (menu, palette, or Cmd/Ctrl+\\).",
@@ -2137,7 +2144,10 @@
       "status": "ready",
       "passes": false,
       "lastVerifiedAt": null,
-      "dependsOn": ["MF-029", "MF-070"],
+      "dependsOn": [
+        "MF-029",
+        "MF-070"
+      ],
       "steps": [
         "Configure an image uploader endpoint (PicGo core / custom command) in preferences.",
         "Paste or drop a local image and confirm it is uploaded, the returned URL is inserted as `![alt](https://...)`, and the local copy policy matches settings.",
@@ -2162,7 +2172,10 @@
       "status": "planned",
       "passes": false,
       "lastVerifiedAt": null,
-      "dependsOn": ["MF-012", "MF-071"],
+      "dependsOn": [
+        "MF-012",
+        "MF-071"
+      ],
       "steps": [
         "Open Preferences (Cmd/Ctrl+,) and confirm sections for Editor, Appearance, Export, and Shortcuts exist.",
         "Change a representative setting from each section, close the dialog, and confirm the change persists across restart.",
@@ -2187,7 +2200,9 @@
       "status": "ready",
       "passes": false,
       "lastVerifiedAt": null,
-      "dependsOn": ["MF-007"],
+      "dependsOn": [
+        "MF-007"
+      ],
       "steps": [
         "Open a saved markdown file.",
         "Trigger the Reveal in Finder / Show in folder menu or palette action.",
@@ -2212,7 +2227,10 @@
       "status": "ready",
       "passes": false,
       "lastVerifiedAt": null,
-      "dependsOn": ["MF-019", "MF-020"],
+      "dependsOn": [
+        "MF-019",
+        "MF-020"
+      ],
       "steps": [
         "Trigger fullscreen (F11 / Cmd+Ctrl+F) and confirm the OS window chrome is hidden.",
         "Trigger distraction-free mode and confirm sidebars/outline/toolbars are hidden while the document stays centered.",
@@ -2237,7 +2255,10 @@
       "status": "ready",
       "passes": false,
       "lastVerifiedAt": null,
-      "dependsOn": ["MF-001", "MF-020"],
+      "dependsOn": [
+        "MF-001",
+        "MF-020"
+      ],
       "steps": [
         "Enable heading auto-numbering in preferences.",
         "Open a document with nested H1–H4 headings and confirm numeric prefixes render in-editor, outline panel, and exports.",
@@ -2262,7 +2283,10 @@
       "status": "ready",
       "passes": false,
       "lastVerifiedAt": null,
-      "dependsOn": ["MF-014", "MF-067"],
+      "dependsOn": [
+        "MF-014",
+        "MF-067"
+      ],
       "steps": [
         "Enable math equation auto-numbering and write several display-math blocks with `\\label{eq:foo}`.",
         "Confirm each block renders with an incrementing `(n)` label on the right edge and that the label matches across WYSIWYG and source.",
@@ -2287,7 +2311,9 @@
       "status": "ready",
       "passes": false,
       "lastVerifiedAt": null,
-      "dependsOn": ["MF-023"],
+      "dependsOn": [
+        "MF-023"
+      ],
       "steps": [
         "Author fenced blocks with languages `flow`, `sequence`, `mermaid` (sequence/gantt), and confirm each renders an inline diagram preview.",
         "Introduce a syntax error in one block and confirm the editor surfaces a localized render error without breaking siblings.",
@@ -2312,7 +2338,10 @@
       "status": "ready",
       "passes": false,
       "lastVerifiedAt": null,
-      "dependsOn": ["MF-007", "MF-041"],
+      "dependsOn": [
+        "MF-007",
+        "MF-041"
+      ],
       "steps": [
         "Open two markdown files and confirm each lives in its own tab with dirty-state indicators.",
         "Use Typora-style document-switch shortcuts (`Ctrl+Tab` / `Ctrl+Shift+Tab` on Windows/Linux, `Cmd+`` / `Cmd+Shift+`` on macOS) and confirm the active tab changes while caret, selection, outline position, and undo history persist per tab.",
@@ -2338,7 +2367,9 @@
       "status": "planned",
       "passes": false,
       "lastVerifiedAt": null,
-      "dependsOn": ["MF-082"],
+      "dependsOn": [
+        "MF-082"
+      ],
       "steps": [
         "Expose a language selector in Preferences with at least English and one additional locale (e.g. 简体中文).",
         "Switch the locale and confirm menus, toolbars, dialogs, and palette entries retranslate without requiring a restart.",
@@ -2363,7 +2394,9 @@
       "status": "ready",
       "passes": false,
       "lastVerifiedAt": null,
-      "dependsOn": ["MF-007"],
+      "dependsOn": [
+        "MF-007"
+      ],
       "steps": [
         "Open several files and at least one folder across multiple sessions and confirm `File` -> `Open Recent` lists them most-recent-first.",
         "Pin a recent folder/location, clear recent items, and confirm pinned entries follow Typora's clear-options behavior while unpinned history is removed.",
@@ -2371,10 +2404,10 @@
       ],
       "verification": {
         "automated": [
-        "Add desktop tests for recent-file and recent-folder persistence, menu serialization, pin/clear flows, and missing-path handling."
+          "Add desktop tests for recent-file and recent-folder persistence, menu serialization, pin/clear flows, and missing-path handling."
         ],
         "manual": [
-        "Verify `Open Recent`, Quick Open, and OS-native recents all reflect the same saved history after restarting the app."
+          "Verify `Open Recent`, Quick Open, and OS-native recents all reflect the same saved history after restarting the app."
         ]
       },
       "notes": "Implemented with a persisted recent-history model in `packages/desktop/src/main/fileManager.ts`, dynamic `File -> Open Recent` menu generation in `packages/desktop/src/main/menu.ts`, and renderer handling in `packages/editor/src/App.tsx` so recent files and folders now survive restarts, feed Quick Open and OS recent-document sync, support pinned folders plus `Clear Items` / `Clear Recent and Pinned Folders / Files`, and report missing recent paths gracefully. Automated coverage in `packages/desktop/src/main/fileManager.test.ts` and `packages/desktop/src/main/menu.test.ts` passed on 2026-04-16, alongside `pnpm lint`, `pnpm test`, `pnpm build`, and `pnpm harness:verify`. `passes` remains false until `Open Recent`, Quick Open, and OS-native recents are manually verified after restarting the app. Source: https://support.typora.io/File-Management/."
@@ -2413,7 +2446,11 @@
       "status": "ready",
       "passes": false,
       "lastVerifiedAt": null,
-      "dependsOn": ["MF-020", "MF-040", "MF-045"],
+      "dependsOn": [
+        "MF-020",
+        "MF-040",
+        "MF-045"
+      ],
       "steps": [
         "Navigate through outline clicks, wikilinks, and global search results; confirm each destination is pushed onto history.",
         "Press Cmd/Ctrl+[ (back) and Cmd/Ctrl+] (forward) and confirm the caret/viewport restores exactly to prior positions across documents.",
@@ -2438,7 +2475,9 @@
       "status": "ready",
       "passes": false,
       "lastVerifiedAt": null,
-      "dependsOn": ["MF-004"],
+      "dependsOn": [
+        "MF-004"
+      ],
       "steps": [
         "Toggle source mode and confirm a left-side gutter shows 1-based line numbers aligned with content.",
         "Expose a preference to hide the gutter and confirm toggling it off removes the column without reflowing decorations.",
@@ -2463,7 +2502,9 @@
       "status": "planned",
       "passes": false,
       "lastVerifiedAt": null,
-      "dependsOn": ["MF-082"],
+      "dependsOn": [
+        "MF-082"
+      ],
       "steps": [
         "Invoke Insert Date / Insert Time from the palette or shortcut.",
         "Confirm the inserted string respects the format configured in Preferences (ISO 8601 default) and the user's locale/timezone.",
@@ -2488,7 +2529,9 @@
       "status": "ready",
       "passes": false,
       "lastVerifiedAt": null,
-      "dependsOn": ["MF-027"],
+      "dependsOn": [
+        "MF-027"
+      ],
       "steps": [
         "Open the statistics panel (menu or status-bar click) and confirm live totals for words, characters (with/without spaces), paragraphs, and approximate reading time.",
         "Make a multi-block selection and confirm the panel adds a selection column alongside the document totals.",
@@ -2513,7 +2556,10 @@
       "status": "planned",
       "passes": false,
       "lastVerifiedAt": null,
-      "dependsOn": ["MF-074", "MF-082"],
+      "dependsOn": [
+        "MF-074",
+        "MF-082"
+      ],
       "steps": [
         "Open the Shortcuts pane in Preferences and search for a command.",
         "Record a new key chord and confirm it persists, conflicts are highlighted, and the prior binding is cleared.",
@@ -2826,6 +2872,373 @@
       },
       "notes": "Implemented on 2026-04-17 in `packages/editor/src/export/htmlExport.ts`, `packages/editor/src/App.tsx`, `packages/desktop/src/main/fileManager.ts`, and the focused desktop/editor test suites. MarkFlow now serializes the hidden WYSIWYG export editor into standalone HTML with inlined stylesheet text, resolved `--mf-*` theme variables, heading-anchor `id`s, normalized internal links, and print CSS that keeps tables/code/math blocks from fragmenting awkwardly; PDF export now renders through a temporary HTML file instead of a giant data URL so long documents remain exportable, waits for fonts/images before printing, enables Electron's experimental PDF outline generation, and surfaces writable-path failures through a desktop error dialog instead of failing silently. Automated verification passed on 2026-04-17 with `pnpm --filter @markflow/desktop exec vitest run`, `pnpm --filter @markflow/editor exec vitest run`, `pnpm --filter @markflow/desktop lint`, `pnpm --filter @markflow/editor lint`, `pnpm --filter @markflow/desktop build`, `pnpm --filter @markflow/editor build`, and `pnpm harness:verify`. `passes` remains false because the required macOS manual export comparison against the live in-app render was not completed in this terminal session.",
       "status": "ready",
+      "passes": false,
+      "lastVerifiedAt": null
+    },
+    {
+      "id": "MF-108",
+      "title": "Unified preferences dialog consolidates editor, theme, export, spellcheck, and launch settings",
+      "category": "phase-2-polish",
+      "area": "@markflow/editor",
+      "priority": 2,
+      "dependsOn": [
+        "MF-082"
+      ],
+      "steps": [
+        "Open Preferences from the application menu; confirm a single dialog exposes editor behavior (markdown mode, statistics, smart input), appearance (theme, dark mode, heading numbering), export defaults, spellcheck language, and launch behavior.",
+        "Change each setting and confirm it persists across app restart and is reflected by the corresponding feature (e.g. strict mode, dark theme, launch behavior).",
+        "Confirm the dialog is fully keyboard navigable and reachable via the command palette."
+      ],
+      "verification": {
+        "automated": [
+          "pnpm --filter @markflow/editor exec vitest run",
+          "pnpm --filter @markflow/desktop exec vitest run"
+        ],
+        "manual": [
+          "Exercise every preference group on macOS and confirm persistence across restart."
+        ]
+      },
+      "notes": "Preferences are currently scattered across `statisticsPreferences.ts`, `markdownMode.ts`, `spellCheckProfile.ts`, `themeManager.ts`, and desktop launch options. Consolidating behind a typed preferences store in `@markflow/shared` unblocks MF-082 and reduces renderer-side drift.",
+      "status": "planned",
+      "passes": false,
+      "lastVerifiedAt": null
+    },
+    {
+      "id": "MF-109",
+      "title": "App shell module decomposition shrinks App.tsx into focused feature hooks and components",
+      "category": "code-health",
+      "area": "@markflow/editor",
+      "priority": 3,
+      "dependsOn": [],
+      "steps": [
+        "Split `packages/editor/src/App.tsx` (currently ~3,910 LOC) into focused hooks/components: desktop IPC bridge, statistics surface, search dialogs, vault/session hydration, palette registration, and navigation history.",
+        "Confirm behavior parity with the existing integration tests in `packages/editor/src/__tests__/App.test.tsx` (all 52 cases still pass).",
+        "Verify incremental rebuild time and keystroke latency on the 180k fixture are not worse than before the refactor."
+      ],
+      "verification": {
+        "automated": [
+          "pnpm --filter @markflow/editor exec vitest run",
+          "pnpm --filter @markflow/editor lint",
+          "pnpm --filter @markflow/editor build"
+        ],
+        "manual": []
+      },
+      "notes": "Code-health refactor. `App.tsx` owns too many unrelated concerns, making review and regression isolation expensive. No user-visible behavior should change.",
+      "status": "planned",
+      "passes": false,
+      "lastVerifiedAt": null
+    },
+    {
+      "id": "MF-110",
+      "title": "Feature ledger storage is normalized so long-form notes live in per-feature files",
+      "category": "code-health",
+      "area": "harness",
+      "priority": 3,
+      "dependsOn": [],
+      "steps": [
+        "Move long-form `notes`, `steps`, and `verification` prose out of `harness/feature-ledger.json` (currently ~588 KB) into `harness/features/MF-XXX.md` files.",
+        "Keep only metadata (id, title, status, passes, priority, dependsOn, lastVerifiedAt, area, category, notesRef) in the JSON.",
+        "Update `scripts/harness/*` and `pnpm harness:start` / `pnpm harness:verify` to resolve the split structure, and confirm verify still passes."
+      ],
+      "verification": {
+        "automated": [
+          "pnpm harness:verify",
+          "pnpm harness:start"
+        ],
+        "manual": []
+      },
+      "notes": "The ledger has grown past the point where it can be read in one pass by many tools. Splitting metadata from prose keeps the JSON diff-friendly and makes feature history easier to review.",
+      "status": "planned",
+      "passes": false,
+      "lastVerifiedAt": null
+    },
+    {
+      "id": "MF-111",
+      "title": "Accessibility audit hardens palette, search, sidebar, and floating toolbar dialogs",
+      "category": "phase-2-polish",
+      "area": "@markflow/editor",
+      "priority": 2,
+      "dependsOn": [
+        "MF-074"
+      ],
+      "steps": [
+        "Add ARIA roles, labels, and focus traps to the command palette, quick open, global search, go-to-line, vault sidebar, and floating toolbar.",
+        "Ensure every interactive control has a visible focus ring and can be reached via keyboard from the editor surface.",
+        "Add automated axe-core smoke tests for the dialog components and confirm no serious/critical violations remain."
+      ],
+      "verification": {
+        "automated": [
+          "pnpm --filter @markflow/editor exec vitest run",
+          "pnpm --filter @markflow/editor lint"
+        ],
+        "manual": [
+          "Exercise a screen reader (VoiceOver on macOS) through each dialog and confirm it reads labels and state changes."
+        ]
+      },
+      "notes": "The dialogs in `packages/editor/src/components/` lack audited ARIA semantics. Adding `jest-axe`/`@axe-core/react` coverage prevents regression as more UI lands.",
+      "status": "planned",
+      "passes": false,
+      "lastVerifiedAt": null
+    },
+    {
+      "id": "MF-112",
+      "title": "Performance budget guards editor open-to-interactive and keystroke latency on large documents",
+      "category": "phase-2-polish",
+      "area": "@markflow/editor",
+      "priority": 3,
+      "dependsOn": [
+        "MF-061",
+        "MF-063"
+      ],
+      "steps": [
+        "Capture open-to-interactive time, average keystroke latency, and scroll frame time on `harness/fixtures/mf-large-180k.md` using a Playwright or Vitest-browser harness.",
+        "Store the baseline in the repo and fail CI when any metric regresses by more than 10%.",
+        "Expose the latest metrics as a summary comment on pull requests."
+      ],
+      "verification": {
+        "automated": [
+          "pnpm --filter @markflow/editor exec vitest run",
+          "pnpm harness:verify"
+        ],
+        "manual": []
+      },
+      "notes": "No current perf guardrail exists despite the 180k-line fixture. A simple baseline + 10% threshold prevents silent slowdowns as features stack.",
+      "status": "planned",
+      "passes": false,
+      "lastVerifiedAt": null
+    },
+    {
+      "id": "MF-113",
+      "title": "Windows and Linux desktop packaging ships from CI alongside macOS builds",
+      "category": "phase-4-release",
+      "area": "@markflow/desktop",
+      "priority": 2,
+      "dependsOn": [],
+      "steps": [
+        "Extend the GitHub Actions release workflow to produce Windows `.exe` (NSIS) and Linux `.AppImage`/`.deb` artifacts in addition to the existing macOS `.dmg`.",
+        "Smoke-test each artifact (launch, open a file, toggle WYSIWYG, quit) on its native platform.",
+        "Publish the artifacts to the GitHub release, signed and notarized where applicable."
+      ],
+      "verification": {
+        "automated": [
+          "pnpm --filter @markflow/desktop build"
+        ],
+        "manual": [
+          "Launch the produced Windows and Linux artifacts and walk through the core editor workflow."
+        ]
+      },
+      "notes": "The README pitches \"publish anywhere\" but only `dist-mac` is produced today. Windows and Linux parity is required before the Phase 4 release cadence can be honest.",
+      "status": "ready",
+      "passes": false,
+      "lastVerifiedAt": null
+    },
+    {
+      "id": "MF-114",
+      "title": "Auto-update channel delivers signed beta builds on every main merge",
+      "category": "phase-4-release",
+      "area": "@markflow/desktop",
+      "priority": 2,
+      "dependsOn": [
+        "MF-113"
+      ],
+      "steps": [
+        "Wire `electron-updater` (or equivalent) into the desktop shell, pointed at the beta channel.",
+        "Ensure every `main` merge publishes a signed beta artifact and release feed entry.",
+        "Confirm an installed beta build detects a newer release and applies the update on relaunch."
+      ],
+      "verification": {
+        "automated": [
+          "pnpm --filter @markflow/desktop build"
+        ],
+        "manual": [
+          "Install a prior beta, merge to main, and confirm the running app upgrades itself."
+        ]
+      },
+      "notes": "README roadmap commits to beta builds on every `main` merge with auto-update. Requires packaging (MF-113) and release signing to land first.",
+      "status": "planned",
+      "passes": false,
+      "lastVerifiedAt": null
+    },
+    {
+      "id": "MF-115",
+      "title": "Superscript and subscript inline render unblocks MF-037",
+      "category": "phase-1-functional",
+      "area": "@markflow/editor",
+      "priority": 3,
+      "dependsOn": [
+        "MF-037"
+      ],
+      "steps": [
+        "Review the reason MF-037 is currently marked blocked and document the constraint in its notes.",
+        "Add an inline decoration similar to `packages/editor/src/editor/decorations/inlineHtmlDecoration.ts` that renders `~sub~` and `^sup^` (or the agreed Typora syntax) without mutating the source.",
+        "Cover the decoration with focused tests in `packages/editor/src/editor/__tests__/` and confirm it co-exists with existing emphasis parsing."
+      ],
+      "verification": {
+        "automated": [
+          "pnpm --filter @markflow/editor exec vitest run",
+          "pnpm --filter @markflow/editor lint",
+          "pnpm --filter @markflow/editor build"
+        ],
+        "manual": [
+          "Type sub/sup syntax in WYSIWYG mode and confirm the rendered output matches Typora."
+        ]
+      },
+      "notes": "Tracks the follow-up work to unblock MF-037 without reopening the original entry retroactively. Keeps the blocked entry honest while capturing the plan.",
+      "status": "planned",
+      "passes": false,
+      "lastVerifiedAt": null
+    },
+    {
+      "id": "MF-116",
+      "title": "Markdown parser receives property-based fuzz coverage for strict and tolerant modes",
+      "category": "code-health",
+      "area": "@markflow/editor",
+      "priority": 3,
+      "dependsOn": [
+        "MF-100"
+      ],
+      "steps": [
+        "Add a `fast-check` (or equivalent) property-based test suite that generates heading, list, and emphasis variants and compares strict vs. tolerant mode outcomes.",
+        "Ensure the suite asserts that no generated input crashes the parser or produces a decoration range outside the document.",
+        "Wire the suite into `pnpm test` without materially increasing CI runtime."
+      ],
+      "verification": {
+        "automated": [
+          "pnpm --filter @markflow/editor exec vitest run"
+        ],
+        "manual": []
+      },
+      "notes": "Strict vs. tolerant parsing (MF-100) is a common source of subtle bugs. Property-based coverage catches regressions that example-based tests miss.",
+      "status": "planned",
+      "passes": false,
+      "lastVerifiedAt": null
+    },
+    {
+      "id": "MF-117",
+      "title": "Theme hot-reload watches user CSS files and swaps variables without restarting the editor",
+      "category": "phase-2-polish",
+      "area": "@markflow/desktop",
+      "priority": 3,
+      "dependsOn": [
+        "MF-104"
+      ],
+      "steps": [
+        "Add a `~/.markflow/themes/` watcher in the desktop main process that emits change events for `.css` files.",
+        "Hot-swap the renderer theme by replacing the injected stylesheet and reapplying CSS variables without reloading the window.",
+        "Expose theme selection (including community themes) from the preferences dialog."
+      ],
+      "verification": {
+        "automated": [
+          "pnpm --filter @markflow/desktop exec vitest run",
+          "pnpm --filter @markflow/editor exec vitest run"
+        ],
+        "manual": [
+          "Edit a theme CSS file on disk and confirm the running editor updates without restart."
+        ]
+      },
+      "notes": "Phase 2 roadmap item. Pairs naturally with the unified preferences dialog (MF-108) and unlocks a community-themes story.",
+      "status": "planned",
+      "passes": false,
+      "lastVerifiedAt": null
+    },
+    {
+      "id": "MF-118",
+      "title": "Plugin API beta exposes commands, markdown post-processors, and custom views",
+      "category": "phase-3-extensibility",
+      "area": "@markflow/editor",
+      "priority": 3,
+      "dependsOn": [],
+      "steps": [
+        "Promote `packages/editor/src/editor/extensions/markdownPostProcessor.ts` into a documented public API with `registerMarkdownPostProcessor`, `registerCommand`, and `registerView` entry points.",
+        "Ship one reference plugin (for example a word-count badge) under `packages/plugin-examples/` and load it from a plugin directory.",
+        "Document the API surface, lifecycle, and security boundaries in `docs/plugin-api.md`."
+      ],
+      "verification": {
+        "automated": [
+          "pnpm --filter @markflow/editor exec vitest run",
+          "pnpm --filter @markflow/editor build"
+        ],
+        "manual": [
+          "Load the reference plugin in the desktop app and confirm it activates and deactivates cleanly."
+        ]
+      },
+      "notes": "Phase 3 roadmap cornerstone. Validating the shape with a real example plugin avoids designing the API in the abstract.",
+      "status": "planned",
+      "passes": false,
+      "lastVerifiedAt": null
+    },
+    {
+      "id": "MF-119",
+      "title": "Repo root cleanup removes stray one-shot scripts and legacy artifacts",
+      "category": "code-health",
+      "area": "repo",
+      "priority": 4,
+      "dependsOn": [],
+      "steps": [
+        "Audit the repository root (`fix_code_ranges.py`, `fix_footnote.py`, `fix_syntax_tree.py`, `fix_virtual.py`, `run_codex.sh`, `Bn/`, `dist-mac/`) and either move each into `scripts/` or delete it.",
+        "Update `.gitignore` so generated artifacts like `dist-mac/` are no longer tracked.",
+        "Confirm `pnpm build`, `pnpm test`, and `pnpm harness:verify` all still succeed after the cleanup."
+      ],
+      "verification": {
+        "automated": [
+          "pnpm test",
+          "pnpm harness:verify",
+          "pnpm build"
+        ],
+        "manual": []
+      },
+      "notes": "Stray files at the repo root make onboarding noisier and accidentally ship generated artifacts into PR diffs. Pure hygiene.",
+      "status": "planned",
+      "passes": false,
+      "lastVerifiedAt": null
+    },
+    {
+      "id": "MF-120",
+      "title": "Contributor documentation covers architecture, harness protocol, and release flow",
+      "category": "phase-4-release",
+      "area": "docs",
+      "priority": 4,
+      "dependsOn": [],
+      "steps": [
+        "Add `CONTRIBUTING.md` describing the monorepo layout (`packages/editor`, `packages/desktop`, `packages/shared`), the harness workflow, and the Lore-protocol commit style.",
+        "Add `CHANGELOG.md` generated from feature ledger promotions and release tags.",
+        "Extend `README.md` with a screenshot/GIF section demonstrating WYSIWYG toggling, tables, math, and dark mode."
+      ],
+      "verification": {
+        "automated": [],
+        "manual": [
+          "Follow the documented contributor flow end-to-end on a fresh clone and confirm every step works without tribal knowledge."
+        ]
+      },
+      "notes": "Phase 4 cadence (monthly releases, public RFCs) needs documented process. The screenshot gallery also improves the project pitch on GitHub.",
+      "status": "planned",
+      "passes": false,
+      "lastVerifiedAt": null
+    },
+    {
+      "id": "MF-121",
+      "title": "Central command registry backs the command palette, menus, and custom keybindings",
+      "category": "phase-2-polish",
+      "area": "@markflow/editor",
+      "priority": 3,
+      "dependsOn": [
+        "MF-074",
+        "MF-096"
+      ],
+      "steps": [
+        "Extend `packages/editor/src/components/commandPaletteRegistry.ts` into a single command registry that owns id, title, default keybinding, and handler for every editor and desktop action.",
+        "Refactor the command palette, desktop menu builder, and keymap extension to read from the registry.",
+        "Expose the registry to the custom keybinding editor (MF-096) so user overrides live alongside defaults."
+      ],
+      "verification": {
+        "automated": [
+          "pnpm --filter @markflow/editor exec vitest run",
+          "pnpm --filter @markflow/desktop exec vitest run"
+        ],
+        "manual": []
+      },
+      "notes": "Commands are currently registered in multiple places (palette, menu, keymap). Unifying them is the prerequisite for a usable keybinding editor and for surfacing per-command help.",
+      "status": "planned",
       "passes": false,
       "lastVerifiedAt": null
     }

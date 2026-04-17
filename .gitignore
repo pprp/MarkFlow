@@ -9,6 +9,7 @@ dist/
 
 # Electron-builder packaged apps (local dev builds)
 out/
+dist-desktop/
 dist-mac/
 dist-win/
 dist-linux/

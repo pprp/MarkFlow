@@ -2,14 +2,24 @@ import fs from 'node:fs'
 import path from 'node:path'
 
 const repoRoot = path.resolve(import.meta.dirname, '../..')
-const outputDir = path.join(repoRoot, 'dist-mac')
+const outputDir = path.join(repoRoot, 'dist-desktop')
+
+const keepFilePatterns = [
+  /\.AppImage$/u,
+  /\.blockmap$/u,
+  /\.deb$/u,
+  /\.dmg$/u,
+  /\.exe$/u,
+  /\.yml$/u,
+  /\.zip$/u,
+]
 
 if (!fs.existsSync(outputDir)) {
   process.exit(0)
 }
 
 for (const entry of fs.readdirSync(outputDir, { withFileTypes: true })) {
-  if (entry.isFile() && entry.name.endsWith('.zip')) {
+  if (entry.isFile() && keepFilePatterns.some((pattern) => pattern.test(entry.name))) {
     continue
   }
 

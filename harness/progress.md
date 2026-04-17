@@ -5557,3 +5557,47 @@
   - none
 - Next recommended feature:
   - `MF-107` - run the pending macOS manual export comparison for HTML/PDF, then set `passes` / `lastVerifiedAt` only if rendered fidelity, theme carry-over, heading numbering, long-document pagination, and unwritable-path UX all match the ledger contract
+### 2026-04-17 - MF-113 adds Windows/Linux CI packaging and keeps the ledger honest while native manual checks remain pending
+
+- Author: Codex
+- Focus: obey the startup protocol for `MF-113`, implement only the multi-platform desktop packaging feature, run the required automated verification plus `pnpm harness:verify`, keep the ledger truthful because this session cannot perform native Windows/Linux manual walkthroughs, and finish with a Lore-protocol commit.
+- What changed:
+  - re-read the root `AGENTS.md`, ran `pnpm harness:start`, and ran `./harness/init.sh --smoke` before implementation; both passed in this session
+  - expanded `.github/workflows/ci.yml` from a single macOS release lane into a native-runner matrix for macOS, Windows, and Linux, with sequential release uploads to avoid multi-job draft-release races, platform-appropriate signing/notarization environment passthrough, and native smoke-test steps for `.dmg`, `NSIS .exe`, `.AppImage`, and `.deb` artifacts after packaging
+  - extended `packages/desktop/electron-builder.yml` so desktop release packaging now targets macOS `dmg`/`zip`, Windows `nsis`, and Linux `AppImage`/`deb`, and moved the shared output directory from `dist-mac` to the neutral `dist-desktop`
+  - updated `scripts/build/cleanBuildArtifacts.mjs`, `scripts/build/prunePackArtifacts.mjs`, and `.gitignore` so local packaging cleanup/retention rules understand the new neutral output directory and keep the cross-platform release artifacts plus update metadata instead of only mac zip files
+  - added `scripts/ci/smoke-packaged-app.mjs`, a no-product-hook Chromium CDP smoke script that launches a packaged build, opens a real markdown file by CLI path, confirms the document loads, toggles `Preview` -> `Source` -> `Preview`, and closes the app cleanly; the CI workflow now reuses this script on each platform-specific packaged artifact
+  - updated only `MF-113` in `harness/feature-ledger.json` from `planned` to `ready`; `passes` and `lastVerifiedAt` remain untouched because the required Windows/Linux manual artifact walkthroughs were not truthfully completed in this macOS terminal session
+- Changed files:
+  - `.github/workflows/ci.yml`
+  - `packages/desktop/electron-builder.yml`
+  - `scripts/ci/smoke-packaged-app.mjs`
+  - `scripts/build/cleanBuildArtifacts.mjs`
+  - `scripts/build/prunePackArtifacts.mjs`
+  - `.gitignore`
+  - `harness/feature-ledger.json`
+  - `harness/progress.md`
+- Simplifications made:
+  - kept the packaging change inside the existing GitHub Actions release workflow instead of introducing a second release pipeline or a new publishing service
+  - reused `electron-builder`'s built-in GitHub publishing path and native platform runners rather than building a separate artifact staging/upload abstraction for this feature
+  - implemented one reusable packaged-app smoke script driven by Chromium CDP instead of adding test-only product IPC hooks or divergent per-platform UI automation code
+- Verification:
+  - `pnpm harness:start` (passes)
+  - `./harness/init.sh --smoke` (passes; reran current workspace smoke verification and `pnpm harness:verify` plus repo tests)
+  - `node --check scripts/ci/smoke-packaged-app.mjs` (passes)
+  - `node --check scripts/build/cleanBuildArtifacts.mjs` (passes)
+  - `node --check scripts/build/prunePackArtifacts.mjs` (passes)
+  - `node scripts/ci/smoke-packaged-app.mjs --executable dist-mac/mac-arm64/MarkFlow.app/Contents/MacOS/MarkFlow` (passes; validated the new packaged-app smoke harness against an existing packaged macOS build)
+  - `pnpm --filter @markflow/desktop build` (passes)
+  - `pnpm harness:verify` (passes before ledger/progress update)
+  - `pnpm --filter @markflow/editor build` (passes; required to package renderer assets for the focused electron-builder check)
+  - `pnpm --filter @markflow/desktop exec electron-builder --config electron-builder.yml --mac dir --publish never` (passes; produced `dist-desktop/mac-arm64/MarkFlow.app` from the new packaging config and skipped signing on this machine because no valid Developer ID identity was present)
+  - `node scripts/ci/smoke-packaged-app.mjs --executable dist-desktop/mac-arm64/MarkFlow.app/Contents/MacOS/MarkFlow` (passes; validated the newly generated packaged app from the updated config)
+- Review / risks:
+  - `MF-113` implementation is in place and the workflow/config/smoke path is locally validated on macOS, but `passes` must remain `false` until someone launches the produced Windows and Linux artifacts on their native platforms and walks the core editor flow by hand
+  - CI publishing is wired to pass through macOS notarization and Windows signing environment variables, but this terminal session cannot prove repository-secret correctness or successful signing/notarization because those credentials are not available locally
+  - the workflow serializes the release matrix (`max-parallel: 1`) as a deliberate guard against draft-release creation/upload races across three native jobs; if future release automation changes how assets are staged, that sequencing assumption should be revisited before parallelizing
+- Newly verified features:
+  - none
+- Next recommended feature:
+  - `MF-113` - run the pending native Windows and Linux packaged-artifact walkthroughs in CI-capable environments, confirm GitHub release uploads are signed/notarized where applicable, and only then set `passes=true` / `lastVerifiedAt`
