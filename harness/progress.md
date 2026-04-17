@@ -1,3 +1,27 @@
+### 2026-04-17 - MF-051 session pass-through (automation verified, manual desktop scroll-sync blocked)
+
+- Author: Codex
+- Focus: enforce one-feature protocol for `MF-051` and keep verification state truthful.
+- What changed:
+  - Re-ran `pnpm harness:start`.
+  - Re-ran `./harness/init.sh --smoke`.
+  - Re-ran MF-051 automated verification:
+    - `pnpm --filter @markflow/editor test:run -- src/__tests__/App.test.tsx src/editor/__tests__/MarkFlowEditor.test.tsx src/editor/__tests__/outline.test.ts`
+  - Re-ran `pnpm harness:verify`.
+- Verification results:
+  - `pnpm harness:start` pass.
+  - `./harness/init.sh --smoke` pass.
+  - MF-051 automated command pass (`451` tests, `3` skipped).
+  - `pnpm harness:verify` pass (`features: 121 total | verified=66 | ready=39 | planned=15 | blocked=1 | regression=0`).
+- Risks / blocker (environment-limited):
+  - Manual desktop scroll-sync proof for `MF-051` (multi-section document, viewport scrolling updates active outline item) could not be executed in this environment.
+  - No source, test, or ledger status changes were made in this feature pass.
+- Next recommended step:
+  - Run trusted manual desktop UI verification for MF-051 and only then update `harness/feature-ledger.json`:
+    - `MF-051.status = verified`
+    - `MF-051.passes = true`
+    - `MF-051.lastVerifiedAt = <timestamp>`
+
 ### 2026-04-17 - MF-051 protocol-compliant rerun (automation complete, manual blocked)
 
 - Author: Codex
