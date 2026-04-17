@@ -5601,3 +5601,46 @@
   - none
 - Next recommended feature:
   - `MF-113` - run the pending native Windows and Linux packaged-artifact walkthroughs in CI-capable environments, confirm GitHub release uploads are signed/notarized where applicable, and only then set `passes=true` / `lastVerifiedAt`
+### 2026-04-17 - MF-109 decomposed the editor app shell and kept the remaining 180k latency gap explicit
+
+- Author: Codex
+- Focus: obey the startup protocol for `MF-109`, refactor only `@markflow/editor` app-shell structure, run the required automated verification plus `pnpm harness:verify`, compare rebuild time against a pre-refactor baseline, and keep the ledger honest if the 180k keystroke proof cannot be completed truthfully.
+- What changed:
+  - re-read the root `AGENTS.md`, ran `pnpm harness:start`, and ran `./harness/init.sh --smoke` before touching code; both passed in this session
+  - split the former monolithic `packages/editor/src/App.tsx` into focused app-shell modules: shared document/tab helpers in `packages/editor/src/app-shell/documents.ts`, search-dialog state in `useSearchDialogs.ts`, status-bar popover state in `useStatusBarPanels.ts`, the status-bar/statistics UI in `AppStatusBar.tsx`, command-palette registration in `useCommandPaletteActions.ts`, desktop IPC/startup hydration in `useDesktopBridge.ts`, and navigation-history / cross-surface jump handling in `useNavigationHistoryController.ts`
+  - rewired `packages/editor/src/App.tsx` to compose those extracted hooks/components, reducing the file from `3,896` lines at `HEAD` to `1,902` lines while preserving the existing integration surface
+  - stabilized the callbacks consumed by the extracted desktop-bridge effect so the refactor does not re-register IPC listeners or spin the startup bridge on every render; this was the key fix that stopped the post-extraction App test suite from stalling
+  - updated only `MF-109` in `harness/feature-ledger.json` from `planned` to `ready`; `passes` stays `false` and `lastVerifiedAt` stays `null` because the final 180k live keystroke-latency proof could not be completed honestly from this terminal session
+- Changed files:
+  - `packages/editor/src/App.tsx`
+  - `packages/editor/src/app-shell/documents.ts`
+  - `packages/editor/src/app-shell/useSearchDialogs.ts`
+  - `packages/editor/src/app-shell/useStatusBarPanels.ts`
+  - `packages/editor/src/app-shell/AppStatusBar.tsx`
+  - `packages/editor/src/app-shell/useCommandPaletteActions.ts`
+  - `packages/editor/src/app-shell/useDesktopBridge.ts`
+  - `packages/editor/src/app-shell/useNavigationHistoryController.ts`
+  - `harness/feature-ledger.json`
+  - `harness/progress.md`
+- Simplifications made:
+  - kept the refactor inside the existing editor shell instead of introducing a new global state layer or new dependencies
+  - extracted behavior along existing responsibility seams, so desktop IPC, palette actions, search overlays, navigation history, and status-bar UI each have one owner instead of being interleaved inside `App.tsx`
+  - reused the existing integration tests as the parity lock instead of widening the task into a second feature or a bespoke refactor-only harness inside the product code
+- Verification:
+  - `pnpm harness:start` (passes)
+  - `./harness/init.sh --smoke` (passes)
+  - `pnpm --filter @markflow/editor exec tsc --noEmit` (passes)
+  - `pnpm --filter @markflow/editor exec vitest run src/__tests__/App.test.tsx --reporter=verbose` (passes; `53/53` App integration cases)
+  - `pnpm --filter @markflow/editor exec vitest run` (passes; `40` files / `438` tests with `3` skipped)
+  - `pnpm --filter @markflow/editor lint` (passes)
+  - `pnpm --filter @markflow/editor build` (passes)
+  - `pnpm harness:verify` (passes before the ledger/progress update and will be re-run after this handoff update)
+  - baseline vs current incremental rebuild comparison with the same temporary Vite watch harness (passes for parity): detached-`HEAD` rebuilds `3808 ms`, `4097 ms`, `4218 ms` versus current rebuilds `3981 ms`, `3943 ms`, `4077 ms`; current average `4000 ms` is slightly below the baseline average `4041 ms`
+- Review / risks:
+  - `MF-109` is implemented and automated parity is green, but `passes` must remain `false` until someone completes a trustworthy 180k live typing probe and confirms keystroke latency is not worse than before the refactor
+  - I attempted that proof with a no-product-hook Electron dev + Chromium CDP harness against the real `harness/fixtures/mf-large-180k.md`, but the terminal-driven path could not produce a trustworthy “large fixture loaded, cursor parked mid-document, live keystroke measured” state; rather than inventing a number, the gap remains explicit
+  - the extracted hooks are now easier to review and isolate, but the desktop bridge still depends on stable callback identities; if future edits widen those dependency arrays casually, App-level regressions will likely first show up as startup/IPC churn rather than type failures
+- Newly verified features:
+  - none
+- Next recommended feature:
+  - `MF-109` - run a packaged-app or browser-driven 180k keystroke-latency probe that can truthfully confirm large-fixture startup hydration, mid-document caret placement, and live typing response; only then set `passes=true` and `lastVerifiedAt`

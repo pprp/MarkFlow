@@ -1,32 +1,36 @@
 import { type ChangeEvent, type FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { AppStatusBar } from './app-shell/AppStatusBar'
+import {
+  INITIAL_CONTENT,
+  buildWindowSessionState,
+  createDocumentTab,
+  findTabIndex,
+  getCurrentLineNumberForTab,
+  getTabLabel,
+  getTotalLinesForTab,
+  type ClosedDocumentTabState,
+  type DocumentTabState,
+  type MarkFlowStartupAPI,
+} from './app-shell/documents'
+import { useCommandPaletteActions } from './app-shell/useCommandPaletteActions'
+import { useDesktopBridge } from './app-shell/useDesktopBridge'
+import { useNavigationHistoryController } from './app-shell/useNavigationHistoryController'
+import { useSearchDialogs } from './app-shell/useSearchDialogs'
+import { useStatusBarPanels } from './app-shell/useStatusBarPanels'
 import {
   MarkFlowEditor,
   type MarkFlowEditorHandle,
   type MarkFlowEditorSnapshot,
 } from './editor/MarkFlowEditor'
-import { createEmptySymbolTable, type SymbolTable } from './editor/indexer'
-import {
-  canNavigateBack,
-  canNavigateForward,
-  createEmptyNavigationHistory,
-  navigateBackInHistory,
-  navigateForwardInHistory,
-  pushNavigationHistoryEntry,
-  type NavigationLocation,
-} from './editor/navigationHistory'
-import { fileUrlToPath, resolveLinkHref } from './editor/decorations/linkDecoration'
+import { type SymbolTable } from './editor/indexer'
 import { findActiveHeadingAnchor } from './editor/outline'
-import { computeStats } from './editor/wordCount'
 import { CommandPalette } from './components/CommandPalette'
 import { QuickOpen } from './components/QuickOpen'
 import { VaultSidebar } from './components/VaultSidebar'
 import { GlobalSearch } from './components/GlobalSearch'
 import { GoToLine } from './components/GoToLine'
 import { Minimap, type MinimapScrollMetrics } from './components/Minimap'
-import type {
-  CommandPaletteAction,
-  RegisteredCommandPaletteAction,
-} from './components/commandPaletteRegistry'
+import type { RegisteredCommandPaletteAction } from './components/commandPaletteRegistry'
 import { serializeMarkdownSelectionForClipboard } from './editor/clipboard'
 import { areCollapsedRangesEqual } from './editor/foldingState'
 import { createExternalLinkBadgePlugin } from './plugins/externalLinkBadgePlugin'
@@ -36,21 +40,14 @@ import {
   type MarkFlowAppearancePreference,
   type MarkFlowDesktopAPI,
   type MarkFlowQuickOpenItem,
-  type MarkFlowDocument,
-  type MarkFlowFilePayload,
   type MarkFlowFileLoadProgressPayload,
   type MarkFlowImageUploadSettings,
-  type MarkFlowLargeFileWindow,
-  type MarkFlowMenuActionPayload,
-  type MarkFlowRecoveryCheckpoint,
   type MarkFlowSpellCheckState,
   type MarkFlowTabCloseAction,
   type MarkFlowThemeState,
   type MarkFlowThemeSummary,
   type ViewMode,
   type MarkFlowWindowState,
-  type MarkFlowWindowSessionState,
-  type SearchResult,
 } from '@markflow/shared'
 import {
   loadLocalSpellCheckState,
@@ -76,7 +73,6 @@ import {
   persistLocalStatisticsPreferences,
 } from './statisticsPreferences'
 import {
-  formatMarkdownModeStatus,
   loadLocalMarkdownModePreference,
   persistLocalMarkdownModePreference,
   type MarkFlowMarkdownMode,
@@ -96,119 +92,8 @@ function formatLoadingBytes(bytes: number) {
   return `${bytes} B`
 }
 
-const INITIAL_CONTENT = `# Welcome to MarkFlow
-
-*Write in flow, publish anywhere.*
-
-## Features
-
-- **WYSIWYG editing** — markdown syntax hides when you move your cursor away
-- *Italic*, **bold**, and \`inline code\` rendered inline
-- [Links](https://example.com) displayed as clickable text
-
-## Getting Started
-
-Start typing here! Try writing some markdown and watch it render in real time.
-
-### Code Example
-
-\`\`\`typescript
-function greet(name: string): string {
-  return \`Hello, \${name}!\`
-}
-\`\`\`
-
-### A Quote
-
-> The best way to predict the future is to invent it.
-> — Alan Kay
-
-### Task List
-
-- [x] Set up CodeMirror 6
-- [x] Implement inline decorations
-- [ ] Add export support
-- [x] Build plugin system
-
----
-
-## Math — KaTeX
-
-Inline math: $E = mc^2$ and $\\pi \\approx 3.14159$.
-
-Display math:
-
-$$
-\\int_0^\\infty e^{-x^2} dx = \\frac{\\sqrt{\\pi}}{2}
-$$
-
-## Mermaid Diagram
-
-\`\`\`mermaid
-graph TD
-  A[Start] --> B{Is it working?}
-  B -->|Yes| C[Great!]
-  B -->|No| D[Debug]
-  D --> B
-\`\`\`
-
-## Table
-
-| Feature   | Status  | Priority |
-|-----------|---------|----------|
-| Math      | ✅ Done  | High     |
-| Mermaid   | ✅ Done  | High     |
-| Tables    | ✅ Done  | Medium   |
-| Export    | Partial | Low      |
-
-## Image
-
-![MarkFlow placeholder](https://via.placeholder.com/400x120?text=MarkFlow+Image+Test)
-
-## Footnote
-
-This has a footnote[^1] and another[^2].
-
-[^1]: First footnote — rendered correctly.
-[^2]: Second footnote — also rendered.
-
----
-
-Happy writing!
-`
-
-function getLineNumberAtPosition(content: string, position: number) {
-  const boundedPosition = Math.max(0, Math.min(position, content.length))
-  let lineNumber = 1
-
-  for (let index = 0; index < boundedPosition; index += 1) {
-    if (content.charCodeAt(index) === 10) {
-      lineNumber += 1
-    }
-  }
-
-  return lineNumber
-}
-
 function formatAppearanceLabel(appearance: MarkFlowAppearance) {
   return appearance === 'dark' ? 'Dark' : 'Light'
-}
-
-function formatSpellCheckLanguageLabel(language: string | null) {
-  return language ?? 'Default'
-}
-
-function formatHeadingNumberingStatus(enabled: boolean) {
-  return enabled ? 'Headings: 1.2' : 'Headings: Plain'
-}
-
-function formatSourceLineNumbersStatus(enabled: boolean) {
-  return enabled ? 'Source lines: On' : 'Source lines: Off'
-}
-
-function formatReadingTime(minutes: number, suffix: 'panel' | 'statusbar' = 'panel') {
-  const label = `${minutes.toLocaleString()} min`
-  return suffix === 'statusbar' ? `${label} read` : label
 }
 
 type AppToast = {
@@ -264,14 +149,6 @@ function replaceNthOccurrence(
   return null
 }
 
-function formatImageUploadStatus(settings: MarkFlowImageUploadSettings | null) {
-  if (!settings || !settings.autoUploadOnInsert || settings.uploaderKind === 'disabled') {
-    return 'Uploads: Off'
-  }
-
-  return settings.uploaderKind === 'picgo-core' ? 'Uploads: PicGo' : 'Uploads: Custom'
-}
-
 function isEditorCopyContext() {
   const activeElement = document.activeElement
 
@@ -294,163 +171,6 @@ function isEditorCopyContext() {
     selectionAnchor instanceof Element ? selectionAnchor : selectionAnchor.parentElement
 
   return selectionElement?.closest(EDITOR_ROOT_SELECTOR) != null
-}
-
-function getLineStartPosition(content: string, requestedLineNumber: number) {
-  const totalLines = content.length === 0 ? 1 : content.split('\n').length
-  const clampedLineNumber = Math.max(1, Math.min(requestedLineNumber, totalLines))
-
-  if (clampedLineNumber === 1) {
-    return 0
-  }
-
-  let currentLine = 1
-  for (let index = 0; index < content.length; index += 1) {
-    if (content.charCodeAt(index) === 10) {
-      currentLine += 1
-      if (currentLine === clampedLineNumber) {
-        return index + 1
-      }
-    }
-  }
-
-  return content.length
-}
-
-function getLineColumnPosition(content: string, lineNumber: number, column: number) {
-  const lineStart = getLineStartPosition(content, lineNumber)
-  const boundedColumn = Math.max(0, column)
-  const lineEndIndex = content.indexOf('\n', lineStart)
-  const lineEnd = lineEndIndex >= 0 ? lineEndIndex : content.length
-  return Math.min(lineStart + boundedColumn, lineEnd)
-}
-
-let tabIdCounter = 0
-let untitledTabCounter = 0
-
-interface DocumentTabState extends MarkFlowDocument {
-  id: string
-  recoveryTabId: string | null
-  largeFile: MarkFlowLargeFileWindow | null
-  persistedContent: string
-  collapsedRanges: number[]
-  cursorPosition: number
-  viewportPosition: number | null
-  selectionText: string
-  symbolTable: SymbolTable
-  snapshot: MarkFlowEditorSnapshot | null
-  untitledLabel: string
-}
-
-interface ClosedDocumentTabState {
-  closedIndex: number
-  tab: DocumentTabState
-}
-
-interface AppStartupState {
-  document: MarkFlowFilePayload | null
-  folderPath: string | null
-  windowSession: {
-    documents: MarkFlowFilePayload[]
-    activeFilePath: string | null
-  } | null
-}
-
-type MarkFlowStartupAPI = MarkFlowDesktopAPI & {
-  getStartupState: () => Promise<AppStartupState>
-}
-
-type PendingNavigationTarget = NavigationLocation & {
-  preserveScroll?: boolean
-}
-
-function createTabId() {
-  tabIdCounter += 1
-  return `tab-${tabIdCounter}`
-}
-
-function createUntitledLabel(content: string) {
-  if (content === INITIAL_CONTENT) {
-    return 'Starter Document'
-  }
-
-  untitledTabCounter += 1
-  return untitledTabCounter === 1 ? 'Untitled' : `Untitled ${untitledTabCounter}`
-}
-
-function createDocumentTab(
-  filePath: string | null,
-  content: string,
-  largeFile: MarkFlowLargeFileWindow | null = null,
-): DocumentTabState {
-  return {
-    id: createTabId(),
-    recoveryTabId: null,
-    largeFile,
-    filePath,
-    content,
-    persistedContent: content,
-    isDirty: false,
-    collapsedRanges: [],
-    cursorPosition: 0,
-    viewportPosition: null,
-    selectionText: '',
-    symbolTable: createEmptySymbolTable(),
-    snapshot: null,
-    untitledLabel: createUntitledLabel(content),
-  }
-}
-
-function getTotalLinesForTab(tab: DocumentTabState | null) {
-  if (!tab) {
-    return 1
-  }
-
-  return tab.largeFile?.totalLines ?? (tab.content.length ? tab.content.split('\n').length : 1)
-}
-
-function getCurrentLineNumberForTab(tab: DocumentTabState | null) {
-  if (!tab) {
-    return 1
-  }
-
-  const localLineNumber = getLineNumberAtPosition(tab.content, tab.cursorPosition)
-  if (!tab.largeFile) {
-    return localLineNumber
-  }
-
-  return Math.min(
-    tab.largeFile.totalLines,
-    tab.largeFile.windowStartLine + localLineNumber - 1,
-  )
-}
-
-function getTabLabel(tab: DocumentTabState, loadingFile: MarkFlowFileLoadProgressPayload | null = null) {
-  if (tab.filePath) {
-    return tab.filePath.split(/[\\/]/).at(-1) ?? tab.filePath
-  }
-
-  if (loadingFile?.filePath) {
-    return loadingFile.filePath.split(/[\\/]/).at(-1) ?? loadingFile.filePath
-  }
-
-  return tab.untitledLabel
-}
-
-function findTabIndex(tabs: readonly DocumentTabState[], tabId: string | null) {
-  return tabs.findIndex((tab) => tab.id === tabId)
-}
-
-function buildWindowSessionState(
-  tabs: readonly DocumentTabState[],
-  activeTabId: string | null,
-): MarkFlowWindowSessionState {
-  const filePaths = tabs.flatMap((tab) => (tab.filePath ? [tab.filePath] : []))
-  const activeFilePath = tabs.find((tab) => tab.id === activeTabId)?.filePath ?? null
-  return {
-    filePaths,
-    activeFilePath,
-  }
 }
 
 export function App() {
@@ -481,28 +201,33 @@ export function App() {
   const [spellCheckState, setSpellCheckState] = useState<MarkFlowSpellCheckState>(() =>
     loadLocalSpellCheckState(),
   )
-  const [isDocumentStatisticsOpen, setIsDocumentStatisticsOpen] = useState(false)
-  const [isMarkdownModeSettingsOpen, setIsMarkdownModeSettingsOpen] = useState(false)
-  const [isSpellCheckSettingsOpen, setIsSpellCheckSettingsOpen] = useState(false)
-  const [isHeadingNumberingSettingsOpen, setIsHeadingNumberingSettingsOpen] = useState(false)
-  const [isSourceLineNumbersSettingsOpen, setIsSourceLineNumbersSettingsOpen] = useState(false)
   const [spellCheckWordInput, setSpellCheckWordInput] = useState('')
   const [imageUploadSettings, setImageUploadSettings] = useState<MarkFlowImageUploadSettings | null>(null)
-  const [isImageUploadSettingsOpen, setIsImageUploadSettingsOpen] = useState(false)
-  const [isGlobalSearchOpen, setIsGlobalSearchOpen] = useState(false)
-  const [isGoToLineOpen, setIsGoToLineOpen] = useState(false)
+  const statusBarPanels = useStatusBarPanels()
+  const {
+    closeStatusbarPanels,
+    isDocumentStatisticsOpen,
+    toggleDocumentStatistics,
+  } = statusBarPanels
+  const {
+    closeCommandPalette,
+    closeGlobalSearch,
+    closeGoToLine,
+    closeQuickOpen,
+    isCommandPaletteOpen,
+    isGlobalSearchOpen,
+    isGoToLineOpen,
+    isQuickOpenOpen,
+    openCommandPalette,
+    openGlobalSearch,
+    openGoToLine,
+    openQuickOpen,
+    toggleGlobalSearch,
+  } = useSearchDialogs()
   const [themes, setThemes] = useState<MarkFlowThemeSummary[]>([])
   const [themeState, setThemeState] = useState<MarkFlowThemeState | null>(null)
   const [toasts, setToasts] = useState<AppToast[]>([])
-  const [editorNavigationRequest, setEditorNavigationRequest] = useState<{
-    key: number
-    position: number
-    scrollTop?: number | null
-  } | null>(null)
-  const [pendingNavigationTarget, setPendingNavigationTarget] = useState<PendingNavigationTarget | null>(null)
   const [outlineCollapsed, setOutlineCollapsed] = useState(false)
-  const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false)
-  const [isQuickOpenOpen, setIsQuickOpenOpen] = useState(false)
   const [isExporting, setIsExporting] = useState(false)
   const [quickOpenItems, setQuickOpenItems] = useState<MarkFlowQuickOpenItem[]>([])
   const [tabs, setTabs] = useState<DocumentTabState[]>(() => [createDocumentTab(null, INITIAL_CONTENT)])
@@ -529,23 +254,9 @@ export function App() {
   const handlePandocExportRef = useRef<
     (action: 'export-docx' | 'export-epub' | 'export-latex') => Promise<void>
   >(async () => {})
-  const editorNavigationKeyRef = useRef(0)
-  const navigationHistoryRef = useRef(createEmptyNavigationHistory())
   const pluginHostRef = useRef<MarkFlowPluginHost | null>(null)
   const editorRef = useRef<MarkFlowEditorHandle | null>(null)
   const editorShellRef = useRef<HTMLDivElement | null>(null)
-  const documentStatisticsButtonRef = useRef<HTMLButtonElement | null>(null)
-  const documentStatisticsPanelRef = useRef<HTMLDivElement | null>(null)
-  const markdownModeButtonRef = useRef<HTMLButtonElement | null>(null)
-  const markdownModePanelRef = useRef<HTMLDivElement | null>(null)
-  const headingNumberingButtonRef = useRef<HTMLButtonElement | null>(null)
-  const headingNumberingPanelRef = useRef<HTMLDivElement | null>(null)
-  const sourceLineNumbersButtonRef = useRef<HTMLButtonElement | null>(null)
-  const sourceLineNumbersPanelRef = useRef<HTMLDivElement | null>(null)
-  const spellCheckButtonRef = useRef<HTMLButtonElement | null>(null)
-  const spellCheckPanelRef = useRef<HTMLDivElement | null>(null)
-  const imageUploadButtonRef = useRef<HTMLButtonElement | null>(null)
-  const imageUploadPanelRef = useRef<HTMLDivElement | null>(null)
   const toastIdRef = useRef(0)
 
   if (pluginHostRef.current === null) {
@@ -578,25 +289,6 @@ export function App() {
   const updateMarkdownModePreference = useCallback((mode: MarkFlowMarkdownMode) => {
     setMarkdownMode(mode)
     persistLocalMarkdownModePreference(mode)
-  }, [])
-
-  const closeStatusbarPanels = useCallback(() => {
-    setIsDocumentStatisticsOpen(false)
-    setIsMarkdownModeSettingsOpen(false)
-    setIsHeadingNumberingSettingsOpen(false)
-    setIsSourceLineNumbersSettingsOpen(false)
-    setIsSpellCheckSettingsOpen(false)
-    setIsImageUploadSettingsOpen(false)
-  }, [])
-
-  const toggleDocumentStatistics = useCallback(() => {
-    setIsMarkdownModeSettingsOpen(false)
-    setIsHeadingNumberingSettingsOpen(false)
-    setIsSourceLineNumbersSettingsOpen(false)
-    setIsSpellCheckSettingsOpen(false)
-    setIsImageUploadSettingsOpen(false)
-    setIsDocumentStatisticsOpen((current) => !current)
-    return true
   }, [])
 
   const activeTab = useMemo(() => {
@@ -717,65 +409,9 @@ export function App() {
     })
   }, [])
 
-  useEffect(() => {
-    if (
-      !isDocumentStatisticsOpen &&
-      !isMarkdownModeSettingsOpen &&
-      !isHeadingNumberingSettingsOpen &&
-      !isSourceLineNumbersSettingsOpen &&
-      !isSpellCheckSettingsOpen &&
-      !isImageUploadSettingsOpen
-    ) {
-      return
-    }
-
-    const handlePointerDown = (event: PointerEvent) => {
-      const target = event.target
-      if (
-        (target instanceof Node && documentStatisticsPanelRef.current?.contains(target)) ||
-        (target instanceof Node && documentStatisticsButtonRef.current?.contains(target)) ||
-        (target instanceof Node && markdownModePanelRef.current?.contains(target)) ||
-        (target instanceof Node && markdownModeButtonRef.current?.contains(target)) ||
-        (target instanceof Node && headingNumberingPanelRef.current?.contains(target)) ||
-        (target instanceof Node && headingNumberingButtonRef.current?.contains(target)) ||
-        (target instanceof Node && sourceLineNumbersPanelRef.current?.contains(target)) ||
-        (target instanceof Node && sourceLineNumbersButtonRef.current?.contains(target)) ||
-        (target instanceof Node && spellCheckPanelRef.current?.contains(target)) ||
-        (target instanceof Node && spellCheckButtonRef.current?.contains(target)) ||
-        (target instanceof Node && imageUploadPanelRef.current?.contains(target)) ||
-        (target instanceof Node && imageUploadButtonRef.current?.contains(target))
-      ) {
-        return
-      }
-
-      closeStatusbarPanels()
-    }
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        closeStatusbarPanels()
-      }
-    }
-
-    document.addEventListener('pointerdown', handlePointerDown)
-    document.addEventListener('keydown', handleKeyDown)
-    return () => {
-      document.removeEventListener('pointerdown', handlePointerDown)
-      document.removeEventListener('keydown', handleKeyDown)
-    }
-  }, [
-    closeStatusbarPanels,
-    isDocumentStatisticsOpen,
-    isMarkdownModeSettingsOpen,
-    isHeadingNumberingSettingsOpen,
-    isImageUploadSettingsOpen,
-    isSourceLineNumbersSettingsOpen,
-    isSpellCheckSettingsOpen,
-  ])
-
   const isImmersiveMode = windowState.isFullscreen || isDistractionFreeMode
 
-  function applyThemeState(nextThemeState: MarkFlowThemeState | null) {
+  const applyThemeState = useCallback((nextThemeState: MarkFlowThemeState | null) => {
     const existing = document.getElementById(THEME_STYLE_ELEMENT_ID) as HTMLStyleElement | null
     const style = existing ?? document.createElement('style')
 
@@ -786,407 +422,23 @@ export function App() {
 
     style.textContent = nextThemeState?.activeTheme?.cssText ?? ''
     setThemeState(nextThemeState)
-  }
+  }, [])
 
-  useEffect(() => {
-    const api = window.markflow
-    if (!api) return
-
-    const applyOpenedDocument = async ({ filePath, content, largeFile }: MarkFlowFilePayload) => {
-      captureActiveTabSnapshot()
-      setLoadingFile((current) => (current?.filePath === filePath ? null : current))
-      setEditorNavigationRequest(null)
-      setIsGoToLineOpen(false)
-
-      const currentTabs = tabsRef.current
-      let nextTabs = currentTabs
-      let nextActiveId: string | null = null
-      let filePathToLoad: string | null = null
-      if (filePath) {
-        const existingTab = currentTabs.find((tab) => tab.filePath === filePath)
-        if (existingTab) {
-          nextActiveId = existingTab.id
-          if (existingTab.content !== content) {
-            filePathToLoad = largeFile ? null : filePath
-            nextTabs = currentTabs.map((tab) =>
-              tab.id === existingTab.id
-                ? {
-                    ...tab,
-                    recoveryTabId: null,
-                    largeFile: largeFile ?? null,
-                    content,
-                    persistedContent: content,
-                    isDirty: false,
-                    collapsedRanges: [],
-                    cursorPosition: 0,
-                    viewportPosition: null,
-                    selectionText: '',
-                    symbolTable: createEmptySymbolTable(),
-                    snapshot: null,
-                  }
-                : tab,
-            )
-          }
-        }
-      }
-
-      if (nextActiveId == null) {
-        const nextTab = createDocumentTab(filePath, content, largeFile ?? null)
-        nextActiveId = nextTab.id
-        filePathToLoad = largeFile ? null : filePath
-        nextTabs =
-          currentTabs.length === 1 &&
-          currentTabs[0].filePath == null &&
-          !currentTabs[0].isDirty &&
-          (currentTabs[0].content === INITIAL_CONTENT || currentTabs[0].content === '')
-            ? [nextTab]
-            : [...currentTabs, nextTab]
-      }
-
-      replaceTabs(nextTabs)
-
-      if (nextActiveId) {
-        replaceActiveTabId(nextActiveId)
-      }
-      if (nextActiveId && filePathToLoad) {
-        await loadCollapsedRangesForTab(api, nextActiveId, filePathToLoad)
-      }
-    }
-
-    const applyRecoveredDocuments = async (
-      checkpoint: MarkFlowRecoveryCheckpoint,
-      persistedDocuments: readonly MarkFlowFilePayload[],
-    ) => {
-      captureActiveTabSnapshot()
-      setLoadingFile(null)
-      setEditorNavigationRequest(null)
-      setIsGoToLineOpen(false)
-
-      let nextTabs = tabsRef.current
-      let nextActiveId: string | null = null
-      const fileLoads: Array<{ filePath: string; tabId: string }> = []
-
-      for (const recoveredDocument of checkpoint.documents) {
-        const persistedContent =
-          recoveredDocument.filePath
-            ? persistedDocuments.find((document) => document.filePath === recoveredDocument.filePath)?.content ?? ''
-            : ''
-        const existingTab = recoveredDocument.filePath
-          ? nextTabs.find((tab) => tab.filePath === recoveredDocument.filePath)
-          : null
-
-        if (existingTab) {
-          nextTabs = nextTabs.map((tab) =>
-            tab.id === existingTab.id
-              ? {
-                  ...tab,
-                  recoveryTabId: recoveredDocument.tabId,
-                  content: recoveredDocument.content,
-                  persistedContent,
-                  isDirty: recoveredDocument.content !== persistedContent,
-                  cursorPosition: 0,
-                  viewportPosition: null,
-                  selectionText: '',
-                  symbolTable: createEmptySymbolTable(),
-                  snapshot: null,
-                }
-              : tab,
-          )
-          if (recoveredDocument.filePath) {
-            fileLoads.push({ filePath: recoveredDocument.filePath, tabId: existingTab.id })
-          }
-          if (checkpoint.activeTabId === recoveredDocument.tabId) {
-            nextActiveId = existingTab.id
-          }
-          continue
-        }
-
-        const recoveredTab: DocumentTabState = {
-          ...createDocumentTab(recoveredDocument.filePath, recoveredDocument.content),
-          recoveryTabId: recoveredDocument.tabId,
-          persistedContent,
-          isDirty: recoveredDocument.content !== persistedContent,
-        }
-        nextTabs = [...nextTabs, recoveredTab]
-        if (recoveredDocument.filePath) {
-          fileLoads.push({ filePath: recoveredDocument.filePath, tabId: recoveredTab.id })
-        }
-        if (checkpoint.activeTabId === recoveredDocument.tabId) {
-          nextActiveId = recoveredTab.id
-        }
-      }
-
-      replaceTabs(nextTabs)
-      replaceActiveTabId(nextActiveId ?? activeTabIdRef.current ?? nextTabs[0]?.id ?? null)
-
-      await Promise.all(
-        fileLoads.map(({ filePath, tabId }) => loadCollapsedRangesForTab(api, tabId, filePath)),
-      )
-    }
-
-    const handleMenuAction = async ({ action, path }: MarkFlowMenuActionPayload) => {
-      switch (action) {
-        case 'new-file':
-          await api.newFile()
-          break
-        case 'open-file':
-          await api.openFile()
-          break
-        case 'open-recent-folder':
-          if (path) {
-            await handleOpenFolderPathRef.current(path)
-          }
-          break
-        case 'save-file':
-          await handleSaveTabRef.current(activeTabIdRef.current)
-          break
-        case 'save-file-as':
-          await handleSaveTabRef.current(activeTabIdRef.current, true)
-          break
-        case 'close-tab':
-          await handleCloseTabRef.current(activeTabIdRef.current)
-          break
-        case 'reopen-closed-tab':
-          await handleReopenClosedTabRef.current()
-          break
-        case 'next-tab':
-          handleCycleTabsRef.current(1)
-          break
-        case 'previous-tab':
-          handleCycleTabsRef.current(-1)
-          break
-        case 'toggle-minimap':
-          setShowMinimap((current) => !current)
-          break
-        case 'toggle-sidebar':
-          setShowSidebar((current) => !current)
-          break
-        case 'toggle-outline':
-          setOutlineCollapsed((current) => !current)
-          break
-        case 'toggle-document-statistics':
-          toggleDocumentStatistics()
-          break
-        case 'toggle-distraction-free':
-          toggleDistractionFreeMode()
-          break
-        case 'toggle-focus-mode':
-          toggleFocusMode()
-          break
-        case 'toggle-typewriter-mode':
-          toggleTypewriterMode()
-          break
-        case 'clear-formatting':
-          editorRef.current?.executeCommand('edit-clear-formatting')
-          break
-        case 'copy':
-        case 'copy-as-markdown':
-        case 'copy-as-html-code':
-          await handleCopyActionRef.current(action)
-          break
-        case 'export-html':
-          await handleExportRef.current('html')
-          break
-        case 'export-pdf':
-          await handleExportRef.current('pdf')
-          break
-        case 'export-docx':
-        case 'export-epub':
-        case 'export-latex':
-          await handlePandocExportRef.current(action)
-          break
-        case 'go-to-line':
-          setIsGoToLineOpen(true)
-          break
-        case 'navigate-back':
-          await handleNavigateBackRef.current()
-          break
-        case 'navigate-forward':
-          await handleNavigateForwardRef.current()
-          break
-        case 'command-palette':
-          setIsCommandPaletteOpen(true)
-          break
-        case 'quick-open':
-          await handleOpenQuickOpenRef.current()
-          break
-        case 'global-search':
-          setIsGlobalSearchOpen(true)
-          break
-        case 'format-bold':
-          editorRef.current?.executeCommand('edit-bold')
-          break
-        case 'format-italic':
-          editorRef.current?.executeCommand('edit-italic')
-          break
-        case 'format-strikethrough':
-          editorRef.current?.executeCommand('edit-strikethrough')
-          break
-        case 'format-code':
-          editorRef.current?.executeCommand('edit-inline-code')
-          break
-        case 'format-link':
-          editorRef.current?.executeCommand('edit-link')
-          break
-        case 'format-heading-1':
-          editorRef.current?.executeCommand('edit-heading-1')
-          break
-        case 'format-heading-2':
-          editorRef.current?.executeCommand('edit-heading-2')
-          break
-        case 'format-heading-3':
-          editorRef.current?.executeCommand('edit-heading-3')
-          break
-        case 'insert-image':
-          editorRef.current?.executeCommand('insert-image')
-          break
-        case 'insert-table':
-          editorRef.current?.executeCommand('insert-table')
-          break
-        case 'insert-hr':
-          editorRef.current?.executeCommand('insert-hr')
-          break
-        case 'insert-code-block':
-          editorRef.current?.executeCommand('insert-code-fence')
-          break
-        case 'insert-math':
-          editorRef.current?.executeCommand('insert-math-block')
-          break
-        case 'insert-blockquote':
-          editorRef.current?.executeCommand('insert-blockquote')
-          break
-        case 'insert-task-list':
-          editorRef.current?.executeCommand('insert-task-list')
-          break
-      }
-    }
-
-    const unsubscribeFileOpened = api.onFileOpened((payload) => {
-      void applyOpenedDocument(payload)
-    })
-    const unsubscribeFileLoadingProgress = api.onFileLoadingProgress((payload) => {
-      setLoadingFile(payload)
-    })
-    const unsubscribeFileSaved = api.onFileSaved(({ filePath }) => {
-      updateTabs((currentTabs) =>
-        currentTabs.map((tab) => {
-          if (tab.id !== activeTabIdRef.current && tab.filePath !== filePath) {
-            return tab
-          }
-
-          return {
-            ...tab,
-            filePath,
-            persistedContent: tab.content,
-            isDirty: false,
-          }
-        }),
-      )
-    })
-    const unsubscribeMenuAction = api.onMenuAction((payload) => {
-      void handleMenuAction(payload)
-    })
-    const unsubscribeWindowStateChanged = api.onWindowStateChanged((nextWindowState) => {
-      setWindowState(nextWindowState)
-    })
-    const unsubscribeThemeUpdated = api.onThemeUpdated(applyThemeState)
-
-    void (async () => {
-      let persistedDocuments: MarkFlowFilePayload[] = []
-      const startupState = await api.getStartupState()
-      if (startupState.windowSession?.documents.length) {
-        const nextTabs = startupState.windowSession.documents.map((document) =>
-          createDocumentTab(document.filePath, document.content, document.largeFile ?? null),
-        )
-        const nextActiveTab =
-          nextTabs.find((tab) => tab.filePath === startupState.windowSession?.activeFilePath) ??
-          nextTabs[0] ??
-          null
-
-        replaceTabs(nextTabs)
-        replaceActiveTabId(nextActiveTab?.id ?? null)
-        persistedDocuments = startupState.windowSession.documents
-        await Promise.all(
-          nextTabs.map((tab) =>
-            tab.largeFile ? Promise.resolve() : loadCollapsedRangesForTab(api, tab.id, tab.filePath),
-          ),
-        )
-      } else if (startupState.document) {
-        persistedDocuments = [startupState.document]
-        await applyOpenedDocument(startupState.document)
-      }
-
-      if (startupState.folderPath) {
-        setVaultPath(startupState.folderPath)
-        setShowSidebar(true)
-        const files = await api.getVaultFiles(startupState.folderPath)
-        setVaultFiles(files ?? [])
-      }
-
-      const recoveryCheckpoint = await api.getRecoveryCheckpoint()
-      if (!recoveryCheckpoint) {
-        return
-      }
-
-      const activeRecoveryDocument =
-        recoveryCheckpoint.documents.find((document) => document.tabId === recoveryCheckpoint.activeTabId) ??
-        recoveryCheckpoint.documents[0]
-      const recoveredName =
-        recoveryCheckpoint.documents.length === 1
-          ? activeRecoveryDocument?.filePath?.split(/[\\/]/).at(-1) ?? 'untitled document'
-          : `${recoveryCheckpoint.documents.length} documents`
-      const shouldRecover = window.confirm(
-        `Recover the auto-saved changes for ${recoveredName} from ${new Date(recoveryCheckpoint.savedAt).toLocaleString()}?`,
-      )
-
-      if (!shouldRecover) {
-        await api.discardRecoveryCheckpoint()
-        return
-      }
-
-      await applyRecoveredDocuments(recoveryCheckpoint, persistedDocuments)
-    })()
-    void api.getWindowState().then((nextWindowState) => {
-      setWindowState(nextWindowState)
-    })
-    void api.getThemes().then(setThemes)
-    void api.getThemeState().then((nextThemeState) => {
-      applyThemeState(nextThemeState)
-    })
-
-    return () => {
-      unsubscribeFileOpened()
-      unsubscribeFileLoadingProgress()
-      unsubscribeFileSaved()
-      unsubscribeMenuAction()
-      unsubscribeWindowStateChanged()
-      unsubscribeThemeUpdated()
-      document.getElementById(THEME_STYLE_ELEMENT_ID)?.remove()
-    }
-  }, [
-    captureActiveTabSnapshot,
-    loadCollapsedRangesForTab,
-    replaceActiveTabId,
-    replaceTabs,
-    toggleDocumentStatistics,
-    updateTabs,
-  ])
-
-  function toggleViewMode() {
+  const toggleViewMode = useCallback(() => {
     setViewMode((m) => (m === 'wysiwyg' ? 'source' : 'wysiwyg'))
-  }
+  }, [])
 
-  function toggleFocusMode() {
+  const toggleFocusMode = useCallback(() => {
     setFocusMode((v) => !v)
-  }
+  }, [])
 
-  function toggleTypewriterMode() {
+  const toggleTypewriterMode = useCallback(() => {
     setTypewriterMode((v) => !v)
-  }
+  }, [])
 
-  function toggleDistractionFreeMode() {
+  const toggleDistractionFreeMode = useCallback(() => {
     setIsDistractionFreeMode((v) => !v)
-  }
+  }, [])
 
   useEffect(() => {
     if (!isImmersiveMode) {
@@ -1201,11 +453,8 @@ export function App() {
   }, [activeTab?.id])
 
   const handleOpenCommandPalette = useCallback(() => {
-    setIsQuickOpenOpen(false)
-    setIsGlobalSearchOpen(false)
-    setIsGoToLineOpen(false)
-    setIsCommandPaletteOpen(true)
-  }, [])
+    openCommandPalette()
+  }, [openCommandPalette])
 
   const showToast = useCallback((message: string) => {
     toastIdRef.current += 1
@@ -1219,269 +468,67 @@ export function App() {
     }, 4_000)
   }, [])
 
-  const createNavigationLocationForTab = useCallback(
-    (
-      tab: DocumentTabState,
-      overrides: Partial<PendingNavigationTarget> = {},
-    ): PendingNavigationTarget => ({
-      tabId: overrides.tabId ?? tab.id,
-      filePath: overrides.filePath ?? tab.filePath,
-      cursorPosition:
-        overrides.cursorPosition ??
-        tab.snapshot?.cursorPosition ??
-        tab.cursorPosition,
-      scrollTop:
-        overrides.scrollTop ??
-        tab.snapshot?.scrollTop ??
-        null,
-      preserveScroll: overrides.preserveScroll ?? false,
-    }),
-    [],
-  )
+  const {
+    clearEditorNavigationRequest,
+    editorNavigationRequest,
+    handleGlobalSearchResult,
+    handleGoToLine,
+    handleMinimapNavigate,
+    handleNavigateBack,
+    handleNavigateForward,
+    handleOpenPath,
+    handleOutlineNavigate,
+  } = useNavigationHistoryController({
+    activeTab,
+    activeTabIdRef,
+    captureActiveTabSnapshot,
+    closeGlobalSearch,
+    closeGoToLine,
+    replaceActiveTabId,
+    showToast,
+    tabsRef,
+    updateTab,
+  })
 
-  const captureActiveNavigationLocation = useCallback((): NavigationLocation | null => {
-    const currentActiveTabId = activeTabIdRef.current
-    if (!currentActiveTabId) {
-      return null
-    }
-
-    const snapshot = captureActiveTabSnapshot()
-    const currentTab = tabsRef.current.find((tab) => tab.id === currentActiveTabId)
-    if (!currentTab) {
-      return null
-    }
-
-    return {
-      tabId: currentTab.id,
-      filePath: currentTab.filePath,
-      cursorPosition: snapshot?.cursorPosition ?? currentTab.snapshot?.cursorPosition ?? currentTab.cursorPosition,
-      scrollTop: snapshot?.scrollTop ?? currentTab.snapshot?.scrollTop ?? null,
-    }
-  }, [captureActiveTabSnapshot])
-
-  const requestEditorNavigation = useCallback((target: PendingNavigationTarget) => {
-    const targetTabId = target.tabId ?? activeTabIdRef.current
-    if (!targetTabId) {
-      return
-    }
-
-    updateTab(targetTabId, (tab) => ({
-      ...tab,
-      cursorPosition: target.cursorPosition,
-      viewportPosition: null,
-    }))
-
-    editorNavigationKeyRef.current += 1
-    setEditorNavigationRequest({
-      key: editorNavigationKeyRef.current,
-      position: target.cursorPosition,
-      scrollTop: target.preserveScroll ? target.scrollTop : null,
-    })
-  }, [updateTab])
-
-  useEffect(() => {
-    if (!pendingNavigationTarget || !activeTab) {
-      return
-    }
-
-    const matchesTarget =
-      (pendingNavigationTarget.tabId != null && activeTab.id === pendingNavigationTarget.tabId) ||
-      (pendingNavigationTarget.filePath != null && activeTab.filePath === pendingNavigationTarget.filePath)
-
-    if (!matchesTarget) {
-      return
-    }
-
-    requestEditorNavigation({
-      ...pendingNavigationTarget,
-      tabId: activeTab.id,
-    })
-    setPendingNavigationTarget(null)
-  }, [activeTab, pendingNavigationTarget, requestEditorNavigation])
-
-  const openPathWithOptionalHistory = useCallback(
-    async (
-      filePath: string,
-      options: {
-        destination?: PendingNavigationTarget | null
-        missingMessage?: string
-        pushHistory?: boolean
-      } = {},
-    ) => {
-      const currentLocation = options.pushHistory ? captureActiveNavigationLocation() : null
-      const sourceFilePath =
-        activeTabIdRef.current != null
-          ? tabsRef.current.find((tab) => tab.id === activeTabIdRef.current)?.filePath ?? null
-          : null
-      const resolvedFilePath = fileUrlToPath(resolveLinkHref(filePath, sourceFilePath ?? undefined)) ?? filePath
-      const existingTab = tabsRef.current.find((tab) => tab.filePath === resolvedFilePath) ?? null
-
-      if (existingTab) {
-        if (!options.pushHistory) {
-          captureActiveTabSnapshot()
-        }
-
-        const destination = options.destination ?? createNavigationLocationForTab(existingTab)
-
-        if (currentLocation) {
-          navigationHistoryRef.current = pushNavigationHistoryEntry(
-            navigationHistoryRef.current,
-            currentLocation,
-            destination,
-          )
-        }
-
-        setPendingNavigationTarget(destination)
-        if (activeTabIdRef.current !== existingTab.id) {
-          replaceActiveTabId(existingTab.id)
-        }
-        return destination
-      }
-
-      const result = await window.markflow?.openPath(resolvedFilePath)
-      if (!result) {
-        showToast(options.missingMessage ?? 'That recent file is no longer available.')
-        setPendingNavigationTarget(null)
-        return null
-      }
-
-      const destination =
-        options.destination ??
-        ({
-          tabId: null,
-          filePath: resolvedFilePath,
-          cursorPosition: 0,
-          scrollTop: 0,
-          preserveScroll: true,
-        } satisfies PendingNavigationTarget)
-
-      if (currentLocation) {
-        navigationHistoryRef.current = pushNavigationHistoryEntry(
-          navigationHistoryRef.current,
-          currentLocation,
-          destination,
-        )
-      }
-
-      setPendingNavigationTarget(destination)
-      return destination
-    },
-    [
-      captureActiveTabSnapshot,
-      captureActiveNavigationLocation,
-      createNavigationLocationForTab,
-      replaceActiveTabId,
-      showToast,
-    ],
-  )
-
-  const restoreNavigationTarget = useCallback(
-    async (target: PendingNavigationTarget | null) => {
-      if (!target) {
-        return false
-      }
-
-      if (target.filePath == null) {
-        const untitledTab = tabsRef.current.find((tab) => tab.id === target.tabId) ?? null
-        if (!untitledTab) {
-          return false
-        }
-
-        setPendingNavigationTarget({
-          ...target,
-          tabId: untitledTab.id,
-        })
-        if (activeTabIdRef.current !== untitledTab.id) {
-          replaceActiveTabId(untitledTab.id)
-        }
-        return true
-      }
-
-      const existingTab = tabsRef.current.find(
-        (tab) => tab.id === target.tabId || tab.filePath === target.filePath,
-      ) ?? null
-
-      if (existingTab) {
-        setPendingNavigationTarget({
-          ...target,
-          tabId: existingTab.id,
-        })
-        if (activeTabIdRef.current !== existingTab.id) {
-          replaceActiveTabId(existingTab.id)
-        }
-        return true
-      }
-
-      const result = await window.markflow?.openPath(target.filePath)
-      if (!result) {
-        showToast('That recent file is no longer available.')
-        setPendingNavigationTarget(null)
-        return false
-      }
-
-      setPendingNavigationTarget(target)
-      return true
-    },
-    [replaceActiveTabId, showToast],
-  )
-
-  const handleNavigateBack = useCallback(async () => {
-    if (!canNavigateBack(navigationHistoryRef.current)) {
-      return false
-    }
-
-    const currentLocation = captureActiveNavigationLocation()
-    if (!currentLocation) {
-      return false
-    }
-
-    const { history, target } = navigateBackInHistory(navigationHistoryRef.current, currentLocation)
-    if (!target) {
-      navigationHistoryRef.current = history
-      return false
-    }
-
-    const didRestore = await restoreNavigationTarget({
-      ...target,
-      preserveScroll: target.scrollTop != null,
-    })
-    navigationHistoryRef.current = didRestore
-      ? history
-      : {
-          entries: history.entries,
-          currentIndex: history.currentIndex + 1,
-        }
-    return didRestore
-  }, [captureActiveNavigationLocation, restoreNavigationTarget])
-
-  const handleNavigateForward = useCallback(async () => {
-    if (!canNavigateForward(navigationHistoryRef.current)) {
-      return false
-    }
-
-    const currentLocation = captureActiveNavigationLocation()
-    if (!currentLocation) {
-      return false
-    }
-
-    const { history, target } = navigateForwardInHistory(navigationHistoryRef.current, currentLocation)
-    if (!target) {
-      navigationHistoryRef.current = history
-      return false
-    }
-
-    const didRestore = await restoreNavigationTarget({
-      ...target,
-      preserveScroll: target.scrollTop != null,
-    })
-    navigationHistoryRef.current = didRestore
-      ? history
-      : {
-          entries: history.entries,
-          currentIndex: history.currentIndex - 1,
-        }
-    return didRestore
-  }, [captureActiveNavigationLocation, restoreNavigationTarget])
+  useDesktopBridge({
+    activeTabIdRef,
+    applyThemeState,
+    captureActiveTabSnapshot,
+    clearEditorNavigationRequest,
+    closeGoToLine,
+    editorRef,
+    handleCloseTabRef,
+    handleCopyActionRef,
+    handleCycleTabsRef,
+    handleExportRef,
+    handleNavigateBackRef,
+    handleNavigateForwardRef,
+    handleOpenFolderPathRef,
+    handleOpenQuickOpenRef,
+    handlePandocExportRef,
+    handleReopenClosedTabRef,
+    handleSaveTabRef,
+    loadCollapsedRangesForTab,
+    openCommandPalette,
+    openGlobalSearch,
+    openGoToLine,
+    replaceActiveTabId,
+    replaceTabs,
+    setLoadingFile,
+    setOutlineCollapsed,
+    setShowMinimap,
+    setShowSidebar,
+    setThemes,
+    setVaultFiles,
+    setVaultPath,
+    setWindowState,
+    tabsRef,
+    toggleDistractionFreeMode,
+    toggleDocumentStatistics,
+    toggleFocusMode,
+    toggleTypewriterMode,
+    updateTabs,
+  })
 
   const handleOpenQuickOpen = useCallback(async () => {
     const api = window.markflow
@@ -1491,12 +538,9 @@ export function App() {
 
     const items = await api.getQuickOpenList()
     setQuickOpenItems(items)
-    setIsCommandPaletteOpen(false)
-    setIsGlobalSearchOpen(false)
-    setIsGoToLineOpen(false)
-    setIsQuickOpenOpen(true)
+    openQuickOpen()
     return true
-  }, [])
+  }, [openQuickOpen])
 
   const handleOpenFolderPath = useCallback(
     async (folderPath: string) => {
@@ -1521,28 +565,16 @@ export function App() {
   )
 
   const handleOpenGlobalSearch = useCallback(() => {
-    setIsCommandPaletteOpen(false)
-    setIsQuickOpenOpen(false)
-    setIsGoToLineOpen(false)
-    setIsGlobalSearchOpen(true)
-    return true
-  }, [])
+    return openGlobalSearch()
+  }, [openGlobalSearch])
 
   const handleToggleGlobalSearch = useCallback(() => {
-    setIsCommandPaletteOpen(false)
-    setIsQuickOpenOpen(false)
-    setIsGoToLineOpen(false)
-    setIsGlobalSearchOpen((current) => !current)
-    return true
-  }, [])
+    return toggleGlobalSearch()
+  }, [toggleGlobalSearch])
 
   const handleOpenGoToLine = useCallback(() => {
-    setIsCommandPaletteOpen(false)
-    setIsQuickOpenOpen(false)
-    setIsGlobalSearchOpen(false)
-    setIsGoToLineOpen(true)
-    return true
-  }, [])
+    return openGoToLine()
+  }, [openGoToLine])
 
   async function handleOpenFolder() {
     const api = window.markflow
@@ -1578,55 +610,6 @@ export function App() {
     }
   }
 
-  const handleGlobalSearchResult = useCallback(async (result: SearchResult) => {
-    setIsGlobalSearchOpen(false)
-
-    const existingTab = tabsRef.current.find((tab) => tab.filePath === result.filePath) ?? null
-    if (existingTab) {
-      const destination = createNavigationLocationForTab(existingTab, {
-        cursorPosition: getLineColumnPosition(existingTab.content, result.lineNumber, result.matchStart),
-        scrollTop: null,
-        preserveScroll: false,
-      })
-      await openPathWithOptionalHistory(result.filePath, {
-        destination,
-        missingMessage: 'That recent file is no longer available.',
-        pushHistory: true,
-      })
-      return
-    }
-
-    const currentLocation = captureActiveNavigationLocation()
-    const payload = await window.markflow?.openPath(result.filePath)
-    if (!payload) {
-      showToast('That recent file is no longer available.')
-      return
-    }
-
-    const destination: PendingNavigationTarget = {
-      tabId: null,
-      filePath: result.filePath,
-      cursorPosition: getLineColumnPosition(payload.content, result.lineNumber, result.matchStart),
-      scrollTop: null,
-      preserveScroll: false,
-    }
-
-    if (currentLocation) {
-      navigationHistoryRef.current = pushNavigationHistoryEntry(
-        navigationHistoryRef.current,
-        currentLocation,
-        destination,
-      )
-    }
-
-    setPendingNavigationTarget(destination)
-  }, [
-    captureActiveNavigationLocation,
-    createNavigationLocationForTab,
-    openPathWithOptionalHistory,
-    showToast,
-  ])
-
   const handleSwitchTab = useCallback(
     (tabId: string | null) => {
       if (!tabId || tabId === activeTabIdRef.current) {
@@ -1634,11 +617,11 @@ export function App() {
       }
 
       captureActiveTabSnapshot()
-      setEditorNavigationRequest(null)
-      setIsGoToLineOpen(false)
+      clearEditorNavigationRequest()
+      closeGoToLine()
       replaceActiveTabId(tabId)
     },
-    [captureActiveTabSnapshot, replaceActiveTabId],
+    [captureActiveTabSnapshot, clearEditorNavigationRequest, closeGoToLine, replaceActiveTabId],
   )
 
   const handleCycleTabs = useCallback(
@@ -1792,11 +775,11 @@ export function App() {
       setClosedTabs((currentClosedTabs) => [{ closedIndex, tab: closedTab }, ...currentClosedTabs].slice(0, 20))
       replaceTabs(nextTabs.length > 0 ? nextTabs : [createDocumentTab(null, '')])
       replaceActiveTabId(nextTabs.length > 0 ? fallbackTab?.id ?? null : null)
-      setEditorNavigationRequest(null)
-      setIsGoToLineOpen(false)
+      clearEditorNavigationRequest()
+      closeGoToLine()
       return true
     },
-    [handleSaveTab, loadingFile, replaceActiveTabId, replaceTabs],
+    [clearEditorNavigationRequest, closeGoToLine, handleSaveTab, loadingFile, replaceActiveTabId, replaceTabs],
   )
 
   const handleReopenClosedTab = useCallback(async () => {
@@ -1965,7 +948,7 @@ export function App() {
   ])
 
   const handleQuickOpenSelect = async (item: MarkFlowQuickOpenItem) => {
-    setIsQuickOpenOpen(false)
+    closeQuickOpen()
     if (item.kind === 'folder') {
       await handleOpenFolderPath(item.filePath)
       return
@@ -2245,15 +1228,6 @@ export function App() {
     await api.writeClipboard({ text: serializedSelection.html })
   }
 
-  const handleOpenPath = useCallback(
-    async (filePath: string, options: { pushHistory?: boolean } = {}) =>
-      openPathWithOptionalHistory(filePath, {
-        missingMessage: 'That recent file is no longer available.',
-        pushHistory: options.pushHistory ?? false,
-      }),
-    [openPathWithOptionalHistory],
-  )
-
   async function handleThemeChange(appearance: MarkFlowAppearance, event: ChangeEvent<HTMLSelectElement>) {
     const api = window.markflow
     const nextThemeState = await api?.setThemeForAppearance(appearance, event.target.value)
@@ -2336,397 +1310,35 @@ export function App() {
     handlePandocExportRef.current = handlePandocExport
   }, [handleCopyAction, handleExport, handlePandocExport])
 
-  const commandPaletteActions: CommandPaletteAction[] = [
-    {
-      id: 'view.toggle-wysiwyg',
-      label: 'Toggle WYSIWYG Mode',
-      category: 'View',
-      description: viewMode === 'wysiwyg' ? 'Switch to source mode' : 'Switch to WYSIWYG mode',
-      keywords: ['preview', 'source', 'mode'],
-      shortcut: 'Mod+/',
-      focusEditorAfterRun: true,
-      run: () => {
-        toggleViewMode()
-        return true
-      },
-    },
-    {
-      id: 'view.toggle-outline',
-      label: 'Toggle Outline',
-      category: 'View',
-      description: outlineCollapsed ? 'Expand the heading outline' : 'Collapse the heading outline',
-      keywords: ['headings', 'sidebar', 'panel'],
-      focusEditorAfterRun: true,
-      run: () => {
-        setOutlineCollapsed((current) => !current)
-        return true
-      },
-    },
-    {
-      id: 'view.toggle-minimap',
-      label: 'Toggle Minimap',
-      category: 'View',
-      description: showMinimap ? 'Hide the document minimap' : 'Show a right-side document minimap',
-      keywords: ['overview', 'canvas', 'scroll map'],
-      focusEditorAfterRun: true,
-      run: () => {
-        setShowMinimap((current) => !current)
-        return true
-      },
-    },
-    {
-      id: 'view.toggle-distraction-free',
-      label: 'Toggle Distraction-Free Mode',
-      category: 'View',
-      description: isDistractionFreeMode
-        ? 'Restore chrome and side panels'
-        : 'Hide chrome and side panels around the editor',
-      keywords: ['immersive', 'centered', 'zen', 'chrome', 'panels'],
-      focusEditorAfterRun: true,
-      run: () => {
-        toggleDistractionFreeMode()
-        return true
-      },
-    },
-    {
-      id: 'view.toggle-focus-mode',
-      label: 'Toggle Focus Mode',
-      category: 'View',
-      description: focusMode ? 'Leave focus mode' : 'Dim non-active paragraphs',
-      keywords: ['spotlight', 'active paragraph'],
-      shortcut: 'Mod+Shift+F',
-      focusEditorAfterRun: true,
-      run: () => {
-        toggleFocusMode()
-        return true
-      },
-    },
-    {
-      id: 'view.toggle-typewriter-mode',
-      label: 'Toggle Typewriter Mode',
-      category: 'View',
-      description: typewriterMode ? 'Leave typewriter mode' : 'Keep the active line centered',
-      keywords: ['centered caret', 'writing'],
-      shortcut: 'Mod+Shift+T',
-      focusEditorAfterRun: true,
-      run: () => {
-        toggleTypewriterMode()
-        return true
-      },
-    },
-    {
-      id: 'view.document-statistics',
-      label: 'Toggle Document Statistics',
-      category: 'View',
-      description: isDocumentStatisticsOpen
-        ? 'Hide the detailed document statistics panel'
-        : 'Show words, characters, paragraphs, and reading time',
-      keywords: ['word count', 'characters', 'reading time', 'status bar', 'statistics'],
-      run: () => toggleDocumentStatistics(),
-    },
-    {
-      id: 'navigation.quick-open',
-      label: 'Quick Open Files',
-      category: 'Navigation',
-      description: 'Browse nearby and recent markdown files',
-      keywords: ['open file', 'recent', 'nearby'],
-      shortcut: 'Mod+Shift+O / Ctrl+P',
-      run: () => handleOpenQuickOpen(),
-    },
-    {
-      id: 'navigation.global-search',
-      label: 'Open Global Search',
-      category: 'Navigation',
-      description: 'Search across the current vault',
-      keywords: ['find in files', 'vault search'],
-      shortcut: 'Mod+Shift+F',
-      run: () => handleOpenGlobalSearch(),
-    },
-    {
-      id: 'navigation.go-to-line',
-      label: 'Go to Line',
-      category: 'Navigation',
-      description: 'Jump directly to a line number',
-      keywords: ['jump', 'line number'],
-      shortcut: 'Mod+L',
-      run: () => handleOpenGoToLine(),
-    },
-    {
-      id: 'navigation.back',
-      label: 'Go Back',
-      category: 'Navigation',
-      description: 'Return to the previous visited heading or file',
-      keywords: ['history', 'back', 'previous location'],
-      shortcut: 'Mod+[',
-      focusEditorAfterRun: true,
-      run: () => handleNavigateBack(),
-    },
-    {
-      id: 'navigation.forward',
-      label: 'Go Forward',
-      category: 'Navigation',
-      description: 'Move to the next visited heading or file',
-      keywords: ['history', 'forward', 'next location'],
-      shortcut: 'Mod+]',
-      focusEditorAfterRun: true,
-      run: () => handleNavigateForward(),
-    },
-    {
-      id: 'file.new',
-      label: 'New File',
-      category: 'File',
-      description: 'Start a blank document',
-      keywords: ['document'],
-      shortcut: 'Mod+N',
-      run: async () => {
-        const api = window.markflow
-        if (!api) {
-          return false
-        }
-
-        await api.newFile()
-        return true
-      },
-    },
-    {
-      id: 'file.open',
-      label: 'Open File',
-      category: 'File',
-      description: 'Choose a markdown file from disk',
-      keywords: ['document'],
-      shortcut: 'Mod+O',
-      run: async () => {
-        const api = window.markflow
-        if (!api) {
-          return false
-        }
-
-        await api.openFile()
-        return true
-      },
-    },
-    {
-      id: 'file.save',
-      label: 'Save File',
-      category: 'File',
-      description: 'Write the current document to disk',
-      keywords: ['document', 'write'],
-      shortcut: 'Mod+S',
-      run: async () => {
-        return handleSaveTab(activeTabIdRef.current)
-      },
-    },
-    {
-      id: 'file.save-as',
-      label: 'Save File As',
-      category: 'File',
-      description: 'Choose a new destination for this document',
-      keywords: ['document', 'rename copy'],
-      shortcut: 'Mod+Shift+S',
-      run: async () => {
-        return handleSaveTab(activeTabIdRef.current, true)
-      },
-    },
-    {
-      id: 'file.open-folder',
-      label: 'Open Folder',
-      category: 'File',
-      description: 'Load a vault into the file sidebar',
-      keywords: ['vault', 'workspace'],
-      run: async () => {
-        await handleOpenFolder()
-        return true
-      },
-    },
-    {
-      id: 'insert.table',
-      label: 'Insert Table',
-      category: 'Insert',
-      description: 'Replace the current paragraph with a 2-column table scaffold',
-      keywords: ['table scaffold', 'markdown table'],
-      shortcut: 'Cmd+Opt+T / Ctrl+T',
-      focusEditorAfterRun: true,
-      run: () => editorRef.current?.executeCommand('insert-table') ?? false,
-    },
-    {
-      id: 'insert.code-fence',
-      label: 'Insert Code Fence',
-      category: 'Insert',
-      description: 'Create a fenced code block scaffold',
-      keywords: ['code block', 'triple backticks'],
-      shortcut: 'Cmd+Opt+C / Ctrl+Shift+K',
-      focusEditorAfterRun: true,
-      run: () => editorRef.current?.executeCommand('insert-code-fence') ?? false,
-    },
-    {
-      id: 'insert.math-block',
-      label: 'Insert Math Block',
-      category: 'Insert',
-      description: 'Create a display-math scaffold',
-      keywords: ['equation', 'latex', 'katex'],
-      shortcut: 'Cmd+Opt+B / Ctrl+Shift+M',
-      focusEditorAfterRun: true,
-      run: () => editorRef.current?.executeCommand('insert-math-block') ?? false,
-    },
-    {
-      id: 'edit.bold',
-      label: 'Bold Selection',
-      category: 'Edit',
-      description: 'Wrap the current selection in strong emphasis',
-      keywords: ['format', 'strong'],
-      shortcut: 'Mod+B',
-      focusEditorAfterRun: true,
-      run: () => editorRef.current?.executeCommand('edit-bold') ?? false,
-    },
-    {
-      id: 'edit.italic',
-      label: 'Italic Selection',
-      category: 'Edit',
-      description: 'Wrap the current selection in emphasis',
-      keywords: ['format', 'emphasis'],
-      shortcut: 'Mod+I',
-      focusEditorAfterRun: true,
-      run: () => editorRef.current?.executeCommand('edit-italic') ?? false,
-    },
-    {
-      id: 'edit.link',
-      label: 'Insert Link',
-      category: 'Edit',
-      description: 'Insert a markdown link wrapper at the selection',
-      keywords: ['hyperlink', 'url'],
-      shortcut: 'Mod+K',
-      focusEditorAfterRun: true,
-      run: () => editorRef.current?.executeCommand('edit-link') ?? false,
-    },
-    {
-      id: 'edit.clear-formatting',
-      label: 'Clear Formatting',
-      category: 'Edit',
-      description: 'Strip inline markdown wrappers from the current selection',
-      keywords: ['plain text', 'remove style', 'unwrap link', 'format'],
-      shortcut: 'Mod+\\',
-      focusEditorAfterRun: true,
-      run: () => editorRef.current?.executeCommand('edit-clear-formatting') ?? false,
-    },
-    {
-      id: 'edit.delete-word',
-      label: 'Delete Word',
-      category: 'Edit',
-      description: 'Remove the current word without disturbing adjacent markdown',
-      keywords: ['delete range', 'typora', 'word'],
-      shortcut: 'Mod+Shift+D',
-      focusEditorAfterRun: true,
-      run: () => editorRef.current?.executeCommand('edit-delete-word') ?? false,
-    },
-    {
-      id: 'edit.delete-line-or-sentence',
-      label: 'Delete Line or Sentence',
-      category: 'Edit',
-      description: 'Delete the current sentence, code line, math line, or table row',
-      keywords: ['delete range', 'typora', 'sentence', 'line', 'row'],
-      shortcut: 'Mod+Shift+Backspace',
-      focusEditorAfterRun: true,
-      run: () => editorRef.current?.executeCommand('edit-delete-line-or-sentence') ?? false,
-    },
-    {
-      id: 'edit.delete-block',
-      label: 'Delete Block',
-      category: 'Edit',
-      description: 'Remove the current heading, paragraph block, list item, or fenced block',
-      keywords: ['delete range', 'typora', 'paragraph', 'block', 'list item'],
-      focusEditorAfterRun: true,
-      run: () => editorRef.current?.executeCommand('edit-delete-block') ?? false,
-    },
-    {
-      id: 'edit.delete-styled-scope',
-      label: 'Delete Styled Scope',
-      category: 'Edit',
-      description: 'Remove the innermost inline style wrapper under the caret',
-      keywords: ['delete range', 'typora', 'style', 'inline', 'bold', 'italic', 'link'],
-      shortcut: 'Mod+Shift+E',
-      focusEditorAfterRun: true,
-      run: () => editorRef.current?.executeCommand('edit-delete-styled-scope') ?? false,
-    },
-    {
-      id: 'edit.undo',
-      label: 'Undo',
-      category: 'Edit',
-      description: 'Revert the last edit',
-      keywords: ['history', 'back'],
-      shortcut: 'Mod+Z',
-      focusEditorAfterRun: true,
-      run: () => editorRef.current?.executeCommand('edit-undo') ?? false,
-    },
-    {
-      id: 'edit.redo',
-      label: 'Redo',
-      category: 'Edit',
-      description: 'Reapply the last undone edit',
-      keywords: ['history', 'forward'],
-      shortcut: 'Mod+Shift+Z',
-      focusEditorAfterRun: true,
-      run: () => editorRef.current?.executeCommand('edit-redo') ?? false,
-    },
-    {
-      id: 'edit.copy-as-markdown',
-      label: 'Copy as Markdown',
-      category: 'Edit',
-      description: 'Write the current markdown selection to the clipboard',
-      keywords: ['clipboard', 'source'],
-      run: async () => {
-        await handleCopyAction('copy-as-markdown')
-        return true
-      },
-    },
-    {
-      id: 'export.html',
-      label: 'Export HTML',
-      category: 'Export',
-      description: 'Render the current document to an HTML file',
-      keywords: ['save as html', 'web'],
-      run: async () => {
-        await handleExport('html')
-        return true
-      },
-    },
-    {
-      id: 'export.pdf',
-      label: 'Export PDF',
-      category: 'Export',
-      description: 'Render the current document to a PDF file',
-      keywords: ['save as pdf', 'print'],
-      run: async () => {
-        await handleExport('pdf')
-        return true
-      },
-    },
-    {
-      id: 'export.docx',
-      label: 'Export DOCX',
-      category: 'Export',
-      description: 'Convert the current document to Microsoft Word',
-      keywords: ['word', 'pandoc'],
-      run: async () => {
-        await handlePandocExport('export-docx')
-        return true
-      },
-    },
-  ]
-
-  const handleCommandPaletteSelect = async (action: CommandPaletteAction) => {
-    const didRun = await action.run()
-    if (didRun === false) {
-      return
-    }
-
-    setIsCommandPaletteOpen(false)
-
-    if (action.focusEditorAfterRun) {
-      queueMicrotask(() => {
-        editorRef.current?.focus()
-      })
-    }
-  }
+  const { commandPaletteActions, handleCommandPaletteSelect } = useCommandPaletteActions({
+    activeTabIdRef,
+    closeCommandPalette,
+    editorRef,
+    focusMode,
+    handleCopyAction,
+    handleExport,
+    handleNavigateBack,
+    handleNavigateForward,
+    handleOpenFolder,
+    handleOpenGlobalSearch,
+    handleOpenGoToLine,
+    handleOpenQuickOpen,
+    handlePandocExport,
+    handleSaveTab,
+    isDistractionFreeMode,
+    isDocumentStatisticsOpen,
+    outlineCollapsed,
+    setOutlineCollapsed,
+    setShowMinimap,
+    showMinimap,
+    toggleDistractionFreeMode,
+    toggleDocumentStatistics,
+    toggleFocusMode,
+    toggleTypewriterMode,
+    toggleViewMode,
+    typewriterMode,
+    viewMode,
+  })
 
   const activeAppearance = themeState?.activeAppearance ?? 'light'
   const appearancePreference = themeState?.appearancePreference ?? 'system'
@@ -2736,104 +1348,6 @@ export function App() {
   const activeOutlineAnchor = useMemo(
     () => findActiveHeadingAnchor(outlineHeadings, activeTab?.cursorPosition ?? activeTab?.viewportPosition ?? 0),
     [activeTab?.cursorPosition, activeTab?.viewportPosition, outlineHeadings],
-  )
-
-  const handleOutlineNavigate = useCallback((position: number) => {
-    const currentActiveTabId = activeTabIdRef.current
-    if (currentActiveTabId) {
-      const currentTab = tabsRef.current.find((tab) => tab.id === currentActiveTabId) ?? null
-      const currentLocation = captureActiveNavigationLocation()
-      const destination =
-        currentTab == null
-          ? null
-          : ({
-              tabId: currentTab.id,
-              filePath: currentTab.filePath,
-              cursorPosition: position,
-              scrollTop: null,
-              preserveScroll: false,
-            } satisfies PendingNavigationTarget)
-
-      if (currentLocation && destination) {
-        navigationHistoryRef.current = pushNavigationHistoryEntry(
-          navigationHistoryRef.current,
-          currentLocation,
-          destination,
-        )
-      }
-
-      if (destination) {
-        setPendingNavigationTarget(destination)
-        return
-      }
-    }
-
-    requestEditorNavigation({
-      tabId: currentActiveTabId,
-      filePath: activeTabIdRef.current
-        ? tabsRef.current.find((tab) => tab.id === activeTabIdRef.current)?.filePath ?? null
-        : null,
-      cursorPosition: position,
-      scrollTop: null,
-      preserveScroll: false,
-    })
-  }, [captureActiveNavigationLocation, requestEditorNavigation])
-
-  const handleGoToLine = useCallback(
-    async (lineNumber: number) => {
-      if (activeTab?.largeFile && activeTab.filePath) {
-        const api = window.markflow
-        if (!api) {
-          return
-        }
-
-        const payload = await api.readLargeFileWindow(activeTab.filePath, lineNumber)
-        if (!payload?.largeFile) {
-          return
-        }
-
-        const nextPosition = getLineStartPosition(
-          payload.content,
-          payload.largeFile.anchorLine - payload.largeFile.windowStartLine + 1,
-        )
-        const currentActiveTabId = activeTabIdRef.current
-        if (currentActiveTabId) {
-          updateTab(currentActiveTabId, (tab) =>
-            tab.filePath !== activeTab.filePath
-              ? tab
-              : {
-                  ...tab,
-                  largeFile: payload.largeFile ?? null,
-                  content: payload.content,
-                  persistedContent: payload.content,
-                  isDirty: false,
-                  collapsedRanges: [],
-                  cursorPosition: nextPosition,
-                  viewportPosition: null,
-                  selectionText: '',
-                  symbolTable: createEmptySymbolTable(),
-                  snapshot: null,
-                },
-          )
-        }
-
-        editorNavigationKeyRef.current += 1
-        setEditorNavigationRequest({
-          key: editorNavigationKeyRef.current,
-          position: nextPosition,
-        })
-        setIsGoToLineOpen(false)
-        return
-      }
-
-      editorNavigationKeyRef.current += 1
-      setEditorNavigationRequest({
-        key: editorNavigationKeyRef.current,
-        position: getLineStartPosition(activeTab?.content ?? '', lineNumber),
-      })
-      setIsGoToLineOpen(false)
-    },
-    [activeTab?.content, activeTab?.filePath, activeTab?.largeFile, updateTab],
   )
 
   const handleSymbolTableChange = useCallback((table: SymbolTable, content: string) => {
@@ -2918,65 +1432,6 @@ export function App() {
       return metrics
     })
   }, [])
-
-  const handleMinimapNavigate = useCallback((lineNumber: number) => {
-    const currentActiveTabId = activeTabIdRef.current
-    if (!currentActiveTabId || !activeTab || activeTab.largeFile) {
-      return
-    }
-
-    const position = getLineStartPosition(activeTab.content, lineNumber)
-    updateTab(currentActiveTabId, (tab) =>
-      tab.id !== currentActiveTabId
-        ? tab
-        : {
-            ...tab,
-            cursorPosition: position,
-            viewportPosition: position,
-          },
-    )
-    editorNavigationKeyRef.current += 1
-    setEditorNavigationRequest({
-      key: editorNavigationKeyRef.current,
-      position,
-    })
-  }, [activeTab, updateTab])
-
-  const docStats = useMemo(
-    () =>
-      computeStats(activeTab?.content ?? '', activeTab?.selectionText ?? '', {
-        excludeFencedCode: statisticsPreferences.excludeFencedCode,
-      }),
-    [activeTab?.content, activeTab?.selectionText, statisticsPreferences.excludeFencedCode],
-  )
-  const hasSelectionStats = (activeTab?.selectionText ?? '').length > 0
-  const statisticsRows = [
-    {
-      label: 'Words',
-      documentValue: docStats.words.toLocaleString(),
-      selectionValue: docStats.selectionWords.toLocaleString(),
-    },
-    {
-      label: 'Characters',
-      documentValue: docStats.chars.toLocaleString(),
-      selectionValue: docStats.selectionChars.toLocaleString(),
-    },
-    {
-      label: 'Characters (no spaces)',
-      documentValue: docStats.charsNoSpaces.toLocaleString(),
-      selectionValue: docStats.selectionCharsNoSpaces.toLocaleString(),
-    },
-    {
-      label: 'Paragraphs',
-      documentValue: docStats.paragraphs.toLocaleString(),
-      selectionValue: docStats.selectionParagraphs.toLocaleString(),
-    },
-    {
-      label: 'Reading time',
-      documentValue: formatReadingTime(docStats.readingMinutes),
-      selectionValue: formatReadingTime(docStats.selectionReadingMinutes),
-    },
-  ]
 
   const activeDocumentName = activeTab ? getTabLabel(activeTab, loadingFile) : 'Untitled'
   const largeFileNotice = activeTab?.largeFile
@@ -3287,7 +1742,7 @@ export function App() {
                 onViewportPositionChange={handleViewportPositionChange}
                 onScrollMetricsChange={handleScrollMetricsChange}
                 onSymbolTableChange={handleSymbolTableChange}
-                onNavigationHandled={() => setEditorNavigationRequest(null)}
+                onNavigationHandled={clearEditorNavigationRequest}
                 onOpenPath={(filePath) => handleOpenPath(filePath, { pushHistory: true })}
                 onToggleMode={toggleViewMode}
                 onSelectionChange={handleSelectionChange}
@@ -3355,477 +1810,28 @@ export function App() {
         </div>
       </main>
       {!isImmersiveMode ? (
-        <footer className="mf-statusbar" aria-label="Document statistics">
-          <button
-            ref={documentStatisticsButtonRef}
-            type="button"
-            className={`mf-statusbar-summary${isDocumentStatisticsOpen ? ' mf-statusbar-summary-active' : ''}`}
-            aria-haspopup="dialog"
-            aria-expanded={isDocumentStatisticsOpen}
-            aria-label={isDocumentStatisticsOpen ? 'Hide document statistics' : 'Show document statistics'}
-            onClick={() => {
-              toggleDocumentStatistics()
-            }}
-          >
-            <span className="mf-statusbar-stat">{docStats.words.toLocaleString()} words</span>
-            <span className="mf-statusbar-sep" aria-hidden="true">·</span>
-            <span className="mf-statusbar-stat">{docStats.lines.toLocaleString()} lines</span>
-            <span className="mf-statusbar-sep" aria-hidden="true">·</span>
-            <span className="mf-statusbar-stat">{docStats.chars.toLocaleString()} characters</span>
-            <span className="mf-statusbar-sep" aria-hidden="true">·</span>
-            <span className="mf-statusbar-stat">{formatReadingTime(docStats.readingMinutes, 'statusbar')}</span>
-            {activeTab?.largeFile ? (
-              <>
-                <span className="mf-statusbar-sep" aria-hidden="true">·</span>
-                <span className="mf-statusbar-stat">
-                  line {currentLineNumber.toLocaleString()} / {totalLines.toLocaleString()}
-                </span>
-                <span className="mf-statusbar-sep" aria-hidden="true">·</span>
-                <span className="mf-statusbar-stat">
-                  window {activeTab.largeFile.windowStartLine.toLocaleString()}-{activeTab.largeFile.windowEndLine.toLocaleString()}
-                </span>
-              </>
-            ) : null}
-            {hasSelectionStats ? (
-              <>
-                <span className="mf-statusbar-sep" aria-hidden="true">|</span>
-                <span className="mf-statusbar-stat mf-statusbar-selection">
-                  sel: {docStats.selectionWords}w / {docStats.selectionChars}c
-                </span>
-              </>
-            ) : null}
-          </button>
-          {isDocumentStatisticsOpen ? (
-            <section
-              ref={documentStatisticsPanelRef}
-              className="mf-statistics-popover"
-              role="dialog"
-              aria-label="Document statistics"
-            >
-              <div className="mf-spellcheck-popover-header">
-                <div>
-                  <p className="mf-spellcheck-popover-title">Document Statistics</p>
-                  <p className="mf-spellcheck-popover-copy">
-                    Live totals update as you edit. Selection metrics appear when text is highlighted.
-                  </p>
-                </div>
-              </div>
-              <table className="mf-statistics-table">
-                <thead>
-                  <tr>
-                    <th scope="col">Metric</th>
-                    <th scope="col">Document</th>
-                    {hasSelectionStats ? <th scope="col">Selection</th> : null}
-                  </tr>
-                </thead>
-                <tbody>
-                  {statisticsRows.map((row) => (
-                    <tr key={row.label}>
-                      <th scope="row">{row.label}</th>
-                      <td>{row.documentValue}</td>
-                      {hasSelectionStats ? <td>{row.selectionValue}</td> : null}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              <label className="mf-image-upload-checkbox">
-                <input
-                  type="checkbox"
-                  checked={statisticsPreferences.excludeFencedCode}
-                  onChange={(event) =>
-                    updateStatisticsPreferences({
-                      ...statisticsPreferences,
-                      excludeFencedCode: event.target.checked,
-                    })
-                  }
-                />
-                <span>Exclude fenced code blocks from counts</span>
-              </label>
-              {!hasSelectionStats ? (
-                <p className="mf-statistics-copy">Select one or more blocks to compare document and selection totals.</p>
-              ) : null}
-              <p className="mf-statistics-copy">
-                Words ignore markdown formatting markers. Character counts keep source punctuation inside the included text.
-              </p>
-            </section>
-          ) : null}
-          <div className="mf-statusbar-actions">
-          <button
-            ref={markdownModeButtonRef}
-            type="button"
-            className={`mf-statusbar-button${isMarkdownModeSettingsOpen ? ' mf-statusbar-button-active' : ''}`}
-            aria-haspopup="dialog"
-            aria-expanded={isMarkdownModeSettingsOpen}
-            aria-label="Markdown mode settings"
-            onClick={() => {
-              setIsDocumentStatisticsOpen(false)
-              setIsHeadingNumberingSettingsOpen(false)
-              setIsSourceLineNumbersSettingsOpen(false)
-              setIsSpellCheckSettingsOpen(false)
-              setIsImageUploadSettingsOpen(false)
-              setIsMarkdownModeSettingsOpen((current) => !current)
-            }}
-          >
-            {formatMarkdownModeStatus(markdownMode)}
-          </button>
-          {isMarkdownModeSettingsOpen ? (
-            <section
-              ref={markdownModePanelRef}
-              className="mf-spellcheck-popover"
-              role="dialog"
-              aria-label="Markdown mode settings"
-            >
-              <div className="mf-spellcheck-popover-header">
-                <div>
-                  <p className="mf-spellcheck-popover-title">Markdown Mode</p>
-                  <p className="mf-spellcheck-popover-copy">
-                    Strict mode follows GFM-style heading whitespace and ordered-list indentation
-                    more closely. The choice is remembered for the next launch.
-                  </p>
-                </div>
-              </div>
-              <label className="mf-image-upload-checkbox">
-                <input
-                  type="radio"
-                  name="markdown-mode"
-                  checked={markdownMode === 'tolerant'}
-                  onChange={() => updateMarkdownModePreference('tolerant')}
-                />
-                <span>Tolerant markdown parsing</span>
-              </label>
-              <label className="mf-image-upload-checkbox">
-                <input
-                  type="radio"
-                  name="markdown-mode"
-                  checked={markdownMode === 'strict'}
-                  onChange={() => updateMarkdownModePreference('strict')}
-                />
-                <span>Strict markdown parsing</span>
-              </label>
-            </section>
-          ) : null}
-          <button
-            ref={headingNumberingButtonRef}
-            type="button"
-            className={`mf-statusbar-button${isHeadingNumberingSettingsOpen ? ' mf-statusbar-button-active' : ''}`}
-            aria-haspopup="dialog"
-            aria-expanded={isHeadingNumberingSettingsOpen}
-            aria-label="Heading numbering settings"
-            onClick={() => {
-              setIsDocumentStatisticsOpen(false)
-              setIsMarkdownModeSettingsOpen(false)
-              setIsSourceLineNumbersSettingsOpen(false)
-              setIsSpellCheckSettingsOpen(false)
-              setIsImageUploadSettingsOpen(false)
-              setIsHeadingNumberingSettingsOpen((current) => !current)
-            }}
-          >
-            {formatHeadingNumberingStatus(headingNumberingEnabled)}
-          </button>
-          {isHeadingNumberingSettingsOpen ? (
-            <section
-              ref={headingNumberingPanelRef}
-              className="mf-spellcheck-popover"
-              role="dialog"
-              aria-label="Heading numbering settings"
-            >
-              <div className="mf-spellcheck-popover-header">
-                <div>
-                  <p className="mf-spellcheck-popover-title">Heading Numbering</p>
-                  <p className="mf-spellcheck-popover-copy">
-                    Adds CSS-counter prefixes to rendered headings, the outline, and HTML/PDF exports
-                    without rewriting the markdown source.
-                  </p>
-                </div>
-              </div>
-              <label className="mf-image-upload-checkbox">
-                <input
-                  type="checkbox"
-                  checked={headingNumberingEnabled}
-                  onChange={(event) => updateHeadingNumberingPreference(event.target.checked)}
-                />
-                <span>Enable heading auto-numbering</span>
-              </label>
-            </section>
-          ) : null}
-          <button
-            ref={sourceLineNumbersButtonRef}
-            type="button"
-            className={`mf-statusbar-button${isSourceLineNumbersSettingsOpen ? ' mf-statusbar-button-active' : ''}`}
-            aria-haspopup="dialog"
-            aria-expanded={isSourceLineNumbersSettingsOpen}
-            aria-label="Source line-number settings"
-            onClick={() => {
-              setIsDocumentStatisticsOpen(false)
-              setIsMarkdownModeSettingsOpen(false)
-              setIsHeadingNumberingSettingsOpen(false)
-              setIsSpellCheckSettingsOpen(false)
-              setIsImageUploadSettingsOpen(false)
-              setIsSourceLineNumbersSettingsOpen((current) => !current)
-            }}
-          >
-            {formatSourceLineNumbersStatus(sourceLineNumbersEnabled)}
-          </button>
-          {isSourceLineNumbersSettingsOpen ? (
-            <section
-              ref={sourceLineNumbersPanelRef}
-              className="mf-spellcheck-popover"
-              role="dialog"
-              aria-label="Source line-number settings"
-            >
-              <div className="mf-spellcheck-popover-header">
-                <div>
-                  <p className="mf-spellcheck-popover-title">Source Line Numbers</p>
-                  <p className="mf-spellcheck-popover-copy">
-                    Shows a 1-based gutter only in Source mode so raw markdown keeps line context
-                    without adding chrome to Preview, Reading, or Split views.
-                  </p>
-                </div>
-              </div>
-              <label className="mf-image-upload-checkbox">
-                <input
-                  type="checkbox"
-                  checked={sourceLineNumbersEnabled}
-                  onChange={(event) => updateSourceLineNumbersPreference(event.target.checked)}
-                />
-                <span>Show line numbers in source mode</span>
-              </label>
-            </section>
-          ) : null}
-          {imageUploadSettings ? (
-            <>
-              <button
-                ref={imageUploadButtonRef}
-                type="button"
-                className={`mf-statusbar-button${isImageUploadSettingsOpen ? ' mf-statusbar-button-active' : ''}`}
-                aria-haspopup="dialog"
-                aria-expanded={isImageUploadSettingsOpen}
-                aria-label="Image upload preferences"
-                onClick={() => {
-                  setIsDocumentStatisticsOpen(false)
-                  setIsMarkdownModeSettingsOpen(false)
-                  setIsHeadingNumberingSettingsOpen(false)
-                  setIsSourceLineNumbersSettingsOpen(false)
-                  setIsSpellCheckSettingsOpen(false)
-                  setIsImageUploadSettingsOpen((current) => !current)
-                }}
-              >
-                {formatImageUploadStatus(imageUploadSettings)}
-              </button>
-              {isImageUploadSettingsOpen ? (
-                <section
-                  ref={imageUploadPanelRef}
-                  className="mf-image-upload-popover"
-                  role="dialog"
-                  aria-label="Image upload preferences"
-                >
-                  <div className="mf-spellcheck-popover-header">
-                    <div>
-                      <p className="mf-spellcheck-popover-title">Image Upload</p>
-                      <p className="mf-spellcheck-popover-copy">
-                        Auto-routes pasted and dropped images through PicGo-compatible commands.
-                      </p>
-                    </div>
-                  </div>
-                  <label className="mf-image-upload-checkbox">
-                    <input
-                      type="checkbox"
-                      checked={imageUploadSettings.autoUploadOnInsert}
-                      onChange={(event) =>
-                        updateImageUploadSettings({ autoUploadOnInsert: event.target.checked })
-                      }
-                    />
-                    <span>Upload pasted and dropped images automatically</span>
-                  </label>
-                  <label className="mf-spellcheck-field">
-                    <span className="mf-spellcheck-field-label">Uploader preset</span>
-                    <select
-                      className="mf-theme-select"
-                      value={imageUploadSettings.uploaderKind}
-                      onChange={(event) =>
-                        updateImageUploadSettings({
-                          uploaderKind: event.target.value as MarkFlowImageUploadSettings['uploaderKind'],
-                        })
-                      }
-                      aria-label="Image uploader type"
-                    >
-                      <option value="disabled">Disabled</option>
-                      <option value="picgo-core">PicGo Core</option>
-                      <option value="custom-command">Custom command</option>
-                    </select>
-                  </label>
-                  {imageUploadSettings.uploaderKind !== 'disabled' ? (
-                    <>
-                      <label className="mf-spellcheck-field">
-                        <span className="mf-spellcheck-field-label">Command</span>
-                        <input
-                          className="mf-spellcheck-input"
-                          type="text"
-                          value={imageUploadSettings.command}
-                          onChange={(event) =>
-                            updateImageUploadSettings({ command: event.target.value })
-                          }
-                          placeholder={imageUploadSettings.uploaderKind === 'picgo-core' ? 'picgo' : '/path/to/upload-image'}
-                          aria-label="Image uploader command"
-                        />
-                      </label>
-                      <label className="mf-spellcheck-field">
-                        <span className="mf-spellcheck-field-label">Arguments</span>
-                        <input
-                          className="mf-spellcheck-input"
-                          type="text"
-                          value={imageUploadSettings.arguments}
-                          onChange={(event) =>
-                            updateImageUploadSettings({ arguments: event.target.value })
-                          }
-                          placeholder={imageUploadSettings.uploaderKind === 'picgo-core' ? 'upload' : '--flag value'}
-                          aria-label="Image uploader arguments"
-                        />
-                      </label>
-                      <label className="mf-spellcheck-field">
-                        <span className="mf-spellcheck-field-label">Asset directory</span>
-                        <input
-                          className="mf-spellcheck-input"
-                          type="text"
-                          value={imageUploadSettings.assetDirectoryName}
-                          onChange={(event) =>
-                            updateImageUploadSettings({ assetDirectoryName: event.target.value })
-                          }
-                          placeholder="assets"
-                          aria-label="Image asset directory"
-                        />
-                      </label>
-                      <label className="mf-spellcheck-field">
-                        <span className="mf-spellcheck-field-label">Timeout (ms)</span>
-                        <input
-                          className="mf-spellcheck-input"
-                          type="number"
-                          min={1000}
-                          step={1000}
-                          value={imageUploadSettings.timeoutMs}
-                          onChange={(event) =>
-                            updateImageUploadSettings({
-                              timeoutMs: Number.parseInt(event.target.value || '0', 10),
-                            })
-                          }
-                          aria-label="Image upload timeout"
-                        />
-                      </label>
-                      <label className="mf-image-upload-checkbox">
-                        <input
-                          type="checkbox"
-                          checked={imageUploadSettings.keepLocalCopyAfterUpload}
-                          onChange={(event) =>
-                            updateImageUploadSettings({
-                              keepLocalCopyAfterUpload: event.target.checked,
-                            })
-                          }
-                        />
-                        <span>Keep the managed local copy after a successful upload</span>
-                      </label>
-                      <p className="mf-image-upload-copy">
-                        {'`${filename}` and `${filepath}` expand against the current markdown file, and the image path is appended as the final command argument.'}
-                      </p>
-                    </>
-                  ) : (
-                    <p className="mf-image-upload-copy">
-                      Enable a preset to rewrite inserted local images to remote URLs while keeping a local
-                      fallback on upload failure.
-                    </p>
-                  )}
-                </section>
-              ) : null}
-            </>
-          ) : null}
-          <button
-            ref={spellCheckButtonRef}
-            type="button"
-            className={`mf-statusbar-button${isSpellCheckSettingsOpen ? ' mf-statusbar-button-active' : ''}`}
-            aria-haspopup="dialog"
-            aria-expanded={isSpellCheckSettingsOpen}
-            aria-label="Spellcheck settings"
-            onClick={() => {
-              setIsDocumentStatisticsOpen(false)
-              setIsMarkdownModeSettingsOpen(false)
-              setIsHeadingNumberingSettingsOpen(false)
-              setIsSourceLineNumbersSettingsOpen(false)
-              setIsImageUploadSettingsOpen(false)
-              setIsSpellCheckSettingsOpen((current) => !current)
-            }}
-          >
-            Spell: {formatSpellCheckLanguageLabel(spellCheckState.selectedLanguage)}
-          </button>
-          {isSpellCheckSettingsOpen ? (
-            <section
-              ref={spellCheckPanelRef}
-              className="mf-spellcheck-popover"
-              role="dialog"
-              aria-label="Spellcheck settings"
-            >
-              <div className="mf-spellcheck-popover-header">
-                <div>
-                  <p className="mf-spellcheck-popover-title">Spellcheck</p>
-                  <p className="mf-spellcheck-popover-copy">Applies to this MarkFlow profile.</p>
-                </div>
-              </div>
-              <label className="mf-spellcheck-field">
-                <span className="mf-spellcheck-field-label">Dictionary language</span>
-                <select
-                  className="mf-theme-select"
-                  value={spellCheckState.selectedLanguage ?? ''}
-                  onChange={(event) => void handleSpellCheckLanguageChange(event)}
-                  aria-label="Spellcheck language"
-                >
-                  <option value="">Default</option>
-                  {spellCheckState.availableLanguages.map((language) => (
-                    <option key={language} value={language}>
-                      {language}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <form className="mf-spellcheck-add-form" onSubmit={(event) => void handleSpellCheckWordSubmit(event)}>
-                <label className="mf-spellcheck-field">
-                  <span className="mf-spellcheck-field-label">Custom dictionary</span>
-                  <input
-                    className="mf-spellcheck-input"
-                    type="text"
-                    value={spellCheckWordInput}
-                    onChange={(event) => setSpellCheckWordInput(event.target.value)}
-                    placeholder="Add a domain term"
-                    aria-label="Add custom spellcheck word"
-                  />
-                </label>
-                <button
-                  type="submit"
-                  className="mf-spellcheck-submit"
-                  disabled={sanitizeSpellCheckWord(spellCheckWordInput) == null}
-                >
-                  Add word
-                </button>
-              </form>
-              <div className="mf-spellcheck-word-list" aria-label="Custom spellcheck words">
-                {spellCheckState.customWords.length > 0 ? (
-                  spellCheckState.customWords.map((word) => (
-                    <button
-                      key={word}
-                      type="button"
-                      className="mf-spellcheck-word-chip"
-                      aria-label={`Remove ${word} from custom dictionary`}
-                      onClick={() => void handleSpellCheckWordRemove(word)}
-                    >
-                      <span>{word}</span>
-                      <span aria-hidden="true">×</span>
-                    </button>
-                  ))
-                ) : (
-                  <p className="mf-spellcheck-empty">No custom words yet.</p>
-                )}
-              </div>
-            </section>
-          ) : null}
-        </div>
-        </footer>
+        <AppStatusBar
+          activeTab={activeTab}
+          currentLineNumber={currentLineNumber}
+          totalLines={totalLines}
+          markdownMode={markdownMode}
+          statisticsPreferences={statisticsPreferences}
+          updateStatisticsPreferences={updateStatisticsPreferences}
+          updateMarkdownModePreference={updateMarkdownModePreference}
+          headingNumberingEnabled={headingNumberingEnabled}
+          updateHeadingNumberingPreference={updateHeadingNumberingPreference}
+          sourceLineNumbersEnabled={sourceLineNumbersEnabled}
+          updateSourceLineNumbersPreference={updateSourceLineNumbersPreference}
+          spellCheckState={spellCheckState}
+          handleSpellCheckLanguageChange={handleSpellCheckLanguageChange}
+          spellCheckWordInput={spellCheckWordInput}
+          setSpellCheckWordInput={setSpellCheckWordInput}
+          handleSpellCheckWordSubmit={handleSpellCheckWordSubmit}
+          handleSpellCheckWordRemove={handleSpellCheckWordRemove}
+          imageUploadSettings={imageUploadSettings}
+          updateImageUploadSettings={updateImageUploadSettings}
+          panelState={statusBarPanels}
+        />
       ) : null}
       {toasts.length > 0 ? (
         <div className="mf-toast-stack" aria-live="assertive" aria-label="Notifications">
@@ -3840,21 +1846,21 @@ export function App() {
       <CommandPalette
         isOpen={isCommandPaletteOpen}
         actions={commandPaletteActions}
-        onClose={() => setIsCommandPaletteOpen(false)}
+        onClose={closeCommandPalette}
         onSelect={(action: RegisteredCommandPaletteAction) => void handleCommandPaletteSelect(action)}
       />
 
       <QuickOpen
         isOpen={isQuickOpenOpen}
         items={quickOpenItems}
-        onClose={() => setIsQuickOpenOpen(false)}
+        onClose={closeQuickOpen}
         onSelect={handleQuickOpenSelect}
       />
 
       <GlobalSearch
         isOpen={isGlobalSearchOpen}
         folderPath={vaultPath}
-        onClose={() => setIsGlobalSearchOpen(false)}
+        onClose={closeGlobalSearch}
         onSelectResult={handleGlobalSearchResult}
       />
 
@@ -3862,7 +1868,7 @@ export function App() {
         isOpen={isGoToLineOpen}
         currentLine={currentLineNumber}
         totalLines={totalLines}
-        onClose={() => setIsGoToLineOpen(false)}
+        onClose={closeGoToLine}
         onSubmit={handleGoToLine}
       />
 
