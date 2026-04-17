@@ -9,6 +9,32 @@
 
 ## Session Log
 
+### 2026-04-17 - MF-051 rerun: startup + automation + harness verify, manual scroll-sync still blocked
+
+- Author: Codex
+- Focus: continue `MF-051` in strict one-feature protocol, re-run required commands, and keep ledger/progress truthful when manual proof is unavailable.
+- What changed:
+  - Re-ran `pnpm harness:start`.
+  - Re-ran `./harness/init.sh --smoke`.
+  - Re-ran `MF-051` automated verification:
+    - `pnpm --filter @markflow/editor test:run -- src/__tests__/App.test.tsx src/editor/__tests__/MarkFlowEditor.test.tsx src/editor/__tests__/outline.test.ts`
+  - Re-ran `pnpm harness:verify`.
+- Simplifications made:
+  - No source code changes this session; all MF-051 behavior changes are already in-tree.
+  - Scope remained strictly to `MF-051` only.
+- Verification:
+  - `pnpm harness:start` (pass)
+  - `./harness/init.sh --smoke` (pass)
+  - feature automation command (pass; `40 files / 451 tests`, `3 skipped`)
+  - `pnpm harness:verify` (pass; `features: 121 total | verified=66 | ready=39 | planned=15 | blocked=1`)
+- Review / risks:
+  - The trusted manual desktop verification for scroll-sync (multi-section document, active heading following viewport in live app) could not be completed in this environment.
+  - `harness/feature-ledger.json` remains unchanged (`MF-051 status: ready`, `passes: false`, `lastVerifiedAt: null`) to avoid false completion claims.
+- Newly verified features:
+  - none
+- Next recommended feature:
+  - `MF-051` - complete trusted manual desktop scroll-sync verification with a multi-section document, then set `passes=true` and refresh `lastVerifiedAt` only after evidence is complete.
+
 ### 2026-04-17 - MF-051 strict rerun with feature automation + harness verify
 
 - Author: Codex
