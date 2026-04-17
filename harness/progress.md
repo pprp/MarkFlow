@@ -1,3 +1,28 @@
+### 2026-04-17 - MF-051 strict verification rerun completed; manual scroll-sync still blocked by environment
+
+- Author: Codex
+- Focus: execute the required startup/smoke/verification flow for the next feature (`MF-051`) and keep ledger state truthful.
+- What changed:
+  - Ran `pnpm harness:start`.
+  - Ran `./harness/init.sh --smoke`.
+  - Ran MF-051 automated verification:
+    - `pnpm --filter @markflow/editor test:run -- src/__tests__/App.test.tsx src/editor/__tests__/MarkFlowEditor.test.tsx src/editor/__tests__/outline.test.ts`
+  - Ran `pnpm harness:verify`.
+- Simplifications made:
+  - Kept scope strictly to `MF-051`; no feature code or tests were edited in this session.
+  - Did not modify unrelated files or features.
+- Verification:
+  - `pnpm harness:start` (pass)
+  - `./harness/init.sh --smoke` (pass)
+  - MF-051 automated command (pass; 40 files / 451 tests, 3 skipped)
+  - `pnpm harness:verify` (pass; features: 121 total | verified=66 | ready=39 | planned=15 | blocked=1)
+- Review / risks:
+  - Trusted manual desktop scroll-sync validation for MF-051 (multi-section document, active outline follows viewport on scroll) is still blocked in this environment.
+  - `harness/feature-ledger.json` was intentionally left unchanged (`MF-051.status=ready`, `passes=false`, `lastVerifiedAt=null`) to avoid false completion.
+  - Desktop export permission stderr noise in full-suite runs remains pre-existing and unrelated.
+- Next recommended feature:
+  - `MF-051` - complete the blocked manual scroll-sync check in a trusted desktop session, then update `harness/feature-ledger.json` (`status`, `passes`, `lastVerifiedAt`) only after that proof is recorded.
+
 ### 2026-04-17 - MF-051 session rerun: automation verified, manual scroll-sync blocked by environment
 
 - Author: Codex
