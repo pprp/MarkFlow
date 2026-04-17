@@ -9,6 +9,34 @@
 
 ## Session Log
 
+### 2026-04-17 - MF-051 re-ran required automation; manual scroll-sync still blocked by environment
+
+- Author: Codex
+- Focus: complete the `MF-051` one-feature closeout by re-running required verification in this session and keeping ledger truth in `status/passes/lastVerifiedAt`.
+- What changed:
+  - re-read root `AGENTS.md`
+  - ran `pnpm harness:start`
+  - ran `./harness/init.sh --smoke`
+  - re-ran `MF-051` automated verification command:
+    - `pnpm --filter @markflow/editor test:run -- src/__tests__/App.test.tsx src/editor/__tests__/MarkFlowEditor.test.tsx src/editor/__tests__/outline.test.ts`
+  - ran `pnpm harness:verify`
+  - left `harness/features/MF-051.md` updated with this session's truthful status (no further code changes)
+- Simplifications made:
+  - avoided unrelated cleanup, feature, or dependency work in this session
+  - no source changes were required to close this session because the previous implementation and tests are already present in the tree
+- Verification:
+  - `pnpm harness:start` (pass)
+  - `./harness/init.sh --smoke` (pass)
+  - `pnpm --filter @markflow/editor test:run -- src/__tests__/App.test.tsx src/editor/__tests__/MarkFlowEditor.test.tsx src/editor/__tests__/outline.test.ts` (pass)
+  - `pnpm harness:verify` (pass; `features: 121 total | verified=66 | ready=39 | planned=15 | blocked=1`)
+- Review / risks:
+  - this environment still lacks a reliable manual desktop scroll-sync check for a multi-section document, so the feature cannot be promoted yet
+  - if packaged-app scrolling telemetry differs from jsdom behavior, verify `MF-051` end-to-end before changing `harness/feature-ledger.json`
+- Newly verified features:
+  - none
+- Next recommended feature:
+  - `MF-051` - complete trusted manual desktop scroll-sync verification (scrolling with active outline updates) and then promote `harness/feature-ledger.json` for this feature.
+
 ### 2026-04-17 - MF-051 fixed active outline to follow viewport scroll using top-visible position
 
 - Author: Codex
