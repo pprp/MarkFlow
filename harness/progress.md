@@ -6168,3 +6168,27 @@
   - no desktop UI trust path is available in this session for manual proof, so a user-facing promotion should not claim full pass yet
 - Next recommended feature:
   - `MF-051` - complete the trusted manual scroll-sync check and then promote `harness/feature-ledger.json` for this feature only if both automated + manual criteria pass.
+
+### 2026-04-17 - MF-051 verification rerun completed, manual scroll-sync still pending
+
+- Author: Codex
+- Focus: keep AGENTS protocol strict for MF-051, execute feature-command verification and harness verification in this session, and keep metadata truthful when no trusted desktop UI verification was possible.
+- What changed:
+  - re-ran `./harness/init.sh --smoke` after startup (pass)
+  - re-ran `pnpm --filter @markflow/editor test:run -- src/__tests__/App.test.tsx src/editor/__tests__/MarkFlowEditor.test.tsx src/editor/__tests__/outline.test.ts`
+  - re-ran `pnpm harness:verify`
+- Simplifications made:
+  - no implementation changes were required because the feature automation was already present and passing in this workspace state
+  - kept this session strictly on `MF-051` and left unrelated pre-existing worktree changes untouched
+- Verification:
+  - `pnpm harness:start` (pass)
+  - `./harness/init.sh --smoke` (pass; includes `pnpm harness:verify` + workspace test run)
+  - `pnpm --filter @markflow/editor test:run -- src/__tests__/App.test.tsx src/editor/__tests__/MarkFlowEditor.test.tsx src/editor/__tests__/outline.test.ts` (pass; 40 files / 451 tests, 3 skipped)
+  - `pnpm harness:verify` (pass; next feature remains MF-051)
+- Review / risks:
+  - automated coverage for `MF-051` passes, but manual scroll-sync remains unverified in this environment, so `passes` and `lastVerifiedAt` were left unchanged in `harness/feature-ledger.json`
+  - this session did not include trusted desktop interaction, so the active-outline-on-scroll behavior should still be manually confirmed on a multi-section document before promotion
+- Newly verified features:
+  - none
+- Next recommended feature:
+  - `MF-051` - run a trusted desktop/manual scroll-sync check on a multi-section document and then promote `harness/feature-ledger.json` only if that plus automated verification pass
