@@ -231,8 +231,9 @@ export class FileManager {
     try {
       await fs.promises.writeFile(result.filePath, html, 'utf-8')
       return true
-    } catch (e) {
-      console.error('Failed to export HTML:', e)
+    } catch (error) {
+      console.error('Failed to export HTML:', error)
+      await this.showExportErrorDialog('HTML', error)
       return false
     }
   }
@@ -245,7 +246,12 @@ export class FileManager {
     })
     if (result.canceled || !result.filePath) return false
 
-    // Create a hidden window to render the HTML and print to PDF
+    const tempDir = app.getPath('temp')
+    const tempHtmlPath = path.join(
+      tempDir,
+      `markflow-export-${Date.now()}-${Math.random().toString(36).slice(2)}.html`,
+    )
+
     const win = new BrowserWindow({
       show: false,
       webPreferences: {
@@ -255,19 +261,51 @@ export class FileManager {
     })
 
     try {
-      await win.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(html))
+      await fs.promises.writeFile(tempHtmlPath, html, 'utf-8')
+      await win.loadFile(tempHtmlPath)
+      await win.webContents.executeJavaScript(`
+        Promise.all([
+          document.fonts ? document.fonts.ready.catch(() => undefined) : Promise.resolve(),
+          Promise.all(Array.from(document.images).map((image) => {
+            if (image.complete) {
+              return Promise.resolve()
+            }
+            return new Promise((resolve) => {
+              image.addEventListener('load', () => resolve(undefined), { once: true })
+              image.addEventListener('error', () => resolve(undefined), { once: true })
+            })
+          })),
+          new Promise((resolve) => {
+            requestAnimationFrame(() => requestAnimationFrame(() => resolve(undefined)))
+          }),
+        ]).then(() => true)
+      `)
       const pdfData = await win.webContents.printToPDF({
         printBackground: true,
         pageSize: 'A4',
-        margins: { marginType: 'default' }
+        preferCSSPageSize: true,
+        generateTaggedPDF: true,
+        generateDocumentOutline: true,
+        margins: {
+          top: 0.63,
+          bottom: 0.63,
+          left: 0.55,
+          right: 0.55,
+        },
       })
       await fs.promises.writeFile(result.filePath, pdfData)
       return true
-    } catch (e) {
-      console.error('Failed to export PDF:', e)
+    } catch (error) {
+      console.error('Failed to export PDF:', error)
+      await this.showExportErrorDialog('PDF', error)
       return false
     } finally {
       win.destroy()
+      try {
+        await fs.promises.unlink(tempHtmlPath)
+      } catch {
+        // Ignore temp export cleanup failures.
+      }
     }
   }
 
@@ -1342,6 +1380,18 @@ export class FileManager {
       message: `Unable to open recent ${label}`,
       detail: `MarkFlow could not find this ${label}:\n${targetPath}`,
       noLink: true,
+    })
+  }
+
+  private async showExportErrorDialog(format: 'HTML' | 'PDF', error: unknown) {
+    const detail = error instanceof Error ? error.message : String(error)
+    await dialog.showMessageBox(this.window, {
+      type: 'error',
+      buttons: ['OK'],
+      defaultId: 0,
+      noLink: true,
+      message: `Unable to export ${format}`,
+      detail,
     })
   }
 

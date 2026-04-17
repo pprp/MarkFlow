@@ -19,6 +19,11 @@ const {
   showItemInFolderMock,
   nativeThemeOnMock,
   nativeThemeRemoveListenerMock,
+  browserWindowConstructorMock,
+  browserWindowLoadFileMock,
+  browserWindowDestroyMock,
+  browserWindowExecuteJavaScriptMock,
+  browserWindowPrintToPdfMock,
 } = vi.hoisted(() => ({
   handleMock: vi.fn(),
   onMock: vi.fn(),
@@ -36,6 +41,11 @@ const {
   showItemInFolderMock: vi.fn(),
   nativeThemeOnMock: vi.fn(),
   nativeThemeRemoveListenerMock: vi.fn(),
+  browserWindowConstructorMock: vi.fn((_options: unknown) => {}),
+  browserWindowLoadFileMock: vi.fn(async (_filePath: string) => {}),
+  browserWindowDestroyMock: vi.fn(),
+  browserWindowExecuteJavaScriptMock: vi.fn(async (_script: string) => true),
+  browserWindowPrintToPdfMock: vi.fn(async (_options: unknown) => Buffer.from('pdf-data')),
 }))
 
 vi.mock('child_process', () => ({
@@ -43,6 +53,24 @@ vi.mock('child_process', () => ({
 }))
 
 vi.mock('electron', () => ({
+  BrowserWindow: class BrowserWindow {
+    webContents = {
+      executeJavaScript: browserWindowExecuteJavaScriptMock,
+      printToPDF: browserWindowPrintToPdfMock,
+    }
+
+    constructor(options: unknown) {
+      browserWindowConstructorMock(options)
+    }
+
+    loadFile(filePath: string) {
+      return browserWindowLoadFileMock(filePath)
+    }
+
+    destroy() {
+      browserWindowDestroyMock()
+    }
+  },
   app: {
     addRecentDocument: addRecentDocumentMock,
     clearRecentDocuments: clearRecentDocumentsMock,
@@ -555,9 +583,94 @@ describe('FileManager Pandoc exports', () => {
     execFileMock.mockClear()
     appGetPathMock.mockReset()
     appGetPathMock.mockImplementation(() => '/tmp')
+    browserWindowConstructorMock.mockReset()
+    browserWindowLoadFileMock.mockReset()
+    browserWindowLoadFileMock.mockImplementation(async () => {})
+    browserWindowDestroyMock.mockReset()
+    browserWindowExecuteJavaScriptMock.mockReset()
+    browserWindowExecuteJavaScriptMock.mockImplementation(async () => true)
+    browserWindowPrintToPdfMock.mockReset()
+    browserWindowPrintToPdfMock.mockImplementation(async () => Buffer.from('pdf-data'))
     vi.restoreAllMocks()
     vi.spyOn(fs.promises, 'writeFile').mockResolvedValue()
     vi.spyOn(fs.promises, 'unlink').mockResolvedValue()
+  })
+
+  it('exports HTML and reports a visible error when the target path is not writable', async () => {
+    const writeFileMock = vi.spyOn(fs.promises, 'writeFile').mockRejectedValueOnce(new Error('EACCES: permission denied'))
+    const manager = new FileManager(createWindowStub() as never)
+
+    showSaveDialogMock.mockResolvedValue({
+      canceled: false,
+      filePath: '/tmp/export.html',
+    })
+
+    const result = await manager.exportHtml('<h1>Export</h1>', 'Untitled.html')
+
+    expect(result).toBe(false)
+    expect(writeFileMock).toHaveBeenCalledWith('/tmp/export.html', '<h1>Export</h1>', 'utf-8')
+    expect(showMessageBoxMock).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        type: 'error',
+        message: 'Unable to export HTML',
+        detail: 'EACCES: permission denied',
+      }),
+    )
+  })
+
+  it('exports PDF from a temporary HTML file with outline-aware print options', async () => {
+    const writeFileMock = vi.spyOn(fs.promises, 'writeFile').mockResolvedValue()
+    const unlinkMock = vi.spyOn(fs.promises, 'unlink').mockResolvedValue()
+    const manager = new FileManager(createWindowStub() as never)
+
+    showSaveDialogMock.mockResolvedValue({
+      canceled: false,
+      filePath: '/tmp/export.pdf',
+    })
+
+    const result = await manager.exportPdf('<h1 id="intro">Intro</h1>', 'Untitled.pdf')
+
+    expect(result).toBe(true)
+    expect(browserWindowLoadFileMock).toHaveBeenCalledWith(expect.stringMatching(/markflow-export-.*\.html$/))
+    expect(browserWindowExecuteJavaScriptMock).toHaveBeenCalledTimes(1)
+    expect(browserWindowPrintToPdfMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        printBackground: true,
+        pageSize: 'A4',
+        preferCSSPageSize: true,
+        generateTaggedPDF: true,
+        generateDocumentOutline: true,
+      }),
+    )
+    expect(writeFileMock.mock.calls.at(-1)).toEqual(['/tmp/export.pdf', Buffer.from('pdf-data')])
+    expect(unlinkMock).toHaveBeenCalledWith(expect.stringMatching(/markflow-export-.*\.html$/))
+    expect(browserWindowDestroyMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('shows a PDF export error dialog when the final path is not writable', async () => {
+    const writeFileMock = vi.spyOn(fs.promises, 'writeFile')
+      .mockResolvedValueOnce()
+      .mockRejectedValueOnce(new Error('EACCES: permission denied'))
+    const manager = new FileManager(createWindowStub() as never)
+
+    showSaveDialogMock.mockResolvedValue({
+      canceled: false,
+      filePath: '/tmp/export.pdf',
+    })
+
+    const result = await manager.exportPdf('<h1 id="intro">Intro</h1>', 'Untitled.pdf')
+
+    expect(result).toBe(false)
+    expect(writeFileMock).toHaveBeenCalledTimes(2)
+    expect(showMessageBoxMock).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        type: 'error',
+        message: 'Unable to export PDF',
+        detail: 'EACCES: permission denied',
+      }),
+    )
   })
 
   it('exports DOCX using pandoc', async () => {

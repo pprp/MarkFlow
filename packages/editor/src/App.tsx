@@ -81,6 +81,7 @@ import {
   persistLocalMarkdownModePreference,
   type MarkFlowMarkdownMode,
 } from './markdownMode'
+import { serializeRenderedDocumentForExport } from './export/htmlExport'
 
 const THEME_STYLE_ELEMENT_ID = 'mf-theme-overrides'
 const EDITOR_ROOT_SELECTOR = '.cm-editor'
@@ -1998,58 +1999,43 @@ export function App() {
     }
 
     setIsExporting(true)
-    // Wait a couple of frames for the React state to render the unconstrained editor
-    await new Promise(r => requestAnimationFrame(r))
-    await new Promise(r => requestAnimationFrame(r))
-    await new Promise(r => setTimeout(r, 100)) // give CodeMirror time to settle
+    try {
+      // Wait a couple of frames for the React state to render the unconstrained editor.
+      await new Promise((resolve) => requestAnimationFrame(resolve))
+      await new Promise((resolve) => requestAnimationFrame(resolve))
+      await new Promise((resolve) => setTimeout(resolve, 100))
 
-    const exportEl = document.getElementById('mf-export-container')
-    const cmContent = exportEl?.querySelector('.cm-content')
-    
-    if (!cmContent) {
+      const exportEl = document.getElementById('mf-export-container')
+      const cmContent = exportEl?.querySelector<HTMLElement>('.cm-content')
+      if (!cmContent) {
+        return
+      }
+
+      const html = serializeRenderedDocumentForExport({
+        content: activeTab.content,
+        document,
+        headingNumberingEnabled,
+        markdownMode,
+        renderedRoot: cmContent,
+        title: activeTab.filePath ? activeTab.filePath.split('/').pop() ?? 'Export' : 'Export',
+      })
+
+      const api = window.markflow
+      if (!api) {
+        return
+      }
+
+      const defaultName = activeTab.filePath
+        ? activeTab.filePath.replace(/\.(md|markdown|txt)$/i, '') + '.' + format
+        : 'Untitled.' + format
+
+      if (format === 'html') {
+        await api.exportHtml(html, defaultName)
+      } else {
+        await api.exportPdf(html, defaultName)
+      }
+    } finally {
       setIsExporting(false)
-      return
-    }
-
-    const styles = Array.from(document.querySelectorAll('style')).map(s => s.outerHTML).join('\n')
-    
-    const html = `<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <title>${activeTab.filePath ? activeTab.filePath.split('/').pop() : 'Export'}</title>
-  ${styles}
-  <style>
-    body { background-color: var(--mf-bg); color: var(--mf-text); font-family: var(--mf-font-sans); padding: 40px; margin: 0; }
-    .cm-content { padding: 0 !important; }
-  </style>
-</head>
-<body class="mf-export-body" ${HEADING_NUMBERING_ATTRIBUTE}="${headingNumberingEnabled ? 'true' : 'false'}">
-  <div class="mf-editor-shell">
-    <div class="mf-editor-container">
-      <div class="cm-editor">
-        <div class="cm-scroller">
-          ${cmContent.outerHTML}
-        </div>
-      </div>
-    </div>
-  </div>
-</body>
-</html>`
-
-    setIsExporting(false)
-
-    const api = window.markflow
-    if (!api) return
-    
-    const defaultName = activeTab.filePath
-      ? activeTab.filePath.replace(/\.(md|markdown|txt)$/i, '') + '.' + format
-      : 'Untitled.' + format
-
-    if (format === 'html') {
-      await api.exportHtml(html, defaultName)
-    } else {
-      await api.exportPdf(html, defaultName)
     }
   }
 

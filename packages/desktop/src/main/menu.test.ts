@@ -52,6 +52,19 @@ function getMenuItem(
   return submenu.find((item) => item.label === itemLabel)
 }
 
+function getNestedMenuItem(
+  template: MenuItemConstructorOptions[],
+  menuLabel: string,
+  submenuLabel: string,
+  itemLabel: string,
+): MenuItemConstructorOptions | undefined {
+  const menu = template.find((item) => item.label === menuLabel)
+  const submenu = Array.isArray(menu?.submenu) ? menu.submenu : []
+  const nestedMenu = submenu.find((item) => item.label === submenuLabel)
+  const nestedItems = Array.isArray(nestedMenu?.submenu) ? nestedMenu.submenu : []
+  return nestedItems.find((item) => item.label === itemLabel)
+}
+
 describe('createApplicationMenuTemplate', () => {
   it('disables the reveal item for untitled documents', () => {
     const template = createMenuTemplate({
@@ -183,6 +196,21 @@ describe('createApplicationMenuTemplate', () => {
       }),
     )
     expect(sendMenuAction).toHaveBeenCalledWith('clear-formatting')
+  })
+
+  it('routes File export menu items through the renderer menu bridge', () => {
+    const sendMenuAction = vi.fn()
+    const template = createMenuTemplate({
+      sendMenuAction,
+    })
+    const exportHtmlItem = getNestedMenuItem(template, 'File', 'Export', 'HTML…')
+    const exportPdfItem = getNestedMenuItem(template, 'File', 'Export', 'PDF…')
+
+    exportHtmlItem?.click?.({} as never, {} as never, {} as never)
+    exportPdfItem?.click?.({} as never, {} as never, {} as never)
+
+    expect(sendMenuAction.mock.calls).toContainEqual(['export-html'])
+    expect(sendMenuAction.mock.calls).toContainEqual(['export-pdf'])
   })
 
   it('routes distraction-free mode through the renderer menu bridge', () => {

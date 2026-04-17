@@ -2695,4 +2695,55 @@ describe('App export integration', () => {
     expect(callArgs[0]).toContain('content: counter(mf-outline-h1) "." counter(mf-outline-h2) ". ";')
     expect(callArgs[1]).toBe('/docs/numbered-export.html')
   })
+
+  it('serializes internal heading anchors and routes PDF export through the desktop bridge', async () => {
+    const api = new MockMarkFlowAPI()
+    window.markflow = api
+
+    render(<App />)
+
+    await act(async () => {
+      api.emitFileOpened({
+        filePath: '/docs/export.pdf.md',
+        content: [
+          '# Intro',
+          '',
+          'See [Setup](#setup).',
+          '',
+          '```typescript',
+          'const value = 1',
+          '```',
+          '',
+          '$$',
+          'x^2',
+          '$$',
+          '',
+          '| Name | Value |',
+          '| --- | --- |',
+          '| A | B |',
+          '',
+          '## Setup',
+        ].join('\n'),
+      })
+    })
+
+    await act(async () => {
+      api.emitMenuAction('export-pdf')
+    })
+
+    await waitFor(() => {
+      expect(api.exportPdf).toHaveBeenCalled()
+    }, { timeout: 2000 })
+
+    const callArgs = (api.exportPdf as ReturnType<typeof vi.fn>).mock.calls[0]
+    expect(callArgs[0]).toContain('id="intro"')
+    expect(callArgs[0]).toContain('id="setup"')
+    expect(callArgs[0]).toContain('href="#setup"')
+    expect(callArgs[0]).not.toContain('href="#setup" target="_blank"')
+    expect(callArgs[0]).toContain('mf-code-lang-badge')
+    expect(callArgs[0]).toContain('mf-math-block')
+    expect(callArgs[0]).toContain('mf-table-row')
+    expect(callArgs[0]).toContain('@page {')
+    expect(callArgs[1]).toBe('/docs/export.pdf.pdf')
+  })
 })

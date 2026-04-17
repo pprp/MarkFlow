@@ -5511,3 +5511,49 @@
   - none
 - Next recommended feature:
   - `MF-103` - perform the pending manual relaunch verification on macOS and Windows, then set `passes` / `lastVerifiedAt` only if all four startup behaviors match the ledger contract
+
+### 2026-04-17 - MF-107 ships HTML/PDF export serialization and desktop error handling, with manual export comparison still pending
+
+- Author: Codex
+- Focus: obey the startup protocol for `MF-107`, implement only the desktop HTML/PDF export feature, run the required automated verification plus `pnpm harness:verify`, keep the ledger honest because the required macOS manual export comparison did not happen here, and finish with a Lore-protocol commit.
+- What changed:
+  - re-read the root `AGENTS.md`, ran `pnpm harness:start`, and ran `./harness/init.sh --smoke` before implementation; both passed in this session
+  - added renderer-side export serialization in `packages/editor/src/export/htmlExport.ts`, which clones the hidden WYSIWYG export editor, assigns stable heading anchor ids, strips `target="_blank"` from internal `#heading` links, inlines same-document stylesheet text plus resolved `--mf-*` theme variables, and appends print CSS tuned for HTML/PDF export
+  - switched `packages/editor/src/App.tsx` to use that serializer for both menu-driven HTML and PDF export, and extended `packages/editor/src/__tests__/App.test.tsx` plus the new `packages/editor/src/export/htmlExport.test.ts` golden/fixture coverage to lock internal anchors, code/math/table markup, heading numbering export state, and standalone HTML generation
+  - updated `packages/desktop/src/main/fileManager.ts` so PDF export writes a temporary HTML file and prints from that file instead of a giant data URL, waits for fonts/images before `printToPDF`, enables Electron's `generateDocumentOutline` / `generateTaggedPDF` options, and shows native error dialogs for unwritable HTML/PDF targets; added matching regression tests in `packages/desktop/src/main/fileManager.test.ts` and `packages/desktop/src/main/menu.test.ts`
+  - promoted only `MF-107` in `harness/feature-ledger.json` from `planned` to `ready`; `passes` and `lastVerifiedAt` remain untouched because no truthful manual macOS export comparison was completed in this terminal session
+- Changed files:
+  - `packages/editor/src/export/htmlExport.ts`
+  - `packages/editor/src/export/htmlExport.test.ts`
+  - `packages/editor/src/export/__fixtures__/prepared-rendered-document.html`
+  - `packages/editor/src/App.tsx`
+  - `packages/editor/src/__tests__/App.test.tsx`
+  - `packages/desktop/src/main/fileManager.ts`
+  - `packages/desktop/src/main/fileManager.test.ts`
+  - `packages/desktop/src/main/menu.test.ts`
+  - `harness/feature-ledger.json`
+  - `harness/progress.md`
+- Simplifications made:
+  - kept the export serializer renderer-local and DOM-based instead of introducing a second markdown-to-HTML pipeline just for export fidelity
+  - reused Electron's existing `printToPDF` flow, but moved the transport from a fragile data URL to a temporary HTML file rather than layering new background workers or IPC protocols
+  - limited user-visible error reporting to native desktop dialogs for HTML/PDF export failures instead of broadening the feature into a general notification-system refactor
+- Verification:
+  - `pnpm harness:start` (passes)
+  - `./harness/init.sh --smoke` (passes)
+  - `pnpm --filter @markflow/editor exec vitest run src/export/htmlExport.test.ts src/__tests__/App.test.tsx` (passes; 2 files / 56 tests)
+  - `pnpm --filter @markflow/desktop exec vitest run src/main/fileManager.test.ts src/main/menu.test.ts` (passes; 2 files / 39 tests)
+  - `pnpm --filter @markflow/editor lint` (passes)
+  - `pnpm --filter @markflow/desktop lint` (passes)
+  - `pnpm --filter @markflow/editor build` (passes)
+  - `pnpm --filter @markflow/desktop build` (passes)
+  - `pnpm --filter @markflow/desktop exec vitest run` (passes; 9 files / 61 tests)
+  - `pnpm --filter @markflow/editor exec vitest run` (passes; 40 files / 438 tests with 3 skipped)
+  - `pnpm harness:verify` (passes before ledger promotion and will be re-run after this handoff update)
+- Review / risks:
+  - `MF-107` is implemented and automated coverage is green, but `passes` must remain false until someone exports a representative document to HTML/PDF on macOS and compares the artifacts against the live in-app render, including theme selection and heading numbering
+  - the export serializer intentionally preserves the current WYSIWYG DOM rather than emitting semantic HTML tables or markdown-derived anchors from a separate render engine; that keeps fidelity high, but future DOM-class changes in the editor surface can affect export unless the serializer tests are updated in the same change
+  - the new PDF path removes the obvious long-data-URL failure mode for large documents, but the exact pagination quality and internal-link behavior on a real macOS packaged build still need the manual acceptance pass called out by the feature
+- Newly verified features:
+  - none
+- Next recommended feature:
+  - `MF-107` - run the pending macOS manual export comparison for HTML/PDF, then set `passes` / `lastVerifiedAt` only if rendered fidelity, theme carry-over, heading numbering, long-document pagination, and unwritable-path UX all match the ledger contract

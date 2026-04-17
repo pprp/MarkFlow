@@ -2800,6 +2800,34 @@
         "manual": []
       },
       "notes": "Updated on 2026-04-16: `packages/editor/src/editor/extensions/smartInput.ts` inserts table, fenced code block, and math block markdown scaffolds only when the active selection is a plain paragraph in WYSIWYG mode, using Typora-aligned bindings (`Ctrl+T`, `Ctrl+Shift+K`, `Ctrl+Shift+M` on Windows/Linux; `Cmd+Opt+T`, `Cmd+Opt+C`, `Cmd+Opt+B` on macOS). Automated coverage in `packages/editor/src/editor/__tests__/smartInput.test.ts`, `packages/editor/src/editor/__tests__/smartInput.mac.test.ts`, and `packages/editor/src/editor/__tests__/MarkFlowEditor.test.tsx` now proves the Win/Linux DOM shortcut path, a simulated Mac DOM shortcut path under `navigator.platform = MacIntel`, scaffold text/caret placement, source-mode editability after toggle, and no-op behavior outside WYSIWYG/non-paragraph contexts, so the feature can be truthfully marked verified. Source: https://support.typora.io/Shortcut-Keys/."
+    },
+    {
+      "id": "MF-107",
+      "title": "Export pipeline renders the active document to PDF and HTML from the desktop menu",
+      "category": "phase-1-functional",
+      "area": "@markflow/desktop",
+      "priority": 2,
+      "dependsOn": [
+        "MF-003"
+      ],
+      "steps": [
+        "From File → Export, choose HTML; confirm the exported file matches the rendered WYSIWYG view including code highlighting, math, and tables.",
+        "From File → Export, choose PDF; confirm the exported PDF paginates cleanly on a long document (e.g. `harness/fixtures/mf-large-180k.md`) with working internal heading links.",
+        "Verify the exporter honors the active theme (light vs. dark) and active heading-numbering toggle, and reports errors without crashing when the target path is not writable."
+      ],
+      "verification": {
+        "automated": [
+          "pnpm --filter @markflow/desktop exec vitest run",
+          "pnpm --filter @markflow/editor exec vitest run"
+        ],
+        "manual": [
+          "Export a representative document to HTML and PDF and compare against the in-app render on macOS."
+        ]
+      },
+      "notes": "Implemented on 2026-04-17 in `packages/editor/src/export/htmlExport.ts`, `packages/editor/src/App.tsx`, `packages/desktop/src/main/fileManager.ts`, and the focused desktop/editor test suites. MarkFlow now serializes the hidden WYSIWYG export editor into standalone HTML with inlined stylesheet text, resolved `--mf-*` theme variables, heading-anchor `id`s, normalized internal links, and print CSS that keeps tables/code/math blocks from fragmenting awkwardly; PDF export now renders through a temporary HTML file instead of a giant data URL so long documents remain exportable, waits for fonts/images before printing, enables Electron's experimental PDF outline generation, and surfaces writable-path failures through a desktop error dialog instead of failing silently. Automated verification passed on 2026-04-17 with `pnpm --filter @markflow/desktop exec vitest run`, `pnpm --filter @markflow/editor exec vitest run`, `pnpm --filter @markflow/desktop lint`, `pnpm --filter @markflow/editor lint`, `pnpm --filter @markflow/desktop build`, `pnpm --filter @markflow/editor build`, and `pnpm harness:verify`. `passes` remains false because the required macOS manual export comparison against the live in-app render was not completed in this terminal session.",
+      "status": "ready",
+      "passes": false,
+      "lastVerifiedAt": null
     }
   ]
 }
