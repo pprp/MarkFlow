@@ -11,7 +11,7 @@
  * thread is never monopolised by a single synchronous pass.
  */
 
-import { StateEffect, StateField, type Extension } from '@codemirror/state'
+import { StateEffect, StateField, Text, type Extension } from '@codemirror/state'
 import { ViewPlugin, type ViewUpdate } from '@codemirror/view'
 import { normalizeHeadingAnchor, type OutlineHeading } from './outline'
 import {
@@ -33,6 +33,7 @@ export interface SymbolTable {
 }
 
 export type IndexerSchedule = (fn: () => void) => void
+type IndexerSource = string | Text
 
 export function createEmptySymbolTable(): SymbolTable {
   return {
@@ -45,15 +46,31 @@ export function createEmptySymbolTable(): SymbolTable {
 // Core: symbol table builder (pure, synchronous, safe to call from a Worker)
 // ---------------------------------------------------------------------------
 
+function appendSourceToBuilder(
+  content: IndexerSource,
+  builder: SymbolTableBuilder,
+) {
+  if (typeof content === 'string') {
+    const lines = content.split('\n')
+    for (let index = 0; index < lines.length; index += 1) {
+      builder.appendLine(lines[index], index < lines.length - 1)
+    }
+    return
+  }
+
+  const iterator = content.iterLines()
+  for (let lineNumber = 1; lineNumber <= content.lines; lineNumber += 1) {
+    iterator.next()
+    builder.appendLine(iterator.value, lineNumber < content.lines)
+  }
+}
+
 export function buildSymbolTable(
-  content: string,
+  content: IndexerSource,
   markdownMode: MarkFlowMarkdownMode = DEFAULT_MARKDOWN_MODE,
 ): SymbolTable {
   const builder = new SymbolTableBuilder(markdownMode)
-  const lines = content.split('\n')
-  for (let index = 0; index < lines.length; index += 1) {
-    builder.appendLine(lines[index], index < lines.length - 1)
-  }
+  appendSourceToBuilder(content, builder)
   return builder.toSymbolTable()
 }
 
@@ -327,40 +344,82 @@ const DEFAULT_DEBOUNCE_MS = 300
  */
 export const INDEXER_BATCH_SIZE = 2_000
 
-type LineCursor = {
+type StringLineCursor = {
+  kind: 'string'
   deliveredTerminalEmptyLine: boolean
   nextIndex: number
 }
 
-function readNextLine(content: string, cursor: LineCursor) {
-  if (cursor.nextIndex > content.length) {
+type TextLineCursor = {
+  kind: 'text'
+  iterator: ReturnType<Text['iterLines']>
+  lineNumber: number
+  totalLines: number
+}
+
+type LineCursor = StringLineCursor | TextLineCursor
+
+function createLineCursor(content: IndexerSource): LineCursor {
+  if (typeof content === 'string') {
+    return {
+      kind: 'string',
+      deliveredTerminalEmptyLine: false,
+      nextIndex: 0,
+    }
+  }
+
+  return {
+    kind: 'text',
+    iterator: content.iterLines(),
+    lineNumber: 0,
+    totalLines: content.lines,
+  }
+}
+
+function readNextLine(content: IndexerSource, cursor: LineCursor) {
+  if (cursor.kind === 'text') {
+    if (cursor.lineNumber >= cursor.totalLines) {
+      return null
+    }
+
+    cursor.iterator.next()
+    cursor.lineNumber += 1
+    return {
+      hasTrailingNewline: cursor.lineNumber < cursor.totalLines,
+      line: cursor.iterator.value,
+    }
+  }
+
+  const stringContent = content as string
+
+  if (cursor.nextIndex > stringContent.length) {
     return null
   }
 
-  if (cursor.nextIndex === content.length) {
+  if (cursor.nextIndex === stringContent.length) {
     if (cursor.deliveredTerminalEmptyLine) {
       return null
     }
 
     cursor.deliveredTerminalEmptyLine = true
-    cursor.nextIndex = content.length + 1
+    cursor.nextIndex = stringContent.length + 1
     return {
       hasTrailingNewline: false,
       line: '',
     }
   }
 
-  const lineEnd = content.indexOf('\n', cursor.nextIndex)
+  const lineEnd = stringContent.indexOf('\n', cursor.nextIndex)
   if (lineEnd === -1) {
-    const line = content.slice(cursor.nextIndex)
-    cursor.nextIndex = content.length + 1
+    const line = stringContent.slice(cursor.nextIndex)
+    cursor.nextIndex = stringContent.length + 1
     return {
       hasTrailingNewline: false,
       line,
     }
   }
 
-  const line = content.slice(cursor.nextIndex, lineEnd)
+  const line = stringContent.slice(cursor.nextIndex, lineEnd)
   cursor.nextIndex = lineEnd + 1
   return {
     hasTrailingNewline: true,
@@ -369,7 +428,7 @@ function readNextLine(content: string, cursor: LineCursor) {
 }
 
 export class DocumentIndexer {
-  private pendingContent: string | null = null
+  private pendingContent: IndexerSource | null = null
   private debounceTimer: ReturnType<typeof setTimeout> | null = null
   private generation = 0
   private readonly debounceMs: number
@@ -401,7 +460,7 @@ export class DocumentIndexer {
   }
 
   /** Queue a new indexing run. Rapid successive calls are debounced. */
-  index(content: string): void {
+  index(content: IndexerSource): void {
     this.pendingContent = content
     this.clearDebounceTimer()
     this.debounceTimer = setTimeout(() => {
@@ -429,7 +488,7 @@ export class DocumentIndexer {
    * every group a microtask boundary is crossed so the main thread stays
    * responsive. A final consolidated result is delivered at the end.
    */
-  indexBatched(content: string, batchSize = INDEXER_BATCH_SIZE): void {
+  indexBatched(content: IndexerSource, batchSize = INDEXER_BATCH_SIZE): void {
     this.pendingContent = content
     this.clearDebounceTimer()
     this.debounceTimer = setTimeout(() => {
@@ -443,22 +502,19 @@ export class DocumentIndexer {
     }, this.debounceMs)
   }
 
-  indexBatchedImmediately(content: string, batchSize = INDEXER_BATCH_SIZE): void {
+  indexBatchedImmediately(content: IndexerSource, batchSize = INDEXER_BATCH_SIZE): void {
     this.pendingContent = null
     const runId = ++this.generation
     this.clearDebounceTimer()
     this.runBatched(content, batchSize, runId)
   }
 
-  private runBatched(content: string, batchSize: number, runId: number): void {
+  private runBatched(content: IndexerSource, batchSize: number, runId: number): void {
     if (runId !== this.generation) {
       return
     }
     const builder = new SymbolTableBuilder(this.markdownMode)
-    const cursor: LineCursor = {
-      deliveredTerminalEmptyLine: false,
-      nextIndex: 0,
-    }
+    const cursor = createLineCursor(content)
 
     const processNextBatch = () => {
       if (runId !== this.generation) {
@@ -481,7 +537,10 @@ export class DocumentIndexer {
           processedLines += 1
         }
 
-        const isComplete = cursor.nextIndex > content.length
+        const isComplete =
+          cursor.kind === 'string'
+            ? cursor.nextIndex > content.length
+            : cursor.lineNumber >= cursor.totalLines
         if (builder.headingCount > headingCountBeforeBatch || isComplete) {
           this.onResult(builder.toSymbolTable())
         }
@@ -548,12 +607,12 @@ export function indexerExtension(options: {
 
       // Populate the initial symbol table immediately, but still off the
       // current call stack so large files never block editor mount.
-      indexer.indexBatchedImmediately(view.state.doc.toString())
+      indexer.indexBatchedImmediately(view.state.doc)
 
       return {
         update(update: ViewUpdate) {
           if (update.docChanged) {
-            indexer.indexBatched(update.view.state.doc.toString())
+            indexer.indexBatched(update.view.state.doc)
           }
         },
         destroy() {

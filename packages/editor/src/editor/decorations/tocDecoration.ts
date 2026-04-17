@@ -8,11 +8,13 @@ import {
 } from '@codemirror/view'
 import { RangeSetBuilder } from '@codemirror/state'
 import { extractOutlineHeadings, type OutlineHeading } from '../outline'
+import { symbolTableField } from '../indexer'
 import { getDecorationViewportWindow } from './viewportWindow'
 import {
   DEFAULT_MARKDOWN_MODE,
   type MarkFlowMarkdownMode,
 } from '../../markdownMode'
+import { isLargeInteractiveDocument } from '../../largeDocument'
 
 const TOC_LINE_RE = /^\[toc\]\s*$/i
 
@@ -79,6 +81,20 @@ function buildTocDecorations(view: EditorView, headings: OutlineHeading[]): Deco
   return builder.finish()
 }
 
+function getTocHeadings(
+  view: EditorView,
+  markdownMode: MarkFlowMarkdownMode,
+) {
+  const indexedHeadings = view.state.field(symbolTableField, false)?.headings ?? []
+  if (isLargeInteractiveDocument(view.state.doc.length)) {
+    return indexedHeadings
+  }
+
+  return indexedHeadings.length > 0
+    ? indexedHeadings
+    : extractOutlineHeadings(view.state.doc.toString(), markdownMode)
+}
+
 export function tocDecorations(markdownMode: MarkFlowMarkdownMode = DEFAULT_MARKDOWN_MODE) {
   return ViewPlugin.fromClass(
     class {
@@ -86,15 +102,25 @@ export function tocDecorations(markdownMode: MarkFlowMarkdownMode = DEFAULT_MARK
       headings: OutlineHeading[]
 
       constructor(view: EditorView) {
-        this.headings = extractOutlineHeadings(view.state.doc.toString(), markdownMode)
+        this.headings = getTocHeadings(view, markdownMode)
         this.decorations = buildTocDecorations(view, this.headings)
       }
 
       update(update: ViewUpdate) {
-        if (update.docChanged) {
-          this.headings = extractOutlineHeadings(update.view.state.doc.toString(), markdownMode)
+        const isLargeDoc = isLargeInteractiveDocument(update.view.state.doc.length)
+        const nextTable = update.state.field(symbolTableField, false)
+        const previousTable = update.startState.field(symbolTableField, false)
+        const symbolTableChanged = nextTable !== previousTable
+
+        if (isLargeDoc) {
+          if (update.docChanged || symbolTableChanged) {
+            this.headings = nextTable?.headings ?? []
+          }
+        } else if (update.docChanged) {
+          this.headings = getTocHeadings(update.view, markdownMode)
         }
-        if (update.docChanged || update.selectionSet || update.viewportChanged) {
+
+        if (update.docChanged || update.selectionSet || update.viewportChanged || symbolTableChanged) {
           this.decorations = buildTocDecorations(update.view, this.headings)
         }
       }

@@ -9,6 +9,47 @@
 
 ## Session Log
 
+### 2026-04-17 - MF-050 removed more full-document reparses and kept the ledger truthful
+
+- Author: Codex
+- Focus: obey the startup protocol for `MF-050`, stay inside this one feature, remove more per-edit full-document work from the background-indexer path and its closest large-document consumers, rerun the required automation truthfully, attempt a real Electron verification again, and leave the ledger honest unless the live gate could actually be proven.
+- What changed:
+  - re-read the root `AGENTS.md`, ran `pnpm harness:start`, and ran `./harness/init.sh --smoke` before touching `MF-050`
+  - updated `packages/editor/src/editor/indexer.ts` so `DocumentIndexer` and `indexerExtension` now accept CodeMirror `Text` snapshots directly, which removes the eager `view.state.doc.toString()` materialization that previously happened on every edit before batched indexing even started
+  - updated `packages/editor/src/editor/decorations/tocDecoration.ts` so large documents now reuse `symbolTableField` instead of reparsing headings through `extractOutlineHeadings(...)` on each document change
+  - updated `packages/editor/src/editor/extensions/markdownPostProcessor.ts` so selection/viewport-only updates reuse cached `sourceText` instead of reserializing the full document for every post-processor run
+  - expanded `packages/editor/src/editor/__tests__/indexer.test.ts` and `packages/editor/src/editor/__tests__/tocDecoration.test.tsx` to lock the new `Text`-based indexer path and the guarantee that large-document TOC updates no longer call `extractOutlineHeadings`
+  - updated `harness/features/MF-050.md` with this session's truthful implementation summary and the still-blocked live verification result; `harness/feature-ledger.json` was intentionally left unchanged because the live/manual gate still is not proven
+- Changed files:
+  - `packages/editor/src/editor/indexer.ts`
+  - `packages/editor/src/editor/decorations/tocDecoration.ts`
+  - `packages/editor/src/editor/extensions/markdownPostProcessor.ts`
+  - `packages/editor/src/editor/__tests__/indexer.test.ts`
+  - `packages/editor/src/editor/__tests__/tocDecoration.test.tsx`
+  - `harness/features/MF-050.md`
+  - `harness/progress.md`
+- Simplifications made:
+  - kept the symbol-table builder and batcher in the existing `indexer.ts` module instead of adding a worker protocol or another large-document cache
+  - reused the existing `symbolTableField` as the large-document TOC source of truth instead of maintaining a second heading parser path beside the background indexer
+  - left `harness/feature-ledger.json` untouched because the unresolved gap is still the real desktop proof, not automated metadata
+- Verification:
+  - `pnpm harness:start` (passes at session start; `MF-050` remains the next recommended feature)
+  - `./harness/init.sh --smoke` (passes at session start)
+  - `pnpm --filter @markflow/editor exec vitest run src/editor/__tests__/indexer.test.ts src/editor/__tests__/tocDecoration.test.tsx src/editor/__tests__/markdownPostProcessor.test.tsx src/editor/__tests__/MarkFlowEditor.test.tsx src/__tests__/App.test.tsx --reporter=basic` (passes; 5 files / 135 tests with 3 skipped)
+  - `pnpm --filter @markflow/editor test:run -- src/editor/__tests__/indexer.test.ts src/editor/__tests__/outline.test.ts src/editor/__tests__/MarkFlowEditor.test.tsx src/__tests__/App.test.tsx` (passes; current package script executes the full editor Vitest suite, 40 files / 447 tests with 3 skipped)
+  - `pnpm --filter @markflow/editor lint` (passes)
+  - `pnpm --filter @markflow/editor build` (passes)
+  - `pnpm harness:verify` (passes before closeout; `121 total | verified=65 | ready=40 | planned=15 | blocked=1 | regression=0`)
+  - live Electron verification against `harness/fixtures/mf-large-180k.md` via current dev app on `--remote-debugging-port=9241` (blocked): `/json/list` still exposed the `http://localhost:5173/` renderer target, but a direct `Runtime.enable` call against that page timed out after `5000ms`, so the renderer still could not be driven truthfully in this terminal session
+- Review / risks:
+  - this pass removes another set of real full-document serialization/parsing paths from the large-file edit loop, but I still cannot honestly claim the live 180k outline/anchor/typing gate passed
+  - because the renderer target still does not answer page-level CDP commands reliably here, `MF-050` must remain `status=ready`, `passes=false`, and `lastVerifiedAt=null`
+  - if a future session gets a trustworthy renderer-control path or a human operator, it should rerun the real 180k outline/anchor/typing check before any ledger promotion; if the app is still slow after that, the next profiling slice should focus on App-side cursor/line/selection fan-out after editor callbacks
+- Newly verified features:
+  - none
+- Next recommended feature:
+  - `MF-050` - rerun the live 180k outline/anchor/typing verification with a renderer-control path that actually responds to page CDP calls or with a human operator; only then should `passes=true` and `lastVerifiedAt` move
+
 ### 2026-04-16 - MF-093 Source mode now exposes a configurable line-number gutter
 
 - Author: Codex

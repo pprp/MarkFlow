@@ -6,7 +6,7 @@ import {
   indexerExtension,
   symbolTableField,
 } from '../indexer'
-import { EditorState } from '@codemirror/state'
+import { EditorState, Text } from '@codemirror/state'
 import { EditorView } from '@codemirror/view'
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown'
 
@@ -217,6 +217,27 @@ describe('indexer: DocumentIndexer', () => {
     ])
     expect(finalTable?.anchors.get('visible-title')).toBe(doc.indexOf('Visible title'))
     expect(finalTable?.anchors.get('tail')).toBe(doc.indexOf('# Tail'))
+
+    indexer.dispose()
+  })
+
+  it('indexes CodeMirror Text snapshots without materializing them to strings first', async () => {
+    const results: ReturnType<typeof buildSymbolTable>[] = []
+    const doc = Text.of(['# First', '', '## Second'])
+    const toStringSpy = vi.spyOn(doc, 'toString')
+    const indexer = new DocumentIndexer((table) => results.push(table), {
+      debounceMs: 0,
+      schedule: (fn) => Promise.resolve().then(fn),
+    })
+
+    indexer.indexBatchedImmediately(doc, 1)
+
+    for (let i = 0; i < 5; i += 1) {
+      await Promise.resolve()
+    }
+
+    expect(results.at(-1)?.anchors.get('second')).toBeGreaterThan(0)
+    expect(toStringSpy).not.toHaveBeenCalled()
 
     indexer.dispose()
   })

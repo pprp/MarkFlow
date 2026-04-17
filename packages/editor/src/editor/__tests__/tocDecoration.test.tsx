@@ -1,7 +1,12 @@
-import { render } from '@testing-library/react'
+import { render, waitFor } from '@testing-library/react'
 import { EditorView } from '@codemirror/view'
 import { describe, expect, it, vi } from 'vitest'
 import { MarkFlowEditor } from '../MarkFlowEditor'
+import {
+  LARGE_DOCUMENT_UI_THREAD_THRESHOLD_CHARS,
+} from '../../largeDocument'
+import { symbolTableField } from '../indexer'
+import * as outline from '../outline'
 
 function getEditorView(container: HTMLElement) {
   const editorRoot = container.querySelector('.cm-editor')
@@ -14,6 +19,10 @@ function getEditorView(container: HTMLElement) {
 /** Move cursor to end of document so the [toc] widget renders (cursor-on-line hides it). */
 function moveCursorToEnd(view: EditorView) {
   view.dispatch({ selection: { anchor: view.state.doc.length } })
+}
+
+function moveCursorOffTocNearViewportStart(view: EditorView, anchor: number) {
+  view.dispatch({ selection: { anchor } })
 }
 
 describe('toc decorations', () => {
@@ -96,5 +105,31 @@ describe('toc decorations', () => {
     const view = getEditorView(container)
 
     expect(view.state.doc.toString()).toBe(doc)
+  })
+
+  it('uses the background symbol table for large documents instead of reparsing headings in the toc plugin', async () => {
+    const doc = [
+      '[toc]',
+      '',
+      '# Alpha',
+      '',
+      'x'.repeat(LARGE_DOCUMENT_UI_THREAD_THRESHOLD_CHARS),
+      '',
+      '## Beta',
+    ].join('\n')
+    const extractHeadingsSpy = vi.spyOn(outline, 'extractOutlineHeadings')
+    const { container } = render(<MarkFlowEditor content={doc} viewMode="wysiwyg" onChange={vi.fn()} />)
+    const view = getEditorView(container)
+
+    moveCursorOffTocNearViewportStart(view, doc.indexOf('# Alpha') + 2)
+
+    await waitFor(() => {
+      expect(view.state.field(symbolTableField).headings.map((heading) => heading.text)).toEqual([
+        'Alpha',
+        'Beta',
+      ])
+    })
+
+    expect(extractHeadingsSpy).not.toHaveBeenCalled()
   })
 })

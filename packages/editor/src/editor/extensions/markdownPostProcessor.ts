@@ -15,12 +15,18 @@ export function markdownPostProcessorExtension({
   class MarkdownPostProcessorPlugin {
     _cleanup: (() => void) | null = null
     _frame: number | null = null
+    _sourceText: string
 
     constructor(view: EditorView) {
+      this._sourceText = view.state.doc.toString()
       this._scheduleRun(view)
     }
 
     update(update: ViewUpdate) {
+      if (update.docChanged) {
+        this._sourceText = update.state.doc.toString()
+      }
+
       if (update.docChanged || update.selectionSet || update.viewportChanged) {
         this._scheduleRun(update.view)
       }
@@ -43,7 +49,7 @@ export function markdownPostProcessorExtension({
         this._cleanup?.()
         this._cleanup = pluginHost.runMarkdownPostProcessors(view.contentDOM, {
           filePath,
-          sourceText: view.state.doc.toString(),
+          sourceText: this._sourceText,
           viewMode,
         })
       })
