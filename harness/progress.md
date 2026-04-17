@@ -17,6 +17,28 @@
 - Next recommended feature:
   - Continue with `MF-051` in an environment with trusted desktop UI access; only update ledger pass state after both automated and manual checks pass.
 
+### 2026-04-17T22:10:31+08:00 - MF-051 protocol-compliant loop (automation verified, manual blocked)
+
+- Author: Codex
+- Focus: strict one-feature loop for `MF-051` (outline live scroll-sync and click-to-jump navigation).
+- What changed:
+  - Ran `pnpm harness:start`.
+  - Ran `./harness/init.sh --smoke`.
+  - Ran required automated verification command:
+    - `pnpm --filter @markflow/editor test:run -- src/__tests__/App.test.tsx src/editor/__tests__/MarkFlowEditor.test.tsx src/editor/__tests__/outline.test.ts`
+  - Ran `pnpm harness:verify`.
+  - Did not modify source code for `MF-051` in this round; existing implementation remains in place.
+- Verification:
+  - Feature automation passed: `40` test files, `451` tests passed, `3` skipped, `0` failed.
+  - `pnpm harness:verify` passed (`features: 121 total | verified=66 | ready=39 | planned=15 | blocked=1 | regression=0`).
+  - `./harness/init.sh --smoke` passed in this environment.
+- Remaining risk / blocker:
+  - Trusted manual desktop scroll-sync validation for `MF-051` cannot be executed here (no trusted UI session), so behavior against real viewport movement is not yet human-proven.
+- Ledger decision:
+  - Kept `harness/feature-ledger.json` unchanged (`MF-051.status=ready`, `MF-051.passes=false`, `MF-051.lastVerifiedAt` unchanged) to avoid false completion.
+- Next recommended feature:
+  - Continue with `MF-051` once a desktop UI session is available; only then set `status=verified`, `passes=true`, and `lastVerifiedAt`.
+
 ### 2026-04-17T14:02:30Z - MF-051 protocol loop (automation verified, manual UI blocked)
 
 - Author: Codex
