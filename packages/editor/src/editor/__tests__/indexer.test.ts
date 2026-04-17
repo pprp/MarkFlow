@@ -1,3 +1,5 @@
+import fs from 'node:fs'
+import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   buildSymbolTable,
@@ -97,6 +99,23 @@ describe('indexer: buildSymbolTable', () => {
       0,
       doc.indexOf('### Header'),
     ])
+  })
+
+  it('keeps representative section headings from the 180k harness fixture', () => {
+    const fixturePath = path.resolve(
+      path.dirname(new URL(import.meta.url).pathname),
+      '../../../../../harness/fixtures/mf-large-180k.md',
+    )
+    const doc = fs.readFileSync(fixturePath, 'utf8')
+    const table = buildSymbolTable(doc)
+    const headingTexts = table.headings.map((heading) => heading.text)
+
+    expect(headingTexts).toContain('MarkFlow large-file verification fixture')
+    expect(headingTexts).toContain('Section 1')
+    expect(headingTexts).toContain('Section 2')
+    expect(headingTexts).toContain('Section 89')
+    expect(table.anchors.has('section-1')).toBe(true)
+    expect(table.anchors.has('section-89')).toBe(true)
   })
 })
 

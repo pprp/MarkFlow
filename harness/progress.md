@@ -6017,3 +6017,39 @@
   - none
 - Next recommended feature:
   - `MF-050` - rerun the 180k outline/anchor/typing check with a trustworthy manual operator or a renderer-control path that can actually read page state; only then should the ledger move to `passes=true`
+
+### 2026-04-17 - MF-050 closed the live 180k verification gate and can now be marked verified
+
+- Author: Codex
+- Focus: obey the startup protocol for `MF-050`, stay inside this one feature, add the missing 180k-fixture regression coverage, complete the pending live packaged-app verification, and only then promote the ledger.
+- What changed:
+  - re-read the root `AGENTS.md`, ran `pnpm harness:start`, and ran `./harness/init.sh --smoke` before any edits or verification
+  - expanded `packages/editor/src/editor/__tests__/indexer.test.ts` so the pure symbol-table builder now reads `harness/fixtures/mf-large-180k.md` and locks representative headings plus anchors (`Section 1`, `Section 2`, `Section 89`, `section-1`, `section-89`)
+  - updated `harness/features/MF-050.md` with the final live packaged-app proof: a fresh `/tmp/mf050-verify-*.md` copy typed continuously during load, the outline first reached `60` headings at `601.7ms`, twelve typing samples landed in `42ms` to `233ms`, and the injected internal anchor moved the active outline item to `Section 1`
+  - updated `harness/feature-ledger.json` so `MF-050` is now `status=verified`, `passes=true`, and `lastVerifiedAt=2026-04-17T11:29:37Z`
+- Changed files:
+  - `packages/editor/src/editor/__tests__/indexer.test.ts`
+  - `harness/features/MF-050.md`
+  - `harness/feature-ledger.json`
+  - `harness/progress.md`
+- Simplifications made:
+  - kept the new regression at the pure `buildSymbolTable(...)` layer instead of adding another desktop-only harness fixture test
+  - reused the existing packaged desktop app plus CDP bridge for the manual gate instead of adding repository-side probe tooling or new dependencies
+  - kept the ledger promotion limited to `MF-050`; no unrelated feature metadata was touched
+- Verification:
+  - `pnpm harness:start` (passes at session start; `MF-050` was still the next feature before promotion)
+  - `./harness/init.sh --smoke` (passes at session start)
+  - `pnpm --filter @markflow/editor test:run -- src/editor/__tests__/indexer.test.ts src/editor/__tests__/outline.test.ts src/editor/__tests__/MarkFlowEditor.test.tsx src/__tests__/App.test.tsx` (passes; 40 files / 451 tests with 3 skipped)
+  - `pnpm harness:verify` (passes before ledger promotion)
+  - live packaged-app verification against a fresh `/tmp/mf050-verify-*.md` copy of `harness/fixtures/mf-large-180k.md` with `[Jump to Section 1](#section-1)` injected near the top:
+    - outline first reached the full `60` headings at `601.7ms`, well inside the `5s` acceptance window
+    - 12 typing samples landed in `42ms`, `92ms`, `222ms`, `44ms`, `100ms`, `96ms`, `104ms`, `195ms`, `101ms`, `233ms`, `44ms`, and `101ms`
+    - the anchor probe moved the active outline item from `MarkFlow large-file verification fixture` to `Section 1` and scrolled the editor to about `77001px`
+- Review / risks:
+  - the outline still republishes intermediate partial counts during active rescans on the 180k fixture, but it hydrates to the full `60` headings inside the acceptance window and recovers while typing stays responsive
+  - this session did not change the implementation hot path again; it added regression coverage and closed the previously missing live proof
+  - unrelated pre-existing desktop worktree changes remained untouched
+- Newly verified features:
+  - `MF-050`
+- Next recommended feature:
+  - `MF-051` - build on the now-verified symbol-table pipeline to lock outline-panel live scroll sync and click-to-jump behavior as a first-class feature
