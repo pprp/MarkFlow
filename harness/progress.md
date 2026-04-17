@@ -1,3 +1,25 @@
+### 2026-04-17T21:58:45Z - MF-051 protocol-compliant session (automation + no-op source edits)
+
+- Author: Codex
+- Focus: strict one-feature loop for `MF-051` (outline live scroll-sync and click-to-jump navigation).
+- What changed:
+  - Re-ran `pnpm harness:start`.
+  - Re-ran `./harness/init.sh --smoke`.
+  - Ran feature automated verification command:
+    - `pnpm --filter @markflow/editor test:run -- src/__tests__/App.test.tsx src/editor/__tests__/MarkFlowEditor.test.tsx src/editor/__tests__/outline.test.ts`
+  - Re-ran `pnpm harness:verify`.
+  - No additional source changes were required in this pass; existing MF-051 implementation remains unchanged.
+- Verification:
+  - MF-051 feature automation passed: `40` test files, `451` tests passed, `3` skipped, `0` failed.
+  - `pnpm harness:verify` passed (`features: 121 total | verified=66 | ready=39 | planned=15 | blocked=1 | regression=0`).
+  - `./harness/init.sh --smoke` passed (including full test suite execution path).
+- Remaining risk / blocker:
+  - Trusted manual desktop scroll-sync verification for MF-051 is still blocked in this environment (no UI session), so active-outline tracking against real scrolling cannot be validated here.
+- Ledger decision:
+  - Kept `harness/feature-ledger.json` unchanged (`MF-051.status=ready`, `MF-051.passes=false`, `MF-051.lastVerifiedAt` unchanged) to avoid false completion.
+- Next recommended feature:
+  - Complete trusted manual multi-section scroll-sync validation for `MF-051` in desktop UI, then set `status/passes/lastVerifiedAt` only when both automated and manual checks are satisfied.
+
 ### 2026-04-17T13:55:31Z - MF-051 session loop (automation verified, manual blocked)
 
 - Author: Codex
@@ -601,4 +623,3 @@ next: MF-051 - Outline panel lists all headings with live scroll-sync and click-
   - Kept  unchanged for  (, , ) to maintain truthfulness while manual verification is pending.
 - Next recommended feature:
   - Continue  by completing trusted multi-section manual outline scroll-sync validation, then update  only after passing both automation and manual checks.
-
