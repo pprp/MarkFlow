@@ -6622,3 +6622,26 @@
   - Kept `harness/feature-ledger.json` unchanged for `MF-051` (`status=ready`, `passes=false`, `lastVerifiedAt=null`) to preserve verification truthfulness.
 - Next recommended action:
   - run a trusted desktop/manual scroll-sync check for active-outline tracking on a multi-section document, then set `MF-051.passes=true` and `MF-051.lastVerifiedAt`.
+
+### 2026-04-17 - MF-051 automation rerun with manual verification blocked
+
+- Author: Codex
+- Feature: MF-051 - Outline panel lists all headings with live scroll-sync and click-to-jump navigation
+- What changed in this session:
+  - Re-ran `pnpm harness:start`.
+  - Re-ran `./harness/init.sh --smoke`.
+  - Re-ran MF-051 automated verification command:
+    - `pnpm --filter @markflow/editor test:run -- src/__tests__/App.test.tsx src/editor/__tests__/MarkFlowEditor.test.tsx src/editor/__tests__/outline.test.ts`
+  - Re-ran `pnpm harness:verify`.
+  - No source or test edits were required in this session.
+- Verification results:
+  - `pnpm harness:start` pass.
+  - `./harness/init.sh --smoke` pass.
+  - MF-051 automated command pass (`451` tests run, `3` skipped).
+  - `pnpm harness:verify` pass (features: 121 total | verified=66 | ready=39 | planned=15 | blocked=1 | regression=0).
+- Remaining risk / blocker:
+  - Manual desktop scroll-sync proof for MF-051 is still blocked in this environment (active outline following viewport on multi-section content).
+- Ledger decision:
+  - Kept `harness/feature-ledger.json` unchanged for `MF-051` (`status=ready`, `passes=false`, `lastVerifiedAt=null`) to avoid false completion.
+- Next recommended feature:
+  - Continue with `MF-051` and complete trusted manual desktop scroll-sync verification, then set `status`, `passes`, `lastVerifiedAt`.
