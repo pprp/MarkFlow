@@ -221,6 +221,46 @@ describe('indexer: DocumentIndexer', () => {
     indexer.dispose()
   })
 
+  it('indexBatchedImmediately finishes cleanly for empty documents', async () => {
+    const results: ReturnType<typeof buildSymbolTable>[] = []
+    const indexer = new DocumentIndexer((table) => results.push(table), {
+      debounceMs: 0,
+      schedule: (fn) => setTimeout(fn, 0),
+    })
+
+    indexer.indexBatchedImmediately('', 1)
+
+    vi.advanceTimersByTime(20)
+    await Promise.resolve()
+
+    expect(results.at(-1)).toEqual({
+      anchors: new Map(),
+      headings: [],
+    })
+
+    indexer.dispose()
+  })
+
+  it('indexBatchedImmediately preserves headings when the document ends with a trailing newline', async () => {
+    const results: ReturnType<typeof buildSymbolTable>[] = []
+    const indexer = new DocumentIndexer((table) => results.push(table), {
+      debounceMs: 0,
+      schedule: (fn) => setTimeout(fn, 0),
+    })
+
+    indexer.indexBatchedImmediately(['# Intro', '', '## Details', ''].join('\n'), 1)
+
+    vi.advanceTimersByTime(50)
+    await Promise.resolve()
+
+    expect(results.at(-1)?.headings.map((heading) => heading.text)).toEqual([
+      'Intro',
+      'Details',
+    ])
+
+    indexer.dispose()
+  })
+
   it('dispose() cancels any pending debounced run', async () => {
     const results: ReturnType<typeof buildSymbolTable>[] = []
     const indexer = new DocumentIndexer((table) => results.push(table), {

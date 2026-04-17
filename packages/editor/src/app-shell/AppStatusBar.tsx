@@ -1,4 +1,11 @@
-import { type ChangeEvent, type Dispatch, type FormEvent, type SetStateAction, useMemo } from 'react'
+import {
+  type ChangeEvent,
+  type Dispatch,
+  type FormEvent,
+  type SetStateAction,
+  useDeferredValue,
+  useMemo,
+} from 'react'
 import type { MarkFlowImageUploadSettings, MarkFlowSpellCheckState } from '@markflow/shared'
 import { formatMarkdownModeStatus, type MarkFlowMarkdownMode } from '../markdownMode'
 import { sanitizeSpellCheckWord } from '../spellCheckProfile'
@@ -77,14 +84,16 @@ export function AppStatusBar({
   updateImageUploadSettings,
   panelState,
 }: AppStatusBarProps) {
+  const deferredContent = useDeferredValue(activeTab?.content ?? '')
+  const deferredSelectionText = useDeferredValue(activeTab?.selectionText ?? '')
   const docStats = useMemo(
     () =>
-      computeStats(activeTab?.content ?? '', activeTab?.selectionText ?? '', {
+      computeStats(deferredContent, deferredSelectionText, {
         excludeFencedCode: statisticsPreferences.excludeFencedCode,
       }),
-    [activeTab?.content, activeTab?.selectionText, statisticsPreferences.excludeFencedCode],
+    [deferredContent, deferredSelectionText, statisticsPreferences.excludeFencedCode],
   )
-  const hasSelectionStats = (activeTab?.selectionText ?? '').length > 0
+  const hasSelectionStats = deferredSelectionText.length > 0
   const statisticsRows = [
     {
       label: 'Words',

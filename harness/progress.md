@@ -5743,3 +5743,43 @@
   - none
 - Next recommended feature:
   - `MF-050` - continue profiling the live 180k edit path, especially per-keystroke full-document synchronization and any render/decorations work that still blocks input after the indexer cleanup
+
+### 2026-04-17 - MF-050 reduced the remaining 180k render-path work, but the manual gate is still pending
+
+- Author: Codex
+- Focus: obey the startup protocol for `MF-050`, change only the background-indexer path plus the smallest adjacent large-document plumbing needed to reduce the real 180k bottlenecks, rerun the feature's automated verification truthfully, and leave the ledger honest unless the manual gate could actually be completed.
+- What changed:
+  - re-read the root `AGENTS.md`, ran `pnpm harness:start`, and ran `./harness/init.sh --smoke` before touching `MF-050`; both passed in this session
+  - updated `packages/editor/src/editor/indexer.ts` so batched indexing no longer performs a full upfront `split('\n')`, handles terminal empty-line cases while streaming batches, and uses a larger `2,000`-line batch size to get early headings like `Section 1` onto the outline with fewer scheduled slices
+  - updated `packages/editor/src/editor/MarkFlowEditor.tsx` so parent-driven document replacements no longer echo the same full document back through `onChange`, and added regression coverage for both external replacements and parent echoes of local edits
+  - updated `packages/editor/src/App.tsx` and `packages/editor/src/app-shell/AppStatusBar.tsx` so ordinary tabs stop doing a render-path full-document total-line split, no-op content/selection writes are skipped, and document statistics run on deferred content instead of blocking the active edit path
+  - updated `harness/features/MF-050.md` with this session's truthful fix summary and the still-unmet manual-gate status; `harness/feature-ledger.json` was intentionally left unchanged because `MF-050` still lacks trustworthy manual verification
+- Changed files:
+  - `packages/editor/src/editor/indexer.ts`
+  - `packages/editor/src/editor/MarkFlowEditor.tsx`
+  - `packages/editor/src/App.tsx`
+  - `packages/editor/src/app-shell/AppStatusBar.tsx`
+  - `packages/editor/src/editor/__tests__/indexer.test.ts`
+  - `packages/editor/src/editor/__tests__/MarkFlowEditor.test.tsx`
+  - `harness/features/MF-050.md`
+  - `harness/progress.md`
+- Simplifications made:
+  - kept the background indexer in the existing CodeMirror extension instead of adding a new worker protocol or a second symbol-table pipeline
+  - reused React's built-in deferred rendering for status-bar statistics instead of introducing a new scheduler or cache layer
+  - kept `harness/feature-ledger.json` untouched because the missing proof is still the manual desktop gate, not the automated metadata
+- Verification:
+  - `pnpm harness:start` (passes at session start; `MF-050` remains the next recommended feature)
+  - `./harness/init.sh --smoke` (passes at session start)
+  - `pnpm --filter @markflow/editor test:run -- src/editor/__tests__/indexer.test.ts src/editor/__tests__/outline.test.ts src/editor/__tests__/MarkFlowEditor.test.tsx src/__tests__/App.test.tsx` (passes; current package script executes the full editor Vitest suite, 40 files / 444 tests with 3 skipped)
+  - `pnpm --filter @markflow/editor lint` (passes)
+  - `pnpm --filter @markflow/editor build` (passes)
+  - `pnpm harness:verify` (passes before closeout; `121 total | verified=65 | ready=40 | planned=15 | blocked=1 | regression=0`)
+  - attempted desktop manual verification by launching the Electron dev app against `harness/fixtures/mf-large-180k.md` (not trustworthy in this environment; GUI automation access is blocked, and `Computer Use` returned Apple event error `-1743`)
+- Review / risks:
+  - the scoped hot paths are reduced and better-covered, but I could not honestly claim the real 180k typing/no-lag gate passed without a trustworthy manual desktop interaction path
+  - because the manual gate is still unresolved, `MF-050` must remain `status=ready`, `passes=false`, and `lastVerifiedAt=null`
+  - if the next session has usable desktop automation or a human operator, it should rerun the real 180k outline/anchor/typing check before any ledger promotion
+- Newly verified features:
+  - none
+- Next recommended feature:
+  - `MF-050` - run the pending real desktop/manual verification on `harness/fixtures/mf-large-180k.md`; only if outline hydration, anchor resolution, and typing responsiveness all pass should the ledger move to `passes=true`

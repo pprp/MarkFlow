@@ -318,8 +318,55 @@ class SymbolTableBuilder {
 // ---------------------------------------------------------------------------
 
 const DEFAULT_DEBOUNCE_MS = 300
-/** Lines delivered to the consumer per batch tick. */
-export const INDEXER_BATCH_SIZE = 500
+/**
+ * Lines delivered to the consumer per batch tick.
+ *
+ * A 2k-line chunk still fits comfortably inside one scheduled task, but it
+ * reduces batch-count overhead enough for early outline headings to arrive
+ * promptly on the 180k-line verification fixture.
+ */
+export const INDEXER_BATCH_SIZE = 2_000
+
+type LineCursor = {
+  deliveredTerminalEmptyLine: boolean
+  nextIndex: number
+}
+
+function readNextLine(content: string, cursor: LineCursor) {
+  if (cursor.nextIndex > content.length) {
+    return null
+  }
+
+  if (cursor.nextIndex === content.length) {
+    if (cursor.deliveredTerminalEmptyLine) {
+      return null
+    }
+
+    cursor.deliveredTerminalEmptyLine = true
+    cursor.nextIndex = content.length + 1
+    return {
+      hasTrailingNewline: false,
+      line: '',
+    }
+  }
+
+  const lineEnd = content.indexOf('\n', cursor.nextIndex)
+  if (lineEnd === -1) {
+    const line = content.slice(cursor.nextIndex)
+    cursor.nextIndex = content.length + 1
+    return {
+      hasTrailingNewline: false,
+      line,
+    }
+  }
+
+  const line = content.slice(cursor.nextIndex, lineEnd)
+  cursor.nextIndex = lineEnd + 1
+  return {
+    hasTrailingNewline: true,
+    line,
+  }
+}
 
 export class DocumentIndexer {
   private pendingContent: string | null = null
@@ -407,31 +454,39 @@ export class DocumentIndexer {
     if (runId !== this.generation) {
       return
     }
-    const lines = content.split('\n')
-    let batchStart = 0
     const builder = new SymbolTableBuilder(this.markdownMode)
+    const cursor: LineCursor = {
+      deliveredTerminalEmptyLine: false,
+      nextIndex: 0,
+    }
 
     const processNextBatch = () => {
       if (runId !== this.generation) {
         return
       }
-      const batchEnd = Math.min(batchStart + batchSize, lines.length)
       this.schedule(() => {
         if (runId !== this.generation) {
           return
         }
 
         const headingCountBeforeBatch = builder.headingCount
-        for (let index = batchStart; index < batchEnd; index += 1) {
-          builder.appendLine(lines[index], index < lines.length - 1)
+        let processedLines = 0
+        while (processedLines < batchSize) {
+          const nextLine = readNextLine(content, cursor)
+          if (!nextLine) {
+            break
+          }
+
+          builder.appendLine(nextLine.line, nextLine.hasTrailingNewline)
+          processedLines += 1
         }
 
-        if (builder.headingCount > headingCountBeforeBatch || batchEnd >= lines.length) {
+        const isComplete = cursor.nextIndex > content.length
+        if (builder.headingCount > headingCountBeforeBatch || isComplete) {
           this.onResult(builder.toSymbolTable())
         }
 
-        batchStart = batchEnd
-        if (batchStart < lines.length) {
+        if (!isComplete) {
           processNextBatch()
         }
       })

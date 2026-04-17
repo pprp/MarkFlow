@@ -127,6 +127,41 @@ describe('MarkFlowEditor', () => {
     expect(updatedView.state.selection.main.head).toBe(0)
   })
 
+  it('does not echo onChange when the parent replaces the document content', () => {
+    const handleChange = vi.fn()
+    const { rerender } = render(
+      <MarkFlowEditor content="Draft" viewMode="wysiwyg" onChange={handleChange} />,
+    )
+
+    rerender(<MarkFlowEditor content="# Opened file" viewMode="wysiwyg" onChange={handleChange} />)
+
+    expect(handleChange).not.toHaveBeenCalled()
+  })
+
+  it('does not treat the parent echo of a local edit as a second document change', () => {
+    const handleChange = vi.fn()
+    const { container, rerender } = render(
+      <MarkFlowEditor content="Hello" viewMode="wysiwyg" onChange={handleChange} />,
+    )
+
+    const view = getEditorView(container)
+    view.dispatch({
+      changes: { from: 5, insert: ' world' },
+      selection: { anchor: 11 },
+    })
+
+    expect(handleChange).toHaveBeenCalledTimes(1)
+    expect(handleChange).toHaveBeenLastCalledWith('Hello world')
+
+    handleChange.mockClear()
+    rerender(<MarkFlowEditor content="Hello world" viewMode="wysiwyg" onChange={handleChange} />)
+
+    expect(handleChange).not.toHaveBeenCalled()
+    expect(getEditorView(container)).toBe(view)
+    expect(view.state.doc.toString()).toBe('Hello world')
+    expect(view.state.selection.main.head).toBe(11)
+  })
+
   it('shows source-mode line numbers only while the source-mode preference is enabled', async () => {
     const content = ['# Intro', 'Second line', 'Third line'].join('\n')
     const { container, rerender } = render(

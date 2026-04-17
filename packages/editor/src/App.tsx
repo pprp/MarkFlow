@@ -7,7 +7,6 @@ import {
   findTabIndex,
   getCurrentLineNumberForTab,
   getTabLabel,
-  getTotalLinesForTab,
   type ClosedDocumentTabState,
   type DocumentTabState,
   type MarkFlowStartupAPI,
@@ -826,10 +825,7 @@ export function App() {
     handleSaveTab,
   ])
 
-  const totalLines = useMemo(
-    () => getTotalLinesForTab(activeTab),
-    [activeTab],
-  )
+  const totalLines = activeTab?.largeFile?.totalLines ?? 0
 
   const currentLineNumber = useMemo(
     () => getCurrentLineNumberForTab(activeTab),
@@ -1171,15 +1167,22 @@ export function App() {
       return
     }
 
-    updateTab(currentActiveTabId, (tab) =>
-      tab.largeFile
-        ? tab
-        : {
-            ...tab,
-            content,
-            isDirty: content !== tab.persistedContent,
-          },
-    )
+    updateTab(currentActiveTabId, (tab) => {
+      if (tab.largeFile) {
+        return tab
+      }
+
+      const isDirty = content !== tab.persistedContent
+      if (tab.content === content && tab.isDirty === isDirty) {
+        return tab
+      }
+
+      return {
+        ...tab,
+        content,
+        isDirty,
+      }
+    })
   }
 
   function handleSelectionChange(nextSelectionText: string) {
@@ -1188,10 +1191,14 @@ export function App() {
       return
     }
 
-    updateTab(currentActiveTabId, (tab) => ({
-      ...tab,
-      selectionText: nextSelectionText,
-    }))
+    updateTab(currentActiveTabId, (tab) =>
+      tab.selectionText === nextSelectionText
+        ? tab
+        : {
+            ...tab,
+            selectionText: nextSelectionText,
+          },
+    )
   }
 
   async function handleCopyAction(action: 'copy' | 'copy-as-markdown' | 'copy-as-html-code') {

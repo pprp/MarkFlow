@@ -337,6 +337,8 @@ function getEditorExtensions(
   onToggleFocusModeRef: React.MutableRefObject<MarkFlowEditorProps['onToggleFocusMode']>,
   onToggleTypewriterModeRef: React.MutableRefObject<MarkFlowEditorProps['onToggleTypewriterMode']>,
   onCollapsedRangesChangeRef: React.MutableRefObject<MarkFlowEditorProps['onCollapsedRangesChange']>,
+  suppressNextOnChangeRef: React.MutableRefObject<boolean>,
+  syncedContentRef: React.MutableRefObject<string>,
   viewModeRef: React.MutableRefObject<ViewMode>,
   pruneHistoryRef: React.MutableRefObject<((view: EditorView) => void) | null>,
   markdownCompartment: Compartment,
@@ -422,7 +424,13 @@ function getEditorExtensions(
     EditorView.lineWrapping,
     EditorView.updateListener.of((update) => {
       if (update.docChanged) {
-        onChangeRef.current?.(update.state.doc.toString())
+        const nextContent = update.state.doc.toString()
+        syncedContentRef.current = nextContent
+        if (suppressNextOnChangeRef.current) {
+          suppressNextOnChangeRef.current = false
+        } else {
+          onChangeRef.current?.(nextContent)
+        }
         pruneHistoryRef.current?.(update.view)
       }
       if (update.viewportChanged) {
@@ -501,6 +509,8 @@ export const MarkFlowEditor = forwardRef<MarkFlowEditorHandle, MarkFlowEditorPro
   const onToggleFocusModeRef = useRef(onToggleFocusMode)
   const onToggleTypewriterModeRef = useRef(onToggleTypewriterMode)
   const onCollapsedRangesChangeRef = useRef(onCollapsedRangesChange)
+  const suppressNextOnChangeRef = useRef(false)
+  const syncedContentRef = useRef(content)
   const filePathRef = useRef(filePath)
   const markdownModeRef = useRef(markdownMode)
   const appliedMarkdownModeRef = useRef(markdownMode)
@@ -599,6 +609,8 @@ export const MarkFlowEditor = forwardRef<MarkFlowEditorHandle, MarkFlowEditorPro
       onToggleFocusModeRef,
       onToggleTypewriterModeRef,
       onCollapsedRangesChangeRef,
+      suppressNextOnChangeRef,
+      syncedContentRef,
       viewModeRef,
       pruneHistoryRef,
       markdownCompartmentRef.current,
@@ -637,6 +649,8 @@ export const MarkFlowEditor = forwardRef<MarkFlowEditorHandle, MarkFlowEditorPro
       onToggleFocusModeRef,
       onToggleTypewriterModeRef,
       onCollapsedRangesChangeRef,
+      suppressNextOnChangeRef,
+      syncedContentRef,
       viewModeRef,
       pruneHistoryRef,
       markdownCompartmentRef.current,
@@ -1017,9 +1031,16 @@ export const MarkFlowEditor = forwardRef<MarkFlowEditorHandle, MarkFlowEditorPro
     const view = viewRef.current
     if (!view) return
 
-    const currentContent = view.state.doc.toString()
-    if (content === currentContent) return
+    if (content === syncedContentRef.current) return
 
+    const currentContent = view.state.doc.toString()
+    if (content === currentContent) {
+      syncedContentRef.current = currentContent
+      return
+    }
+
+    suppressNextOnChangeRef.current = true
+    syncedContentRef.current = content
     view.dispatch({
       changes: { from: 0, to: currentContent.length, insert: content },
       selection: EditorSelection.cursor(0),
