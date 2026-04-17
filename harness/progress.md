@@ -1,3 +1,28 @@
+### 2026-04-17 - MF-051 verification rerun with required startup + smoke sequence
+
+- Author: Codex
+- Focus: strict one-feature execution for MF-051 with required startup, smoke, automation, and harness verification.
+- What changed:
+  - Re-ran `pnpm harness:start`.
+  - Re-ran `./harness/init.sh --smoke`.
+  - Ran MF-051 automated verification:
+    - `pnpm --filter @markflow/editor test:run -- src/__tests__/App.test.tsx src/editor/__tests__/MarkFlowEditor.test.tsx src/editor/__tests__/outline.test.ts`
+  - Re-ran `pnpm harness:verify`.
+- Verification:
+  - `pnpm harness:start`: pass
+  - `./harness/init.sh --smoke`: pass
+  - MF-051 automated command: pass (`40` files / `451` tests passed, `3` skipped)
+  - `pnpm harness:verify`: pass (`features: 121 total | verified=66 | ready=39 | planned=15 | blocked=1`)
+- Blocker / failed verification:
+  - Trusted manual desktop verification for MF-051 scroll-sync (`manual scroll-sync check with multi-section document`) is blocked in this environment, so no trusted evidence exists for outline active item tracking during real viewport scroll.
+- Ledger handling:
+  - Kept `harness/feature-ledger.json` unchanged for MF-051:
+    - `status=ready`
+    - `passes=false`
+    - `lastVerifiedAt=null`
+- Next recommended step:
+  - Run trusted desktop manual verification: open a multi-section document, scroll the editor viewport, and confirm the active outline heading updates to the currently visible heading before setting `status`, `passes`, and `lastVerifiedAt`.
+
 ### 2026-04-17 - MF-051 protocol-replay (automation complete, manual desktop scroll-sync still blocked)
 
 - Author: Codex
