@@ -9,6 +9,40 @@
 
 ## Session Log
 
+### 2026-04-17 - MF-050 current-package live probe reached the real 180k window but still could not truthfully clear the typing gate
+
+- Author: Codex
+- Focus: obey the startup protocol for `MF-050`, stay inside this one feature, push the blocked live verification path past the old dev-renderer CDP failure by using the current-source packaged app, rerun the required automation truthfully, and only promote the ledger if the real 180k responsiveness gate could actually be proven.
+- What changed:
+  - re-read the root `AGENTS.md`, ran `pnpm harness:start`, and ran `./harness/init.sh --smoke` before touching `MF-050`
+  - verified that the old live-verification blocker still existed at the CDP layer: direct page-target `Runtime.enable`, `Page.enable`, `Runtime.evaluate`, and `DOM.getDocument` calls against the packaged app still timed out even though `/json/list` exposed the renderer target
+  - rebuilt the desktop app from the current tree with `pnpm desktop:pack`, unpacked `dist-desktop/MarkFlow-0.1.0-arm64-mac.zip` into `/tmp/markflow-current-app/MarkFlow.app`, and launched that current package on `/tmp/mf050-live-180k.md` so the real probe no longer depended on the stale `dist-mac` app
+  - prepared `/tmp/mf050-live-180k.md` as a temporary copy of `harness/fixtures/mf-large-180k.md` with `[Jump to Section 1](#section-1)` inserted near the top, dismissed the stale recovery sheet for that file, and captured the live current-package window showing the 180k document, the populated outline, and the injected internal link rendered in the editor
+  - attempted real input against the packaged app with AppleScript + Quartz mouse/keyboard events; that was sufficient to focus the window and hit the editor, but it still did not produce a trustworthy proof that modifier-click anchor navigation landed on `Section 1`, and it did not give an honest measurement for the required “type continuously while the document loads; confirm no input lag” gate
+  - updated `harness/features/MF-050.md` with this narrower, more truthful live-verification state; `harness/feature-ledger.json` remains unchanged because the final manual responsiveness gate is still not proven
+- Changed files:
+  - `harness/features/MF-050.md`
+  - `harness/progress.md`
+- Simplifications made:
+  - reused the existing fixture plus a temporary top-of-file anchor link instead of adding product hooks or a second verification-only codepath
+  - reused shell-accessible macOS primitives (`System Events`, `screencapture`, Quartz events) instead of introducing a new repo dependency or a second automation framework
+  - kept `harness/feature-ledger.json` untouched because the unresolved proof is still live/manual responsiveness, not the automated test suite
+- Verification:
+  - `pnpm harness:start` (passes at session start; `MF-050` remains the next recommended feature)
+  - `./harness/init.sh --smoke` (passes at session start; reruns `pnpm harness:verify` plus the workspace test suite)
+  - `pnpm --filter @markflow/editor test:run -- src/editor/__tests__/indexer.test.ts src/editor/__tests__/outline.test.ts src/editor/__tests__/MarkFlowEditor.test.tsx src/__tests__/App.test.tsx` (passes; the current package script still runs the full editor Vitest suite, 40 files / 447 tests with 3 skipped)
+  - packaged-app CDP probe against the current-source build on port `9239` (fails truthfully): `/json/version` and `/json/list` return, but page-target `Runtime.enable`, `Page.enable`, `Runtime.evaluate`, and `DOM.getDocument` all timed out after `5s`
+  - current-source live window probe against `/tmp/markflow-current-app/MarkFlow.app` + `/tmp/mf050-live-180k.md` (partial pass): the real app window rendered the 180k document with the outline populated and the injected `Jump to Section 1` link visible
+  - `pnpm harness:verify` (passes after the notes/progress updates; `121 total | verified=65 | ready=40 | planned=15 | blocked=1 | regression=0`)
+- Review / risks:
+  - this session proved more than the older “renderer target is unreadable” notes: the current packaged app can visibly open the real 180k file and populate the outline, so `MF-050` is not blocked on basic live rendering anymore
+  - I still cannot honestly mark `MF-050` as passing, because an unrelated macOS permission dialog kept obscuring the renderer during the probe, packaged-app page-target CDP remained unusable, and the remaining “type continuously while the document loads; confirm no input lag” requirement was not measurable truthfully from this session
+  - because the final manual gate is still unresolved, `harness/feature-ledger.json` must remain `status=ready`, `passes=false`, and `lastVerifiedAt=null`
+- Newly verified features:
+  - none
+- Next recommended feature:
+  - `MF-050` - rerun the last live/manual gate on the current packaged app after clearing the foreign macOS permission dialog and with a trustworthy modifier-click/input-latency observation path; only then should the ledger move to `passes=true`
+
 ### 2026-04-17 - MF-050 removed more full-document reparses and kept the ledger truthful
 
 - Author: Codex
