@@ -6215,3 +6215,25 @@
   - none
 - Next recommended feature:
   - `MF-051` - complete trusted manual editor scroll-sync verification, then promote `harness/feature-ledger.json` only if both automated + manual criteria are met.
+
+### 2026-04-17 - MF-051 automation rerun complete; manual desktop scroll-sync remains blocked
+
+- Author: Codex
+- Focus: strict one-feature session for MF-051 under the current AGENTS/harness protocol.
+- What changed:
+  - Ran `pnpm harness:start` and `./harness/init.sh --smoke`.
+  - Re-ran feature automated verification:
+    - `pnpm --filter @markflow/editor test:run -- src/__tests__/App.test.tsx src/editor/__tests__/MarkFlowEditor.test.tsx src/editor/__tests__/outline.test.ts`
+  - Re-ran `pnpm harness:verify`.
+- Simplifications made:
+  - No source implementation changes were required this round; behavior and tests for MF-051 are already present.
+- Verification:
+  - `pnpm harness:start` (pass)
+  - `./harness/init.sh --smoke` (pass)
+  - feature automated verification (pass; 40 files / 451 tests, 3 skipped)
+  - `pnpm harness:verify` (pass; features: 121 total, verified=66, ready=39, planned=15, blocked=1)
+- Blocker / risks:
+  - The required trusted manual desktop check `MF-051` manual verification (multi-section document viewport scroll-sync tracking) could not be completed in this environment.
+  - Because this manual criterion is unmet, `harness/feature-ledger.json` is intentionally unchanged (`passes` remains false, `lastVerifiedAt` unchanged) to keep truthfulness.
+- Next recommended feature:
+  - MF-051 - complete trusted multi-section desktop manual scroll-sync verification; then update `harness/feature-ledger.json` with `status`, `passes`, and `lastVerifiedAt`.
