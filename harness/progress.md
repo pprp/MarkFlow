@@ -6599,3 +6599,26 @@
   - `./harness/init.sh --smoke` triggers full `pnpm test` in this repo, which still reports an unrelated `packages/editor/src/editor/__tests__/lazyImage.test.tsx` failure in this environment.
 - Next recommended feature:
   - `MF-051` - complete trusted manual desktop scroll-sync check, then set `harness/feature-ledger.json` `passes` and `lastVerifiedAt` only after successful manual proof.
+
+### 2026-04-17 - MF-051: bootstrap + automated verification rerun, manual gate blocked
+
+- Author: Codex
+- Focus: execute the MF-051 cycle under AGENTS protocol without touching unrelated scope.
+- What changed:
+  - Ran `pnpm harness:start`.
+  - Ran `./harness/init.sh --smoke`.
+  - Ran feature automated verification:
+    - `pnpm --filter @markflow/editor test:run -- src/__tests__/App.test.tsx src/editor/__tests__/MarkFlowEditor.test.tsx src/editor/__tests__/outline.test.ts`
+  - Ran `pnpm harness:verify`.
+  - No source code or test edits were required for MF-051 in this session; implementation + regression coverage are already present in-tree.
+- Verification:
+  - `pnpm harness:start` (pass)
+  - `./harness/init.sh --smoke` (pass)
+  - `pnpm --filter @markflow/editor test:run -- src/__tests__/App.test.tsx src/editor/__tests__/MarkFlowEditor.test.tsx src/editor/__tests__/outline.test.ts` (pass; 40 files / 451 tests, 3 skipped)
+  - `pnpm harness:verify` (pass; next remains `MF-051`)
+- Risk / blocker:
+  - Trusted manual desktop multi-section scroll-sync verification for MF-051 is still not possible in this environment.
+- Ledger handling:
+  - Kept `harness/feature-ledger.json` unchanged for `MF-051` (`status=ready`, `passes=false`, `lastVerifiedAt=null`) to preserve verification truthfulness.
+- Next recommended action:
+  - run a trusted desktop/manual scroll-sync check for active-outline tracking on a multi-section document, then set `MF-051.passes=true` and `MF-051.lastVerifiedAt`.
