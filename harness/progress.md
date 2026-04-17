@@ -6113,3 +6113,31 @@
   - `MF-050`
 - Next recommended feature:
   - `MF-051` - build on the now-verified symbol-table pipeline to lock outline-panel live scroll sync and click-to-jump behavior as a first-class feature
+
+### 2026-04-17 - MF-051 start/verification resumed with harness note-grammar and path-compatibility fix
+
+- Author: Codex
+- Focus: strictly follow AGENTS session protocol for `MF-051`, recover `harness:start` from notes-path/notes-syntax blockers, and re-run required startup + feature-level verification before deciding ledger promotion.
+- What changed:
+  - validated the repository session protocol by re-reading AGENTS instructions and running `pnpm harness:start` (passes)
+  - added a minimal compatibility fallback in `scripts/harness/shared.mjs` so notes references using `features/MF-XXX.md` still resolve to `harness/features/MF-XXX.md` when present
+  - fixed `harness/features/MF-051.md` to conform to harness list syntax by keeping only the required four sections and plain list-form manual/automated verification entries
+  - re-ran `./harness/init.sh --smoke` (which includes `pnpm harness:verify` and workspace test:run)
+  - re-ran the feature automated verification command for `MF-051`:
+    - `pnpm --filter @markflow/editor test:run -- src/__tests__/App.test.tsx src/editor/__tests__/MarkFlowEditor.test.tsx src/editor/__tests__/outline.test.ts`
+  - re-ran `pnpm harness:verify` after feature checks
+- Simplifications made:
+  - avoided touching implementation code for `@markflow/editor`, keeping scope to one-feature support and harness-operational prerequisites
+  - kept automated + session changes minimal, and did not modify unrelated feature or workspace behavior
+  - did not alter `harness/feature-ledger.json` because the required manual desktop scroll-sync verification is still not completed in this environment
+- Verification:
+  - `pnpm harness:start` (pass)
+  - `./harness/init.sh --smoke` (pass; workspace verification + targeted smoke tests)
+  - `pnpm --filter @markflow/editor test:run -- src/__tests__/App.test.tsx src/editor/__tests__/MarkFlowEditor.test.tsx src/editor/__tests__/outline.test.ts` (pass; 40 files / 451 tests, 3 skipped)
+  - `pnpm harness:verify` (pass; next feature remains MF-051)
+- Review / risks:
+  - `MF-051` functional assertions are still gated by manual desktop `scroll-sync` verification with a multi-section document; automated coverage is green but manual confidence remains pending
+  - if `features/*` notes are recreated as plain files in future, this compatibility fallback in `scripts/harness/shared.mjs` remains the safer path for mixed repos
+  - no desktop UI trust path is available in this session for manual proof, so a user-facing promotion should not claim full pass yet
+- Next recommended feature:
+  - `MF-051` - complete the trusted manual scroll-sync check and then promote `harness/feature-ledger.json` for this feature only if both automated + manual criteria pass.

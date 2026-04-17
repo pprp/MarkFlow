@@ -23,6 +23,13 @@ function resolveNotesPath(notesRef) {
   const resolvedPath = path.resolve(harnessDir, notesRef)
   const relativeToHarness = path.relative(harnessDir, resolvedPath)
 
+  if (!fs.existsSync(resolvedPath)) {
+    const fallbackFromHarnessFeatures = path.resolve(featuresDir, path.basename(notesRef))
+    if (fs.existsSync(fallbackFromHarnessFeatures)) {
+      return fallbackFromHarnessFeatures
+    }
+  }
+
   if (relativeToHarness.startsWith('..') || path.isAbsolute(relativeToHarness)) {
     throw new Error(`Feature notesRef must stay inside harness/: ${notesRef}`)
   }
