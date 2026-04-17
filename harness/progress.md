@@ -5783,3 +5783,38 @@
   - none
 - Next recommended feature:
   - `MF-050` - run the pending real desktop/manual verification on `harness/fixtures/mf-large-180k.md`; only if outline hydration, anchor resolution, and typing responsiveness all pass should the ledger move to `passes=true`
+
+### 2026-04-17 - MF-050 stopped renderer recovery IPC from re-sending the full 180k document on every edit
+
+- Author: Codex
+- Focus: obey the startup protocol for `MF-050`, stay inside this one feature, remove one remaining large-document edit-path bottleneck, rerun the feature automation truthfully, and only touch ledger metadata if the live/manual gate could actually be satisfied.
+- What changed:
+  - re-read the root `AGENTS.md`, ran `pnpm harness:start`, and ran `./harness/init.sh --smoke` before touching `MF-050`
+  - updated `packages/editor/src/App.tsx` so dirty-document recovery checkpoints are sent to Electron only after `750ms` of renderer idle time instead of on every dirty-tab render/update, which avoids serializing the full 180k markdown payload across IPC on each keystroke
+  - expanded `packages/editor/src/__tests__/App.test.tsx` so recovery checkpoints are now locked as delayed, coalesced payloads rather than immediate per-edit sends
+  - updated `harness/features/MF-050.md` with this session's truthful recovery-path fix summary and the still-unresolved live/manual gate; `harness/feature-ledger.json` was intentionally left unchanged because `MF-050` still does not have trustworthy manual verification
+- Changed files:
+  - `packages/editor/src/App.tsx`
+  - `packages/editor/src/__tests__/App.test.tsx`
+  - `harness/features/MF-050.md`
+  - `harness/progress.md`
+- Simplifications made:
+  - kept the existing main-process `30s` recovery writer untouched and only debounced the renderer-side IPC handoff, because the regression risk is in per-keystroke payload forwarding rather than checkpoint-file persistence
+  - reused the existing auto-save checkpoint path instead of adding a new large-document special case or a second persistence channel
+  - kept `harness/feature-ledger.json` untouched because the missing proof is still live/manual 180k typing evidence, not automated metadata
+- Verification:
+  - `pnpm harness:start` (passes at session start; `MF-050` remains the next recommended feature)
+  - `./harness/init.sh --smoke` (passes at session start)
+  - `pnpm --filter @markflow/editor exec vitest run src/__tests__/App.test.tsx` (passes; 1 file / 54 tests)
+  - `pnpm --filter @markflow/editor test:run -- src/editor/__tests__/indexer.test.ts src/editor/__tests__/outline.test.ts src/editor/__tests__/MarkFlowEditor.test.tsx src/__tests__/App.test.tsx` (passes; current package script executes the full editor Vitest suite, 40 files / 445 tests with 3 skipped)
+  - `pnpm --filter @markflow/editor lint` (passes)
+  - `pnpm --filter @markflow/editor build` (passes)
+  - clean-profile Electron CDP typing probe against unique `/tmp/mf050-live-*.md` copies (not trustworthy enough to close the feature; a focused debug pass proved `Input.insertText` can mutate the live 180k document after `Page.bringToFront`, but the full end-to-end first-keystroke probe still timed out before it produced a reliable latency number)
+- Review / risks:
+  - the renderer no longer forwards a full dirty-document checkpoint payload across IPC on every edit, which removes one concrete large-document bottleneck and is covered by automated tests
+  - I still could not honestly mark `MF-050` as passing, because this environment did not yield a trustworthy real-app “type continuously while the document loads” measurement even after the clean-profile CDP retry
+  - `passes` must remain `false` and `lastVerifiedAt` must remain `null` until someone can complete or instrument a reliable live 180k typing probe
+- Newly verified features:
+  - none
+- Next recommended feature:
+  - `MF-050` - rerun the live 180k outline/anchor/typing probe in a trustworthy manual or instrumented desktop session; only if it produces a real keystroke-latency measurement with passing outline hydration and anchor navigation should the ledger move to `passes=true`

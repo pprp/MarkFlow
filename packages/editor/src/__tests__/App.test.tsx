@@ -7,7 +7,7 @@ import { EditorView } from '@codemirror/view'
 import { act } from 'react'
 import * as path from 'path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { App } from '../App'
+import { App, RECOVERY_CHECKPOINT_SYNC_DELAY_MS } from '../App'
 import { headingFoldExtension } from '../editor/extensions/headingFold'
 import {
   HEADING_NUMBERING_ATTRIBUTE,
@@ -2113,6 +2113,7 @@ describe('App desktop integration', () => {
 describe('App auto-save', () => {
   afterEach(() => {
     delete window.markflow
+    vi.useRealTimers()
     vi.restoreAllMocks()
   })
 
@@ -2147,6 +2148,7 @@ describe('App auto-save', () => {
   })
 
   it('schedules a recovery checkpoint when a document becomes dirty', async () => {
+    vi.useFakeTimers()
     const api = new MockMarkFlowAPI()
     window.markflow = api
 
@@ -2162,21 +2164,26 @@ describe('App auto-save', () => {
       view.dispatch({ changes: { from: view.state.doc.length, insert: '\nnew text' } })
     })
 
-    await waitFor(() => {
-      expect(api.scheduleRecoveryCheckpoint).toHaveBeenLastCalledWith({
-        activeTabId: expect.any(String),
-        documents: [
-          {
-            tabId: expect.any(String),
-            filePath: '/docs/note.md',
-            content: '# Hello\nnew text',
-          },
-        ],
-      })
+    expect(api.scheduleRecoveryCheckpoint).not.toHaveBeenCalled()
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(RECOVERY_CHECKPOINT_SYNC_DELAY_MS)
+    })
+
+    expect(api.scheduleRecoveryCheckpoint).toHaveBeenLastCalledWith({
+      activeTabId: expect.any(String),
+      documents: [
+        {
+          tabId: expect.any(String),
+          filePath: '/docs/note.md',
+          content: '# Hello\nnew text',
+        },
+      ],
     })
   })
 
   it('keeps inactive dirty tabs in the recovery checkpoint payload', async () => {
+    vi.useFakeTimers()
     const api = new MockMarkFlowAPI()
     window.markflow = api
 
@@ -2202,17 +2209,64 @@ describe('App auto-save', () => {
       })
     })
 
-    await waitFor(() => {
-      const recoveryPayload = vi.mocked(api.scheduleRecoveryCheckpoint).mock.lastCall?.[0]
-      expect(recoveryPayload).toBeDefined()
-      expect(recoveryPayload?.documents.map((document) => ({
-        filePath: document.filePath,
-        content: document.content,
-      }))).toEqual([
-        { filePath: '/docs/alpha.md', content: '# Alpha\nalpha dirty' },
-        { filePath: '/docs/beta.md', content: '# Beta\nbeta dirty' },
-      ])
-      expect(recoveryPayload?.activeTabId).toBe(recoveryPayload?.documents[1]?.tabId ?? null)
+    expect(api.scheduleRecoveryCheckpoint).not.toHaveBeenCalled()
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(RECOVERY_CHECKPOINT_SYNC_DELAY_MS)
+    })
+
+    const recoveryPayload = vi.mocked(api.scheduleRecoveryCheckpoint).mock.lastCall?.[0]
+    expect(recoveryPayload).toBeDefined()
+    expect(recoveryPayload?.documents.map((document) => ({
+      filePath: document.filePath,
+      content: document.content,
+    }))).toEqual([
+      { filePath: '/docs/alpha.md', content: '# Alpha\nalpha dirty' },
+      { filePath: '/docs/beta.md', content: '# Beta\nbeta dirty' },
+    ])
+    expect(recoveryPayload?.activeTabId).toBe(recoveryPayload?.documents[1]?.tabId ?? null)
+  })
+
+  it('coalesces rapid edits into one delayed recovery checkpoint payload', async () => {
+    vi.useFakeTimers()
+    const api = new MockMarkFlowAPI()
+    window.markflow = api
+
+    const { container } = render(<App />)
+
+    await act(async () => {
+      api.emitFileOpened({ filePath: '/docs/note.md', content: '# Hello' })
+    })
+
+    const view = getEditorView(container)
+    await act(async () => {
+      view.dispatch({ changes: { from: view.state.doc.length, insert: '\nfirst' } })
+      await vi.advanceTimersByTimeAsync(RECOVERY_CHECKPOINT_SYNC_DELAY_MS - 1)
+      view.dispatch({ changes: { from: view.state.doc.length, insert: '\nsecond' } })
+    })
+
+    expect(api.scheduleRecoveryCheckpoint).not.toHaveBeenCalled()
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1)
+    })
+
+    expect(api.scheduleRecoveryCheckpoint).not.toHaveBeenCalled()
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(RECOVERY_CHECKPOINT_SYNC_DELAY_MS)
+    })
+
+    expect(api.scheduleRecoveryCheckpoint).toHaveBeenCalledTimes(1)
+    expect(api.scheduleRecoveryCheckpoint).toHaveBeenLastCalledWith({
+      activeTabId: expect.any(String),
+      documents: [
+        {
+          tabId: expect.any(String),
+          filePath: '/docs/note.md',
+          content: '# Hello\nfirst\nsecond',
+        },
+      ],
     })
   })
 

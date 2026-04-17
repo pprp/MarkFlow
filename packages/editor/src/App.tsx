@@ -41,6 +41,7 @@ import {
   type MarkFlowQuickOpenItem,
   type MarkFlowFileLoadProgressPayload,
   type MarkFlowImageUploadSettings,
+  type MarkFlowRecoveryDraft,
   type MarkFlowSpellCheckState,
   type MarkFlowTabCloseAction,
   type MarkFlowThemeState,
@@ -80,6 +81,7 @@ import { serializeRenderedDocumentForExport } from './export/htmlExport'
 
 const THEME_STYLE_ELEMENT_ID = 'mf-theme-overrides'
 const EDITOR_ROOT_SELECTOR = '.cm-editor'
+export const RECOVERY_CHECKPOINT_SYNC_DELAY_MS = 750
 
 function formatLoadingBytes(bytes: number) {
   if (bytes >= 1024 * 1024) {
@@ -256,6 +258,7 @@ export function App() {
   const pluginHostRef = useRef<MarkFlowPluginHost | null>(null)
   const editorRef = useRef<MarkFlowEditorHandle | null>(null)
   const editorShellRef = useRef<HTMLDivElement | null>(null)
+  const recoveryCheckpointTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const toastIdRef = useRef(0)
 
   if (pluginHostRef.current === null) {
@@ -859,13 +862,35 @@ export function App() {
 
   useEffect(() => {
     const api = window.markflow
-    if (!api || dirtyRecoveryDocuments.length === 0) return
+    if (!api || dirtyRecoveryDocuments.length === 0) {
+      if (recoveryCheckpointTimerRef.current !== null) {
+        clearTimeout(recoveryCheckpointTimerRef.current)
+        recoveryCheckpointTimerRef.current = null
+      }
+      return
+    }
 
-    api.scheduleRecoveryCheckpoint({
+    const draft: MarkFlowRecoveryDraft = {
       activeTabId: activeTab?.isDirty ? activeTab.recoveryTabId ?? activeTab.id : null,
       documents: dirtyRecoveryDocuments,
-    })
-  }, [activeTab?.id, activeTab?.isDirty, dirtyRecoveryDocuments])
+    }
+
+    if (recoveryCheckpointTimerRef.current !== null) {
+      clearTimeout(recoveryCheckpointTimerRef.current)
+    }
+
+    recoveryCheckpointTimerRef.current = setTimeout(() => {
+      recoveryCheckpointTimerRef.current = null
+      api.scheduleRecoveryCheckpoint(draft)
+    }, RECOVERY_CHECKPOINT_SYNC_DELAY_MS)
+
+    return () => {
+      if (recoveryCheckpointTimerRef.current !== null) {
+        clearTimeout(recoveryCheckpointTimerRef.current)
+        recoveryCheckpointTimerRef.current = null
+      }
+    }
+  }, [activeTab?.id, activeTab?.isDirty, activeTab?.recoveryTabId, dirtyRecoveryDocuments])
 
   useEffect(() => {
     const handleGlobalKeyDown = async (e: KeyboardEvent) => {
