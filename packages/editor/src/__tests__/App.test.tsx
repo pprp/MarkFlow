@@ -10,6 +10,10 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { App, RECOVERY_CHECKPOINT_SYNC_DELAY_MS } from '../App'
 import { headingFoldExtension } from '../editor/extensions/headingFold'
 import {
+  LARGE_DOCUMENT_CONTENT_SYNC_DELAY_MS,
+  LARGE_DOCUMENT_UI_THREAD_THRESHOLD_CHARS,
+} from '../largeDocument'
+import {
   HEADING_NUMBERING_ATTRIBUTE,
   HEADING_NUMBERING_OUTLINE_LEVEL_ATTRIBUTE,
   HEADING_NUMBERING_STYLE_ELEMENT_ID,
@@ -476,6 +480,7 @@ class MockMarkFlowAPI implements MarkFlowDesktopAPI {
 
 describe('App desktop integration', () => {
   afterEach(() => {
+    vi.useRealTimers()
     delete window.markflow
     persistLocalMarkdownModePreference('tolerant')
     persistLocalHeadingNumberingPreference(false)
@@ -575,6 +580,35 @@ describe('App desktop integration', () => {
     })
 
     expect(screen.getByRole('tab', { name: 'notes.md' })).toBeInTheDocument()
+  })
+
+  it('saves the latest large-document editor content before deferred sync flushes', async () => {
+    vi.useFakeTimers()
+    const api = new MockMarkFlowAPI()
+    window.markflow = api
+    const content = `# Large\n${'x'.repeat(LARGE_DOCUMENT_UI_THREAD_THRESHOLD_CHARS)}`
+
+    const { container } = render(<App />)
+
+    await act(async () => {
+      api.emitFileOpened({ filePath: '/tmp/large.md', content })
+    })
+
+    const view = getEditorView(container)
+    await act(async () => {
+      view.dispatch({
+        changes: { from: view.state.doc.length, insert: '\nLatest line' },
+      })
+    })
+
+    await act(async () => {
+      api.emitMenuAction('save-file')
+      await Promise.resolve()
+    })
+
+    const savedContent = vi.mocked(api.saveFile).mock.lastCall?.[0]
+    expect(typeof savedContent).toBe('string')
+    expect(savedContent?.endsWith('\nLatest line')).toBe(true)
   })
 
   it('opens multiple documents in tabs and preserves selection, outline focus, and undo history while cycling', async () => {
@@ -2268,6 +2302,46 @@ describe('App auto-save', () => {
         },
       ],
     })
+  })
+
+  it('builds recovery checkpoints from the live large-document buffer before deferred sync completes', async () => {
+    vi.useFakeTimers()
+    const api = new MockMarkFlowAPI()
+    window.markflow = api
+    const content = `# Large\n${'x'.repeat(LARGE_DOCUMENT_UI_THREAD_THRESHOLD_CHARS)}`
+
+    const { container } = render(<App />)
+
+    await act(async () => {
+      api.emitFileOpened({ filePath: '/docs/large.md', content })
+    })
+
+    const view = getEditorView(container)
+    await act(async () => {
+      view.dispatch({ changes: { from: view.state.doc.length, insert: '\nfirst' } })
+      await vi.advanceTimersByTimeAsync(RECOVERY_CHECKPOINT_SYNC_DELAY_MS - 1)
+      view.dispatch({ changes: { from: view.state.doc.length, insert: '\nsecond' } })
+      await vi.advanceTimersByTimeAsync(LARGE_DOCUMENT_CONTENT_SYNC_DELAY_MS - 1)
+    })
+
+    expect(api.scheduleRecoveryCheckpoint).not.toHaveBeenCalled()
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1)
+    })
+
+    expect(api.scheduleRecoveryCheckpoint).not.toHaveBeenCalled()
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(
+        RECOVERY_CHECKPOINT_SYNC_DELAY_MS - LARGE_DOCUMENT_CONTENT_SYNC_DELAY_MS,
+      )
+    })
+
+    const recoveryPayload = vi.mocked(api.scheduleRecoveryCheckpoint).mock.lastCall?.[0]
+    expect(recoveryPayload?.documents).toHaveLength(1)
+    expect(recoveryPayload?.documents[0]?.filePath).toBe('/docs/large.md')
+    expect(recoveryPayload?.documents[0]?.content.endsWith('\nfirst\nsecond')).toBe(true)
   })
 
   it('prompts to recover the last checkpoint and restores it as a dirty document when accepted', async () => {

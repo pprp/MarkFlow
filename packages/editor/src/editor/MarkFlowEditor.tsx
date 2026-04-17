@@ -78,6 +78,10 @@ import {
   getMarkdownModeExtensions,
   type MarkFlowMarkdownMode,
 } from '../markdownMode'
+import {
+  LARGE_DOCUMENT_CONTENT_SYNC_DELAY_MS,
+  isLargeInteractiveDocument,
+} from '../largeDocument'
 
 export interface MarkFlowEditorProps {
   content: string
@@ -88,6 +92,7 @@ export interface MarkFlowEditorProps {
   spellCheckLanguage?: string | null
   initialSnapshot?: MarkFlowEditorSnapshot | null
   onChange?: (content: string) => void
+  onDocumentEdit?: () => void
   onCursorPositionChange?: (position: number) => void
   onViewportPositionChange?: (position: number) => void
   onScrollMetricsChange?: (metrics: MinimapScrollMetrics) => void
@@ -138,6 +143,7 @@ export interface MarkFlowEditorHandle {
   executeCommand: (command: MarkFlowEditorCommand) => boolean
   replaceTextOccurrence: (searchText: string, replacementText: string, occurrenceIndex?: number) => boolean
   focus: () => void
+  getContent: () => string | null
 }
 
 type SerializedEditorState = {
@@ -328,6 +334,7 @@ function getEditorExtensions(
   filePath: string | undefined,
   pluginHost: MarkFlowPluginHost | undefined,
   onChangeRef: React.MutableRefObject<MarkFlowEditorProps['onChange']>,
+  onDocumentEditRef: React.MutableRefObject<MarkFlowEditorProps['onDocumentEdit']>,
   onCursorPositionChangeRef: React.MutableRefObject<MarkFlowEditorProps['onCursorPositionChange']>,
   onViewportPositionChangeRef: React.MutableRefObject<MarkFlowEditorProps['onViewportPositionChange']>,
   onScrollMetricsChangeRef: React.MutableRefObject<MarkFlowEditorProps['onScrollMetricsChange']>,
@@ -341,6 +348,7 @@ function getEditorExtensions(
   syncedContentRef: React.MutableRefObject<string>,
   viewModeRef: React.MutableRefObject<ViewMode>,
   pruneHistoryRef: React.MutableRefObject<((view: EditorView) => void) | null>,
+  pendingContentSyncTimerRef: React.MutableRefObject<ReturnType<typeof setTimeout> | null>,
   markdownCompartment: Compartment,
   viewModeCompartment: Compartment,
   editableCompartment: Compartment,
@@ -348,6 +356,20 @@ function getEditorExtensions(
   typewriterModeCompartment: Compartment,
   spellCheckCompartment: Compartment,
 ) {
+  const clearPendingContentSync = () => {
+    if (pendingContentSyncTimerRef.current !== null) {
+      clearTimeout(pendingContentSyncTimerRef.current)
+      pendingContentSyncTimerRef.current = null
+    }
+  }
+
+  const emitMaterializedChange = (view: EditorView) => {
+    clearPendingContentSync()
+    const nextContent = view.state.doc.toString()
+    syncedContentRef.current = nextContent
+    onChangeRef.current?.(nextContent)
+  }
+
   return [
     baseTheme,
     EditorState.allowMultipleSelections.of(true),
@@ -424,12 +446,19 @@ function getEditorExtensions(
     EditorView.lineWrapping,
     EditorView.updateListener.of((update) => {
       if (update.docChanged) {
-        const nextContent = update.state.doc.toString()
-        syncedContentRef.current = nextContent
         if (suppressNextOnChangeRef.current) {
           suppressNextOnChangeRef.current = false
         } else {
-          onChangeRef.current?.(nextContent)
+          onDocumentEditRef.current?.()
+          if (isLargeInteractiveDocument(update.state.doc.length)) {
+            clearPendingContentSync()
+            pendingContentSyncTimerRef.current = setTimeout(() => {
+              pendingContentSyncTimerRef.current = null
+              emitMaterializedChange(update.view)
+            }, LARGE_DOCUMENT_CONTENT_SYNC_DELAY_MS)
+          } else {
+            emitMaterializedChange(update.view)
+          }
         }
         pruneHistoryRef.current?.(update.view)
       }
@@ -475,6 +504,7 @@ export const MarkFlowEditor = forwardRef<MarkFlowEditorHandle, MarkFlowEditorPro
   spellCheckLanguage,
   initialSnapshot,
   onChange,
+  onDocumentEdit,
   onCursorPositionChange,
   onViewportPositionChange,
   onScrollMetricsChange,
@@ -498,6 +528,7 @@ export const MarkFlowEditor = forwardRef<MarkFlowEditorHandle, MarkFlowEditorPro
   const previewViewRef = useRef<EditorView | null>(null)
   const viewRef = useRef<EditorView | null>(null)
   const onChangeRef = useRef(onChange)
+  const onDocumentEditRef = useRef(onDocumentEdit)
   const onCursorPositionChangeRef = useRef(onCursorPositionChange)
   const onViewportPositionChangeRef = useRef(onViewportPositionChange)
   const onScrollMetricsChangeRef = useRef(onScrollMetricsChange)
@@ -516,6 +547,7 @@ export const MarkFlowEditor = forwardRef<MarkFlowEditorHandle, MarkFlowEditorPro
   const appliedMarkdownModeRef = useRef(markdownMode)
   const viewModeRef = useRef(viewMode)
   const pruneHistoryRef = useRef<((view: EditorView) => void) | null>(null)
+  const pendingContentSyncTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const markdownCompartmentRef = useRef(new Compartment())
   const viewModeCompartmentRef = useRef(new Compartment())
   const editableCompartmentRef = useRef(new Compartment())
@@ -527,6 +559,10 @@ export const MarkFlowEditor = forwardRef<MarkFlowEditorHandle, MarkFlowEditorPro
   useEffect(() => {
     onChangeRef.current = onChange
   }, [onChange])
+
+  useEffect(() => {
+    onDocumentEditRef.current = onDocumentEdit
+  }, [onDocumentEdit])
 
   useEffect(() => {
     onCursorPositionChangeRef.current = onCursorPositionChange
@@ -600,6 +636,7 @@ export const MarkFlowEditor = forwardRef<MarkFlowEditorHandle, MarkFlowEditorPro
       filePathRef.current,
       pluginHost,
       onChangeRef,
+      onDocumentEditRef,
       onCursorPositionChangeRef,
       onViewportPositionChangeRef,
       onScrollMetricsChangeRef,
@@ -613,6 +650,7 @@ export const MarkFlowEditor = forwardRef<MarkFlowEditorHandle, MarkFlowEditorPro
       syncedContentRef,
       viewModeRef,
       pruneHistoryRef,
+      pendingContentSyncTimerRef,
       markdownCompartmentRef.current,
       viewModeCompartmentRef.current,
       editableCompartmentRef.current,
@@ -640,6 +678,7 @@ export const MarkFlowEditor = forwardRef<MarkFlowEditorHandle, MarkFlowEditorPro
       filePath,
       pluginHost,
       onChangeRef,
+      onDocumentEditRef,
       onCursorPositionChangeRef,
       onViewportPositionChangeRef,
       onScrollMetricsChangeRef,
@@ -653,6 +692,7 @@ export const MarkFlowEditor = forwardRef<MarkFlowEditorHandle, MarkFlowEditorPro
       syncedContentRef,
       viewModeRef,
       pruneHistoryRef,
+      pendingContentSyncTimerRef,
       markdownCompartmentRef.current,
       viewModeCompartmentRef.current,
       editableCompartmentRef.current,
@@ -823,6 +863,10 @@ export const MarkFlowEditor = forwardRef<MarkFlowEditorHandle, MarkFlowEditorPro
       view.dom.removeEventListener('drop', handleDrop)
       view.scrollDOM.removeEventListener('scroll', handleViewportScroll)
       resizeObserver?.disconnect()
+      if (pendingContentSyncTimerRef.current !== null) {
+        clearTimeout(pendingContentSyncTimerRef.current)
+        pendingContentSyncTimerRef.current = null
+      }
       view.destroy()
       viewRef.current = null
       setEditorView(null)
@@ -1031,6 +1075,11 @@ export const MarkFlowEditor = forwardRef<MarkFlowEditorHandle, MarkFlowEditorPro
     const view = viewRef.current
     if (!view) return
 
+    if (pendingContentSyncTimerRef.current !== null) {
+      clearTimeout(pendingContentSyncTimerRef.current)
+      pendingContentSyncTimerRef.current = null
+    }
+
     if (content === syncedContentRef.current) return
 
     const currentContent = view.state.doc.toString()
@@ -1190,6 +1239,21 @@ export const MarkFlowEditor = forwardRef<MarkFlowEditorHandle, MarkFlowEditorPro
       },
       focus: () => {
         viewRef.current?.focus()
+      },
+      getContent: () => {
+        const view = viewRef.current
+        if (!view) {
+          return null
+        }
+
+        if (pendingContentSyncTimerRef.current !== null) {
+          clearTimeout(pendingContentSyncTimerRef.current)
+          pendingContentSyncTimerRef.current = null
+        }
+
+        const currentContent = view.state.doc.toString()
+        syncedContentRef.current = currentContent
+        return currentContent
       },
       captureSnapshot: () => {
         const view = viewRef.current

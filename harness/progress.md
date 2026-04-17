@@ -5818,3 +5818,45 @@
   - none
 - Next recommended feature:
   - `MF-050` - rerun the live 180k outline/anchor/typing probe in a trustworthy manual or instrumented desktop session; only if it produces a real keystroke-latency measurement with passing outline hydration and anchor navigation should the ledger move to `passes=true`
+
+### 2026-04-17 - MF-050 deferred full large-document syncs and kept the ledger truthful
+
+- Author: Codex
+- Focus: obey the startup protocol for `MF-050`, stay inside this one feature, reduce one more real 180k edit-path bottleneck around active-editor content synchronization, rerun the required automation truthfully, and only promote metadata if the live gate could actually be proven.
+- What changed:
+  - re-read the root `AGENTS.md`, ran `pnpm harness:start`, and ran `./harness/init.sh --smoke` before touching `MF-050`
+  - added `packages/editor/src/largeDocument.ts` to hold the shared `1,000,000`-char large-document threshold plus the `200ms` deferred full-content sync delay
+  - updated `packages/editor/src/editor/MarkFlowEditor.tsx` so large documents still report immediate edit activity through `onDocumentEdit`, but delay expensive full-document `onChange` materialization until the editor is briefly idle; the editor handle now also exposes `getContent()` so save/export/recovery flows can read the live buffer synchronously without waiting for the deferred parent sync
+  - updated `packages/editor/src/App.tsx` so save, export, replace-occurrence, snapshot capture, and recovery-checkpoint drafting all source content from the live active editor buffer; dirty recovery checkpoints are still debounced, but they no longer depend on tab-state content having already caught up for large documents
+  - expanded `packages/editor/src/editor/__tests__/MarkFlowEditor.test.tsx` and `packages/editor/src/__tests__/App.test.tsx` to lock the deferred large-document sync behavior plus the guarantees that save and recovery checkpoints still use the latest unsynced editor content
+  - updated `harness/features/MF-050.md` with this session's truthful implementation summary and live-verification blocker; `harness/feature-ledger.json` was intentionally left unchanged because the real 180k acceptance gate is still not proven
+- Changed files:
+  - `packages/editor/src/largeDocument.ts`
+  - `packages/editor/src/editor/MarkFlowEditor.tsx`
+  - `packages/editor/src/App.tsx`
+  - `packages/editor/src/editor/__tests__/MarkFlowEditor.test.tsx`
+  - `packages/editor/src/__tests__/App.test.tsx`
+  - `harness/features/MF-050.md`
+  - `harness/progress.md`
+- Simplifications made:
+  - kept the large-document rule in one tiny shared helper instead of scattering magic thresholds and delays across `App.tsx` and `MarkFlowEditor.tsx`
+  - reused the existing editor instance as the source of truth for active-tab content instead of adding a second large-document cache or another IPC path
+  - kept `harness/feature-ledger.json` untouched because the missing proof is still the live acceptance gate, not automated metadata
+- Verification:
+  - `pnpm harness:start` (passes at session start; `MF-050` remains the next recommended feature)
+  - `./harness/init.sh --smoke` (passes at session start)
+  - `pnpm --filter @markflow/editor exec vitest run src/editor/__tests__/MarkFlowEditor.test.tsx src/__tests__/App.test.tsx --reporter=basic` (passes after fixing fake-timer isolation in the new app test; 2 files / 107 tests with 3 skips)
+  - `pnpm --filter @markflow/editor test:run -- src/editor/__tests__/indexer.test.ts src/editor/__tests__/outline.test.ts src/editor/__tests__/MarkFlowEditor.test.tsx src/__tests__/App.test.tsx` (passes; current package script executes the full editor Vitest suite, 40 files / 445 tests with 3 skipped)
+  - `pnpm --filter @markflow/editor lint` (passes)
+  - `pnpm --filter @markflow/editor build` (passes)
+  - `pnpm --filter @markflow/desktop build` (passes)
+  - `pnpm harness:verify` (passes before closeout; `121 total | verified=65 | ready=40 | planned=15 | blocked=1 | regression=0`)
+  - live Electron verification against `harness/fixtures/mf-large-180k.md` via dev app on `--remote-debugging-port=9238` (blocked): browser-level CDP target discovery and `Page.getNavigationHistory` succeeded, but page-target `Page.enable` and attached-session `Runtime.evaluate` both timed out, while `Computer Use` still failed immediately with Apple event error `-1743`
+- Review / risks:
+  - the new deferred-sync path removes another concrete full-document hot path from large edits and keeps save/recovery flows correct under automation, but I still cannot honestly claim the real outline/anchor/typing acceptance gate passed
+  - because the live renderer target still does not yield a trustworthy inspection or interaction path in this terminal session, `MF-050` must remain `status=ready`, `passes=false`, and `lastVerifiedAt=null`
+  - the next investigation should stay on `MF-050` and focus on why the live 180k renderer target still stalls at page/runtime CDP calls even after the remaining per-edit full-document synchronizations were reduced
+- Newly verified features:
+  - none
+- Next recommended feature:
+  - `MF-050` - rerun the 180k outline/anchor/typing check with a trustworthy manual operator or a renderer-control path that can actually read page state; only then should the ledger move to `passes=true`

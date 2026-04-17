@@ -368,6 +368,74 @@ export function App() {
     [updateTab],
   )
 
+  const clearRecoveryCheckpointTimer = useCallback(() => {
+    if (recoveryCheckpointTimerRef.current !== null) {
+      clearTimeout(recoveryCheckpointTimerRef.current)
+      recoveryCheckpointTimerRef.current = null
+    }
+  }, [])
+
+  const getCurrentTabContent = useCallback(
+    (tab: DocumentTabState) => {
+      if (tab.id !== activeTabIdRef.current || tab.largeFile) {
+        return tab.content
+      }
+
+      return editorRef.current?.getContent() ?? tab.content
+    },
+    [],
+  )
+
+  const buildRecoveryCheckpointDraft = useCallback((): MarkFlowRecoveryDraft | null => {
+    const currentTabs = tabsRef.current
+    const documents = currentTabs.flatMap((tab) => {
+      if (tab.largeFile || !tab.isDirty) {
+        return []
+      }
+
+      return [
+        {
+          tabId: tab.recoveryTabId ?? tab.id,
+          filePath: tab.filePath,
+          content: getCurrentTabContent(tab),
+        },
+      ]
+    })
+
+    if (documents.length === 0) {
+      return null
+    }
+
+    const currentActiveTab = currentTabs.find((tab) => tab.id === activeTabIdRef.current) ?? null
+    return {
+      activeTabId:
+        currentActiveTab?.isDirty && currentActiveTab.largeFile == null
+          ? currentActiveTab.recoveryTabId ?? currentActiveTab.id
+          : null,
+      documents,
+    }
+  }, [getCurrentTabContent])
+
+  const scheduleRecoveryCheckpoint = useCallback(() => {
+    const api = window.markflow
+    clearRecoveryCheckpointTimer()
+    if (!api) {
+      return
+    }
+
+    if (!tabsRef.current.some((tab) => tab.isDirty && tab.largeFile == null)) {
+      return
+    }
+
+    recoveryCheckpointTimerRef.current = setTimeout(() => {
+      recoveryCheckpointTimerRef.current = null
+      const draft = buildRecoveryCheckpointDraft()
+      if (draft) {
+        api.scheduleRecoveryCheckpoint(draft)
+      }
+    }, RECOVERY_CHECKPOINT_SYNC_DELAY_MS)
+  }, [buildRecoveryCheckpointDraft, clearRecoveryCheckpointTimer])
+
   const captureActiveTabSnapshot = useCallback(() => {
     const currentActiveTabId = activeTabIdRef.current
     const snapshot = editorRef.current?.captureSnapshot()
@@ -375,15 +443,31 @@ export function App() {
       return null
     }
 
-    updateTab(currentActiveTabId, (tab) => ({
-      ...tab,
-      snapshot,
-      collapsedRanges: areCollapsedRangesEqual(tab.collapsedRanges, snapshot.collapsedRanges)
-        ? tab.collapsedRanges
-        : [...snapshot.collapsedRanges],
-    }))
+    updateTab(currentActiveTabId, (tab) => {
+      if (tab.largeFile) {
+        return {
+          ...tab,
+          snapshot,
+          collapsedRanges: areCollapsedRangesEqual(tab.collapsedRanges, snapshot.collapsedRanges)
+            ? tab.collapsedRanges
+            : [...snapshot.collapsedRanges],
+        }
+      }
+
+      const content = getCurrentTabContent(tab)
+      const isDirty = content !== tab.persistedContent
+      return {
+        ...tab,
+        content,
+        isDirty,
+        snapshot,
+        collapsedRanges: areCollapsedRangesEqual(tab.collapsedRanges, snapshot.collapsedRanges)
+          ? tab.collapsedRanges
+          : [...snapshot.collapsedRanges],
+      }
+    })
     return snapshot
-  }, [updateTab])
+  }, [getCurrentTabContent, updateTab])
 
   useEffect(() => () => {
     pluginHostRef.current?.dispose()
@@ -657,12 +741,16 @@ export function App() {
       }
 
       let latestSnapshot: MarkFlowEditorSnapshot | null = null
+      let latestContent = getCurrentTabContent(tab)
       if (tabId === activeTabIdRef.current) {
         latestSnapshot = editorRef.current?.captureSnapshot() ?? null
+        latestContent = editorRef.current?.getContent() ?? latestContent
         if (latestSnapshot) {
           const nextSnapshot = latestSnapshot
           updateTab(tabId, (currentTab) => ({
             ...currentTab,
+            content: latestContent,
+            isDirty: latestContent !== currentTab.persistedContent,
             snapshot: nextSnapshot,
             collapsedRanges: areCollapsedRangesEqual(currentTab.collapsedRanges, nextSnapshot.collapsedRanges)
               ? currentTab.collapsedRanges
@@ -682,8 +770,8 @@ export function App() {
       await syncWindowSession(currentTabs, tabId)
 
       const result = forceSaveAs
-        ? await api.saveFileAs(tab.content, tab.recoveryTabId ?? tabId)
-        : await api.saveFile(tab.content, tab.recoveryTabId ?? tabId)
+        ? await api.saveFileAs(latestContent, tab.recoveryTabId ?? tabId)
+        : await api.saveFile(latestContent, tab.recoveryTabId ?? tabId)
       if (!result?.success) {
         return false
       }
@@ -697,12 +785,14 @@ export function App() {
         ...currentTab,
         recoveryTabId: null,
         filePath: nextFilePath ?? currentTab.filePath,
-        persistedContent: currentTab.content,
+        content: latestContent,
+        persistedContent: latestContent,
         isDirty: false,
       }))
+      scheduleRecoveryCheckpoint()
       return true
     },
-    [syncWindowSession, updateTab],
+    [getCurrentTabContent, scheduleRecoveryCheckpoint, syncWindowSession, updateTab],
   )
 
   const handleCloseTab = useCallback(
@@ -840,18 +930,6 @@ export function App() {
     [tabs],
   )
 
-  const dirtyRecoveryDocuments = useMemo(
-    () =>
-      tabs
-        .filter((tab) => tab.isDirty && tab.largeFile == null)
-        .map((tab) => ({
-          tabId: tab.recoveryTabId ?? tab.id,
-          filePath: tab.filePath,
-          content: tab.content,
-        })),
-    [tabs],
-  )
-
   useEffect(() => {
     if (!activeTabId) {
       return
@@ -861,36 +939,16 @@ export function App() {
   }, [activeTabId, syncWindowSession, windowSessionKey])
 
   useEffect(() => {
-    const api = window.markflow
-    if (!api || dirtyRecoveryDocuments.length === 0) {
-      if (recoveryCheckpointTimerRef.current !== null) {
-        clearTimeout(recoveryCheckpointTimerRef.current)
-        recoveryCheckpointTimerRef.current = null
-      }
+    if (tabs.some((tab) => tab.isDirty && tab.largeFile == null)) {
       return
     }
 
-    const draft: MarkFlowRecoveryDraft = {
-      activeTabId: activeTab?.isDirty ? activeTab.recoveryTabId ?? activeTab.id : null,
-      documents: dirtyRecoveryDocuments,
-    }
+    clearRecoveryCheckpointTimer()
+  }, [clearRecoveryCheckpointTimer, tabs])
 
-    if (recoveryCheckpointTimerRef.current !== null) {
-      clearTimeout(recoveryCheckpointTimerRef.current)
-    }
-
-    recoveryCheckpointTimerRef.current = setTimeout(() => {
-      recoveryCheckpointTimerRef.current = null
-      api.scheduleRecoveryCheckpoint(draft)
-    }, RECOVERY_CHECKPOINT_SYNC_DELAY_MS)
-
-    return () => {
-      if (recoveryCheckpointTimerRef.current !== null) {
-        clearTimeout(recoveryCheckpointTimerRef.current)
-        recoveryCheckpointTimerRef.current = null
-      }
-    }
-  }, [activeTab?.id, activeTab?.isDirty, activeTab?.recoveryTabId, dirtyRecoveryDocuments])
+  useEffect(() => () => {
+    clearRecoveryCheckpointTimer()
+  }, [clearRecoveryCheckpointTimer])
 
   useEffect(() => {
     const handleGlobalKeyDown = async (e: KeyboardEvent) => {
@@ -982,6 +1040,7 @@ export function App() {
   const handlePandocExport = async (action: 'export-docx' | 'export-epub' | 'export-latex') => {
     const api = window.markflow
     if (!api || !activeTab || activeTab.largeFile) return
+    const exportContent = getCurrentTabContent(activeTab)
 
     const ext = action === 'export-docx' ? 'docx' : action === 'export-epub' ? 'epub' : 'tex'
     const defaultName = activeTab.filePath
@@ -989,11 +1048,11 @@ export function App() {
       : `Untitled.${ext}`
 
     if (action === 'export-docx') {
-      await api.exportDocx(activeTab.content, defaultName)
+      await api.exportDocx(exportContent, defaultName)
     } else if (action === 'export-epub') {
-      await api.exportEpub(activeTab.content, defaultName)
+      await api.exportEpub(exportContent, defaultName)
     } else {
-      await api.exportLatex(activeTab.content, defaultName)
+      await api.exportLatex(exportContent, defaultName)
     }
   }
 
@@ -1001,6 +1060,8 @@ export function App() {
     if (!activeTab || activeTab.largeFile) {
       return
     }
+
+    const exportContent = getCurrentTabContent(activeTab)
 
     setIsExporting(true)
     try {
@@ -1016,7 +1077,7 @@ export function App() {
       }
 
       const html = serializeRenderedDocumentForExport({
-        content: activeTab.content,
+        content: exportContent,
         document,
         headingNumberingEnabled,
         markdownMode,
@@ -1057,11 +1118,14 @@ export function App() {
     (tabId: string, searchText: string, replacementText: string, occurrenceIndex: number) => {
       let didReplace = false
       if (activeTabIdRef.current === tabId) {
-        editorRef.current?.replaceTextOccurrence(searchText, replacementText, occurrenceIndex)
+        didReplace = editorRef.current?.replaceTextOccurrence(searchText, replacementText, occurrenceIndex) ?? false
       }
 
       updateTab(tabId, (tab) => {
-        const nextContent = replaceNthOccurrence(tab.content, searchText, replacementText, occurrenceIndex)
+        const nextContent =
+          activeTabIdRef.current === tabId && didReplace
+            ? getCurrentTabContent(tab)
+            : replaceNthOccurrence(tab.content, searchText, replacementText, occurrenceIndex)
         if (nextContent == null || nextContent === tab.content) {
           return tab
         }
@@ -1076,7 +1140,7 @@ export function App() {
 
       return didReplace
     },
-    [updateTab],
+    [getCurrentTabContent, updateTab],
   )
 
   const persistImageUploadSettings = useCallback(
@@ -1185,6 +1249,25 @@ export function App() {
       shell.removeEventListener('mf-image-drop', handleImageInsert as EventListener)
     }
   }, [imageUploadSettings, replaceTabTextOccurrence, showToast])
+
+  const handleDocumentEdit = useCallback(() => {
+    const currentActiveTabId = activeTabIdRef.current
+    if (!currentActiveTabId) {
+      return
+    }
+
+    updateTab(currentActiveTabId, (tab) => {
+      if (tab.largeFile || tab.isDirty) {
+        return tab
+      }
+
+      return {
+        ...tab,
+        isDirty: true,
+      }
+    })
+    scheduleRecoveryCheckpoint()
+  }, [scheduleRecoveryCheckpoint, updateTab])
 
   function handleContentChange(content: string) {
     const currentActiveTabId = activeTabIdRef.current
@@ -1770,6 +1853,7 @@ export function App() {
                 viewMode={viewMode}
                 showSourceLineNumbers={sourceLineNumbersEnabled}
                 onChange={handleContentChange}
+                onDocumentEdit={handleDocumentEdit}
                 onCursorPositionChange={handleCursorPositionChange}
                 onViewportPositionChange={handleViewportPositionChange}
                 onScrollMetricsChange={handleScrollMetricsChange}

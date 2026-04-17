@@ -3,11 +3,16 @@ import { isolateHistory, redo, undo, undoDepth } from '@codemirror/commands'
 import { EditorSelection, Transaction } from '@codemirror/state'
 import { EditorView, runScopeHandlers } from '@codemirror/view'
 import { syntaxTree } from '@codemirror/language'
-import { describe, expect, it, vi } from 'vitest'
+import { createRef } from 'react'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { waitFor } from '@testing-library/react'
-import { MarkFlowEditor } from '../MarkFlowEditor'
+import { MarkFlowEditor, type MarkFlowEditorHandle } from '../MarkFlowEditor'
 import { MAX_UNDO_HISTORY_EVENTS } from '../historyLimit'
 import { symbolTableField } from '../indexer'
+import {
+  LARGE_DOCUMENT_CONTENT_SYNC_DELAY_MS,
+  LARGE_DOCUMENT_UI_THREAD_THRESHOLD_CHARS,
+} from '../../largeDocument'
 import * as outline from '../outline'
 
 interface PointerEventInitWithId extends MouseEventInit {
@@ -15,6 +20,10 @@ interface PointerEventInitWithId extends MouseEventInit {
 }
 
 const IS_MAC_PLATFORM = /Mac|iPhone|iPad|iPod/.test(globalThis.navigator?.platform ?? '')
+
+afterEach(() => {
+  vi.useRealTimers()
+})
 
 function getEditorView(container: HTMLElement) {
   const editorRoot = container.querySelector('.cm-editor')
@@ -160,6 +169,43 @@ describe('MarkFlowEditor', () => {
     expect(getEditorView(container)).toBe(view)
     expect(view.state.doc.toString()).toBe('Hello world')
     expect(view.state.selection.main.head).toBe(11)
+  })
+
+  it('defers large-document onChange materialization until the editor is idle', async () => {
+    vi.useFakeTimers()
+    const content = `# Title\n${'x'.repeat(LARGE_DOCUMENT_UI_THREAD_THRESHOLD_CHARS)}`
+    const handleChange = vi.fn()
+    const handleDocumentEdit = vi.fn()
+    const editorRef = createRef<MarkFlowEditorHandle>()
+    const { container } = render(
+      <MarkFlowEditor
+        ref={editorRef}
+        content={content}
+        viewMode="wysiwyg"
+        onChange={handleChange}
+        onDocumentEdit={handleDocumentEdit}
+      />,
+    )
+
+    const view = getEditorView(container)
+    const insertAt = view.state.doc.length
+    view.dispatch({
+      changes: { from: insertAt, insert: '\nupdated' },
+      selection: { anchor: insertAt + '\nupdated'.length },
+    })
+
+    expect(handleDocumentEdit).toHaveBeenCalledTimes(1)
+    expect(handleChange).not.toHaveBeenCalled()
+
+    await vi.advanceTimersByTimeAsync(LARGE_DOCUMENT_CONTENT_SYNC_DELAY_MS - 1)
+    expect(handleChange).not.toHaveBeenCalled()
+
+    await vi.advanceTimersByTimeAsync(1)
+    expect(handleChange).toHaveBeenCalledTimes(1)
+    expect(handleChange.mock.calls[0]?.[0].endsWith('\nupdated')).toBe(true)
+    expect(editorRef.current?.getContent()?.endsWith('\nupdated')).toBe(true)
+
+    vi.useRealTimers()
   })
 
   it('shows source-mode line numbers only while the source-mode preference is enabled', async () => {
