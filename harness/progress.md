@@ -1,3 +1,25 @@
+### 2026-04-17T13:55:31Z - MF-051 session loop (automation verified, manual blocked)
+
+- Author: Codex
+- Focus: strict one-feature loop for `MF-051` (outline live scroll-sync and jump navigation).
+- What changed:
+  - Re-ran `pnpm harness:start`.
+  - Re-ran `./harness/init.sh --smoke`.
+  - Re-ran feature verification:
+    - `pnpm --filter @markflow/editor test:run -- src/__tests__/App.test.tsx src/editor/__tests__/MarkFlowEditor.test.tsx src/editor/__tests__/outline.test.ts`
+  - Re-ran `pnpm harness:verify`.
+  - No source or implementation files changed; this pass validated existing MF-051 fix behavior.
+- Verification:
+  - Feature automation passed: `451` tests, `3` skipped, `0` failed (`40` test files executed).
+  - `pnpm harness:verify` passed.
+  - `./harness/init.sh --smoke` passed (internally running full-suite verification).
+- Remaining risk / blocker:
+  - Trusted manual desktop verification for scroll-sync tracking remains blocked in this environment; unable to validate viewport-driven outline highlighting against real UI interaction and scroll events.
+- Ledger decision:
+  - Kept `harness/feature-ledger.json` unchanged (`MF-051.status=ready`, `MF-051.passes=false`, `MF-051.lastVerifiedAt` unchanged) to avoid false completion.
+- Next recommended feature:
+  - Complete trusted manual scroll-sync check for `MF-051` in a desktop UI session, then promote `status/passes/lastVerifiedAt` when proof is present.
+
 ### 2026-04-17T21:52:08:z - MF-051 protocol-compliant one-feature session (automation pass, manual blocked)
 
 - Author: Codex
@@ -579,5 +601,4 @@ next: MF-051 - Outline panel lists all headings with live scroll-sync and click-
   - Kept  unchanged for  (, , ) to maintain truthfulness while manual verification is pending.
 - Next recommended feature:
   - Continue  by completing trusted multi-section manual outline scroll-sync validation, then update  only after passing both automation and manual checks.
-
 
