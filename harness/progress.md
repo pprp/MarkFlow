@@ -5644,6 +5644,33 @@
   - none
 - Next recommended feature:
   - `MF-109` - run a packaged-app or browser-driven 180k keystroke-latency probe that can truthfully confirm large-fixture startup hydration, mid-document caret placement, and live typing response; only then set `passes=true` and `lastVerifiedAt`
+### 2026-04-17 - MF-050 live 180k verification still fails, so the ledger stays truthful
+
+- Author: Codex
+- Focus: obey the startup protocol for `MF-050`, rerun the feature's automated verification, attempt a clean-profile live 180k Electron verification, and only promote the ledger if the real app actually met the outline/typing acceptance gate.
+- What changed:
+  - re-read the root `AGENTS.md`, ran `pnpm harness:start`, and ran `./harness/init.sh --smoke` before touching `MF-050`
+  - prepared a dedicated 180k verification file at `/tmp/mf050-live-180k.md` by copying `harness/fixtures/mf-large-180k.md` and replacing one early paragraph with `[Jump to Section 1](#section-1)` so the live probe exercised both outline population and internal-anchor navigation against a real large document
+  - built a temporary clean-profile Electron CDP probe outside the repo (`/tmp/mf050-live-probe.mjs`) to launch `packages/desktop` with `--user-data-dir=/tmp/markflow-mf050-profile`, call `window.markflow.openPath('/tmp/mf050-live-180k.md')`, and measure real UI responsiveness without reusing stale recovery/session state
+  - recorded the failed live result back into `harness/features/MF-050.md`; no production code or ledger metadata were changed because the real acceptance criteria still fail
+- Changed files:
+  - `harness/features/MF-050.md`
+  - `harness/progress.md`
+- Simplifications made:
+  - left `harness/feature-ledger.json` unchanged instead of forcing a speculative state transition; `MF-050` remains `ready` with `passes=false` and `lastVerifiedAt=null`
+  - kept all probe code outside the repository because this session did not produce a verified product fix
+- Verification:
+  - `pnpm --filter @markflow/editor test:run -- src/editor/__tests__/indexer.test.ts src/editor/__tests__/outline.test.ts src/editor/__tests__/MarkFlowEditor.test.tsx src/__tests__/App.test.tsx` (passes; the package script still runs the full editor Vitest suite, 40 files / 438 tests with 3 skipped)
+  - `pnpm harness:verify` (passes; `121 total | verified=65 | ready=40 | planned=15 | blocked=1 | regression=0`)
+  - clean-profile Electron live probe against `/tmp/mf050-live-180k.md` via `window.markflow.openPath(...)` (fails; the tab switches to `mf050-live-180k.md`, but the outline never reaches the expected 91 entries within 5 seconds, and nine scripted keystrokes near `Paragraph 5` each took about 1.4s-1.6s to appear)
+- Review / risks:
+  - the failure reproduced in a fresh user-data directory, so it is not explained by stale recovery/session state
+  - the real blocker appears to be editor-side large-document work after the file opens, not harness plumbing or ledger state; this session did not isolate the exact hot path enough to land a trustworthy product fix
+- Newly verified features:
+  - none
+- Next recommended feature:
+  - `MF-050` - continue profiling the post-open large-document path in the real Electron app, with attention on editor mount, decoration passes, and remaining full-document parse work before attempting another ledger promotion
+
 ### 2026-04-17 - MF-110 normalized harness feature storage into metadata JSON plus per-feature markdown
 
 - Author: Codex
