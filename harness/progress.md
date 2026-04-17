@@ -6381,3 +6381,28 @@
   - Because this manual criterion is unmet, `harness/feature-ledger.json` is intentionally unchanged (`passes` remains false, `lastVerifiedAt` unchanged) to keep truthfulness.
 - Next recommended feature:
   - MF-051 - complete trusted multi-section desktop manual scroll-sync verification; then update `harness/feature-ledger.json` with `status`, `passes`, and `lastVerifiedAt`.
+
+### 2026-04-17 - MF-051 verification loop completed; manual desktop scroll-sync still blocked
+
+- Author: Codex
+- Focus: execute MF-051 one-feature cycle under AGENTS protocol and keep feature state truthful.
+- What changed:
+  - Re-ran `pnpm harness:start`.
+  - Re-ran `./harness/init.sh --smoke`.
+  - Re-ran feature automated verification:
+    - `pnpm --filter @markflow/editor test:run -- src/__tests__/App.test.tsx src/editor/__tests__/MarkFlowEditor.test.tsx src/editor/__tests__/outline.test.ts`
+  - Re-ran `pnpm harness:verify`.
+  - No implementation edits were required this session; MF-051 behavior was already present in this workspace state and all related automated tests passed.
+- Verification:
+  - `pnpm harness:start` (pass)
+  - `./harness/init.sh --smoke` (pass)
+  - `pnpm --filter @markflow/editor test:run -- src/__tests__/App.test.tsx src/editor/__tests__/MarkFlowEditor.test.tsx src/editor/__tests__/outline.test.ts` (pass; 40 files / 451 tests, 3 skipped)
+  - `pnpm harness:verify` (pass; features: 121 total, verified=66, ready=39, planned=15, blocked=1)
+- Update decision:
+  - Kept `harness/feature-ledger.json` unchanged: `status` stays `ready`, `passes=false`, `lastVerifiedAt=null`.
+  - Reason: trusted manual desktop verification for `MF-051` scroll-sync is still not possible in this environment, and protocol requires truthful promotion only after manual proof.
+- Risks / blockers:
+  - Blocking item: trusted manual multi-section editor scroll-sync check (active-heading tracking after scroll).
+  - Desktop export error logs seen during full workspace test run are pre-existing environment permission stderr noise from `packages/desktop/src/main/fileManager.test.ts` and do not affect MF-051 checks.
+- Next recommended feature:
+  - `MF-051` - complete trusted manual multi-section scroll-sync verification in desktop app, then promote `MF-051` in `harness/feature-ledger.json` (`status`, `passes`, `lastVerifiedAt`) only after success.
