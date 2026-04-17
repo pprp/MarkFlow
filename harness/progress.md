@@ -123,6 +123,31 @@
 
 ## Session Log
 
+### 2026-04-17 - MF-051 automated loop rerun completed; manual scroll-sync verification still blocked
+
+- Author: Codex
+- Focus: execute `MF-051` strict one-feature flow in this session without altering unrelated code, then record blockers transparently.
+- What changed:
+  - Re-ran `pnpm harness:start`.
+  - Re-ran `./harness/init.sh --smoke`.
+  - Re-ran `MF-051` automation:
+    - `pnpm --filter @markflow/editor test:run -- src/__tests__/App.test.tsx src/editor/__tests__/MarkFlowEditor.test.tsx src/editor/__tests__/outline.test.ts`
+  - Re-ran `pnpm harness:verify`.
+- Verification:
+  - `pnpm harness:start` (pass)
+  - `./harness/init.sh --smoke` (pass)
+  - `pnpm --filter @markflow/editor test:run -- src/__tests__/App.test.tsx src/editor/__tests__/MarkFlowEditor.test.tsx src/editor/__tests__/outline.test.ts` (pass; 40 files / 451 tests, 3 skipped)
+  - `pnpm harness:verify` (pass; `features: 121 total | verified=66 | ready=39 | planned=15 | blocked=1`)
+- Risks / blocker:
+  - Trusted manual desktop validation remains blocked in this environment. The required step "scroll editor in a multi-section document and verify the outline active item follows viewport" could not be completed.
+- Ledger decision:
+  - `harness/feature-ledger.json` intentionally left unchanged for `MF-051`: `status=ready`, `passes=false`, `lastVerifiedAt=null`.
+- Next recommended feature:
+  - `MF-051` - complete trusted manual scroll-sync proof in a GUI desktop session, then set:
+    - `status=verified`
+    - `passes=true`
+    - `lastVerifiedAt` to the actual verification timestamp.
+
 ### 2026-04-17 - MF-051 rerun: startup + automation + harness verify, manual scroll-sync still blocked
 
 - Author: Codex
