@@ -8,9 +8,10 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { waitFor } from '@testing-library/react'
 import { MarkFlowEditor, type MarkFlowEditorHandle } from '../MarkFlowEditor'
 import { MAX_UNDO_HISTORY_EVENTS } from '../historyLimit'
-import { symbolTableField } from '../indexer'
+import { INDEXER_BATCH_SIZE, symbolTableField } from '../indexer'
 import {
   LARGE_DOCUMENT_CONTENT_SYNC_DELAY_MS,
+  LARGE_DOCUMENT_SYMBOL_TABLE_SYNC_DELAY_MS,
   LARGE_DOCUMENT_UI_THREAD_THRESHOLD_CHARS,
 } from '../../largeDocument'
 import * as outline from '../outline'
@@ -350,6 +351,45 @@ describe('MarkFlowEditor', () => {
       expect(latestTable?.anchors.get('intro')).toBe(0)
       expect(latestTable?.anchors.get('setup')).toBe(9)
     })
+  })
+
+  it('coalesces large-document symbol table callbacks while preserving the latest table', async () => {
+    vi.useFakeTimers()
+    const handleSymbolTableChange = vi.fn()
+    const expectedHeadings = ['Intro', 'Section 1', 'Section 2', 'Section 3']
+    const lines: string[] = []
+
+    expectedHeadings.forEach((heading, batchIndex) => {
+      lines.push(`# ${heading}`)
+      for (let lineIndex = 1; lineIndex < INDEXER_BATCH_SIZE; lineIndex += 1) {
+        lines.push(`Paragraph ${batchIndex}-${lineIndex} ${'x'.repeat(180)}`)
+      }
+    })
+
+    const content = lines.join('\n')
+    expect(content.length).toBeGreaterThan(LARGE_DOCUMENT_UI_THREAD_THRESHOLD_CHARS)
+
+    render(
+      <MarkFlowEditor
+        content={content}
+        viewMode="wysiwyg"
+        onChange={vi.fn()}
+        onSymbolTableChange={handleSymbolTableChange}
+      />,
+    )
+
+    expect(handleSymbolTableChange).toHaveBeenCalledTimes(1)
+    expect(handleSymbolTableChange.mock.calls[0]?.[0].headings).toEqual([])
+
+    await vi.advanceTimersByTimeAsync(LARGE_DOCUMENT_SYMBOL_TABLE_SYNC_DELAY_MS - 1)
+    expect(handleSymbolTableChange).toHaveBeenCalledTimes(1)
+
+    await vi.advanceTimersByTimeAsync(1)
+    expect(handleSymbolTableChange).toHaveBeenCalledTimes(2)
+
+    const latestTable = handleSymbolTableChange.mock.calls.at(-1)?.[0]
+    expect(latestTable?.headings.map((heading: { text: string }) => heading.text)).toEqual(expectedHeadings)
+    expect(latestTable?.anchors.get('section-3')).toBeDefined()
   })
 
   it('reports viewport updates when the editor scroll container scrolls', async () => {

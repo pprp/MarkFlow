@@ -9,6 +9,48 @@
 
 ## Session Log
 
+### 2026-04-17 - MF-050 coalesced large-document symbol-table publishes, but the fresh-launch typing gate still blocks promotion
+
+- Author: Codex
+- Focus: obey the startup protocol for `MF-050`, stay inside this one feature, reduce one more real 180k large-document UI-thread pressure point around symbol-table publication, rerun the required automation truthfully, and only promote the ledger if the live packaged-app typing gate could actually be proven.
+- What changed:
+  - re-read the root `AGENTS.md`, ran `pnpm harness:start`, and ran `./harness/init.sh --smoke` before touching `MF-050`
+  - updated `packages/editor/src/largeDocument.ts` with a shared `120ms` large-document symbol-table sync cadence
+  - updated `packages/editor/src/editor/MarkFlowEditor.tsx` so large-document `symbolTableField` updates still stay correct inside CodeMirror, but `onSymbolTableChange` callbacks are coalesced before they fan out into the React/App shell; stale pending symbol-table publishes are cleared on external document replacement and unmount
+  - expanded `packages/editor/src/editor/__tests__/MarkFlowEditor.test.tsx` to lock the new large-document callback coalescing behavior while preserving the final headings/anchors payload
+  - rebuilt the current-source packaged desktop app with `pnpm desktop:pack`, unpacked it to `/tmp/markflow-current-app/MarkFlow.app`, and reran live CDP probes against `/tmp/mf050-live-180k.md`
+  - updated `harness/features/MF-050.md` with this implementation step plus the narrower current live blocker; `harness/feature-ledger.json` remains unchanged because the final typing/no-lag proof is still not honest enough
+- Changed files:
+  - `packages/editor/src/largeDocument.ts`
+  - `packages/editor/src/editor/MarkFlowEditor.tsx`
+  - `packages/editor/src/editor/__tests__/MarkFlowEditor.test.tsx`
+  - `harness/features/MF-050.md`
+  - `harness/progress.md`
+- Simplifications made:
+  - coalesced the existing `onSymbolTableChange` path instead of adding another symbol-table store, worker protocol, or App-side cache
+  - kept the throttling rule in the existing `largeDocument.ts` helper beside the other large-document cadence constants
+  - left `harness/feature-ledger.json` untouched because the remaining gap is still the live typing proof, not the automated suite
+- Verification:
+  - `pnpm harness:start` (passes at session start; `MF-050` remains the next recommended feature)
+  - `./harness/init.sh --smoke` (passes at session start; reruns `pnpm harness:verify` plus the workspace test suite)
+  - `pnpm --filter @markflow/editor exec vitest run src/editor/__tests__/MarkFlowEditor.test.tsx --reporter=basic` (passes; 1 file / 55 tests with 3 skipped)
+  - `pnpm --filter @markflow/editor test:run -- src/editor/__tests__/indexer.test.ts src/editor/__tests__/outline.test.ts src/editor/__tests__/MarkFlowEditor.test.tsx src/__tests__/App.test.tsx` (passes; the current package script still runs the full editor Vitest suite, 40 files / 448 tests with 3 skipped)
+  - `pnpm --filter @markflow/editor lint` (passes)
+  - `pnpm --filter @markflow/editor build` (passes)
+  - `pnpm desktop:pack` (passes; current-source packaged app rebuilt and zipped)
+  - settled packaged-app CDP probe on `/tmp/markflow-current-app/MarkFlow.app` + `/tmp/mf050-live-180k.md` (partial pass): page-level `Runtime.enable`, `Page.enable`, `DOM.getDocument`, and `Runtime.evaluate` now answer again after the renderer settles; the live outline reached 60 items, and a ctrl-click on the injected `Jump to Section 1` link moved the active outline item from `MarkFlow large-file verification fixture` to `Section 1`
+  - fresh-launch packaged-app probe on ports `9247` and `9249` (fails truthfully): the first script-readable editor state arrived around `4.24s` with only 11 outline items, and the very first post-focus typing-stage `Runtime.evaluate('performance.now()')` then timed out after `3000ms`, so the required “type continuously while the document loads; confirm no input lag” gate is still not proven
+  - `pnpm harness:verify` (passes after the notes/progress updates; `121 total | verified=65 | ready=40 | planned=15 | blocked=1 | regression=0`)
+- Review / risks:
+  - this pass removes another concrete React-side pressure point from `MF-050`: the background indexer can keep feeding CodeMirror immediately, while the App shell no longer has to re-render on every large-document partial symbol-table batch
+  - the live verification story is materially better than before because the settled packaged renderer is scriptable again and internal-anchor navigation is now proven against the real 180k fixture
+  - I still cannot honestly mark `MF-050` as passing, because the fresh-launch typing path remains unstable enough that a trivial post-focus `performance.now()` evaluation stalls for more than 3 seconds while the outline is still hydrating
+  - because that final gate is still unresolved, `harness/feature-ledger.json` must remain `status=ready`, `passes=false`, and `lastVerifiedAt=null`
+- Newly verified features:
+  - none
+- Next recommended feature:
+  - `MF-050` - continue profiling the fresh-launch post-focus path on the current packaged app, especially the work that still stalls the renderer after the first partial outline publish, then rerun the live 180k typing gate before any ledger promotion
+
 ### 2026-04-17 - MF-050 current-package live probe reached the real 180k window but still could not truthfully clear the typing gate
 
 - Author: Codex

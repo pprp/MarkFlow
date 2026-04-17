@@ -80,6 +80,7 @@ import {
 } from '../markdownMode'
 import {
   LARGE_DOCUMENT_CONTENT_SYNC_DELAY_MS,
+  LARGE_DOCUMENT_SYMBOL_TABLE_SYNC_DELAY_MS,
   isLargeInteractiveDocument,
 } from '../largeDocument'
 
@@ -349,6 +350,8 @@ function getEditorExtensions(
   viewModeRef: React.MutableRefObject<ViewMode>,
   pruneHistoryRef: React.MutableRefObject<((view: EditorView) => void) | null>,
   pendingContentSyncTimerRef: React.MutableRefObject<ReturnType<typeof setTimeout> | null>,
+  pendingSymbolTableSyncTimerRef: React.MutableRefObject<ReturnType<typeof setTimeout> | null>,
+  pendingSymbolTableRef: React.MutableRefObject<SymbolTable | null>,
   markdownCompartment: Compartment,
   viewModeCompartment: Compartment,
   editableCompartment: Compartment,
@@ -368,6 +371,36 @@ function getEditorExtensions(
     const nextContent = view.state.doc.toString()
     syncedContentRef.current = nextContent
     onChangeRef.current?.(nextContent)
+  }
+
+  const clearPendingSymbolTableSync = () => {
+    if (pendingSymbolTableSyncTimerRef.current !== null) {
+      clearTimeout(pendingSymbolTableSyncTimerRef.current)
+      pendingSymbolTableSyncTimerRef.current = null
+    }
+  }
+
+  const emitSymbolTableChange = (table: SymbolTable, docLength: number) => {
+    if (!isLargeInteractiveDocument(docLength)) {
+      pendingSymbolTableRef.current = null
+      clearPendingSymbolTableSync()
+      onSymbolTableChangeRef.current?.(table)
+      return
+    }
+
+    pendingSymbolTableRef.current = table
+    if (pendingSymbolTableSyncTimerRef.current !== null) {
+      return
+    }
+
+    pendingSymbolTableSyncTimerRef.current = setTimeout(() => {
+      pendingSymbolTableSyncTimerRef.current = null
+      const nextTable = pendingSymbolTableRef.current
+      pendingSymbolTableRef.current = null
+      if (nextTable) {
+        onSymbolTableChangeRef.current?.(nextTable)
+      }
+    }, LARGE_DOCUMENT_SYMBOL_TABLE_SYNC_DELAY_MS)
   }
 
   return [
@@ -478,7 +511,7 @@ function getEditorExtensions(
       const nextTable = update.state.field(symbolTableField)
       const previousTable = update.startState.field(symbolTableField)
       if (nextTable !== previousTable) {
-        onSymbolTableChangeRef.current?.(nextTable)
+        emitSymbolTableChange(nextTable, update.state.doc.length)
       }
 
       const nextFoldState = update.state.field(foldState, false)
@@ -548,6 +581,8 @@ export const MarkFlowEditor = forwardRef<MarkFlowEditorHandle, MarkFlowEditorPro
   const viewModeRef = useRef(viewMode)
   const pruneHistoryRef = useRef<((view: EditorView) => void) | null>(null)
   const pendingContentSyncTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const pendingSymbolTableSyncTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const pendingSymbolTableRef = useRef<SymbolTable | null>(null)
   const markdownCompartmentRef = useRef(new Compartment())
   const viewModeCompartmentRef = useRef(new Compartment())
   const editableCompartmentRef = useRef(new Compartment())
@@ -651,6 +686,8 @@ export const MarkFlowEditor = forwardRef<MarkFlowEditorHandle, MarkFlowEditorPro
       viewModeRef,
       pruneHistoryRef,
       pendingContentSyncTimerRef,
+      pendingSymbolTableSyncTimerRef,
+      pendingSymbolTableRef,
       markdownCompartmentRef.current,
       viewModeCompartmentRef.current,
       editableCompartmentRef.current,
@@ -693,6 +730,8 @@ export const MarkFlowEditor = forwardRef<MarkFlowEditorHandle, MarkFlowEditorPro
       viewModeRef,
       pruneHistoryRef,
       pendingContentSyncTimerRef,
+      pendingSymbolTableSyncTimerRef,
+      pendingSymbolTableRef,
       markdownCompartmentRef.current,
       viewModeCompartmentRef.current,
       editableCompartmentRef.current,
@@ -867,6 +906,11 @@ export const MarkFlowEditor = forwardRef<MarkFlowEditorHandle, MarkFlowEditorPro
         clearTimeout(pendingContentSyncTimerRef.current)
         pendingContentSyncTimerRef.current = null
       }
+      if (pendingSymbolTableSyncTimerRef.current !== null) {
+        clearTimeout(pendingSymbolTableSyncTimerRef.current)
+        pendingSymbolTableSyncTimerRef.current = null
+      }
+      pendingSymbolTableRef.current = null
       view.destroy()
       viewRef.current = null
       setEditorView(null)
@@ -1081,6 +1125,12 @@ export const MarkFlowEditor = forwardRef<MarkFlowEditorHandle, MarkFlowEditorPro
     }
 
     if (content === syncedContentRef.current) return
+
+    if (pendingSymbolTableSyncTimerRef.current !== null) {
+      clearTimeout(pendingSymbolTableSyncTimerRef.current)
+      pendingSymbolTableSyncTimerRef.current = null
+    }
+    pendingSymbolTableRef.current = null
 
     const currentContent = view.state.doc.toString()
     if (content === currentContent) {
