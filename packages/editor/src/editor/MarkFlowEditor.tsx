@@ -324,6 +324,17 @@ function publishScrollMetrics(
   })
 }
 
+function getTopVisiblePosition(view: EditorView) {
+  const fallbackPosition = Math.max(0, Math.min(view.viewport.from, view.state.doc.length))
+  const scrollerBounds = view.scrollDOM.getBoundingClientRect()
+  const topPosition = view.posAtCoords({
+    x: scrollerBounds.left + 1,
+    y: scrollerBounds.top + 1,
+  })
+
+  return topPosition ?? fallbackPosition
+}
+
 function getEditorExtensions(
   viewMode: ViewMode,
   showSourceLineNumbers: boolean,
@@ -496,7 +507,7 @@ function getEditorExtensions(
         pruneHistoryRef.current?.(update.view)
       }
       if (update.viewportChanged) {
-        onViewportPositionChangeRef.current?.(update.view.viewport.from)
+        onViewportPositionChangeRef.current?.(getTopVisiblePosition(update.view))
         publishScrollMetrics(update.view, onScrollMetricsChangeRef.current)
       }
       if (update.selectionSet || update.docChanged) {
@@ -857,7 +868,7 @@ export const MarkFlowEditor = forwardRef<MarkFlowEditorHandle, MarkFlowEditorPro
     view.dom.addEventListener('click', handleClick)
     view.dom.addEventListener('drop', handleDrop)
     const handleViewportScroll = () => {
-      onViewportPositionChangeRef.current?.(view.viewport.from)
+      onViewportPositionChangeRef.current?.(getTopVisiblePosition(view))
       publishScrollMetrics(view, onScrollMetricsChangeRef.current)
     }
     view.scrollDOM.addEventListener('scroll', handleViewportScroll, { passive: true })
@@ -881,7 +892,7 @@ export const MarkFlowEditor = forwardRef<MarkFlowEditorHandle, MarkFlowEditorPro
     onSelectionChangeRef.current?.(selectedText)
     onSymbolTableChangeRef.current?.(view.state.field(symbolTableField))
     onCollapsedRangesChangeRef.current?.(getCollapsedRanges(view.state))
-    onViewportPositionChangeRef.current?.(view.viewport.from)
+    onViewportPositionChangeRef.current?.(getTopVisiblePosition(view))
     publishScrollMetrics(view, onScrollMetricsChangeRef.current)
 
     const nextCollapsedRanges = initialSnapshot?.collapsedRanges ?? collapsedRanges
@@ -895,7 +906,7 @@ export const MarkFlowEditor = forwardRef<MarkFlowEditorHandle, MarkFlowEditorPro
         }
 
         view.scrollDOM.scrollTop = initialSnapshot.scrollTop
-        onViewportPositionChangeRef.current?.(view.viewport.from)
+        onViewportPositionChangeRef.current?.(getTopVisiblePosition(view))
         publishScrollMetrics(view, onScrollMetricsChangeRef.current)
       })
     }

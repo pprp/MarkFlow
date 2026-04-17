@@ -1668,6 +1668,7 @@ describe('App desktop integration', () => {
 
     const content = ['# Intro', '', '## Setup', '', '### Deep Dive', '', '# Appendix'].join('\n')
     const { container } = render(<App />)
+    const setupHeadingPosition = content.indexOf('## Setup')
 
     await act(async () => {
       api.emitFileOpened({ filePath: '/tmp/outline.md', content })
@@ -1682,6 +1683,9 @@ describe('App desktop integration', () => {
     ])
 
     expect(screen.getByRole('button', { name: 'Intro' })).toHaveAttribute('aria-current', 'true')
+    const view = getEditorView(container)
+    let topViewportPosition = 0
+    const posAtCoordsSpy = vi.spyOn(view, 'posAtCoords').mockImplementation(() => topViewportPosition)
 
     fireEvent.click(screen.getByRole('button', { name: 'Appendix' }))
 
@@ -1705,6 +1709,22 @@ describe('App desktop integration', () => {
         'true',
       )
     })
+
+    act(() => {
+      topViewportPosition = setupHeadingPosition
+      Object.defineProperty(view.scrollDOM, 'scrollTop', {
+        configurable: true,
+        value: 300,
+        writable: true,
+      })
+      fireEvent.scroll(view.scrollDOM)
+    })
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Setup' })).toHaveAttribute('aria-current', 'true')
+    })
+
+    posAtCoordsSpy.mockRestore()
   })
 
   it('restores caret and scroll when navigating back and forward through outline history', async () => {

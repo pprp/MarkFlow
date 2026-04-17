@@ -117,6 +117,8 @@ type EditorImageInsertDetail = {
   occurrenceIndex: number
 }
 
+type ActiveOutlineAnchorSource = 'cursor' | 'viewport'
+
 function rewriteImageMarkdownSource(markdownText: string, nextSource: string) {
   const match = markdownText.match(/^(!\[[^\]]*\]\()([^)]*)(\).*)$/)
   if (!match) {
@@ -246,6 +248,8 @@ export function App() {
   const [loadingFile, setLoadingFile] = useState<MarkFlowFileLoadProgressPayload | null>(null)
   const [editorScrollMetrics, setEditorScrollMetrics] = useState<MinimapScrollMetrics | null>(null)
   const [activeCursorLineNumber, setActiveCursorLineNumber] = useState(1)
+  const [activeOutlineAnchorSource, setActiveOutlineAnchorSource] =
+    useState<ActiveOutlineAnchorSource>('cursor')
   const tabsRef = useRef<DocumentTabState[]>(tabs)
   const activeTabIdRef = useRef<string | null>(null)
   const handleSaveTabRef = useRef<(tabId: string | null, forceSaveAs?: boolean) => Promise<boolean>>(
@@ -1501,9 +1505,24 @@ export function App() {
   const outlineHeadings = activeTab?.largeFile ? [] : activeTab?.symbolTable.headings ?? []
 
   const activeOutlineAnchor = useMemo(
-    () => findActiveHeadingAnchor(outlineHeadings, activeTab?.cursorPosition ?? activeTab?.viewportPosition ?? 0),
-    [activeTab?.cursorPosition, activeTab?.viewportPosition, outlineHeadings],
+    () => {
+      if (!activeTab) {
+        return null
+      }
+
+      const tabCursorPosition = activeTab.cursorPosition
+      const tabViewportPosition = activeTab.viewportPosition ?? tabCursorPosition
+      const lookupPosition =
+        activeOutlineAnchorSource === 'viewport' ? tabViewportPosition : tabCursorPosition
+
+      return findActiveHeadingAnchor(outlineHeadings, lookupPosition)
+    },
+    [activeTab, activeOutlineAnchorSource, outlineHeadings],
   )
+
+  useEffect(() => {
+    setActiveOutlineAnchorSource('cursor')
+  }, [activeTab?.id])
 
   const handleSymbolTableChange = useCallback((table: SymbolTable) => {
     const currentActiveTabId = activeTabIdRef.current
@@ -1553,6 +1572,7 @@ export function App() {
 
     startTransition(() => {
       setActiveCursorLineNumber(lineNumber)
+      setActiveOutlineAnchorSource('cursor')
       updateTab(currentActiveTabId, (tab) =>
         tab.cursorPosition === position
           ? tab
@@ -1571,6 +1591,7 @@ export function App() {
     }
 
     startTransition(() => {
+      setActiveOutlineAnchorSource('viewport')
       updateTab(currentActiveTabId, (tab) =>
         tab.viewportPosition === position
           ? tab

@@ -415,6 +415,7 @@ describe('MarkFlowEditor', () => {
   it('reports viewport updates when the editor scroll container scrolls', async () => {
     const handleViewportPositionChange = vi.fn()
     const handleScrollMetricsChange = vi.fn()
+    const reportedViewportPosition = 1234
     const { container } = render(
       <MarkFlowEditor
         content={['# Intro', '', '## Setup', '', '## Details'].join('\n')}
@@ -429,19 +430,22 @@ describe('MarkFlowEditor', () => {
     handleScrollMetricsChange.mockClear()
 
     const view = getEditorView(container)
+    const posAtCoordsSpy = vi.spyOn(view, 'posAtCoords').mockReturnValue(reportedViewportPosition)
     Object.defineProperty(view.scrollDOM, 'scrollHeight', { configurable: true, value: 1200 })
     Object.defineProperty(view.scrollDOM, 'clientHeight', { configurable: true, value: 300 })
     Object.defineProperty(view.scrollDOM, 'scrollTop', { configurable: true, value: 450, writable: true })
     fireEvent.scroll(view.scrollDOM)
 
     await waitFor(() => {
-      expect(handleViewportPositionChange).toHaveBeenCalledWith(view.viewport.from)
+      expect(handleViewportPositionChange).toHaveBeenCalledWith(reportedViewportPosition)
       expect(handleScrollMetricsChange).toHaveBeenCalledWith({
         scrollTop: 450,
         scrollHeight: 1200,
         clientHeight: 300,
       })
     })
+
+    posAtCoordsSpy.mockRestore()
   })
 
   it('calls onToggleMode when Cmd/Ctrl+/ is pressed inside the editor', () => {

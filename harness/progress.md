@@ -9,6 +9,38 @@
 
 ## Session Log
 
+### 2026-04-17 - MF-051 fixed active outline to follow viewport scroll using top-visible position
+
+- Author: Codex
+- Focus: obey startup protocol for `MF-051`, keep scope to this single feature, switch outline anchoring from cursor/viewport ambiguity to explicit source tracking, verify callback behavior at editor-level and app-level, and keep `feature-ledger` truthful until manual desktop scroll-sync is proven.
+- What changed:
+  - re-read root `AGENTS.md`, ran `pnpm harness:start`, then `./harness/init.sh --smoke` before implementation
+  - updated `packages/editor/src/editor/MarkFlowEditor.tsx` so `onViewportPositionChange` receives top-visible coordinates via `view.posAtCoords(...)` instead of `view.viewport.from`
+  - added source tracking in `packages/editor/src/App.tsx`:
+    - added `ActiveOutlineAnchorSource` (`cursor` | `viewport`)
+    - use cursor-based selection updates by default
+    - switch to viewport source only on scroll updates
+    - reset source to cursor when active tab changes
+  - kept fallback ordering deterministic by computing `activeOutlineAnchor` from the current source with null-safe fallback
+  - updated `packages/editor/src/editor/__tests__/MarkFlowEditor.test.tsx` to assert top-visible viewport callback payload
+  - updated `packages/editor/src/__tests__/App.test.tsx` to verify scroll updates can change the active outline item without cursor movement
+  - updated `harness/features/MF-051.md` with implementation + verification status
+- Simplifications made:
+  - reused existing outline helpers (`findActiveHeadingAnchor`) and tab state fields, avoiding new persistence schema
+  - avoided adding new editor API contracts; only callback payload sourcing logic changed
+  - kept this to one feature and a minimal test footprint
+- Verification:
+  - `pnpm harness:start` (pass)
+  - `./harness/init.sh --smoke` (pass)
+  - `pnpm --filter @markflow/editor test:run -- src/__tests__/App.test.tsx src/editor/__tests__/MarkFlowEditor.test.tsx src/editor/__tests__/outline.test.ts` (pass; editor package test suite 40 files / 451 tests)
+  - `pnpm --filter @markflow/editor lint` (pass)
+  - `pnpm harness:verify` (pass; `features: 121 total | verified=66 | ready=39 | planned=15 | blocked=1`)
+- Review / risks:
+  - automatic verification validates the scroll callback plumbing and regression path, but there is still no live desktop manual scroll-sync check in this environment
+  - if the top-visible coordinates source (`posAtCoords`) behaves differently in non-test renderers, we should validate that quickly on a packaged app
+- Next recommended feature:
+  - `MF-051` - complete the required manual desktop scroll-sync verification (multi-section document, active outline follows scroll) and then update `harness/feature-ledger.json` accordingly
+
 ### 2026-04-17 - MF-050 removed App-shell no-op churn and per-cursor rescans, but the manual typing gate still blocks promotion
 
 - Author: Codex
