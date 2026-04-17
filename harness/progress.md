@@ -5644,3 +5644,36 @@
   - none
 - Next recommended feature:
   - `MF-109` - run a packaged-app or browser-driven 180k keystroke-latency probe that can truthfully confirm large-fixture startup hydration, mid-document caret placement, and live typing response; only then set `passes=true` and `lastVerifiedAt`
+### 2026-04-17 - MF-110 normalized harness feature storage into metadata JSON plus per-feature markdown
+
+- Author: Codex
+- Focus: obey the startup protocol for `MF-110`, change only the harness feature-storage model, keep the CLI workflow stable, run the feature's automated verification truthfully, and finish with a Lore-protocol commit.
+- What changed:
+  - re-read the root `AGENTS.md`, ran `pnpm harness:start`, and ran `./harness/init.sh --smoke` before touching code; both passed in this session
+  - moved long-form feature prose out of `harness/feature-ledger.json` into `121` per-feature markdown files under `harness/features/`, each with required `Notes`, `Steps`, `Automated Verification`, and `Manual Verification` sections
+  - shrank `harness/feature-ledger.json` to metadata-only entries with `notesRef`, bumped the ledger schema metadata to `version: 2`, and updated the harness README/instructions so future sessions edit prose in the per-feature markdown files instead of re-inflating the JSON
+  - updated `scripts/harness/shared.mjs` so `pnpm harness:start` and `pnpm harness:next` transparently resolve split feature content, and updated `scripts/harness/verify.mjs` so it rejects inline long-form fields in JSON and validates each referenced markdown file
+  - after `pnpm harness:verify` and `pnpm harness:start` passed on the normalized structure, updated only `MF-110` to `status=verified`, `passes=true`, and `lastVerifiedAt=2026-04-17`
+- Changed files:
+  - `scripts/harness/shared.mjs`
+  - `scripts/harness/verify.mjs`
+  - `harness/README.md`
+  - `harness/feature-ledger.json`
+  - `harness/features/*.md`
+  - `harness/progress.md`
+- Simplifications made:
+  - kept the existing CLI entrypoints and output shape instead of introducing a new harness command surface or a new data format beyond plain markdown
+  - used one shared markdown section contract for every feature file, so the harness can validate structure without adding YAML/frontmatter parsers or new dependencies
+  - preserved the existing feature ordering and metadata fields, so future diffs stay concentrated in one small JSON entry plus the touched feature markdown file
+- Verification:
+  - `pnpm harness:start` (passes at session start, after the storage split, and again after the final ledger/progress update)
+  - `pnpm harness:next` (passes after the storage split; it resolves the same `notesRef`-backed feature content path as `harness:start`)
+  - `./harness/init.sh --smoke` (passes at session start)
+  - `pnpm harness:verify` (passes on the normalized storage before closeout and again after the final ledger/progress update; `121 total | verified=65 | ready=40 | planned=15 | blocked=1 | regression=0`)
+- Review / risks:
+  - `MF-110` is fully automated and has no manual verification gate, so it is truthful to mark `passes=true`
+  - the new parser intentionally depends on exact markdown section headings; this is now enforced by `pnpm harness:verify`, so future manual edits that drift from the contract will fail fast instead of silently degrading `harness:start`
+- Newly verified features:
+  - `MF-110`
+- Next recommended feature:
+  - `MF-050` - perform the pending manual 180k-line outline/anchor verification and promote it only if the live async indexing behavior remains responsive

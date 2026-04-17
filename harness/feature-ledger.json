@@ -1,12 +1,12 @@
 {
-  "version": 1,
+  "version": 2,
   "project": "MarkFlow",
-  "generatedAt": "2026-04-09",
+  "generatedAt": "2026-04-17",
   "instructions": [
     "Do not remove feature entries from this file unless the product scope has genuinely changed.",
     "Treat `passes` as the source of truth for completion.",
     "Only mark `passes` as true after the listed automated and/or manual verification succeeds.",
-    "Prefer updating `status`, `notes`, and `lastVerifiedAt` over rewriting titles or steps."
+    "Keep only metadata in this JSON; edit the referenced `harness/features/MF-XXX.md` file for notes, steps, and verification prose."
   ],
   "features": [
     {
@@ -19,20 +19,7 @@
       "passes": true,
       "lastVerifiedAt": "2026-04-09",
       "dependsOn": [],
-      "steps": [
-        "Load a markdown document that starts with `#` or `##` headings.",
-        "Move the caret away from the heading line in WYSIWYG mode.",
-        "Confirm the rendered heading is visible while the underlying source text remains unchanged."
-      ],
-      "verification": {
-        "automated": [
-          "pnpm --filter @markflow/editor test:run"
-        ],
-        "manual": [
-          "Open the editor and move the caret in and out of heading lines."
-        ]
-      },
-      "notes": "Covered by `packages/editor/src/editor/__tests__/inlineDecorations.test.tsx`."
+      "notesRef": "features/MF-001.md"
     },
     {
       "id": "MF-002",
@@ -44,20 +31,7 @@
       "passes": true,
       "lastVerifiedAt": "2026-04-09",
       "dependsOn": [],
-      "steps": [
-        "Type markdown with bold, italic, inline code, and strikethrough markers.",
-        "Move the caret out of each formatted span.",
-        "Confirm the rendered text appears without changing the underlying source string."
-      ],
-      "verification": {
-        "automated": [
-          "pnpm --filter @markflow/editor test:run"
-        ],
-        "manual": [
-          "Check that formatted inline spans still reveal raw markdown when edited directly."
-        ]
-      },
-      "notes": "Covered by `packages/editor/src/editor/__tests__/inlineDecorations.test.tsx`."
+      "notesRef": "features/MF-002.md"
     },
     {
       "id": "MF-003",
@@ -69,20 +43,7 @@
       "passes": true,
       "lastVerifiedAt": "2026-04-09",
       "dependsOn": [],
-      "steps": [
-        "Open a document containing fenced code blocks.",
-        "Move the caret inside and outside the fenced region.",
-        "Confirm the code content and fence markers remain intact in the underlying document."
-      ],
-      "verification": {
-        "automated": [
-          "pnpm --filter @markflow/editor test:run"
-        ],
-        "manual": [
-          "Visually verify that code blocks remain readable in both source and WYSIWYG modes."
-        ]
-      },
-      "notes": "Covered by `packages/editor/src/editor/__tests__/codeBlockDecoration.test.ts`; smoke verification on 2026-04-09 also fixed an invalid cross-line replace decoration."
+      "notesRef": "features/MF-003.md"
     },
     {
       "id": "MF-004",
@@ -94,20 +55,7 @@
       "passes": true,
       "lastVerifiedAt": "2026-04-09",
       "dependsOn": [],
-      "steps": [
-        "Type into the editor and create unsaved changes.",
-        "Toggle from WYSIWYG to source and back.",
-        "Confirm document content, selection, and history still reflect the live editing session."
-      ],
-      "verification": {
-        "automated": [
-          "pnpm --filter @markflow/editor test:run"
-        ],
-        "manual": [
-          "Type into the starter document, toggle modes repeatedly, and confirm no edits disappear."
-        ]
-      },
-      "notes": "Fixed by preserving a single EditorView and reconfiguring WYSIWYG extensions through a CodeMirror compartment; covered by `packages/editor/src/editor/__tests__/MarkFlowEditor.test.tsx`."
+      "notesRef": "features/MF-004.md"
     },
     {
       "id": "MF-005",
@@ -119,20 +67,7 @@
       "passes": true,
       "lastVerifiedAt": "2026-04-10",
       "dependsOn": [],
-      "steps": [
-        "Open markdown with unordered lists, ordered lists, task lists, nested lists, and nested blockquotes.",
-        "Move the caret between those blocks and adjacent plain text.",
-        "Confirm syntax markers or checkbox widgets hide when appropriate and remain editable when the caret is inside the block."
-      ],
-      "verification": {
-        "automated": [
-          "pnpm --filter @markflow/editor test:run"
-        ],
-        "manual": [
-          "Optional visual smoke-check in the app that nested list indentation and blockquote styling match the rendered widgets."
-        ]
-      },
-      "notes": "Covered by `packages/editor/src/editor/__tests__/listAndBlockquoteDecoration.test.tsx`, including unordered lists, ordered lists, task lists, blockquotes, nested lists, nested blockquotes, and direct task-checkbox toggling back into markdown source. Nested blockquote rendering was fixed to avoid duplicate line decorations and to hide stacked `>` prefixes when the caret is outside the quote tree."
+      "notesRef": "features/MF-005.md"
     },
     {
       "id": "MF-006",
@@ -144,20 +79,7 @@
       "passes": true,
       "lastVerifiedAt": "2026-04-09",
       "dependsOn": [],
-      "steps": [
-        "Start an unordered or ordered list in the editor.",
-        "Press Enter at the end of a non-empty list item.",
-        "Press Enter on an empty list item and confirm the list exits cleanly."
-      ],
-      "verification": {
-        "automated": [
-          "pnpm --filter @markflow/editor test:run"
-        ],
-        "manual": [
-          "Verify numbering increments correctly for ordered lists."
-        ]
-      },
-      "notes": "Covered by `packages/editor/src/editor/__tests__/smartInput.test.ts`."
+      "notesRef": "features/MF-006.md"
     },
     {
       "id": "MF-007",
@@ -169,20 +91,7 @@
       "passes": true,
       "lastVerifiedAt": "2026-04-09",
       "dependsOn": [],
-      "steps": [
-        "Launch the Electron app with a markdown file path or use File > Open.",
-        "Confirm the renderer receives the file content and path.",
-        "Verify the editor shows the opened content instead of the starter document."
-      ],
-      "verification": {
-        "automated": [
-          "pnpm --filter @markflow/editor test:run"
-        ],
-        "manual": [
-          "Open a real `.md` file from Finder or the File menu and verify the buffer updates."
-        ]
-      },
-      "notes": "Renderer now hydrates from both `file-opened` events and `getCurrentDocument()` for startup recovery; covered by `packages/editor/src/__tests__/App.test.tsx`."
+      "notesRef": "features/MF-007.md"
     },
     {
       "id": "MF-008",
@@ -196,20 +105,7 @@
       "dependsOn": [
         "MF-007"
       ],
-      "steps": [
-        "Open or create a document and make edits in the editor.",
-        "Use Save and Save As from the menu or renderer commands.",
-        "Confirm the written file contents match the current CodeMirror document."
-      ],
-      "verification": {
-        "automated": [
-          "pnpm --filter @markflow/editor test:run"
-        ],
-        "manual": [
-          "Save a file, reopen it, and confirm the latest edits persist."
-        ]
-      },
-      "notes": "Desktop menu actions now route through the renderer so save operations always use the live CodeMirror buffer; covered by `packages/editor/src/__tests__/App.test.tsx`."
+      "notesRef": "features/MF-008.md"
     },
     {
       "id": "MF-009",
@@ -224,20 +120,7 @@
         "MF-007",
         "MF-008"
       ],
-      "steps": [
-        "Open an existing file in the desktop app.",
-        "Trigger File > New.",
-        "Confirm the editor resets intentionally, window title changes to `Untitled`, and no stale content remains."
-      ],
-      "verification": {
-        "automated": [
-          "pnpm --filter @markflow/editor test:run"
-        ],
-        "manual": [
-          "Confirm creating a new file does not overwrite the previously opened file path."
-        ]
-      },
-      "notes": "Renderer now resets to an empty untitled document on `new-file`, and the Electron main process clears the represented filename; covered by `packages/editor/src/__tests__/App.test.tsx`."
+      "notesRef": "features/MF-009.md"
     },
     {
       "id": "MF-010",
@@ -249,20 +132,7 @@
       "passes": true,
       "lastVerifiedAt": "2026-04-10",
       "dependsOn": [],
-      "steps": [
-        "Create markdown with external links, an internal heading link, and at least one reference-style link.",
-        "Render the document in WYSIWYG mode and move the caret away from each link.",
-        "Confirm `Cmd`/`Ctrl`+click opens external URLs in the system browser, internal links jump within the document, and the Electron window never navigates away."
-      ],
-      "verification": {
-        "automated": [
-          "Add focused coverage for `linkDecoration.ts` link parsing/rendering plus the Electron external-link and internal-anchor routing path."
-        ],
-        "manual": [
-          "In the desktop app verify external URLs, internal heading anchors, and a local markdown file link resolve with Typora-style behavior."
-        ]
-      },
-      "notes": "Typora documents `Cmd`/`Ctrl`+click behavior plus external, internal, local, reference, and auto URL link handling. Sources: https://support.typora.io/Links/ and https://support.typora.io/Markdown-Reference/. Completed on 2026-04-10: MarkFlow now renders inline links, reference-style links, bare URLs, and autolinks as clickable anchors in `packages/editor/src/editor/decorations/linkDecoration.ts`; `packages/editor/src/editor/MarkFlowEditor.tsx` routes Cmd/Ctrl+click internal anchors to matching headings and local markdown links through the desktop bridge; and the Electron shell blocks app-local `window.open` calls while keeping external URLs delegated to the system browser. Verified with targeted editor/desktop Vitest coverage plus full `pnpm lint`, `pnpm test`, `pnpm build`, `pnpm harness:verify`, and `./harness/init.sh --smoke`."
+      "notesRef": "features/MF-010.md"
     },
     {
       "id": "MF-011",
@@ -274,18 +144,7 @@
       "passes": true,
       "lastVerifiedAt": "2026-04-10",
       "dependsOn": [],
-      "steps": [
-        "Open markdown containing image syntax that uses both remote URLs and relative/local file paths.",
-        "Render the document in WYSIWYG mode.",
-        "Confirm the preview is visible and the raw markdown remains editable when focused."
-      ],
-      "verification": {
-        "automated": [
-          "pnpm --filter @markflow/editor exec vitest run src/editor/__tests__/linkDecoration.test.tsx src/__tests__/App.test.tsx"
-        ],
-        "manual": []
-      },
-      "notes": "Automated coverage now verifies remote URLs, relative local paths resolved against the active markdown document path, absolute filesystem paths preserved, caret-driven editability, broken-image fallback, and App-level file-path plumbing via `packages/editor/src/editor/__tests__/linkDecoration.test.tsx` and `packages/editor/src/__tests__/App.test.tsx`. Typora's broader image workflow still includes drag/drop, paste-from-clipboard, and file copy/upload operations, which remain separate under `MF-029`. Sources: https://support.typora.io/Images/ and https://support.typora.io/Markdown-Reference/."
+      "notesRef": "features/MF-011.md"
     },
     {
       "id": "MF-012",
@@ -297,20 +156,7 @@
       "passes": true,
       "lastVerifiedAt": "2026-04-10",
       "dependsOn": [],
-      "steps": [
-        "Install or modify a theme stylesheet.",
-        "Trigger the theme watcher.",
-        "Confirm the editor updates its appearance without a full restart."
-      ],
-      "verification": {
-        "automated": [
-          "Add theme watcher integration tests in the desktop package."
-        ],
-        "manual": [
-          "Switch between at least two distinct themes and verify persisted selection."
-        ]
-      },
-      "notes": "Completed on 2026-04-10. `packages/desktop/src/main/themeManager.ts` now bootstraps built-in CSS themes into the desktop user-data directory, persists the selected theme, and hot-reloads the active stylesheet through chokidar watchers. `packages/desktop/src/preload/index.ts`, `packages/shared/src/index.ts`, and `packages/editor/src/App.tsx` expose the theme bridge to the renderer so the titlebar theme selector can switch themes and apply CSS overrides without restarting the app. Verified with focused desktop `themeManager.test.ts`, renderer `App.test.tsx`, plus full `pnpm lint`, `pnpm test`, `pnpm build`, `pnpm harness:verify`, and `./harness/init.sh --smoke` runs."
+      "notesRef": "features/MF-012.md"
     },
     {
       "id": "MF-013",
@@ -322,20 +168,7 @@
       "passes": true,
       "lastVerifiedAt": "2026-04-11T05:17:16.126Z",
       "dependsOn": [],
-      "steps": [
-        "Open a markdown table.",
-        "Render it in WYSIWYG mode.",
-        "Edit cells and confirm the markdown source remains valid."
-      ],
-      "verification": {
-        "automated": [
-          "Add table parsing and editing tests."
-        ],
-        "manual": [
-          "Verify column alignment and multiline content behavior."
-        ]
-      },
-      "notes": "This should wait until core view-state preservation is stable."
+      "notesRef": "features/MF-013.md"
     },
     {
       "id": "MF-014",
@@ -347,21 +180,7 @@
       "passes": true,
       "lastVerifiedAt": "2026-04-10",
       "dependsOn": [],
-      "steps": [
-        "Open inline and block math syntax.",
-        "Render math in WYSIWYG mode.",
-        "Confirm the original markdown or fenced math text remains intact when editing."
-      ],
-      "verification": {
-        "automated": [
-          "pnpm --filter @markflow/editor exec vitest run src/editor/__tests__/mathDecoration.test.ts",
-          "pnpm --filter @markflow/editor test:run"
-        ],
-        "manual": [
-          "Verify invalid expressions fail gracefully."
-        ]
-      },
-      "notes": "Inline $...$ and block $$...$$ render via KaTeX. Cursor-aware source reveal. Skips code ranges. CSS: .mf-math-inline, .mf-math-block."
+      "notesRef": "features/MF-014.md"
     },
     {
       "id": "MF-015",
@@ -376,20 +195,7 @@
         "MF-007",
         "MF-008"
       ],
-      "steps": [
-        "Open a markdown document with headings, lists, code, and links.",
-        "Export to HTML and PDF.",
-        "Confirm the exported artifacts preserve document structure and styling."
-      ],
-      "verification": {
-        "automated": [
-          "Add snapshot or golden tests for export output."
-        ],
-        "manual": [
-          "Open exported artifacts in external viewers and confirm fidelity."
-        ]
-      },
-      "notes": "Phase 2 feature with strong dependency on stable file IO and rendering."
+      "notesRef": "features/MF-015.md"
     },
     {
       "id": "MF-016",
@@ -401,21 +207,7 @@
       "passes": true,
       "lastVerifiedAt": "2026-04-11",
       "dependsOn": [],
-      "steps": [
-        "Define a plugin registration API.",
-        "Load a sample plugin that transforms markdown output.",
-        "Confirm the plugin can add a render behavior without breaking core editing."
-      ],
-      "verification": {
-        "automated": [
-          "pnpm --filter @markflow/editor test:run -- src/editor/__tests__/markdownPostProcessor.test.tsx",
-          "pnpm --filter @markflow/editor test:run"
-        ],
-        "manual": [
-          "Install a sample plugin and verify its lifecycle events (optional spot-check)."
-        ]
-      },
-      "notes": "Fully implemented: MarkFlowPluginHost in packages/shared/src/index.ts provides registerMarkdownPostProcessor, load, unload, setPlugins, and runMarkdownPostProcessors. The markdownPostProcessorExtension in packages/editor/src/editor/extensions/markdownPostProcessor.ts hooks the plugin host into CodeMirror via ViewPlugin. A sample plugin (createExternalLinkBadgePlugin in packages/editor/src/plugins/externalLinkBadgePlugin.ts) demonstrates the API by classifying external links. App.tsx wires the plugin host into the editor on startup. Two automated tests cover plugin lifecycle (register/run/unload) and source text preservation."
+      "notesRef": "features/MF-016.md"
     },
     {
       "id": "MF-017",
@@ -427,21 +219,7 @@
       "passes": true,
       "lastVerifiedAt": "2026-04-11",
       "dependsOn": [],
-      "steps": [
-        "Create a shared document provider.",
-        "Join two editor clients to the same document.",
-        "Confirm edits converge without source corruption."
-      ],
-      "verification": {
-        "automated": [
-          "pnpm --filter @markflow/editor test:run -- src/editor/__tests__/yCollab.test.ts",
-          "pnpm test"
-        ],
-        "manual": [
-          "Verify presence and reconnect scenarios (requires live WebSocket provider, optional)."
-        ]
-      },
-      "notes": "Implemented as opt-in: yjs and y-codemirror.next added to @markflow/editor deps. packages/editor/src/editor/extensions/yCollab.ts exports yCollabExtension (binds a Y.Doc to CodeMirror via y-codemirror.next) and mergeYDocs (exchange state vectors for test/manual sync). Four CRDT convergence unit tests verify: single-peer sync, concurrent inserts from two offline peers, concurrent delete+insert, and markdown source preservation on no-op sync. Network provider (y-websocket) integration is left as a follow-up; current automated coverage exercises the full CRDT merge path without network."
+      "notesRef": "features/MF-017.md"
     },
     {
       "id": "MF-018",
@@ -453,22 +231,7 @@
       "passes": true,
       "lastVerifiedAt": "2026-04-11",
       "dependsOn": [],
-      "steps": [
-        "Configure CI to build editor and desktop packages on `main`.",
-        "Publish beta artifacts for supported platforms.",
-        "Confirm the release notes and update channel match the published build."
-      ],
-      "verification": {
-        "automated": [
-          "pnpm test",
-          "pnpm build",
-          "Validate .github/workflows/ci.yml contains lint, test, build, and release-beta jobs"
-        ],
-        "manual": [
-          "Install a beta build and confirm auto-update metadata resolves (requires GH_TOKEN and macOS runner)."
-        ]
-      },
-      "notes": "CI workflow at .github/workflows/ci.yml runs lint (pnpm -r run lint), test (pnpm test — all packages), and build (pnpm build — full workspace) on every push and PR to main. The release-beta job runs after all checks pass on main push, builds the Electron app via electron-builder on macOS, and publishes via GH_TOKEN. electron-builder.yml is configured with DMG+ZIP targets for x64 and arm64. Also fixed in this run: TS4094 error in markdownPostProcessor.ts caused by private members on exported anonymous class type — renamed to named class with _ prefix convention."
+      "notesRef": "features/MF-018.md"
     },
     {
       "id": "MF-019",
@@ -480,20 +243,7 @@
       "passes": true,
       "lastVerifiedAt": "2026-04-10",
       "dependsOn": [],
-      "steps": [
-        "Open a long markdown document with multiple paragraphs and headings.",
-        "Enable focus mode and confirm non-active blocks fade while the active block stays readable.",
-        "Enable typewriter mode and confirm the caret remains anchored in a stable viewport position while typing."
-      ],
-      "verification": {
-        "automated": [
-          "Add editor view-state tests for focus styling and stable caret scrolling behavior."
-        ],
-        "manual": [
-          "Toggle both modes on a long document and verify they remain usable in both source and WYSIWYG views."
-        ]
-      },
-      "notes": "Missing from the current ledger despite Phase 2 mentioning focus mode. Typora sources: https://support.typora.io/Focus-and-Typewriter-Mode/ and https://support.typora.io/Shortcut-Keys/."
+      "notesRef": "features/MF-019.md"
     },
     {
       "id": "MF-020",
@@ -505,20 +255,7 @@
       "passes": true,
       "lastVerifiedAt": "2026-04-11",
       "dependsOn": [],
-      "steps": [
-        "Open a document with nested headings from multiple levels.",
-        "Show the outline panel and confirm it mirrors the heading hierarchy.",
-        "Click outline entries and verify the editor scrolls to the target section and highlights the active heading."
-      ],
-      "verification": {
-        "automated": [
-          "pnpm --filter @markflow/editor test:run -- src/editor/__tests__/outline.test.ts src/__tests__/App.test.tsx"
-        ],
-        "manual": [
-          "Optional interactive pass: open a long document and confirm the panel scroll feel remains comfortable after repeated heading edits."
-        ]
-      },
-      "notes": "Implemented with parser-backed heading derivation in `packages/editor/src/editor/outline.ts`, a right-hand outline panel in `packages/editor/src/App.tsx`, and navigation/highlight coverage in `src/editor/__tests__/outline.test.ts` plus `src/__tests__/App.test.tsx`, including duplicate-anchor handling, fenced-code exclusion, and live rename/reorder sync. Sources: https://support.typora.io/Outline/ and https://support.typora.io/Quick-Start/."
+      "notesRef": "features/MF-020.md"
     },
     {
       "id": "MF-021",
@@ -530,20 +267,7 @@
       "passes": true,
       "lastVerifiedAt": "2026-04-11",
       "dependsOn": [],
-      "steps": [
-        "Insert `[toc]` into a markdown document, press `Return`, and confirm it becomes a rendered table of contents block in the document.",
-        "Add, remove, and rename headings across the document.",
-        "Confirm the TOC updates automatically, excludes fenced-code pseudo-headings, preserves duplicate-heading anchor targets, and its entries navigate to the correct sections."
-      ],
-      "verification": {
-        "automated": [
-          "Add focused TOC tests for `[toc]` block rendering, parser-backed heading extraction parity with `outline.ts`, duplicate-heading anchor stability, fenced-code exclusion, and modifier-click navigation to generated heading targets."
-        ],
-        "manual": [
-          "Open a document containing duplicate headings, setext headings, and a fenced code block with `# fake`; confirm the in-document TOC ignores the fenced line, tracks heading edits live, and its entries jump to the expected section."
-        ]
-      },
-      "notes": "Now uses extractOutlineHeadings from outline.ts for parser-backed heading extraction. Handles ATX and setext headings, de-duplicates anchors, and excludes fenced-code pseudo-headings. TOC anchor elements use class=mf-link so modifier-click navigation is handled by the editor. Covered by packages/editor/src/editor/__tests__/tocDecoration.test.tsx (7 tests)."
+      "notesRef": "features/MF-021.md"
     },
     {
       "id": "MF-022",
@@ -555,23 +279,7 @@
       "passes": true,
       "lastVerifiedAt": "2026-04-11",
       "dependsOn": [],
-      "steps": [
-        "Open markdown containing inline footnote references and matching footnote definitions.",
-        "Render the document in WYSIWYG mode and confirm references appear as superscripts or equivalent footnote markers.",
-        "Hover or otherwise reveal the referenced footnote content, edit the note text, and confirm the underlying markdown references and definitions stay intact."
-      ],
-      "verification": {
-        "automated": [
-          "pnpm --filter @markflow/editor test:run -- src/editor/__tests__/footnoteDecoration.test.tsx src/editor/__tests__/linkDecoration.test.tsx src/editor/__tests__/MarkFlowEditor.test.tsx",
-          "pnpm lint",
-          "pnpm build",
-          "node scripts/harness/verify.mjs"
-        ],
-        "manual": [
-          "Optional in-app spot-check: verify multi-paragraph footnotes and long hover-preview text remain readable while the raw `[^label]: ...` definitions stay editable."
-        ]
-      },
-      "notes": "Implemented with `packages/editor/src/editor/decorations/footnoteDecoration.ts`, which renders `[^label]` references as superscript markers, derives hover-preview text from matching `[^label]: ...` definitions, and keeps raw markdown visible whenever the caret enters the reference or definition. `packages/editor/src/editor/decorations/linkDecoration.ts` now skips footnote-shaped `Link` nodes so definitions are not misclassified as regular links, and `packages/editor/src/editor/__tests__/footnoteDecoration.test.tsx` covers caret reveal, repeated references, definition-edit round trips, missing definitions, and code/non-footnote false-positive avoidance. Sources: https://support.typora.io/media/export/Markdown-Reference.pdf and https://typora.io/. BUG (found 2026-04-16, detailed live-preview test): Footnote rendering is visually correct in isolation, but when two references appear on the same line (e.g. the starter document's `This has a footnote[^1] and another[^2].`), the superscript regex in `inlineDecorations.ts` pairs the `^` of the first reference with the `^` of the second and wrongly renders the intervening ` and another` as a superscript span. Root cause and fix belong to MF-037, but this regresses the \"footnote references render cleanly\" guarantee in the mainline starter document; cross-reference added here so the failure is not lost if MF-037 is deferred."
+      "notesRef": "features/MF-022.md"
     },
     {
       "id": "MF-023",
@@ -583,21 +291,7 @@
       "passes": true,
       "lastVerifiedAt": "2026-04-10",
       "dependsOn": [],
-      "steps": [
-        "Open fenced diagram blocks such as Mermaid flowcharts or sequence diagrams.",
-        "Render the document in WYSIWYG mode and confirm a live diagram preview appears outside the active edit state.",
-        "Edit the fenced source and verify the preview refreshes without mutating or losing the original markdown block."
-      ],
-      "verification": {
-        "automated": [
-          "pnpm --filter @markflow/editor exec vitest run src/editor/__tests__/mermaidDecoration.test.ts",
-          "pnpm --filter @markflow/editor test:run"
-        ],
-        "manual": [
-          "Verify large diagrams and invalid Mermaid syntax degrade gracefully without breaking adjacent content."
-        ]
-      },
-      "notes": "Fenced mermaid blocks render live SVG via Mermaid.js (lazy-loaded). Cursor-aware source reveal. SVG cache. CSS: .mf-mermaid."
+      "notesRef": "features/MF-023.md"
     },
     {
       "id": "MF-024",
@@ -609,18 +303,7 @@
       "passes": true,
       "lastVerifiedAt": "2026-04-10",
       "dependsOn": [],
-      "steps": [
-        "Open markdown containing horizontal rules such as `---` or `***`.",
-        "Move the caret onto and away from the rule line in WYSIWYG mode.",
-        "Confirm a rendered separator appears when unfocused and the original markdown stays editable when focused."
-      ],
-      "verification": {
-        "automated": [
-          "Run `pnpm --filter @markflow/editor test:run -- listAndBlockquoteDecoration.test.tsx` to cover `---` and `***` horizontal rule rendering, caret focus behavior, and adjacent paragraph integrity."
-        ],
-        "manual": []
-      },
-      "notes": "Typora documents horizontal rules as core Markdown syntax, and MarkFlow's existing `HorizontalRule` decoration path in `packages/editor/src/editor/decorations/blockquoteDecoration.ts` now has direct automated coverage for both `---` and `***`, including the focus/editability transition and adjacent paragraph preservation. Sources: https://support.typora.io/Markdown-Reference/ and https://support.typora.io/Quick-Start/."
+      "notesRef": "features/MF-024.md"
     },
     {
       "id": "MF-025",
@@ -632,20 +315,7 @@
       "passes": true,
       "lastVerifiedAt": "2026-04-10",
       "dependsOn": [],
-      "steps": [
-        "Open a markdown document containing YAML front matter delimited by `---`.",
-        "Edit both metadata fields and normal body content while switching between source and WYSIWYG mode.",
-        "Confirm the front matter block remains intact and no keys, delimiters, or body content are corrupted."
-      ],
-      "verification": {
-        "automated": [
-          "pnpm --filter @markflow/editor test:run -- src/editor/__tests__/yamlFrontMatter.test.ts"
-        ],
-        "manual": [
-          "Optional manual spot-check: edit `title`, `tags`, `typora-root-url`, and `typora-copy-images-to` keys while switching modes, and confirm the YAML block remains unchanged."
-        ]
-      },
-      "notes": "Implemented in `packages/editor/src/editor/decorations/yamlFrontMatter.ts` and covered by `packages/editor/src/editor/__tests__/yamlFrontMatter.test.ts`, which verifies top-of-file detection, `---` / `...` fences, and document-preserving decorations. The current verified scope is preservation and visual distinction of YAML metadata in the editor; MarkFlow does not yet consume Typora-specific keys such as `typora-root-url` or `typora-copy-images-to` for export or image workflows. Sources: https://support.typora.io/YAML/ and https://support.typora.io/media/export/Markdown-Reference.pdf."
+      "notesRef": "features/MF-025.md"
     },
     {
       "id": "MF-026",
@@ -657,20 +327,7 @@
       "passes": true,
       "lastVerifiedAt": "2026-04-11T05:17:16.127Z",
       "dependsOn": [],
-      "steps": [
-        "Copy rich content from a browser or rich-text editor that includes headings, lists, links, and inline emphasis.",
-        "Paste into MarkFlow in WYSIWYG mode and confirm markdown source is synthesized instead of raw HTML or flattened plain text.",
-        "Use the plain-text paste path and confirm literal text or markdown source is inserted without rich-format conversion."
-      ],
-      "verification": {
-        "automated": [
-          "Add clipboard transformation tests covering HTML-to-markdown conversion and plain-text paste fallback."
-        ],
-        "manual": [
-          "Paste from a browser page and a rich editor, then inspect both the rendered result and the underlying markdown."
-        ]
-      },
-      "notes": "Typora pastes HTML by converting it to Markdown by default and supports an explicit plain-text or Markdown-source paste path, while MarkFlow currently relies on default browser/CodeMirror paste behavior with no clipboard normalization layer. Sources: https://support.typora.io/Copy-and-Paste/ and https://support.typora.io/Quick-Start/."
+      "notesRef": "features/MF-026.md"
     },
     {
       "id": "MF-027",
@@ -682,20 +339,7 @@
       "passes": true,
       "lastVerifiedAt": "2026-04-10",
       "dependsOn": [],
-      "steps": [
-        "Open a markdown document with prose, lists, and code, then observe a live word-count surface in the editor chrome.",
-        "Edit the document and confirm word, line, character, and reading-time stats update continuously.",
-        "Select a range and confirm the selection count is shown separately while markdown formatting syntax is excluded from word totals."
-      ],
-      "verification": {
-        "automated": [
-          "Add derived-metric tests for document and selection counts, excluding formatting-only markdown syntax from word totals."
-        ],
-        "manual": [
-          "Verify counts on mixed prose and markdown syntax match the detailed count surface for both whole-document and selected text."
-        ]
-      },
-      "notes": "Typora exposes live word count plus lines, characters, reading time, and selection counts, and explicitly excludes formatting-only markdown syntax from word totals. MarkFlow currently has no count surface or metric derivation in the editor UI. Sources: https://support.typora.io/Word-Count/ and https://support.typora.io/Quick-Start/."
+      "notesRef": "features/MF-027.md"
     },
     {
       "id": "MF-028",
@@ -707,20 +351,7 @@
       "passes": true,
       "lastVerifiedAt": "2026-04-10",
       "dependsOn": [],
-      "steps": [
-        "Open a markdown document with repeated terms across headings, prose, and list items.",
-        "Trigger find and replace from the editor and navigate between matches in both source and WYSIWYG mode.",
-        "Replace the current match and all matches, then confirm the underlying markdown updates without losing selection or corrupting surrounding syntax."
-      ],
-      "verification": {
-        "automated": [
-          "Add focused editor tests for search panel open state, match navigation, and replace/replace-all behavior against the live CodeMirror document."
-        ],
-        "manual": [
-          "Verify case-sensitive, whole-word, and regex search options behave as expected on a mixed markdown document."
-        ]
-      },
-      "notes": "Typora documents in-document search and replace, including case-sensitive, whole-word, and regex options. MarkFlow currently imports `searchKeymap` and `highlightSelectionMatches()` in `packages/editor/src/editor/MarkFlowEditor.tsx`, but it does not expose a verified search/replace workflow in the app or ledger. Sources: https://support.typora.io/Search/ and https://support.typora.io/What's-New-1.3/."
+      "notesRef": "features/MF-028.md"
     },
     {
       "id": "MF-029",
@@ -732,20 +363,7 @@
       "passes": true,
       "lastVerifiedAt": "2026-04-11T05:17:16.127Z",
       "dependsOn": [],
-      "steps": [
-        "Open a saved markdown document and insert one or more local images via drag and drop, clipboard paste, or an explicit insert-image action.",
-        "Confirm MarkFlow inserts markdown image references at the caret and shows the existing inline preview when the caret leaves the image syntax.",
-        "If a destination rule for inserted images is configured, confirm the image file is copied and the `src` is rewritten predictably; otherwise confirm the original local path is referenced consistently."
-      ],
-      "verification": {
-        "automated": [
-          "Add focused editor and desktop tests for drag/drop or clipboard image insertion, markdown `![alt](src)` generation, and destination-path rewriting for inserted local assets."
-        ],
-        "manual": [
-          "Drag image files from the OS into the desktop app and paste an image from the clipboard, then verify the written markdown path and rendered preview both stay valid after save and reopen."
-        ]
-      },
-      "notes": "MarkFlow already covers the core local-image insertion slice in `packages/editor/src/editor/MarkFlowEditor.tsx` and `packages/editor/src/editor/extensions/smartPaste.ts`: dragging or pasting an image inserts markdown image syntax at the caret and emits desktop-bridge events for downstream file handling, while `packages/editor/src/editor/decorations/linkDecoration.ts` renders the existing inline preview. Typora's broader image workflow still goes further with documented image-file management and upload actions such as Delete Image, Move/Copy Image To, and Upload Image / Upload All Local Images, which remain outside this verified slice. Sources: https://support.typora.io/Images/ and https://support.typora.io/Upload-Image/."
+      "notesRef": "features/MF-029.md"
     },
     {
       "id": "MF-030",
@@ -759,20 +377,7 @@
       "dependsOn": [
         "MF-003"
       ],
-      "steps": [
-        "Open a document with fenced code blocks annotated with common language identifiers such as `js`, `ts`, `python`, `bash`, and `json`.",
-        "Move the caret outside each block in WYSIWYG mode and confirm token-level syntax colors appear inside the rendered block.",
-        "Enter the block and confirm the source text remains fully editable with the same syntax-highlight colors applied in-place."
-      ],
-      "verification": {
-        "automated": [
-          "Add `codeBlockDecoration.test.ts` cases verifying that language-tagged blocks receive a highlight decoration class and that no-language blocks fall back to plain styling."
-        ],
-        "manual": [
-          "Visually confirm at least three language modes (JavaScript, Python, shell) render distinct token colors without corrupting the markdown fence delimiters."
-        ]
-      },
-      "notes": "CodeMirror 6 ships `@codemirror/language` and a language-description registry; `StreamLanguage` adapters and `@codemirror/lang-*` packages can be lazy-loaded per fence language identifier. This makes code blocks meaningfully readable for technical writers and engineers, one of MarkFlow's primary target audiences."
+      "notesRef": "features/MF-030.md"
     },
     {
       "id": "MF-031",
@@ -784,20 +389,7 @@
       "passes": true,
       "lastVerifiedAt": "2026-04-10",
       "dependsOn": [],
-      "steps": [
-        "Type straight double and single quotes in prose context and confirm they become curly/smart quotes.",
-        "Type `--` and `---` in prose and confirm they become en-dash and em-dash respectively.",
-        "Verify that straight quotes and hyphens inside code spans and fenced blocks are never transformed."
-      ],
-      "verification": {
-        "automated": [
-          "Add `smartInput.test.ts` cases covering quote-pairing substitution, dash ligatures, and code-range exclusion."
-        ],
-        "manual": [
-          "Write a paragraph of prose with dialogue and dashes; confirm the exported markdown contains proper Unicode punctuation while code samples are untouched."
-        ]
-      },
-      "notes": "Typora enables smart quotes and smart dashes under Preferences > Editor. Implementing this as an additional CodeMirror transaction filter in `smartInput.ts` alongside the existing auto-pair logic keeps the behavior opt-in per settings. Critical for academics and technical writers aiming for publication-quality output."
+      "notesRef": "features/MF-031.md"
     },
     {
       "id": "MF-032",
@@ -811,20 +403,7 @@
       "dependsOn": [
         "MF-008"
       ],
-      "steps": [
-        "Open and edit a named file and let the auto-save interval elapse without explicitly saving.",
-        "Force-quit the app and reopen it; confirm the last auto-saved content is present.",
-        "Confirm the interval and enable/disable toggle are configurable in preferences and that untitled buffers are written to a recovery location."
-      ],
-      "verification": {
-        "automated": [
-          "Add desktop integration tests that spy on the file-write path and assert it fires within the configured interval after document mutations."
-        ],
-        "manual": [
-          "Edit a file for 30 seconds without saving, kill the process, reopen, and verify content recovery."
-        ]
-      },
-      "notes": "Typora auto-saves on configurable intervals and offers crash recovery. The desktop `fileManager.ts` already has async write logic; adding a debounced auto-save loop driven by CodeMirror `docChanged` events is a natural extension. Reduces the most common user data-loss scenario."
+      "notesRef": "features/MF-032.md"
     },
     {
       "id": "MF-033",
@@ -836,20 +415,7 @@
       "passes": true,
       "lastVerifiedAt": "2026-04-11T04:00:45.971Z",
       "dependsOn": [],
-      "steps": [
-        "Open a markdown file from a folder containing multiple documents, then press `Cmd`+`Shift`+`O` on macOS or `Ctrl`+`P` on Windows/Linux.",
-        "Type part of a filename and confirm the quick-open overlay fuzzy-filters files from the current folder plus recent files.",
-        "Select a result with the keyboard and confirm the target file opens without disrupting the current editor session."
-      ],
-      "verification": {
-        "automated": [
-          "Add renderer and desktop integration tests for quick-open panel state, keyboard navigation, fuzzy filtering against current-folder and recent-file entries, and file-open dispatch."
-        ],
-        "manual": [
-          "Open a folder with at least 20 markdown files, reopen a few files, and confirm Quick Open can find both current-folder files and recent entries."
-        ]
-      },
-      "notes": "Implemented with `packages/editor/src/components/QuickOpen.tsx`, `packages/editor/src/App.tsx`, and `packages/desktop/src/main/fileManager.ts`, which build a Quick Open overlay from the current document folder plus recent files tracked by the desktop shell. This verified slice matches Typora's core quick-open workflow for current-folder and recent-file lookup; pinned folders/locations remain outside the shipped scope. Sources: https://support.typora.io/Search/ and https://support.typora.io/File-Management/."
+      "notesRef": "features/MF-033.md"
     },
     {
       "id": "MF-034",
@@ -863,20 +429,7 @@
       "dependsOn": [
         "MF-005"
       ],
-      "steps": [
-        "Write blockquotes using GitHub-style callout syntax such as `> [!NOTE]`, `> [!WARNING]`, `> [!TIP]`, `> [!IMPORTANT]`, and `> [!CAUTION]`.",
-        "Move the caret out of each callout block in WYSIWYG mode and confirm a styled, icon-labelled callout widget replaces the raw blockquote.",
-        "Edit the callout text and confirm the type label, the `> ` prefix markers, and the body content all remain intact in the underlying markdown."
-      ],
-      "verification": {
-        "automated": [
-          "Add `blockquoteDecoration.test.ts` cases for each callout type, verifying icon class, color class, and source round-trip fidelity."
-        ],
-        "manual": [
-          "Visually confirm each callout type renders a distinct icon and accent color, and that switching between types updates the rendered widget without breaking the markdown."
-        ]
-      },
-      "notes": "Typora added GitHub-style alert/callout rendering in Typora 1.8 and its Markdown Reference now lists the same five blockquote forms (`NOTE`, `TIP`, `IMPORTANT`, `WARNING`, `CAUTION`). MarkFlow currently styles generic blockquotes and horizontal rules only, so this remains a real parity gap that can be implemented as a specialization of the existing `blockquoteDecoration.ts` path. Sources: https://support.typora.io/What%27s-New-1.8/ and https://support.typora.io/Markdown-Reference/."
+      "notesRef": "features/MF-034.md"
     },
     {
       "id": "MF-035",
@@ -890,20 +443,7 @@
       "dependsOn": [
         "MF-004"
       ],
-      "steps": [
-        "Toggle split view from the toolbar or command palette and confirm the window divides into a source pane on the left and a rendered preview pane on the right.",
-        "Edit markdown in the source pane and confirm the preview updates in near-real-time.",
-        "Scroll in either pane and confirm the other pane synchronizes scroll position proportionally."
-      ],
-      "verification": {
-        "automated": [
-          "Add component tests verifying the split layout renders, that source mutations trigger preview updates within one render cycle, and that pane-resize handles adjust layout correctly."
-        ],
-        "manual": [
-          "Open a long document in split mode and confirm scroll sync, inline math, and mermaid diagrams render correctly in the preview pane."
-        ]
-      },
-      "notes": "Split view is a power-user mode between pure WYSIWYG and pure source editing. The preview pane can reuse the existing markdown rendering pipeline (decorations applied to a read-only CodeMirror view, or a simple `marked`/`remark` HTML output into an iframe) without duplicating the core editor. Particularly useful when writing technical docs that rely heavily on math, diagrams, or tables."
+      "notesRef": "features/MF-035.md"
     },
     {
       "id": "MF-036",
@@ -917,20 +457,7 @@
       "dependsOn": [
         "MF-001"
       ],
-      "steps": [
-        "Open a long document with multiple heading levels and observe fold indicators in the left gutter.",
-        "Click a fold indicator next to an H2 and confirm all content up to the next same-level heading collapses to a single summary line.",
-        "Unfold the section and confirm the full content is restored without losing any characters."
-      ],
-      "verification": {
-        "automated": [
-          "Add CodeMirror fold-range tests verifying that heading fold ranges cover the correct line spans and that fold/unfold state-cycles produce identical document content."
-        ],
-        "manual": [
-          "Fold and unfold nested headings on a real document; confirm fold state persists across WYSIWYG↔source mode toggles."
-        ]
-      },
-      "notes": "CodeMirror 6 ships `@codemirror/language` fold support via `foldEffect`, `unfoldEffect`, and `foldGutter`. Defining heading-aware fold ranges (fold from heading line to the line before the next equal-or-higher heading) and wiring them to the gutter gives long-document writers a powerful navigation shortcut with minimal implementation risk."
+      "notesRef": "features/MF-036.md"
     },
     {
       "id": "MF-037",
@@ -944,20 +471,7 @@
       "dependsOn": [
         "MF-002"
       ],
-      "steps": [
-        "Write inline superscript with `^text^` and subscript with `~text~` syntax in a WYSIWYG document.",
-        "Move the caret away from the marked span and confirm the rendered `<sup>` or `<sub>` widget appears with delimiters hidden.",
-        "Re-enter the span and confirm the raw delimiters reappear and are editable without corruption."
-      ],
-      "verification": {
-        "automated": [
-          "Add `inlineDecorations.test.tsx` cases for superscript and subscript spanning, delimiter-hide behavior, and cursor-reveal round trips."
-        ],
-        "manual": [
-          "Write a chemistry formula and a footnote reference using both syntaxes and verify rendered output is legible in WYSIWYG mode."
-        ]
-      },
-      "notes": "BUG (found 2026-04-16, detailed live-preview test): The superscript pattern `/\\^([^^\\n]+)\\^/g` in `packages/editor/src/editor/decorations/inlineDecorations.ts:30` does not exclude footnote references (`[^label]`) and therefore matches across two adjacent references. In the starter document the line `This has a footnote[^1] and another[^2].` renders the literal text ` and another` with `class=\"mf-superscript\"` (vertical-align: super, font-size: 0.75em), because the regex greedily pairs the `^` in `[^1]` with the `^` in `[^2]`. Confirmed via `preview_eval` — `.mf-superscript` span with text ' and another' shows `fontSize: 11.25px` and `verticalAlign: super`. There is also no dedicated test coverage for superscript/subscript (the \"not-done\" TODO from the notes was never completed); `footnoteDecoration.test.tsx` exercises footnotes alone but never in combination with the superscript extension. Fix should either (a) reject matches that overlap a footnote/LinkReference node, (b) require a non-`^` non-`[` boundary before the opening `^`, or (c) run the footnote replacement first and skip ranges already replaced."
+      "notesRef": "features/MF-037.md"
     },
     {
       "id": "MF-038",
@@ -969,20 +483,7 @@
       "passes": true,
       "lastVerifiedAt": "2026-04-11T05:17:16.127Z",
       "dependsOn": [],
-      "steps": [
-        "Insert raw HTML blocks such as `<details>`, `<summary>`, `<div>`, and plain `<span>` into a markdown document.",
-        "Render in WYSIWYG mode and confirm the HTML is parsed and rendered rather than escaped as literal text.",
-        "Edit the raw HTML source and confirm the rendered output updates and the surrounding markdown is unaffected."
-      ],
-      "verification": {
-        "automated": [
-          "Add decoration tests for the currently supported safe-tag subset, including block containers and plain inline spans with attributes stripped."
-        ],
-        "manual": [
-          "Write a `<details>/<summary>` collapsible block plus plain `<div>`/`<span>` HTML and verify they render correctly in WYSIWYG mode without relying on attributes."
-        ]
-      },
-      "notes": "Implemented in `packages/editor/src/editor/decorations/inlineHtmlDecoration.ts`, but the current renderer is intentionally limited to a sanitized safe-tag subset (`details`, `summary`, `div`, `span`, `p`, `br`, `strong`, `em`, `b`, `i`, `ul`, `ol`, `li`) with all attributes stripped. That covers the verified collapsible/details-style HTML slice, but it does not provide Typora's broader media/embed support for tags such as `<video>`, `<audio>`, or `<iframe>`. Sources: https://support.typora.io/Media/ and https://support.typora.io/Markdown-Reference/."
+      "notesRef": "features/MF-038.md"
     },
     {
       "id": "MF-039",
@@ -994,20 +495,7 @@
       "passes": true,
       "lastVerifiedAt": "2026-04-11T05:45:38.655Z",
       "dependsOn": [],
-      "steps": [
-        "Type a deliberate misspelling in a prose paragraph and confirm a red squiggly underline appears beneath the word.",
-        "Right-click or invoke the correction shortcut and confirm a list of candidate corrections is offered.",
-        "Verify that words inside fenced code blocks, inline code, URLs, and YAML front matter are excluded from spell checking."
-      ],
-      "verification": {
-        "automated": [
-          "Add unit tests for spell-check range exclusion (code, URL, front matter) to prevent false positives in non-prose regions."
-        ],
-        "manual": [
-          "Write a document mixing prose, code, and a URL, confirm only prose words receive squiggle decorations, and accept one correction suggestion."
-        ]
-      },
-      "notes": "Spell checking is expected by writers and academics. In Electron the browser's native `spellcheck` attribute can be used on the contenteditable layer, or a CodeMirror linter powered by `nspell` or a native OS API can provide range-aware suggestions while excluding code and metadata regions."
+      "notesRef": "features/MF-039.md"
     },
     {
       "id": "MF-040",
@@ -1021,20 +509,7 @@
       "dependsOn": [
         "MF-010"
       ],
-      "steps": [
-        "Type `[[filename]]` or `[[filename|display text]]` in a document inside an open vault folder.",
-        "Move the caret out of the wikilink and confirm a rendered link widget appears.",
-        "Cmd/Ctrl+click the widget and confirm the referenced document opens (or a new-file prompt appears if it doesn't exist)."
-      ],
-      "verification": {
-        "automated": [
-          "Add decoration tests for wikilink parsing, alias rendering, broken-link visual state, and click-dispatch to the file-open IPC path."
-        ],
-        "manual": [
-          "Create a two-file vault, write wikilinks between them, and verify bidirectional navigation works without corrupting either file's source."
-        ]
-      },
-      "notes": "Wikilink syntax is the cornerstone of Obsidian and Roam-style networked note-taking, making MarkFlow competitive in the knowledge-management space. Implementing wikilink decoration in `linkDecoration.ts` and resolving targets via the desktop file tree covers the Typora/Obsidian overlap audience and sets the foundation for backlinks (a Phase 4 feature)."
+      "notesRef": "features/MF-040.md"
     },
     {
       "id": "MF-041",
@@ -1049,20 +524,7 @@
         "MF-007",
         "MF-009"
       ],
-      "steps": [
-        "Open a folder as a vault from File > Open Folder and confirm a sidebar tree panel appears listing all markdown and asset files.",
-        "Click a file in the sidebar and confirm the editor opens it, replacing or adding a tab for the new document.",
-        "Rename and delete files from the sidebar context menu and confirm the filesystem reflects the changes."
-      ],
-      "verification": {
-        "automated": [
-          "Add desktop integration tests for vault open IPC, directory scan, file-open from tree, and rename/delete operations."
-        ],
-        "manual": [
-          "Open a folder with at least 20 markdown files, verify the tree is navigable, and confirm sidebar file operations match the OS filesystem."
-        ]
-      },
-      "notes": "Verified minimum file-sidebar parity: MarkFlow can open a folder, show a file tree, and perform open/rename/delete actions from the sidebar. Typora's current file-management docs still describe broader folder-side capabilities that remain outside this verified slice, including File List view, auto/manual refresh, sorting/grouping controls, drag-move, recent-location pinning, and open-in-new-window behavior. Sources: https://support.typora.io/File-Management/ and https://support.typora.io/Quick-Start/."
+      "notesRef": "features/MF-041.md"
     },
     {
       "id": "MF-042",
@@ -1074,20 +536,7 @@
       "passes": true,
       "lastVerifiedAt": "2026-04-11T05:17:16.127Z",
       "dependsOn": [],
-      "steps": [
-        "Enable vim mode from preferences or the command palette and confirm the editor enters Normal mode with a block cursor.",
-        "Navigate with `hjkl`, enter Insert mode with `i`, and return to Normal with `Escape`.",
-        "Perform a `dd` delete-line, `yy` yank-line, and `p` paste and confirm the document updates correctly without corrupting markdown syntax."
-      ],
-      "verification": {
-        "automated": [
-          "Add integration tests for mode transitions (Normal→Insert→Normal), common motion/operator combinations, and `Escape` behavior that does not conflict with MarkFlow WYSIWYG toggle."
-        ],
-        "manual": [
-          "Write and edit a full markdown document using only vim keybindings and confirm no loss of MarkFlow-specific shortcuts (mode toggle, find/replace)."
-        ]
-      },
-      "notes": "CodeMirror 6 ships a battle-tested `@codemirror/vim` extension that provides modal vim editing. Enabling it as a preferences toggle (following VS Code and Obsidian's pattern) costs negligible bundle size via dynamic import and is highly requested by engineers who are a primary MarkFlow target audience."
+      "notesRef": "features/MF-042.md"
     },
     {
       "id": "MF-043",
@@ -1101,20 +550,7 @@
       "dependsOn": [
         "MF-004"
       ],
-      "steps": [
-        "Toggle reading mode from the toolbar or shortcut and confirm the editor surface becomes non-editable and all markdown syntax is replaced by styled HTML.",
-        "Confirm all WYSIWYG decorations (headings, math, diagrams, callouts, images) render in reading mode without the cursor-reveal behavior.",
-        "Return to editing mode and confirm the document state, selection, and undo history are preserved exactly."
-      ],
-      "verification": {
-        "automated": [
-          "Add tests that verify the reading-mode extension disables all input handling, applies all decoration sets unconditionally, and that toggling back to edit mode restores a live CodeMirror state."
-        ],
-        "manual": [
-          "Switch to reading mode on a document containing math, a mermaid diagram, a table, and an admonition block; confirm each renders without any syntax marker visible."
-        ]
-      },
-      "notes": "MarkFlow's current WYSIWYG mode still reveals raw syntax when the caret is inside a decorated range. Reading mode removes the caret entirely and applies all decorations unconditionally, giving users a clean finished-document view for proofreading and sharing. This is the third point in the source ↔ WYSIWYG ↔ reading triad that Typora expresses as its signature UX."
+      "notesRef": "features/MF-043.md"
     },
     {
       "id": "MF-044",
@@ -1128,20 +564,7 @@
       "dependsOn": [
         "MF-002"
       ],
-      "steps": [
-        "Write inline highlight markup such as `==important==` in a WYSIWYG document.",
-        "Move the caret away from the span and confirm the delimiter markers hide while the text renders with highlight styling.",
-        "Move the caret back into the span and confirm the raw `==` delimiters reappear for editing without corrupting the underlying markdown."
-      ],
-      "verification": {
-        "automated": [
-          "pnpm --filter @markflow/editor test:run -- src/editor/__tests__/inlineDecorations.test.tsx"
-        ],
-        "manual": [
-          "Optional in-app spot-check: write several highlighted phrases adjacent to bold or italic spans and confirm neighboring inline syntax remains editable and visually distinct."
-        ]
-      },
-      "notes": "Implemented in `packages/editor/src/editor/decorations/inlineDecorations.ts` as a document-preserving inline decoration pass that hides `==` delimiters outside the caret, restores raw source when the caret enters the span, and skips inline/fenced code ranges. Automated coverage in `packages/editor/src/editor/__tests__/inlineDecorations.test.tsx` verifies delimiter hiding, caret reveal, code-context exclusion, compatibility with neighboring bold/italic spans, and markdown round trips. Source: https://support.typora.io/Markdown-Reference/."
+      "notesRef": "features/MF-044.md"
     },
     {
       "id": "MF-045",
@@ -1155,20 +578,7 @@
       "dependsOn": [
         "MF-041"
       ],
-      "steps": [
-        "Open a folder containing multiple markdown files and invoke global search from the sidebar or with `Cmd`/`Ctrl`+`Shift`+`F`.",
-        "Search for a phrase, regex, or `#tag`-style token and confirm matching files plus snippet locations appear across the folder.",
-        "Select a result and confirm MarkFlow opens the correct file, scrolls to the match, and highlights the selected occurrence."
-      ],
-      "verification": {
-        "automated": [
-          "Add desktop and renderer integration tests for folder indexing, cross-file search filters (case, whole-word, regex), and result navigation into the correct file and text range."
-        ],
-        "manual": [
-          "Open a folder with matches in several files, run global search from the sidebar, and confirm selecting results jumps to the right file and text range."
-        ]
-      },
-      "notes": "Typora's Search and File Management docs describe sidebar-backed global search across files, including case-sensitive, whole-word, and regex toggles, plus literal `#tag` discovery across the opened folder. MarkFlow currently only ships current-document find/replace under MF-028; repo search shows no folder index, sidebar search UI, or cross-file result navigation, so this is a genuinely missing Typora capability. Sources: https://support.typora.io/Search/ and https://support.typora.io/File-Management/."
+      "notesRef": "features/MF-045.md"
     },
     {
       "id": "MF-046",
@@ -1182,24 +592,7 @@
       "dependsOn": [
         "MF-015"
       ],
-      "steps": [
-        "Ensure Pandoc is installed on the host system or configured in MarkFlow.",
-        "Open a markdown document with headings, lists, code, and links.",
-        "Export the document to DOCX, EPUB, and LaTeX formats.",
-        "Confirm the exported artifacts preserve document structure and styling."
-      ],
-      "verification": {
-        "automated": [
-          "pnpm --filter @markflow/desktop test:run -- src/main/fileManager.test.ts",
-          "pnpm --filter @markflow/editor test:run -- src/__tests__/App.test.tsx",
-          "pnpm test",
-          "node scripts/harness/verify.mjs"
-        ],
-        "manual": [
-          "Open the exported DOCX in Word, EPUB in a reader, and compile LaTeX to verify structural fidelity (optional spot-check)."
-        ]
-      },
-      "notes": "Typora relies on Pandoc as a bridge for exporting to advanced formats like Word (.docx), EPUB, LaTeX, and OpenOffice. Implementation complete: `FileManager.exportPandoc()` in packages/desktop/src/main/fileManager.ts handles CLI invocation with correct args (--standalone for LaTeX), IPC handlers wired in registerIpcHandlers(), preload exposes exportDocx/exportEpub/exportLatex, menu items trigger export-docx/epub/latex actions, and App.tsx handlePandocExport() routes these to the API. Fixed in this run: electron mock missing `app` in fileManager.test.ts (blocking smoke), and missing handlePandocExport function + payload.action reference error in App.tsx. Sources: https://support.typora.io/Export/"
+      "notesRef": "features/MF-046.md"
     },
     {
       "id": "MF-047",
@@ -1214,21 +607,7 @@
         "MF-001",
         "MF-004"
       ],
-      "steps": [
-        "Place the caret on a plain paragraph line and press `Cmd`/`Ctrl`+`1` through `6` to apply the matching heading level.",
-        "Place the caret on an existing heading line and press `Cmd`/`Ctrl`+`0` to convert it back to a plain paragraph.",
-        "Confirm the current line changes in-place, other lines remain untouched, and the underlying markdown source stays editable."
-      ],
-      "verification": {
-        "automated": [
-          "pnpm --filter @markflow/editor test:run -- src/editor/__tests__/MarkFlowEditor.test.tsx",
-          "node scripts/harness/verify.mjs"
-        ],
-        "manual": [
-          "Open the desktop app, place the caret on several paragraphs and headings, and confirm `Cmd`/`Ctrl`+`1..6` plus `Cmd`/`Ctrl`+`0` rewrite only the active line."
-        ]
-      },
-      "notes": "Typora documents paragraph shortcuts for Heading 1-6 (`Cmd`/`Ctrl`+`1..6`) and Paragraph (`Cmd`/`Ctrl`+`0`), and its Markdown Reference calls out typing heading markers or using the shortcut family as first-class authoring behavior. MarkFlow now handles these shortcuts through `packages/editor/src/editor/extensions/smartInput.ts`, which rewrites only the active line's markdown source while preserving the rest of the document unchanged; regression coverage in `packages/editor/src/editor/__tests__/MarkFlowEditor.test.tsx` verifies paragraph-to-heading conversion, heading-to-paragraph reset, and active-line-only edits. Verified on 2026-04-11 with `pnpm --filter @markflow/editor test:run -- src/editor/__tests__/MarkFlowEditor.test.tsx` plus `node scripts/harness/verify.mjs`. Sources: https://support.typora.io/Shortcut-Keys/ and https://support.typora.io/Markdown-Reference/."
+      "notesRef": "features/MF-047.md"
     },
     {
       "id": "MF-048",
@@ -1240,20 +619,7 @@
       "passes": true,
       "lastVerifiedAt": "2026-04-12",
       "dependsOn": [],
-      "steps": [
-        "Open a markdown file with 180 000+ lines.",
-        "Confirm the editor loads in under 3 seconds and the DOM contains fewer than 2 000 rendered lines at any scroll position.",
-        "Scroll rapidly to the bottom and confirm no visible jank or blank regions."
-      ],
-      "verification": {
-        "automated": [
-          "pnpm --filter @markflow/editor test:run -- --grep virtual"
-        ],
-        "manual": [
-          "Run `pnpm harness:fixture:large`, load `harness/fixtures/mf-large-180k.md`, and observe scroll FPS in DevTools Performance tab."
-        ]
-      },
-      "notes": "Verified on 2026-04-12. Virtual rendering via `viewportWindow.ts` keeps docs over 5,000 lines bounded to visible ranges + 200-line buffer. Link, TOC, and footnote decorations cache metadata on `docChanged` to avoid full rescans on scroll/selection. Window clamped at both document edges. 231 tests pass including virtualRendering.test.ts. Not-tested: manual 180k-line fixture scroll FPS check."
+      "notesRef": "features/MF-048.md"
     },
     {
       "id": "MF-049",
@@ -1267,20 +633,7 @@
       "dependsOn": [
         "MF-048"
       ],
-      "steps": [
-        "Open a 180k-line document and type a single character mid-document.",
-        "Confirm the editor re-parses only the affected block (measured via a parse-time log).",
-        "Confirm the total keystroke-to-render latency stays under 16 ms on an M-series MacBook."
-      ],
-      "verification": {
-        "automated": [
-          "pnpm --filter @markflow/editor test:run -- --grep incremental"
-        ],
-        "manual": [
-          "Observe parse-scope log in console; confirm only one block is re-parsed per edit."
-        ]
-      },
-      "notes": "Implemented via `packages/editor/src/editor/decorations/incrementalParse.ts` plus incremental rebuild support in `inlineDecorations.ts`, which maps existing decorations through document changes and only rebuilds dirty whole-line ranges within the viewport. `packages/editor/src/editor/__tests__/incrementalParse.test.tsx` now locks the dirty-range report and untouched-decoration preservation path, and the inline-decoration EOF boundary regression is covered in `packages/editor/src/editor/__tests__/inlineDecorations.test.tsx`. Automated verification passed on 2026-04-13 (`pnpm --filter @markflow/editor test:run -- --grep incremental`, targeted editor tests, `./harness/init.sh --smoke`, `pnpm --filter @markflow/editor build`, `pnpm --filter @markflow/editor lint`). Not tested: the manual 180k-line parse-scope console check and sub-16 ms latency validation on real M-series hardware."
+      "notesRef": "features/MF-049.md"
     },
     {
       "id": "MF-050",
@@ -1294,20 +647,7 @@
       "dependsOn": [
         "MF-048"
       ],
-      "steps": [
-        "Open a 180k-line document.",
-        "Confirm the outline panel populates asynchronously within 5 seconds without freezing typing.",
-        "Confirm anchor links in the document resolve correctly against the symbol table."
-      ],
-      "verification": {
-        "automated": [
-          "pnpm --filter @markflow/editor test:run -- src/editor/__tests__/indexer.test.ts src/editor/__tests__/outline.test.ts src/editor/__tests__/MarkFlowEditor.test.tsx src/__tests__/App.test.tsx"
-        ],
-        "manual": [
-          "Type continuously while the document loads; confirm no input lag."
-        ]
-      },
-      "notes": "Implemented on 2026-04-15 in `packages/editor/src/editor/indexer.ts`, `packages/editor/src/editor/MarkFlowEditor.tsx`, `packages/editor/src/App.tsx`, and `packages/editor/src/editor/outline.ts`. The background indexer now feeds the live outline and internal-anchor navigation through `symbolTableField` plus `onSymbolTableChange`, performs an immediate off-stack initial scan, keeps subsequent rescans debounced, and drops stale async results when documents switch mid-index. Automated coverage in `src/editor/__tests__/indexer.test.ts`, `src/editor/__tests__/outline.test.ts`, `src/editor/__tests__/MarkFlowEditor.test.tsx`, and `src/__tests__/App.test.tsx` passed on 2026-04-15 with the listed editor test command, plus `pnpm --filter @markflow/editor lint`, `pnpm --filter @markflow/editor build`, and `pnpm harness:verify`. `passes` remains false because the manual 180k-line typing/no-lag verification is still pending."
+      "notesRef": "features/MF-050.md"
     },
     {
       "id": "MF-051",
@@ -1321,21 +661,7 @@
       "dependsOn": [
         "MF-050"
       ],
-      "steps": [
-        "Open any document with multiple heading levels.",
-        "Confirm the outline panel updates as headings are added or removed.",
-        "Click a heading in the panel and confirm the editor scrolls to that heading.",
-        "Scroll the editor and confirm the active heading in the panel tracks the viewport."
-      ],
-      "verification": {
-        "automated": [
-          "pnpm --filter @markflow/editor test:run -- src/__tests__/App.test.tsx src/editor/__tests__/MarkFlowEditor.test.tsx src/editor/__tests__/outline.test.ts"
-        ],
-        "manual": [
-          "Manual scroll-sync check with a multi-section document."
-        ]
-      },
-      "notes": "Implemented on 2026-04-15 in `packages/editor/src/App.tsx` and `packages/editor/src/editor/MarkFlowEditor.tsx` by sourcing outline entries from the background symbol table, keeping heading additions/renames asynchronous, and combining explicit navigation intent with editor scroll events so the active outline item tracks the current section without blocking on full-document reparses. Automated coverage in `src/__tests__/App.test.tsx`, `src/editor/__tests__/MarkFlowEditor.test.tsx`, and `src/editor/__tests__/outline.test.ts` passed on 2026-04-15 with the listed editor test command. `passes` remains false because the manual desktop scroll-sync check is still pending. BUG (found 2026-04-16, detailed live-preview test, starter document): The active-heading indicator does NOT track scroll when the document fits the rendered viewport. `activeOutlineAnchor` is computed from `activeTab.cursorPosition ?? activeTab.viewportPosition ?? 0` (App.tsx ~line 1592), and `viewportPosition` is fed by `update.view.viewport.from` / `view.scrollDOM scroll handler` in `MarkFlowEditor.tsx` (~lines 303–310 and 603–606). But `view.viewport.from` is CodeMirror's virtualized range start, not the currently scrolled-to position — for a small doc `viewport.from` stays at 0 regardless of `scrollDOM.scrollTop`. Reproduced live: after `document.querySelector('.cm-scroller').scrollTop = 2000` on the starter document, `.mf-outline-item-active` remained on \"Welcome to MarkFlow\". On initial load the active outline item was the LAST heading (\"Footnote\") while `scrollTop` was 0 — symptom of an initial cursor/viewport value past the last heading. Fix should derive the active anchor from the topmost visible line, e.g. `view.posAtCoords({x: 0, y: view.documentTop})` or the line at `view.scrollDOM.scrollTop`, not `view.viewport.from`."
+      "notesRef": "features/MF-051.md"
     },
     {
       "id": "MF-052",
@@ -1347,21 +673,7 @@
       "passes": true,
       "lastVerifiedAt": "2026-04-12",
       "dependsOn": [],
-      "steps": [
-        "Open a 200 MB markdown file via File > Open.",
-        "Confirm the first screen-full of content is visible within 1 second.",
-        "Confirm a progress indicator is shown until the full file is loaded.",
-        "Confirm no OOM crash occurs on a machine with 8 GB RAM."
-      ],
-      "verification": {
-        "automated": [
-          "pnpm --filter @markflow/desktop test:run -- --grep chunk-loader"
-        ],
-        "manual": [
-          "Run `pnpm harness:fixture:large -- --megabytes 200 --output harness/fixtures/mf-large-200mb.md`, open that file, and measure time-to-first-line with a stopwatch."
-        ]
-      },
-      "notes": "Verified on 2026-04-12. Chunk-based file loader in `fileManager.ts` uses `fs.createReadStream` with 64 KB chunks for files >1 MB, emits `file-loading-progress` IPC with live preview, final `file-opened` sent after full assembly. Shared types, preload, and App.tsx render progress as large-file preview panel. 200 MB fixture generated via `pnpm harness:fixture:large --megabytes 200`. All desktop/editor tests pass. Not-tested: manual open-time/OOM check on 200 MB file."
+      "notesRef": "features/MF-052.md"
     },
     {
       "id": "MF-053",
@@ -1375,21 +687,7 @@
       "dependsOn": [
         "MF-048"
       ],
-      "steps": [
-        "Press Cmd+F to open the search bar.",
-        "Type a query and confirm all matches are highlighted within 200 ms on a 180k-line file.",
-        "Press Enter / Shift+Enter to cycle through matches.",
-        "Confirm match count badge is accurate."
-      ],
-      "verification": {
-        "automated": [
-          "pnpm --filter @markflow/editor test:run -- --grep fuzzy-search"
-        ],
-        "manual": [
-          "Search for a common word in the large-file fixture; count highlighted matches."
-        ]
-      },
-      "notes": "Run search in a Web Worker using a regex; stream decoration ranges back to viewport-visible lines first."
+      "notesRef": "features/MF-053.md"
     },
     {
       "id": "MF-054",
@@ -1403,21 +701,7 @@
       "dependsOn": [
         "MF-053"
       ],
-      "steps": [
-        "Press Cmd/Ctrl+H to open the find-and-replace panel from the editor.",
-        "Enable regex mode, enter a pattern, and confirm only regex-matching spans are highlighted.",
-        "Toggle case-sensitivity and confirm the match set changes accordingly.",
-        "Toggle whole-word matching, then use Replace All and confirm all intended occurrences are substituted without corrupting surrounding text."
-      ],
-      "verification": {
-        "automated": [
-          "pnpm --filter @markflow/editor exec vitest run src/editor/__tests__/findReplace.test.ts src/editor/__tests__/MarkFlowEditor.test.tsx"
-        ],
-        "manual": [
-          "Regex replace on a known fixture; diff the result against expected output."
-        ]
-      },
-      "notes": "Typora's Search doc says Cmd/Ctrl+H toggles Find and Replace in the current file and that regex replacement supports `$0`, `$1`, ... capture references, alongside case-sensitive, whole-word, and regexp toggles. MarkFlow now exposes the existing CodeMirror search panel through an explicit `Mod-h` binding in `packages/editor/src/editor/MarkFlowEditor.tsx`, focuses the replace field when opened from the editor, and relies on the built-in panel controls for regex, match-case, whole-word, and replace/replace-all behavior. Focused regression coverage in `packages/editor/src/editor/__tests__/findReplace.test.ts` and `packages/editor/src/editor/__tests__/MarkFlowEditor.test.tsx` now exercises live panel creation, query toggle commits, match navigation, regex capture-group replacement, exact-case replacement, whole-word replacement, and the `Cmd/Ctrl+H` entry point. Automated verification passed on 2026-04-16 with `pnpm --filter @markflow/editor exec vitest run src/editor/__tests__/findReplace.test.ts src/editor/__tests__/MarkFlowEditor.test.tsx` and `pnpm harness:verify`. `passes` remains false because the manual regex-replace fixture check is still pending. Sources: https://support.typora.io/Search/ and https://support.typora.io/What's-New-1.3/."
+      "notesRef": "features/MF-054.md"
     },
     {
       "id": "MF-055",
@@ -1431,22 +715,7 @@
       "dependsOn": [
         "MF-052"
       ],
-      "steps": [
-        "Open a synthetic 2 GB markdown file.",
-        "Jump to line 1 000 000 via the Go-to-Line dialog.",
-        "Confirm the target line is displayed within 2 seconds.",
-        "Confirm resident memory usage stays below 512 MB."
-      ],
-      "verification": {
-        "automated": [
-          "pnpm --filter @markflow/desktop test:run -- src/main/fileManager.test.ts",
-          "pnpm --filter @markflow/editor test:run -- src/__tests__/App.test.tsx"
-        ],
-        "manual": [
-          "Monitor Activity Monitor RSS while jumping to arbitrary positions."
-        ]
-      },
-      "notes": "Current `MF-055` implementation, re-verified on 2026-04-16, routes files larger than 256 MB through a windowed large-file path that builds sparse newline checkpoints, keeps only a 400-line sliding window in memory, and serves random-access line requests over `read-large-file-window` instead of materializing the full file in the renderer. The shared/preload desktop bridge exposes `MarkFlowFilePayload.largeFile` plus `readLargeFileWindow()`, while the editor presents a read-only large-file banner, global line counts, and IPC-backed Go-to-Line jumps without enabling partial-window edits or exports. Regression coverage in `packages/desktop/src/main/fileManager.test.ts` and `packages/editor/src/__tests__/App.test.tsx` passed again on 2026-04-16 with the listed automated commands, and `pnpm harness:verify` also passed. Manual verification completed on 2026-04-16 in the packaged desktop app against a synthetic 2 GB fixture: Go-to-Line reached line 1,000,000 in 43.8 ms and line 20,000,000 in 30.5 ms, the renderer updated to windows `999,960-1,000,359` and `19,999,960-20,000,359` while showing `Section 500` and `Section 10000`, and Activity Monitor rows for the MarkFlow process tree (PIDs `55442`, `55443`, `55444`, `55447`) stayed below 512 MB in aggregate at both checkpoints (`227.5 MB`, then `392.8 MB`). Matching `ps rss` totals for the same four processes also stayed below the cap (`451,776 KB`, then `453,968 KB`)."
+      "notesRef": "features/MF-055.md"
     },
     {
       "id": "MF-056",
@@ -1458,20 +727,7 @@
       "passes": true,
       "lastVerifiedAt": "2026-04-13",
       "dependsOn": [],
-      "steps": [
-        "Press Cmd/Ctrl+L, enter a line number, and confirm the caret moves to that line.",
-        "Confirm the viewport scrolls so the target line is visible near the top of the editor.",
-        "Test with a line number beyond the document end and confirm a graceful clamp."
-      ],
-      "verification": {
-        "automated": [
-          "pnpm --filter @markflow/editor test:run -- --grep go-to-line"
-        ],
-        "manual": [
-          "Use Cmd/Ctrl+L on a 180k-line file; verify the requested line is shown without visible lag."
-        ]
-      },
-      "notes": "Implemented on 2026-04-12 via a lightweight `packages/editor/src/components/GoToLine.tsx` overlay opened from `packages/editor/src/App.tsx` with `Cmd/Ctrl+L`. The app computes the target document offset from the requested line number, clamps out-of-range input to the document bounds, and reuses the existing `MarkFlowEditor` navigation request path so `EditorView.dispatch` sets the caret and runs `scrollIntoView` without recreating the editor. Automated coverage lives in `packages/editor/src/__tests__/App.test.tsx` and passed on 2026-04-12 with `pnpm --filter @markflow/editor test:run -- --grep go-to-line`, plus `pnpm --filter @markflow/editor build` and `pnpm --filter @markflow/editor lint`. `passes` remains false only because the required manual large-document shortcut smoke test is still pending."
+      "notesRef": "features/MF-056.md"
     },
     {
       "id": "MF-057",
@@ -1483,20 +739,7 @@
       "passes": true,
       "lastVerifiedAt": "2026-04-13",
       "dependsOn": [],
-      "steps": [
-        "Alt-click to place additional cursors on three separate lines.",
-        "Type text and confirm it is inserted at every cursor simultaneously.",
-        "Press Escape and confirm cursors collapse to a single primary caret."
-      ],
-      "verification": {
-        "automated": [
-          "pnpm --filter @markflow/editor test:run -- --grep multi-cursor"
-        ],
-        "manual": [
-          "Alt-click three lines; type a word; confirm all three lines updated."
-        ]
-      },
-      "notes": "Implemented on 2026-04-12 in `packages/editor/src/editor/MarkFlowEditor.tsx` by enabling `EditorState.allowMultipleSelections`, remapping `EditorView.clickAddsSelectionRange` to `Alt` so add-cursor clicks match the feature spec, and adding an explicit `Escape` keybinding that collapses back to the primary selection. `Mod-D` select-next-occurrence support now works through the existing CodeMirror `searchKeymap` because multiple selections are enabled. Automated coverage lives in `packages/editor/src/editor/__tests__/MarkFlowEditor.test.tsx` and passed on 2026-04-12 with `pnpm --filter @markflow/editor test:run -- --grep multi-cursor`, plus `pnpm --filter @markflow/editor build` and `pnpm --filter @markflow/editor lint`. `passes` remains false only because the manual Alt-click interaction check is still pending."
+      "notesRef": "features/MF-057.md"
     },
     {
       "id": "MF-058",
@@ -1510,20 +753,7 @@
       "dependsOn": [
         "MF-057"
       ],
-      "steps": [
-        "Alt+Shift+drag to create a rectangular selection across 5 lines.",
-        "Type a replacement string and confirm it replaces the selected column on every line.",
-        "Confirm undo restores all lines atomically."
-      ],
-      "verification": {
-        "automated": [
-          "pnpm --filter @markflow/editor test:run -- --grep block-selection"
-        ],
-        "manual": [
-          "Manually test Alt+Shift+drag in a table block."
-        ]
-      },
-      "notes": "Use CodeMirror rectangularSelection extension."
+      "notesRef": "features/MF-058.md"
     },
     {
       "id": "MF-059",
@@ -1535,20 +765,7 @@
       "passes": true,
       "lastVerifiedAt": "2026-04-13",
       "dependsOn": [],
-      "steps": [
-        "Make 600 distinct edits in a large file.",
-        "Confirm undo walks back 500 steps and stops cleanly.",
-        "Confirm heap size does not exceed 256 MB after 600 edits."
-      ],
-      "verification": {
-        "automated": [
-          "pnpm --filter @markflow/editor test:run -- --grep \"caps undo history\""
-        ],
-        "manual": [
-          "Monitor heap in DevTools Memory snapshot after 600 edits."
-        ]
-      },
-      "notes": "Implemented on 2026-04-12 in `packages/editor/src/editor/MarkFlowEditor.tsx` and `packages/editor/src/editor/historyLimit.ts`. The editor now configures CodeMirror history with a 500-event target and prunes serialized `historyField` state back to the newest 500 change events whenever the native branch grows past the cap, which keeps undo depth exact even though CodeMirror's built-in history only exposes a retention floor (`minDepth`) instead of a true max depth. Automated coverage in `packages/editor/src/editor/__tests__/MarkFlowEditor.test.tsx` proves that 600 isolated edits settle at exactly 500 undoable events and that the 501st undo stops cleanly; it passed on 2026-04-12 with `pnpm --filter @markflow/editor test:run -- --grep \"caps undo history\"`, plus `pnpm --filter @markflow/editor build` and `pnpm --filter @markflow/editor lint`. `passes` remains false because the manual heap-size verification for large-file sessions is still pending."
+      "notesRef": "features/MF-059.md"
     },
     {
       "id": "MF-060",
@@ -1560,21 +777,7 @@
       "passes": true,
       "lastVerifiedAt": "2026-04-15T23:51:42Z",
       "dependsOn": [],
-      "steps": [
-        "Edit a document without manually saving.",
-        "Wait 30 seconds and confirm a .markflow-recovery file is written to the system temp directory.",
-        "Simulate a crash; reopen MarkFlow and confirm the recovery prompt appears.",
-        "Accept recovery and confirm the checkpoint content is restored."
-      ],
-      "verification": {
-        "automated": [
-          "pnpm --filter @markflow/desktop test:run -- --grep auto-save"
-        ],
-        "manual": [
-          "Kill the process after 35 seconds; reopen and accept recovery."
-        ]
-      },
-      "notes": "Implemented on 2026-04-15 in `packages/desktop/src/main/fileManager.ts`, `packages/desktop/src/preload/index.ts`, `packages/editor/src/App.tsx`, `packages/desktop/src/main/fileManager.test.ts`, and `packages/editor/src/__tests__/App.test.tsx`. The desktop main process now keeps the latest dirty-document draft in memory, debounces `.markflow-recovery` writes into the system temp directory after 30 seconds of idle time, records clean versus unclean shutdown state, and only surfaces the recovery prompt after an unclean exit. Automated verification passed on 2026-04-15 and again on 2026-04-16 with `pnpm --filter @markflow/desktop test:run -- --grep auto-save` and `pnpm harness:verify`. Manual crash/relaunch verification completed on 2026-04-16 in a live Electron session against `/tmp/markflow-mf060.vh4jMh/recovery.md`: Chromium CDP edited the open file without saving, waited 35 seconds, observed `/var/folders/dl/qdq_vh116gl1yjbd8pxk_bd00000gn/T/.markflow-recovery` containing `checkpoint-from-cdp`, killed the Electron process to preserve `{\"cleanExit\":false}` in `/Users/pprp/Library/Application Support/@markflow/desktop/.markflow-recovery-session.json`, relaunched MarkFlow, captured the recovery prompt text `Recover the auto-saved changes for recovery.md from 4/16/2026, 7:44:39 AM?` via `Page.javascriptDialogOpening`, accepted it with `Page.handleJavaScriptDialog`, and confirmed the restored checkpoint content plus dirty-state indicator in the renderer."
+      "notesRef": "features/MF-060.md"
     },
     {
       "id": "MF-061",
@@ -1588,24 +791,7 @@
       "dependsOn": [
         "MF-048"
       ],
-      "steps": [
-        "Open a document with 500 embedded images.",
-        "Confirm only images near the viewport are decoded (check DevTools Network).",
-        "Scroll to the bottom and confirm images load progressively."
-      ],
-      "verification": {
-        "automated": [
-          "pnpm --filter @markflow/editor test:run -- --grep lazy-image",
-          "pnpm --filter @markflow/editor exec vitest run src/editor/__tests__/lazyImage.test.tsx",
-          "pnpm --filter @markflow/editor lint",
-          "pnpm --filter @markflow/editor build",
-          "pnpm harness:verify"
-        ],
-        "manual": [
-          "Throttle CPU to 4x slowdown; scroll through image-heavy document; confirm no jank."
-        ]
-      },
-      "notes": "Implemented on 2026-04-16 in `packages/editor/src/editor/decorations/linkDecoration.ts` and `packages/editor/src/editor/__tests__/lazyImage.test.tsx`. Markdown image widgets now create their `<img>` without a `src`, attach an `IntersectionObserver` rooted to the editor scroller, and only assign the resolved source once the widget nears the viewport; if the widget is removed before loading, the observer disconnects so stale off-screen work is not retained. Focused lazy-image coverage passed in `packages/editor/src/editor/__tests__/lazyImage.test.tsx`, and the required `pnpm --filter @markflow/editor test:run -- --grep lazy-image`, `pnpm --filter @markflow/editor lint`, and `pnpm --filter @markflow/editor build` commands also passed on 2026-04-16. `passes` remains false because the required DevTools/CPU-throttled scroll verification could not be truthfully completed from this terminal session."
+      "notesRef": "features/MF-061.md"
     },
     {
       "id": "MF-062",
@@ -1617,21 +803,7 @@
       "passes": true,
       "lastVerifiedAt": "2026-04-16",
       "dependsOn": [],
-      "steps": [
-        "Click the fold gutter icon next to a heading.",
-        "Confirm all lines under that heading until the next same-level heading are hidden.",
-        "Click the icon again and confirm the section expands.",
-        "Confirm folded state survives a file save and reload."
-      ],
-      "verification": {
-        "automated": [
-          "pnpm --filter @markflow/editor test:run -- --grep folding"
-        ],
-        "manual": [
-          "Fold several sections; save; close and reopen; confirm fold state is preserved."
-        ]
-      },
-      "notes": "Implemented on 2026-04-16 in `packages/editor/src/editor/extensions/headingFold.ts`, `packages/editor/src/editor/foldingState.ts`, `packages/editor/src/editor/MarkFlowEditor.tsx`, `packages/editor/src/App.tsx`, `packages/desktop/src/main/fileManager.ts`, `packages/desktop/src/preload/index.ts`, `packages/shared/src/index.ts`, `packages/editor/src/editor/__tests__/folding.test.tsx`, `packages/editor/src/__tests__/App.test.tsx`, and `packages/desktop/src/main/fileManager.test.ts`. The fold gutter now collapses heading sections through the next same-level heading plus multiline lists and fenced code blocks to a single summary line, and successful saves persist the active folded ranges into a `*.folds` sidecar that is restored when the file reopens. Automated verification passed on 2026-04-16 with `pnpm --filter @markflow/editor test:run -- --grep folding`, `pnpm --filter @markflow/editor lint`, `pnpm --filter @markflow/editor build`, `pnpm --filter @markflow/desktop exec vitest run src/main/fileManager.test.ts`, `pnpm --filter @markflow/desktop build`, and `pnpm harness:verify`. Manual verification also passed on 2026-04-16 in a live Electron session against `/tmp/markflow-mf062.AisuVg/folding.md`: two heading sections were folded from the gutter, `save-file` wrote `/tmp/markflow-mf062.AisuVg/folding.md.folds` containing `[7,18,26,86]`, and after relaunch the same two fold placeholders remained visible while the unfurled `Gamma` section stayed expanded."
+      "notesRef": "features/MF-062.md"
     },
     {
       "id": "MF-063",
@@ -1645,29 +817,7 @@
       "dependsOn": [
         "MF-048"
       ],
-      "steps": [
-        "Enable minimap from View menu.",
-        "Confirm a right-side minimap renders a proportional representation of the document.",
-        "Click a region of the minimap and confirm the editor scrolls proportionally.",
-        "Confirm the viewport highlight box tracks scrolling."
-      ],
-      "verification": {
-        "automated": [
-          "pnpm --filter @markflow/editor exec vitest run src/components/minimap.test.tsx src/editor/__tests__/MarkFlowEditor.test.tsx src/__tests__/App.test.tsx",
-          "pnpm --filter @markflow/desktop exec vitest run src/main/menu.test.ts",
-          "pnpm --filter @markflow/shared lint",
-          "pnpm --filter @markflow/shared build",
-          "pnpm --filter @markflow/editor lint",
-          "pnpm --filter @markflow/editor build",
-          "pnpm --filter @markflow/desktop lint",
-          "pnpm --filter @markflow/desktop build",
-          "pnpm harness:verify"
-        ],
-        "manual": [
-          "Visual check on a 1 000-line document."
-        ]
-      },
-      "notes": "Implemented on 2026-04-16 in `packages/editor/src/components/Minimap.tsx`, `packages/editor/src/editor/MarkFlowEditor.tsx`, `packages/editor/src/App.tsx`, `packages/editor/src/styles/global.css`, `packages/editor/src/components/minimap.test.tsx`, `packages/editor/src/editor/__tests__/MarkFlowEditor.test.tsx`, `packages/editor/src/__tests__/App.test.tsx`, `packages/desktop/src/main/menu.ts`, `packages/desktop/src/main/menu.test.ts`, and `packages/shared/src/index.ts`. The View menu now exposes `Toggle Minimap`, the editor renders a right-side canvas minimap that rasterises one row per document line into compact glyph bars, clicks map back to proportional line navigation, and a translucent viewport box tracks live scroll metrics from the active CodeMirror scroller. Automated verification passed on 2026-04-16 with the listed editor/desktop/shared commands plus `pnpm harness:verify`. `passes` remains false because this terminal session did not truthfully complete the required live visual check on a 1,000-line document."
+      "notesRef": "features/MF-063.md"
     },
     {
       "id": "MF-064",
@@ -1681,20 +831,7 @@
       "dependsOn": [
         "MF-047"
       ],
-      "steps": [
-        "Place the caret on a heading line such as `## Heading` and press `Cmd`/`Ctrl`+`=`.",
-        "Confirm the markdown source changes by one heading level in the deeper direction without changing the heading text or surrounding lines.",
-        "Press `Cmd`/`Ctrl`+`-` on a heading and confirm it changes by one level in the shallower direction, with boundary cases at H1 and H6 handled safely."
-      ],
-      "verification": {
-        "automated": [
-          "pnpm --filter @markflow/editor test:run -- src/editor/__tests__/MarkFlowEditor.test.tsx"
-        ],
-        "manual": [
-          "Use the editor on H1-H6 headings and confirm promote/demote shortcuts rewrite only the active line."
-        ]
-      },
-      "notes": "Typora's Shortcut Keys doc lists `Increase Heading Level` (`Ctrl`/`Cmd`+`=`) and `Decrease Heading Level` (`Ctrl`/`Cmd`+`-`) under Paragraph, and MarkFlow now rewrites only the active heading line through the existing smart-input heading shortcut path, including the H1->paragraph and H6 cap boundaries. Automated coverage lives in `packages/editor/src/editor/__tests__/MarkFlowEditor.test.tsx`. Sources: https://support.typora.io/Shortcut-Keys/ and https://support.typora.io/Markdown-Reference/."
+      "notesRef": "features/MF-064.md"
     },
     {
       "id": "MF-065",
@@ -1710,21 +847,7 @@
         "MF-006",
         "MF-047"
       ],
-      "steps": [
-        "Place the caret on a plain paragraph line and press Typora's Quote shortcut (`Ctrl`+`Shift`+`Q` on Windows/Linux, `Cmd`+`Option`+`Q` on macOS), then confirm only the active line rewrites to `> ` markdown.",
-        "Repeat with Typora's Ordered List shortcut (`Ctrl`+`Shift`+`[` / `Cmd`+`Option`+`O`) and Unordered List shortcut (`Ctrl`+`Shift`+`]` / `Cmd`+`Option`+`U`), confirming the active line rewrites in place to `1. ` and `- ` style list markup without mutating adjacent lines.",
-        "Press Typora's Paragraph shortcut (`Cmd`/`Ctrl`+`0`) on each converted line and confirm MarkFlow returns that line to plain paragraph text while preserving surrounding content and caret position."
-      ],
-      "verification": {
-        "automated": [
-          "pnpm --filter @markflow/editor test:run -- src/editor/__tests__/MarkFlowEditor.test.tsx src/editor/__tests__/smartInput.test.ts",
-          "node scripts/harness/verify.mjs"
-        ],
-        "manual": [
-          "Open the desktop editor and confirm the Quote, Ordered List, Unordered List, and Paragraph shortcuts rewrite only the active line in both source and WYSIWYG modes, while existing Enter-driven list continuation from MF-006 still behaves normally after conversion."
-        ]
-      },
-      "notes": "Verified on 2026-04-12. Typora's Quote (`Ctrl+Shift+Q` / `Cmd+Option+Q`), Ordered List (`Ctrl+Shift+[` / `Cmd+Option+O`), Unordered List (`Ctrl+Shift+]` / `Cmd+Option+U`), and Paragraph (`Mod-0`) shortcuts all work correctly in `packages/editor/src/editor/extensions/smartInput.ts`. Quote/list toggles on active line, Mod-0 strips prefixes back to plain text, task-list lines preserved. Coverage in `MarkFlowEditor.test.tsx` and `smartInput.test.ts`; 231 tests pass. Not-tested: manual desktop shortcut check in Electron shell."
+      "notesRef": "features/MF-065.md"
     },
     {
       "id": "MF-066",
@@ -1740,20 +863,7 @@
         "MF-010",
         "MF-038"
       ],
-      "steps": [
-        "Select inline prose in the editor, press Typora's Bold and Italic shortcuts (`Cmd`/`Ctrl`+`B` and `Cmd`/`Ctrl`+`I`), and confirm only the selected range is wrapped in `**...**` or `*...*` source while the rendered styling appears again after the caret leaves the span.",
-        "Select text, press Typora's Underline shortcut (`Cmd`/`Ctrl`+`U`), and confirm MarkFlow wraps just that range in `<u>...</u>` without corrupting adjacent markdown or leaving the editor.",
-        "Select text, press Typora's Link shortcut (`Cmd`/`Ctrl`+`K`), and confirm MarkFlow scaffolds `[selected text](url)` around the selection so the existing link rendering/navigation path can take over once the destination is edited."
-      ],
-      "verification": {
-        "automated": [
-          "Add focused editor shortcut tests covering `Mod-b`, `Mod-i`, `Mod-u`, and `Mod-k`, including collapsed vs selected ranges and markdown/HTML round trips."
-        ],
-        "manual": [
-          "Open the desktop editor in both source and WYSIWYG modes, use the four shortcuts on real selections, and confirm the inserted wrappers stay minimal while the existing floating toolbar behavior remains unchanged."
-        ]
-      },
-      "notes": "Implemented on 2026-04-12. Added `Mod-b` (bold), `Mod-i` (italic), `Mod-u` (underline), and `Mod-k` (link) keyboard shortcuts to `packages/editor/src/editor/extensions/smartInput.ts`. Each shortcut wraps the selected text with the appropriate markdown wrapper, or inserts a wrapper with placeholder text and selects the content when the cursor has no selection. Link shortcuts scaffold `[text](url)` with the cursor positioned on the URL. Automated coverage lives in `packages/editor/src/editor/__tests__/smartInput.test.ts` (direct handler tests) and `MarkFlowEditor.test.tsx` (component-level bold and link shortcut tests). All 217 tests pass."
+      "notesRef": "features/MF-066.md"
     },
     {
       "id": "MF-067",
@@ -1767,22 +877,7 @@
       "dependsOn": [
         "MF-014"
       ],
-      "steps": [
-        "Open markdown containing inline `\\(a^2+b^2=c^2\\)` and block `\\[\\int_0^1 x^2 dx\\]` math delimiters.",
-        "Move the caret out of each expression and confirm it renders through the existing KaTeX path.",
-        "Re-enter the expression and confirm raw source delimiters stay editable without corruption."
-      ],
-      "verification": {
-        "automated": [
-          "pnpm --filter @markflow/editor exec vitest run src/editor/__tests__/mathDecoration.test.ts",
-          "pnpm --filter @markflow/editor lint",
-          "pnpm --filter @markflow/editor build"
-        ],
-        "manual": [
-          "In desktop editor, verify mixed `$...$`, `$$...$$`, `\\(...\\)`, and `\\[...\\]` expressions in one document render consistently."
-        ]
-      },
-      "notes": "Implemented on 2026-04-15 in `packages/editor/src/editor/decorations/mathDecoration.ts` by extending the existing KaTeX decoration path to recognize inline `\\(...\\)`, single-line `\\[...\\]`, and multi-line `\\[` / `\\]` display blocks while preserving caret reveal and code-range exclusion. `packages/editor/src/editor/__tests__/mathDecoration.test.ts` now covers alternate-delimiter rendering, caret-inside source reveal, multi-line block handling, and fenced/inline-code exclusion. Automated verification passed on 2026-04-15 with the listed math test command plus `pnpm --filter @markflow/editor lint` and `pnpm --filter @markflow/editor build`. `passes` remains false because the manual desktop mixed-delimiter verification is still pending. Sources: https://support.typora.io/What%27s-New-1.11/ and https://support.typora.io/Math/."
+      "notesRef": "features/MF-067.md"
     },
     {
       "id": "MF-068",
@@ -1796,20 +891,7 @@
       "dependsOn": [
         "MF-013"
       ],
-      "steps": [
-        "Place the caret in a rendered markdown table and trigger Typora-style row insertion: `Ctrl`/`Cmd`+`Enter` inserts an empty row below, and pressing `Tab` from the last cell appends a new row.",
-        "Delete the current row with `Ctrl`/`Cmd`+`Shift`+`Backspace`, then use a table command surface to insert/delete a column and move the current row up/down; confirm the pipe table stays rectangular and alignment markers remain intact.",
-        "Undo and redo each table command and confirm selection stays in the affected cell/row without exposing malformed markdown."
-      ],
-      "verification": {
-        "automated": [
-          "Add focused table-command coverage in `packages/editor/src/editor/__tests__/tableCommands.test.ts` (or the existing table suite) for row insert via `Mod-Enter`, last-cell `Tab` row append, row delete via `Mod-Shift-Backspace`, column insert/delete, row move up/down, and undo/redo preserving pipe-table syntax plus alignment markers."
-        ],
-        "manual": [
-          "Exercise the commands repeatedly in a 20-row, 5-column table and confirm there is no malformed row output, separator drift, or caret jump after switching between WYSIWYG and source mode."
-        ]
-      },
-      "notes": "Updated on 2026-04-16: `packages/editor/src/editor/extensions/tableCommands.ts` now adds a bounded WYSIWYG table transaction layer wired through `packages/editor/src/editor/MarkFlowEditor.tsx`, covering row insert below via `Mod-Enter`, last-cell `Tab` row append, row delete via `Mod-Shift-Backspace`, row move up/down via `Alt-Arrow`, and user-reachable column insert/delete hotkeys via `Mod-Alt-ArrowLeft`, `Mod-Alt-ArrowRight`, and `Mod-Alt-Backspace`. Focused coverage in `packages/editor/src/editor/__tests__/tableCommands.test.ts` plus a regression pass in `packages/editor/src/editor/__tests__/MarkFlowEditor.test.tsx` passed on 2026-04-16, and the table rewrites keep pipe rows rectangular with alignment markers intact while header/separator `Alt-Arrow` and non-terminal `Tab` no longer fall through to generic line movement or indentation. `passes` remains false because the large-table/manual acceptance is still pending and one Typora parity gap remains open: redo after some table edits does not yet keep the caret in the affected row/cell (most visibly after inserting a brand-new empty row), so the step requiring selection to stay in the affected cell/row across every undo/redo cycle is not fully closed. Sources: https://support.typora.io/Table-Editing/ and https://support.typora.io/Shortcut-Keys/."
+      "notesRef": "features/MF-068.md"
     },
     {
       "id": "MF-069",
@@ -1823,20 +905,7 @@
       "dependsOn": [
         "MF-013"
       ],
-      "steps": [
-        "Hover table header boundaries and confirm a resize affordance appears in WYSIWYG mode.",
-        "Drag to resize a column and confirm visible widths update immediately without corrupting markdown content.",
-        "Save and reopen the document, then confirm alignment/width intent survives via markdown-compatible serialization strategy."
-      ],
-      "verification": {
-        "automated": [
-          "Add integration tests for resize-handle interactions and resulting markdown persistence behavior in editor table tests."
-        ],
-        "manual": [
-          "Resize multiple columns in a wide table and verify keyboard navigation plus selection behavior still works."
-        ]
-      },
-      "notes": "Updated on 2026-04-16: `packages/editor/src/editor/decorations/tableDecoration.ts` now renders WYSIWYG table cells with width ratios and alignment derived from the markdown separator row, exposes draggable header-boundary resize handles, and persists resize intent by rewriting only the separator row with wider/narrower dash runs while preserving alignment colons. `packages/editor/src/styles/global.css` adds the resize affordance visuals, and focused integration coverage in `packages/editor/src/editor/__tests__/tableDecoration.test.ts` now exercises handle rendering, drag-resize live width updates, separator-row markdown persistence, and reopen rehydration. Automated verification passed on 2026-04-16 via `pnpm --filter @markflow/editor exec vitest run src/editor/__tests__/tableDecoration.test.ts`, `pnpm --filter @markflow/editor lint`, `pnpm --filter @markflow/editor build`, `pnpm --filter @markflow/editor test:run`, and `pnpm harness:verify`. `passes` remains false because the required live manual verification for multi-column resizing, keyboard navigation, and selection behavior was not performed in this terminal session. Sources: https://support.typora.io/Table-Editing/ and https://support.typora.io/Markdown-Reference/."
+      "notesRef": "features/MF-069.md"
     },
     {
       "id": "MF-070",
@@ -1851,20 +920,7 @@
         "MF-025",
         "MF-029"
       ],
-      "steps": [
-        "Set `typora-copy-images-to` and `typora-root-url` in YAML front matter, then paste/drag local images into the editor.",
-        "Confirm inserted markdown paths are rewritten according to destination/root rules and previews still resolve.",
-        "Repeat with no YAML preferences and confirm fallback insertion behavior matches current MF-029 flow."
-      ],
-      "verification": {
-        "automated": [
-          "Extend image insertion tests in `packages/editor/src/editor/__tests__/smartPaste.test.ts` and `linkDecoration.test.tsx` for YAML-driven destination rewriting and root URL resolution."
-        ],
-        "manual": [
-          "Create two notes with different front-matter image preferences and verify each rewrites image paths independently."
-        ]
-      },
-      "notes": "MarkFlow already stores YAML metadata and basic image insertion, but does not consume Typora image preference keys like `typora-copy-images-to` / `typora-root-url` during insert flow. Sources: https://support.typora.io/Images/ and https://support.typora.io/YAML/."
+      "notesRef": "features/MF-070.md"
     },
     {
       "id": "MF-071",
@@ -1878,20 +934,7 @@
       "dependsOn": [
         "MF-039"
       ],
-      "steps": [
-        "Open spellcheck settings and choose a non-default language dictionary for the active document or app profile.",
-        "Add a domain-specific term to a custom dictionary and confirm it is no longer flagged as misspelled.",
-        "Switch back to default language and confirm language-specific misspelling detection changes accordingly."
-      ],
-      "verification": {
-        "automated": [
-          "Add tests around spellcheck configuration plumbing (language selection + per-profile dictionary persistence) while preserving existing exclusion ranges."
-        ],
-        "manual": [
-          "Toggle between two dictionaries (for example en-US and de-DE) and verify misspelling highlights differ on the same text."
-        ]
-      },
-      "notes": "Typora release notes continue adding UI language support and mature spellcheck workflows typically include configurable dictionaries; MarkFlow currently enables browser spellcheck with exclusion ranges but no exposed language/dictionary controls in editor scope. Sources: https://support.typora.io/What%27s-New-1.13/ and https://support.typora.io/What%27s-New-1.10/."
+      "notesRef": "features/MF-071.md"
     },
     {
       "id": "MF-072",
@@ -1906,20 +949,7 @@
         "MF-011",
         "MF-029"
       ],
-      "steps": [
-        "Render a markdown image in WYSIWYG mode and hover to reveal corner/edge resize handles.",
-        "Drag a handle and confirm the preview resizes live without corrupting markdown syntax.",
-        "Release the handle and confirm the underlying source gains a `{width=...}` / `=WIDTHxHEIGHT` attribute (Typora-compatible) that survives reopen."
-      ],
-      "verification": {
-        "automated": [
-          "Add editor-level tests for resize-handle gesture emulation in `linkDecoration.test.tsx` that assert markdown is rewritten with image size attributes."
-        ],
-        "manual": [
-          "Drag-resize three consecutive images of different aspect ratios and confirm both inline preview and saved source match."
-        ]
-      },
-      "notes": "Implemented on 2026-04-16 in `packages/editor/src/editor/decorations/linkDecoration.ts`, `packages/editor/src/editor/__tests__/linkDecoration.test.tsx`, and `packages/editor/src/styles/global.css`. Markdown image widgets now render hover-only corner/edge resize handles in WYSIWYG mode, resize live while dragging, and persist the release size back into markdown as canonical `{width=... height=...}` attributes; the decoration path also recognizes existing Typora-style `=WIDTHxHEIGHT` shorthand on reopen. Automated verification passed with `pnpm --filter @markflow/editor test:run -- src/editor/__tests__/linkDecoration.test.tsx` (the current package script runs the full editor suite), `pnpm --filter @markflow/editor lint`, `pnpm --filter @markflow/editor build`, and `pnpm harness:verify`. `passes` remains false because the required live-app manual drag-resize check across three consecutive images was not truthfully completed in this terminal session. Sources: https://support.typora.io/Images/ and https://support.typora.io/What%27s-New-1.1/."
+      "notesRef": "features/MF-072.md"
     },
     {
       "id": "MF-073",
@@ -1931,23 +961,7 @@
       "passes": false,
       "lastVerifiedAt": null,
       "dependsOn": [],
-      "steps": [
-        "Type `:smi` and confirm a completion popup lists matching emoji shortcodes with glyph previews.",
-        "Accept a suggestion and confirm the inserted text is the Unicode glyph (not the shortcode) while source mode still preserves user edits.",
-        "Type an unknown shortcode and confirm the completion dismisses gracefully without mutating the document."
-      ],
-      "verification": {
-        "automated": [
-          "pnpm --filter @markflow/editor exec vitest run src/editor/__tests__/emojiAutocomplete.test.ts",
-          "pnpm --filter @markflow/editor lint -- src/editor/MarkFlowEditor.tsx src/editor/extensions/emojiAutocomplete.ts src/editor/__tests__/emojiAutocomplete.test.ts",
-          "pnpm --filter @markflow/editor build",
-          "pnpm harness:verify"
-        ],
-        "manual": [
-          "Insert several emoji in the middle of prose and confirm caret position remains correct after acceptance."
-        ]
-      },
-      "notes": "Implemented on 2026-04-16 with a small CodeMirror autocomplete source in `packages/editor/src/editor/extensions/emojiAutocomplete.ts`, wired into `packages/editor/src/editor/MarkFlowEditor.tsx`. This run ships a curated starter set of common Typora-style emoji shortcodes: typing `:` plus a known prefix now offers matching completions with glyph previews via completion detail text, accepting a suggestion inserts the Unicode glyph itself, and unknown shortcodes return no completions so the popup dismisses without changing the document. Focused regression coverage in `packages/editor/src/editor/__tests__/emojiAutocomplete.test.ts` passed with the listed Vitest command, and targeted lint, `pnpm --filter @markflow/editor build`, plus `pnpm harness:verify` also passed. `passes` remains false because the required manual caret-position check in live prose is still pending. Sources: https://support.typora.io/Markdown-Reference/ and https://support.typora.io/Shortcut-Keys/."
+      "notesRef": "features/MF-073.md"
     },
     {
       "id": "MF-074",
@@ -1959,20 +973,7 @@
       "passes": false,
       "lastVerifiedAt": null,
       "dependsOn": [],
-      "steps": [
-        "Press Cmd/Ctrl+Shift+P and confirm a searchable command overlay opens centered above the editor.",
-        "Filter by prefix and confirm matching commands (toggle WYSIWYG, toggle outline, export HTML, insert table, etc.) appear ranked by relevance.",
-        "Execute a selected command and confirm the editor performs it and the overlay closes without losing selection or scroll position."
-      ],
-      "verification": {
-        "automated": [
-          "Add `commandPalette.test.tsx` asserting registration, fuzzy filtering, and execution dispatch against a representative action registry."
-        ],
-        "manual": [
-          "Exercise five categories of commands (view, insert, export, navigation, edit) through the palette without touching menus."
-        ]
-      },
-      "notes": "Implemented on 2026-04-16 in `packages/editor/src/App.tsx`, `packages/editor/src/components/CommandPalette.tsx`, `packages/editor/src/components/CommandPalette.css`, `packages/editor/src/components/commandPaletteRegistry.ts`, `packages/editor/src/editor/MarkFlowEditor.tsx`, and `packages/editor/src/editor/extensions/smartInput.ts`. This run adds a centered `Cmd/Ctrl+Shift+P` command launcher with prefix/fuzzy ranking, category/shortcut metadata, and a representative cross-surface registry covering view, insert, export, navigation, edit, and file actions; the app now dispatches editor mutations through a small imperative editor bridge so palette-triggered edits can execute against the live CodeMirror selection and refocus the editor after completion. Automated verification passed with `pnpm --filter @markflow/editor exec vitest run src/components/commandPalette.test.tsx src/__tests__/App.test.tsx`, `pnpm --filter @markflow/editor exec eslint src/App.tsx src/editor/MarkFlowEditor.tsx src/editor/extensions/smartInput.ts src/components/CommandPalette.tsx src/components/commandPaletteRegistry.ts src/components/commandPalette.test.tsx`, `pnpm --filter @markflow/editor build`, and `pnpm harness:verify`; those checks cover palette ranking plus representative editor, desktop-action, and shortcut-regression paths rather than every registered command. `passes` remains false because the required manual five-category command walkthrough has not been completed in this terminal session. Typora's official docs support the surrounding menu/shortcut surface and quick-open behavior, but this run did not find evidence for a first-party Typora command-palette UI, so this entry should be treated as a MarkFlow command launcher rather than a confirmed Typora parity claim. Sources: https://support.typora.io/Shortcut-Keys/ ; https://support.typora.io/Search/ ; https://support.typora.io/Quick-Start/ ; https://support.typora.io/What%27s-New-1.7/."
+      "notesRef": "features/MF-074.md"
     },
     {
       "id": "MF-075",
@@ -1984,23 +985,7 @@
       "passes": false,
       "lastVerifiedAt": null,
       "dependsOn": [],
-      "steps": [
-        "Select text containing bold, a link, and inline code.",
-        "Run the normal `Copy` action and paste into both a rich-text target and a plain-text target; confirm the default clipboard payload carries rendered rich content.",
-        "Run `Copy as Markdown` and confirm a plain-text paste contains raw markdown source, then run `Copy as HTML Code` and confirm a plain-text paste contains HTML source."
-      ],
-      "verification": {
-        "automated": [
-          "pnpm --filter @markflow/editor exec vitest run src/__tests__/App.test.tsx",
-          "pnpm --filter @markflow/desktop exec vitest run src/main/menu.test.ts",
-          "pnpm --filter @markflow/editor build",
-          "pnpm harness:verify"
-        ],
-        "manual": [
-          "Paste the same selection into a rich-text app and a plain-text/code editor to confirm all three copy paths behave like Typora."
-        ]
-      },
-      "notes": "Implemented with explicit `copy`, `copy-as-markdown`, and `copy-as-html-code` menu actions, a bounded preload clipboard bridge, and a minimal renderer-side markdown selection serializer for bold, emphasis, links, inline code, and paragraph/line-break structure. Automated coverage now asserts default copy writes `text/html` plus rendered plaintext, while the source-oriented actions write markdown text or HTML fragment text through `packages/editor/src/__tests__/App.test.tsx` and `packages/desktop/src/main/menu.test.ts`. `passes` remains false until a manual cross-app clipboard check confirms real Electron clipboard behavior in both rich-text and plain-text targets. Sources: https://support.typora.io/Copy-and-Paste/ and https://support.typora.io/Shortcut-Keys/."
+      "notesRef": "features/MF-075.md"
     },
     {
       "id": "MF-076",
@@ -2014,22 +999,7 @@
       "dependsOn": [
         "MF-026"
       ],
-      "steps": [
-        "Copy rich-text content from an external source.",
-        "Press Cmd/Ctrl+Shift+V in the editor and confirm the inserted text contains no markdown conversion and no HTML residue.",
-        "Repeat with Cmd/Ctrl+V and confirm smart-paste conversion (MF-026) still applies on the default paste path."
-      ],
-      "verification": {
-        "automated": [
-          "pnpm --filter @markflow/editor exec vitest run src/editor/__tests__/smartPaste.test.ts",
-          "pnpm --filter @markflow/editor lint",
-          "pnpm --filter @markflow/editor build"
-        ],
-        "manual": [
-          "Paste from three rich sources (Word, webpage, VS Code) with and without the shortcut and compare results."
-        ]
-      },
-      "notes": "Implemented on 2026-04-15 in `packages/editor/src/editor/extensions/smartPaste.ts` by tracking a short-lived Cmd/Ctrl+Shift+V intent window so the next paste uses `text/plain` even when the clipboard also carries HTML, while preserving the default HTML→Markdown smart-paste path and existing image-paste priority. Focused coverage in `packages/editor/src/editor/__tests__/smartPaste.test.ts` now verifies default rich-text conversion, plain-text shortcut bypass, one-shot shortcut reset, and image-paste precedence. Sources: https://support.typora.io/Copy-Paste/ and https://support.typora.io/Shortcut-Keys/."
+      "notesRef": "features/MF-076.md"
     },
     {
       "id": "MF-077",
@@ -2043,20 +1013,7 @@
       "dependsOn": [
         "MF-066"
       ],
-      "steps": [
-        "Select a span containing bold, italic, inline code, and a link.",
-        "Run Clear Formatting (menu, palette, or Cmd/Ctrl+\\).",
-        "Confirm the selection becomes plain text while surrounding formatting is untouched."
-      ],
-      "verification": {
-        "automated": [
-          "Add a `clearFormatting.test.ts` that covers emphasis, code, strikethrough, highlight, and link unwrapping across ranges."
-        ],
-        "manual": [
-          "Run the action on nested formatting (e.g. bold+italic+link) and confirm every layer strips cleanly."
-        ]
-      },
-      "notes": "Implemented on 2026-04-16 in `packages/editor/src/editor/clearFormatting.ts`, `packages/editor/src/editor/extensions/smartInput.ts`, `packages/editor/src/editor/MarkFlowEditor.tsx`, `packages/editor/src/App.tsx`, `packages/shared/src/index.ts`, and `packages/desktop/src/main/menu.ts`. This run adds a selection-aware clear-formatting transform that unwraps or splits supported inline wrappers (bold, italic, inline code, strikethrough, highlight, underline, and links) so the selected text becomes plain text while adjacent unselected text keeps its original formatting. The action is now exposed through `Cmd/Ctrl+\\`, the command palette, and the desktop menu bridge. Automated coverage in `packages/editor/src/editor/__tests__/clearFormatting.test.ts`, `packages/editor/src/editor/__tests__/MarkFlowEditor.test.tsx`, `packages/editor/src/__tests__/App.test.tsx`, and `packages/desktop/src/main/menu.test.ts` passed for partial-range unwrapping plus shortcut/menu/palette dispatch, but `passes` remains false because the required live nested-formatting manual verification was not completed in this terminal session. Sources: https://support.typora.io/Shortcut-Keys/ and https://support.typora.io/Markdown-Reference/."
+      "notesRef": "features/MF-077.md"
     },
     {
       "id": "MF-078",
@@ -2068,22 +1025,7 @@
       "passes": false,
       "lastVerifiedAt": null,
       "dependsOn": [],
-      "steps": [
-        "Place the caret on a line and press Alt+Up or Alt+Down — confirm the line swaps with the adjacent line while the caret stays on the moved line.",
-        "Select three lines and press Alt+Up or Alt+Down — confirm the selection moves as a contiguous block while preserving the moved selection state.",
-        "Verify undo/redo returns the document to the prior state atomically."
-      ],
-      "verification": {
-        "automated": [
-          "pnpm --filter @markflow/editor exec vitest run src/editor/__tests__/MarkFlowEditor.test.tsx",
-          "pnpm --filter @markflow/editor lint -- src/editor/MarkFlowEditor.tsx src/editor/__tests__/MarkFlowEditor.test.tsx",
-          "pnpm --filter @markflow/editor build"
-        ],
-        "manual": [
-          "Reorder a numbered markdown list with Alt+Up/Down in the desktop editor and confirm the list structure/numbering still matches the intended order."
-        ]
-      },
-      "notes": "Implemented and tightened on 2026-04-15. Typora 1.11 documents Alt+Up/Down for moving paragraphs or rows. MarkFlow inherits CodeMirror's default `Alt-ArrowUp` / `Alt-ArrowDown` `moveLineUp` and `moveLineDown` bindings through `packages/editor/src/editor/MarkFlowEditor.tsx`, and `packages/editor/src/editor/__tests__/MarkFlowEditor.test.tsx` now directly covers single-line moves, contiguous block moves in both directions, and undo/redo atomicity. Automated verification passed with `pnpm --filter @markflow/editor exec vitest run src/editor/__tests__/MarkFlowEditor.test.tsx`, `pnpm --filter @markflow/editor lint -- src/editor/MarkFlowEditor.tsx src/editor/__tests__/MarkFlowEditor.test.tsx`, and `pnpm --filter @markflow/editor build`. `passes` remains false because desktop validation for real numbered-list reordering is still pending. Sources: https://support.typora.io/Shortcut-Keys/ and https://support.typora.io/What%27s-New-1.11/."
+      "notesRef": "features/MF-078.md"
     },
     {
       "id": "MF-079",
@@ -2095,20 +1037,7 @@
       "passes": false,
       "lastVerifiedAt": null,
       "dependsOn": [],
-      "steps": [
-        "Place caret on a line and press Cmd/Ctrl+Shift+D — confirm the line is duplicated directly beneath and the caret lands on the copy.",
-        "Select multiple lines and repeat — confirm the block duplicates as a contiguous copy.",
-        "Confirm undo collapses the duplication into a single atomic step."
-      ],
-      "verification": {
-        "automated": [
-          "Add keymap tests covering line and block duplication in `MarkFlowEditor.test.tsx`."
-        ],
-        "manual": [
-          "Duplicate a code fence and confirm both copies remain syntactically valid."
-        ]
-      },
-      "notes": "Verified on 2026-04-16 against the implementation now present in `packages/editor/src/editor/extensions/smartInput.ts`, which now binds duplication to `Shift-Alt-ArrowDown` so `MF-101` can reclaim Typora's documented `Mod-Shift-D` delete-word shortcut without losing duplicate-line coverage. The command still duplicates the covered line block directly below without touching the clipboard, lands a single caret on the duplicate, preserves block selection on duplicated multi-line ranges, and isolates the change into one undo step. Covered by `packages/editor/src/editor/__tests__/MarkFlowEditor.test.tsx`. `passes` remains false because the required live code-fence duplication check was not completed in this terminal session. Sources: https://support.typora.io/Shortcut-Keys/ and the `MF-101` prerequisite shortcut-conflict fix recorded on 2026-04-16."
+      "notesRef": "features/MF-079.md"
     },
     {
       "id": "MF-080",
@@ -2120,20 +1049,7 @@
       "passes": true,
       "lastVerifiedAt": "2026-04-15T11:34:47Z",
       "dependsOn": [],
-      "steps": [
-        "Type `(`, `[`, `{`, `\"`, `'`, and `` ` `` and confirm each emits a matching closing character with the caret placed between the pair.",
-        "Type `*` or `_` in an emphasis-friendly text position and confirm the editor inserts a matching closing delimiter, wraps selections with the typed delimiter, and Backspace removes an empty pair atomically.",
-        "Type `*` at the start of a line and `_` inside an identifier such as `snake_case`, and confirm those literal-entry cases are not intercepted by auto-pairing."
-      ],
-      "verification": {
-        "automated": [
-          "Run `pnpm --filter @markflow/editor test:run -- src/editor/__tests__/smartInput.test.ts` to cover structural auto-pairs, context-sensitive `*`/`_` auto-pairs, selection wrapping, skip-over behavior, empty-pair backspace, start-of-line `*` list entry, and identifier underscore fallthrough.",
-          "Run `pnpm --filter @markflow/editor lint -- src/editor/extensions/smartInput.ts src/editor/__tests__/smartInput.test.ts`.",
-          "Run `pnpm --filter @markflow/editor build`."
-        ],
-        "manual": []
-      },
-      "notes": "Completed on 2026-04-15. `packages/editor/src/editor/extensions/smartInput.ts` keeps unconditional pairing for structural delimiters and routes `*`/`_` through a markdown-specific key path: selections still wrap, paired delimiters still support skip-over and empty-pair backspace, but `*` falls through at line start so unordered-list entry still works and `_` falls through inside identifiers/plain text such as `snake_case`. `packages/editor/src/editor/__tests__/smartInput.test.ts` exercises the real keymap path for both the paired and literal-entry cases. Sources: https://support.typora.io/Auto-Pair/ and https://support.typora.io/Markdown-Reference/."
+      "notesRef": "features/MF-080.md"
     },
     {
       "id": "MF-081",
@@ -2148,20 +1064,7 @@
         "MF-029",
         "MF-070"
       ],
-      "steps": [
-        "Configure an image uploader endpoint (PicGo core / custom command) in preferences.",
-        "Paste or drop a local image and confirm it is uploaded, the returned URL is inserted as `![alt](https://...)`, and the local copy policy matches settings.",
-        "Simulate an upload failure and confirm the editor surfaces an error toast without losing the pasted asset."
-      ],
-      "verification": {
-        "automated": [
-          "Add desktop-side tests for the uploader adapter (success, failure, timeout) and editor tests confirming the URL rewrite path."
-        ],
-        "manual": [
-          "Upload three images through a real PicGo instance and verify each ends up in the remote store."
-        ]
-      },
-      "notes": "Implemented on 2026-04-16 in `packages/desktop/src/main/imageUploadManager.ts`, `packages/desktop/src/preload/index.ts`, `packages/editor/src/App.tsx`, `packages/editor/src/editor/MarkFlowEditor.tsx`, and `packages/editor/src/editor/extensions/smartPaste.ts`. MarkFlow now persists PicGo-core/custom-command upload preferences, materializes pasted/dropped images into a managed local asset path, auto-runs uploader commands with the image path appended, rewrites markdown to the returned remote URL on success, and preserves the local asset with an error toast on failure. Focused coverage in `packages/desktop/src/main/imageUploadManager.test.ts` verifies success/failure/timeout, while `packages/editor/src/__tests__/App.test.tsx` verifies the URL rewrite and failure-fallback paths. Automated verification passed on 2026-04-16 via the targeted desktop/editor vitest runs, `pnpm --filter @markflow/shared lint`, `pnpm --filter @markflow/shared build`, `pnpm --filter @markflow/editor lint`, `pnpm --filter @markflow/editor build`, `pnpm --filter @markflow/desktop lint`, `pnpm --filter @markflow/desktop build`, and `pnpm harness:verify`. `passes` remains false because the required real PicGo manual upload verification was not performed in this terminal session. Sources: https://support.typora.io/Upload-Image/ and https://github.com/PicGo/PicGo-Core."
+      "notesRef": "features/MF-081.md"
     },
     {
       "id": "MF-082",
@@ -2176,20 +1079,7 @@
         "MF-012",
         "MF-071"
       ],
-      "steps": [
-        "Open Preferences (Cmd/Ctrl+,) and confirm sections for Editor, Appearance, Export, and Shortcuts exist.",
-        "Change a representative setting from each section, close the dialog, and confirm the change persists across restart.",
-        "Reset to defaults and confirm every section returns to baseline without corrupting user content."
-      ],
-      "verification": {
-        "automated": [
-          "Add desktop tests around preferences persistence (JSON read/write, migration, default reset)."
-        ],
-        "manual": [
-          "Walk through every preferences tab and verify each control is wired to real behavior."
-        ]
-      },
-      "notes": "Typora ships a multi-tab Preferences window. Source: https://support.typora.io/Preferences/."
+      "notesRef": "features/MF-082.md"
     },
     {
       "id": "MF-083",
@@ -2203,20 +1093,7 @@
       "dependsOn": [
         "MF-007"
       ],
-      "steps": [
-        "Open a saved markdown file.",
-        "Trigger the Reveal in Finder / Show in folder menu or palette action.",
-        "Confirm the OS file manager opens with the file highlighted; confirm the action is disabled for untitled/unsaved documents."
-      ],
-      "verification": {
-        "automated": [
-          "pnpm --filter @markflow/desktop exec vitest run src/main/fileManager.test.ts src/main/menu.test.ts"
-        ],
-        "manual": [
-          "Exercise the action on macOS, Windows, and Linux builds."
-        ]
-      },
-      "notes": "Implemented on 2026-04-15 in `packages/desktop/src/main/fileManager.ts`, `packages/desktop/src/main/index.ts`, `packages/desktop/src/main/menu.ts`, `packages/desktop/src/main/fileManager.test.ts`, and `packages/desktop/src/main/menu.test.ts`. The desktop File menu now exposes `Reveal in Finder` on macOS, `Show in File Explorer` on Windows, and `Show in Folder` elsewhere; it stays disabled until the current document has a saved path, rebuilds after open/new/Save As path transitions, and reveals the latest saved path through `shell.showItemInFolder`. Automated verification passed on 2026-04-15 with `pnpm --filter @markflow/desktop exec vitest run src/main/fileManager.test.ts src/main/menu.test.ts`, `pnpm --filter @markflow/desktop lint`, `pnpm --filter @markflow/desktop build`, and `pnpm harness:verify`. `passes` remains false because the required manual cross-platform OS file-manager verification is still pending. Sources: https://support.typora.io/File-Management/ and https://support.typora.io/Shortcut-Keys/."
+      "notesRef": "features/MF-083.md"
     },
     {
       "id": "MF-084",
@@ -2231,20 +1108,7 @@
         "MF-019",
         "MF-020"
       ],
-      "steps": [
-        "Trigger fullscreen (F11 / Cmd+Ctrl+F) and confirm the OS window chrome is hidden.",
-        "Trigger distraction-free mode and confirm sidebars/outline/toolbars are hidden while the document stays centered.",
-        "Exit both modes and confirm prior panel visibility is restored exactly."
-      ],
-      "verification": {
-        "automated": [
-          "Add tests asserting panel visibility state is saved before entering each mode and restored after exit."
-        ],
-        "manual": [
-          "Alternate between fullscreen, distraction-free, and default view on a long document and confirm no flicker."
-        ]
-      },
-      "notes": "Implemented on 2026-04-16 in `packages/desktop/src/main/index.ts`, `packages/desktop/src/main/menu.ts`, `packages/desktop/src/main/menu.test.ts`, `packages/desktop/src/preload/index.ts`, `packages/shared/src/index.ts`, `packages/editor/src/App.tsx`, `packages/editor/src/styles/global.css`, and `packages/editor/src/__tests__/App.test.tsx`. Fullscreen now toggles Electron native fullscreen with `F11` on Windows/Linux and `Ctrl+Command+F` on macOS, the main process publishes true window fullscreen state into the renderer, and both fullscreen plus distraction-free mode hide titlebar/tabstrip/statusbar/sidebar/outline/minimap while preserving the pre-mode panel state for exact restoration on exit. Automated verification passed on 2026-04-16 with `pnpm --filter @markflow/desktop exec vitest run src/main/menu.test.ts`, `pnpm --filter @markflow/editor exec vitest run src/__tests__/App.test.tsx`, `pnpm --filter @markflow/shared lint`, `pnpm --filter @markflow/shared build`, `pnpm --filter @markflow/editor lint`, `pnpm --filter @markflow/editor build`, `pnpm --filter @markflow/desktop lint`, `pnpm --filter @markflow/desktop build`, `./harness/init.sh --smoke`, and `pnpm harness:verify`. `passes` remains false because the required long-document manual flicker check was not completed in this terminal session. Sources: https://support.typora.io/Menu/ and https://support.typora.io/Shortcut-Keys/."
+      "notesRef": "features/MF-084.md"
     },
     {
       "id": "MF-085",
@@ -2259,20 +1123,7 @@
         "MF-001",
         "MF-020"
       ],
-      "steps": [
-        "Enable heading auto-numbering in preferences.",
-        "Open a document with nested H1–H4 headings and confirm numeric prefixes render in-editor, outline panel, and exports.",
-        "Disable the setting and confirm the markdown source never gains the numbers (only rendered output)."
-      ],
-      "verification": {
-        "automated": [
-          "Add style-layer tests asserting CSS counters produce the expected prefixes and that source text is untouched."
-        ],
-        "manual": [
-          "Export the numbered document to PDF and HTML and confirm the numbering survives."
-        ]
-      },
-      "notes": "Implemented on 2026-04-16 in `packages/editor/src/App.tsx`, `packages/editor/src/headingNumbering.ts`, `packages/editor/src/__tests__/App.test.tsx`, and `packages/editor/src/__tests__/headingNumbering.test.ts`. MarkFlow now persists a local heading auto-numbering preference, exposes it through a status-bar preferences popover, applies CSS-counter prefixes to rendered CodeMirror headings plus the outline panel, and carries the same counter stylesheet/attribute into HTML and PDF export markup without mutating markdown source text. Automated verification passed on 2026-04-16 with `pnpm --filter @markflow/editor exec vitest run src/__tests__/headingNumbering.test.ts src/__tests__/App.test.tsx`, `pnpm --filter @markflow/editor exec eslint src/App.tsx src/headingNumbering.ts src/__tests__/App.test.tsx src/__tests__/headingNumbering.test.ts`, `pnpm --filter @markflow/editor build`, `./harness/init.sh --smoke`, and `pnpm harness:verify`. `passes` remains false because the required manual HTML/PDF export check was not performed in this terminal session. Sources: https://support.typora.io/Auto-Numbering/ and https://support.typora.io/Preferences/."
+      "notesRef": "features/MF-085.md"
     },
     {
       "id": "MF-086",
@@ -2287,20 +1138,7 @@
         "MF-014",
         "MF-067"
       ],
-      "steps": [
-        "Enable math equation auto-numbering and write several display-math blocks with `\\label{eq:foo}`.",
-        "Confirm each block renders with an incrementing `(n)` label on the right edge and that the label matches across WYSIWYG and source.",
-        "Reference the label via `\\ref{eq:foo}` in prose and confirm the rendered number matches the originating equation."
-      ],
-      "verification": {
-        "automated": [
-          "Add math tests asserting counter increments and reference resolution across multiple equations."
-        ],
-        "manual": [
-          "Reorder two labeled equations and confirm references update consistently."
-        ]
-      },
-      "notes": "Typora provides a math equation auto-numbering toggle that resolves `\\label`/`\\ref` pairs. Sources: https://support.typora.io/Math/ and https://support.typora.io/Preferences/."
+      "notesRef": "features/MF-086.md"
     },
     {
       "id": "MF-087",
@@ -2314,20 +1152,7 @@
       "dependsOn": [
         "MF-023"
       ],
-      "steps": [
-        "Author fenced blocks with languages `flow`, `sequence`, `mermaid` (sequence/gantt), and confirm each renders an inline diagram preview.",
-        "Introduce a syntax error in one block and confirm the editor surfaces a localized render error without breaking siblings.",
-        "Edit the source and confirm the diagram re-renders on next idle without duplicate DOM nodes."
-      ],
-      "verification": {
-        "automated": [
-          "Expand `mermaidDecoration.test.ts` (or add `diagramDecoration.test.ts`) to cover the additional language tags and error isolation."
-        ],
-        "manual": [
-          "Open the Typora diagram sample document and confirm parity rendering."
-        ]
-      },
-      "notes": "Typora supports flowchart.js, js-sequence-diagrams, and Mermaid in fenced blocks. Sources: https://support.typora.io/Draw-Diagrams-With-Markdown/ and https://support.typora.io/What%27s-New-1.0/."
+      "notesRef": "features/MF-087.md"
     },
     {
       "id": "MF-088",
@@ -2342,21 +1167,7 @@
         "MF-007",
         "MF-041"
       ],
-      "steps": [
-        "Open two markdown files and confirm each lives in its own tab with dirty-state indicators.",
-        "Use Typora-style document-switch shortcuts (`Ctrl+Tab` / `Ctrl+Shift+Tab` on Windows/Linux, `Cmd+`` / `Cmd+Shift+`` on macOS) and confirm the active tab changes while caret, selection, outline position, and undo history persist per tab.",
-        "Close a clean tab, trigger `Shift+Cmd/Ctrl+T`, and confirm the most recently closed document reopens in the same window with its prior tab state restored.",
-        "Close a dirty tab and confirm a save/discard/cancel prompt appears and respects the user choice."
-      ],
-      "verification": {
-        "automated": [
-          "Add tab-state tests (open/switch/close/reopen/persist) in `App.test.tsx` and a desktop counterpart covering keyboard tab cycling, reopen-closed history, and window session restore."
-        ],
-        "manual": [
-          "Open five tabs, cycle them with the platform shortcuts, reopen the last closed tab, then quit and relaunch to confirm session restore reproduces the tab set."
-        ]
-      },
-      "notes": "Typora's later 1.x multi-tab workflow includes switching between opened documents and reopening the last closed file from the keyboard, not just showing multiple tabs. Repo search found no MarkFlow tab/session model, no keyboard tab-cycling bindings, and no reopen-closed stack in the current desktop/editor code, so the existing tab entry needed those acceptance criteria spelled out. Sources: https://support.typora.io/What%27s-New-1.5/ and https://support.typora.io/Shortcut-Keys/. Implementation now lands per-tab editor snapshots, desktop close-confirm/session IPC, tab cycling/reopen commands, and focused coverage in `packages/editor/src/__tests__/App.test.tsx`, `packages/desktop/src/main/fileManager.test.ts`, and `packages/desktop/src/main/menu.test.ts`; manual desktop verification is still pending, so `passes` remains false."
+      "notesRef": "features/MF-088.md"
     },
     {
       "id": "MF-089",
@@ -2370,20 +1181,7 @@
       "dependsOn": [
         "MF-082"
       ],
-      "steps": [
-        "Expose a language selector in Preferences with at least English and one additional locale (e.g. 简体中文).",
-        "Switch the locale and confirm menus, toolbars, dialogs, and palette entries retranslate without requiring a restart.",
-        "Confirm document content is never translated and that per-user locale persists across launches."
-      ],
-      "verification": {
-        "automated": [
-          "Add i18n resolver tests covering fallback chains and missing-key behavior."
-        ],
-        "manual": [
-          "Switch between three locales and confirm full UI coverage plus right-to-left layout sanity if applicable."
-        ]
-      },
-      "notes": "Typora release notes highlight expanding UI language coverage. Sources: https://support.typora.io/What%27s-New-1.13/ and https://support.typora.io/Preferences/."
+      "notesRef": "features/MF-089.md"
     },
     {
       "id": "MF-090",
@@ -2397,20 +1195,7 @@
       "dependsOn": [
         "MF-007"
       ],
-      "steps": [
-        "Open several files and at least one folder across multiple sessions and confirm `File` -> `Open Recent` lists them most-recent-first.",
-        "Pin a recent folder/location, clear recent items, and confirm pinned entries follow Typora's clear-options behavior while unpinned history is removed.",
-        "Click an entry whose file or folder is missing and confirm MarkFlow reports the error gracefully instead of crashing."
-      ],
-      "verification": {
-        "automated": [
-          "Add desktop tests for recent-file and recent-folder persistence, menu serialization, pin/clear flows, and missing-path handling."
-        ],
-        "manual": [
-          "Verify `Open Recent`, Quick Open, and OS-native recents all reflect the same saved history after restarting the app."
-        ]
-      },
-      "notes": "Implemented with a persisted recent-history model in `packages/desktop/src/main/fileManager.ts`, dynamic `File -> Open Recent` menu generation in `packages/desktop/src/main/menu.ts`, and renderer handling in `packages/editor/src/App.tsx` so recent files and folders now survive restarts, feed Quick Open and OS recent-document sync, support pinned folders plus `Clear Items` / `Clear Recent and Pinned Folders / Files`, and report missing recent paths gracefully. Automated coverage in `packages/desktop/src/main/fileManager.test.ts` and `packages/desktop/src/main/menu.test.ts` passed on 2026-04-16, alongside `pnpm lint`, `pnpm test`, `pnpm build`, and `pnpm harness:verify`. `passes` remains false until `Open Recent`, Quick Open, and OS-native recents are manually verified after restarting the app. Source: https://support.typora.io/File-Management/."
+      "notesRef": "features/MF-090.md"
     },
     {
       "id": "MF-091",
@@ -2422,20 +1207,7 @@
       "passes": false,
       "lastVerifiedAt": null,
       "dependsOn": [],
-      "steps": [
-        "Toggle Always on Top from the View menu and confirm the editor window stays above other apps.",
-        "Close and relaunch the app; confirm the previous window reopens with the same pinned state.",
-        "Confirm the setting is per-window when multiple windows are open."
-      ],
-      "verification": {
-        "automated": [
-          "Add a desktop test stubbing `setAlwaysOnTop` and verifying state persistence read/write."
-        ],
-        "manual": [
-          "Confirm behavior across macOS Spaces and Windows multi-monitor setups."
-        ]
-      },
-      "notes": "Implemented with a persisted `WindowStateManager` in `packages/desktop/src/main/windowStateManager.ts`, `View -> Always on Top` checkbox wiring in `packages/desktop/src/main/menu.ts` and `packages/desktop/src/main/index.ts`, and shared window-state typing updates in `packages/shared/src/index.ts` plus `packages/editor/src/App.tsx`. Automated coverage in `packages/desktop/src/main/windowStateManager.test.ts` and `packages/desktop/src/main/menu.test.ts` passed on 2026-04-16, alongside `pnpm --filter @markflow/editor exec vitest run src/__tests__/App.test.tsx`, `pnpm lint`, `pnpm test`, and `pnpm build`. `passes` remains false until manual verification confirms restart persistence and platform behavior across macOS Spaces and Windows multi-monitor setups; the current desktop shell still centers on a single editor window, so true multi-window behavior was only covered at the per-window state-manager level in automation. Source: https://support.typora.io/Menu/."
+      "notesRef": "features/MF-091.md"
     },
     {
       "id": "MF-092",
@@ -2451,20 +1223,7 @@
         "MF-040",
         "MF-045"
       ],
-      "steps": [
-        "Navigate through outline clicks, wikilinks, and global search results; confirm each destination is pushed onto history.",
-        "Press Cmd/Ctrl+[ (back) and Cmd/Ctrl+] (forward) and confirm the caret/viewport restores exactly to prior positions across documents.",
-        "Confirm history is capped at a reasonable depth (e.g. 64 entries) and old entries are trimmed."
-      ],
-      "verification": {
-        "automated": [
-          "Add `navigationHistory.test.ts` covering push, back, forward, branching from mid-history, and cap enforcement."
-        ],
-        "manual": [
-          "Traverse five headings across two files and confirm back/forward restores exact caret column plus scroll."
-        ]
-      },
-      "notes": "Implemented on 2026-04-16 in `packages/editor/src/editor/navigationHistory.ts`, `packages/editor/src/editor/MarkFlowEditor.tsx`, `packages/editor/src/App.tsx`, `packages/editor/src/editor/__tests__/navigationHistory.test.ts`, `packages/editor/src/__tests__/App.test.tsx`, `packages/shared/src/index.ts`, `packages/desktop/src/main/menu.ts`, and `packages/desktop/src/main/menu.test.ts`. MarkFlow now keeps a capped 64-entry browser-style navigation stack for outline jumps, editor-side file navigation (including relative wikilinks resolved against the current document), and global search results; `Cmd/Ctrl+[` and `Cmd/Ctrl+]` plus Go menu wiring restore the prior caret position and saved scroll offset across files, and mid-history jumps correctly branch the forward stack. Automated verification passed with `pnpm --filter @markflow/editor exec vitest run src/editor/__tests__/navigationHistory.test.ts src/__tests__/App.test.tsx`, `pnpm --filter @markflow/desktop exec vitest run src/main/menu.test.ts`, `pnpm --filter @markflow/shared lint`, `pnpm --filter @markflow/shared build`, `pnpm --filter @markflow/editor lint`, `pnpm --filter @markflow/editor build`, `pnpm --filter @markflow/desktop lint`, `pnpm --filter @markflow/desktop build`, and `pnpm harness:verify`. `passes` remains false because the required live desktop traversal across five headings and two files was not truthfully completed in this terminal session. Source: https://support.typora.io/Shortcut-Keys/."
+      "notesRef": "features/MF-092.md"
     },
     {
       "id": "MF-093",
@@ -2478,20 +1237,7 @@
       "dependsOn": [
         "MF-004"
       ],
-      "steps": [
-        "Toggle source mode and confirm a left-side gutter shows 1-based line numbers aligned with content.",
-        "Expose a preference to hide the gutter and confirm toggling it off removes the column without reflowing decorations.",
-        "Confirm WYSIWYG mode never shows the gutter regardless of setting."
-      ],
-      "verification": {
-        "automated": [
-          "pnpm --filter @markflow/editor exec vitest run src/editor/__tests__/MarkFlowEditor.test.tsx src/__tests__/App.test.tsx"
-        ],
-        "manual": [
-          "Verify gutter alignment across 100+ line files and after folding sections."
-        ]
-      },
-      "notes": "Implemented on 2026-04-16 in `packages/editor/src/sourceLineNumbers.ts`, `packages/editor/src/editor/MarkFlowEditor.tsx`, `packages/editor/src/App.tsx`, `packages/editor/src/styles/global.css`, `packages/editor/src/editor/__tests__/MarkFlowEditor.test.tsx`, and `packages/editor/src/__tests__/App.test.tsx`. MarkFlow now enables a 1-based CodeMirror line-number gutter by default in Source mode only, exposes a renderer-local `Source line-number settings` preference that can hide the gutter without recreating the editor, and keeps Preview/WYSIWYG, Reading, and Split views free of the line-number column regardless of the preference state. Automated verification passed with `pnpm --filter @markflow/editor exec vitest run src/editor/__tests__/MarkFlowEditor.test.tsx src/__tests__/App.test.tsx`, `pnpm --filter @markflow/editor lint`, `pnpm --filter @markflow/editor build`, and `pnpm harness:verify`. `passes` remains false because the required 100+ line gutter-alignment and folded-section manual verification was not truthfully completed in this terminal session. Source: https://support.typora.io/Preferences/."
+      "notesRef": "features/MF-093.md"
     },
     {
       "id": "MF-094",
@@ -2505,20 +1251,7 @@
       "dependsOn": [
         "MF-082"
       ],
-      "steps": [
-        "Invoke Insert Date / Insert Time from the palette or shortcut.",
-        "Confirm the inserted string respects the format configured in Preferences (ISO 8601 default) and the user's locale/timezone.",
-        "Confirm the action respects current selection: replacing it rather than appending."
-      ],
-      "verification": {
-        "automated": [
-          "Add an editor test covering date/time insertion with stubbed `Date.now()` and a custom format string."
-        ],
-        "manual": [
-          "Insert timestamps under two different format preferences and confirm output matches."
-        ]
-      },
-      "notes": "Typora includes configurable date/time insertion via shortcuts. Sources: https://support.typora.io/Shortcut-Keys/ and https://support.typora.io/Preferences/."
+      "notesRef": "features/MF-094.md"
     },
     {
       "id": "MF-095",
@@ -2532,20 +1265,7 @@
       "dependsOn": [
         "MF-027"
       ],
-      "steps": [
-        "Open the statistics panel (menu or status-bar click) and confirm live totals for words, characters (with/without spaces), paragraphs, and approximate reading time.",
-        "Make a multi-block selection and confirm the panel adds a selection column alongside the document totals.",
-        "Confirm counts ignore fenced code content when the 'exclude code' preference is on."
-      ],
-      "verification": {
-        "automated": [
-          "Extend `wordCount.test.ts` to cover paragraphs, reading-time approximation, and selection/exclusion modes."
-        ],
-        "manual": [
-          "Cross-check counts against Typora on a shared sample document."
-        ]
-      },
-      "notes": "Typora exposes an expanded word count / statistics popover. Source: https://support.typora.io/Shortcut-Keys/."
+      "notesRef": "features/MF-095.md"
     },
     {
       "id": "MF-096",
@@ -2560,20 +1280,7 @@
         "MF-074",
         "MF-082"
       ],
-      "steps": [
-        "Open the Shortcuts pane in Preferences and search for a command.",
-        "Record a new key chord and confirm it persists, conflicts are highlighted, and the prior binding is cleared.",
-        "Reset an individual binding and confirm the default returns without affecting other custom bindings."
-      ],
-      "verification": {
-        "automated": [
-          "Add tests for binding storage, conflict detection, and reset semantics."
-        ],
-        "manual": [
-          "Rebind three commands, relaunch, and confirm the new bindings fire."
-        ]
-      },
-      "notes": "Typora allows customizing shortcuts via a JSON file and UI surface. Sources: https://support.typora.io/Shortcut-Keys/ and https://support.typora.io/Custom-Shortcut-Keys/."
+      "notesRef": "features/MF-096.md"
     },
     {
       "id": "MF-097",
@@ -2587,22 +1294,7 @@
       "dependsOn": [
         "MF-038"
       ],
-      "steps": [
-        "Insert raw HTML media tags such as `<video controls src='sample.mp4'></video>`, `<audio controls src='sample.mp3'></audio>`, and an embeddable `<iframe ... allowfullscreen></iframe>` snippet into a markdown document.",
-        "Render in WYSIWYG mode and confirm the media/embed element appears, required safe attributes (`src`, `controls`, `width`/`height`, `allowfullscreen`, etc.) survive, and the underlying markdown source is preserved.",
-        "Move the caret back into the HTML block and confirm the raw source becomes editable again without corrupting surrounding blocks or letting the embed navigate the editor shell."
-      ],
-      "verification": {
-        "automated": [
-          "pnpm --filter @markflow/editor exec vitest run src/editor/__tests__/inlineHtmlDecoration.test.ts",
-          "pnpm --filter @markflow/editor lint -- src/editor/decorations/inlineHtmlDecoration.ts src/editor/__tests__/inlineHtmlDecoration.test.ts",
-          "pnpm --filter @markflow/editor build"
-        ],
-        "manual": [
-          "Render one local video, one local audio clip, and one remote iframe embed; confirm playback/loading works while the editor window itself never navigates away."
-        ]
-      },
-      "notes": "Typora's current HTML and Media docs explicitly support `<video>`, `<audio>`, and `<iframe>` embeds, including drag-and-drop video insertion and sandboxed iframe/script handling. MarkFlow now preserves those tags in `packages/editor/src/editor/decorations/inlineHtmlDecoration.ts` with a small safe attribute allowlist, iframe sandboxing, and script/event-handler stripping, covered by `packages/editor/src/editor/__tests__/inlineHtmlDecoration.test.ts`. Manual local media/embed playback validation is still pending before this can move to `verified`. Sources: https://support.typora.io/HTML/ and https://support.typora.io/Media/."
+      "notesRef": "features/MF-097.md"
     },
     {
       "id": "MF-098",
@@ -2616,19 +1308,7 @@
       "dependsOn": [
         "MF-038"
       ],
-      "steps": [
-        "Insert HTML comments such as `<!-- hidden note -->` and HTML entities such as `&copy;`, `&reg;`, or `&nbsp;` into a markdown document.",
-        "Render in WYSIWYG mode and confirm comments do not surface as raw literal markup while entities display with their rendered character semantics.",
-        "Move the caret back into the affected ranges and confirm the underlying source remains editable without corrupting surrounding markdown."
-      ],
-      "verification": {
-        "automated": [
-          "pnpm --filter @markflow/editor test:run -- src/editor/__tests__/inlineHtmlDecoration.test.ts",
-          "node scripts/harness/verify.mjs"
-        ],
-        "manual": []
-      },
-      "notes": "Typora documents support for HTML comments and HTML entities, and MarkFlow now preserves that behavior in `packages/editor/src/editor/decorations/inlineHtmlDecoration.ts` by extending the existing HTML replacement path to markdown `CommentBlock`, inline `Comment`, and `Entity` nodes. Focused regression coverage in `packages/editor/src/editor/__tests__/inlineHtmlDecoration.test.ts` verifies block comments stay hidden away from the caret, inline comments do not leak raw markup, entities render as decoded characters, and each range reveals its original source when the caret enters it. Verified on 2026-04-15 with `pnpm --filter @markflow/editor test:run -- src/editor/__tests__/inlineHtmlDecoration.test.ts` plus `node scripts/harness/verify.mjs`. Sources: https://support.typora.io/HTML/ and https://support.typora.io/Markdown-Reference/."
+      "notesRef": "features/MF-098.md"
     },
     {
       "id": "MF-099",
@@ -2640,20 +1320,7 @@
       "passes": true,
       "lastVerifiedAt": "2026-04-15",
       "dependsOn": [],
-      "steps": [
-        "Type structural delimiters such as `(`, `[`, `{`, `\"`, `'`, and backticks in the editor and confirm MarkFlow inserts the matching closer with the caret placed inside.",
-        "Select a word and type `(`, `*`, or `_`; confirm the selection is wrapped rather than replaced, and typing `*` at the start of a line still begins a list while `_` inside identifiers remains literal text.",
-        "Press Backspace inside an empty auto-inserted pair and confirm both sides are removed atomically without disturbing surrounding markdown."
-      ],
-      "verification": {
-        "automated": [
-          "pnpm --filter @markflow/editor exec vitest run src/editor/__tests__/smartInput.test.ts",
-          "pnpm --filter @markflow/editor build",
-          "pnpm harness:verify"
-        ],
-        "manual": []
-      },
-      "notes": "Verified on 2026-04-15. `packages/editor/src/editor/extensions/smartInput.ts` already covered structural pairs plus context-aware `*`/`_` pairing and atomic backspace; this run expanded `packages/editor/src/editor/__tests__/smartInput.test.ts` to cover structural-pair selection wrapping and atomic deletion alongside the existing prose, unordered-list, and `snake_case` typing-context checks, so the listed automated commands fully prove the shipped scope. Typora's broader auto-pair parity for `~`, `=`, `$`, `^`, and a preference toggle remain separate gaps outside MF-099. Sources: https://support.typora.io/Auto-Pair/ and https://support.typora.io/Markdown-Reference/."
+      "notesRef": "features/MF-099.md"
     },
     {
       "id": "MF-100",
@@ -2665,21 +1332,7 @@
       "passes": false,
       "lastVerifiedAt": null,
       "dependsOn": [],
-      "steps": [
-        "Enable strict mode from a settings surface, restart if required, and type `###Header`; confirm it is not treated as a heading until a whitespace is added after the `#` characters.",
-        "Create ordered-list paragraphs and sublists with insufficient indentation and confirm strict mode follows GFM-style indentation instead of Typora's tolerant behavior.",
-        "Disable strict mode and confirm the same fixture returns to the more forgiving parsing behavior."
-      ],
-      "verification": {
-        "automated": [
-          "Add parser/editor tests that run the same heading and list-indent fixtures under strict and tolerant modes.",
-          "Add settings-persistence coverage if the toggle is stored outside the editor state."
-        ],
-        "manual": [
-          "Toggle strict mode on the same markdown fixture, restart, and verify heading/list parsing changes exactly as expected."
-        ]
-      },
-      "notes": "Implemented on 2026-04-16 in `packages/editor/src/markdownMode.ts`, `packages/editor/src/App.tsx`, `packages/editor/src/editor/MarkFlowEditor.tsx`, `packages/editor/src/editor/outline.ts`, `packages/editor/src/editor/indexer.ts`, and `packages/editor/src/editor/decorations/tocDecoration.ts` by adding a persisted local strict/tolerant markdown-mode preference, exposing it from the status bar, and threading the selected parser mode through the editor, outline, and symbol-index paths. Automated coverage in `packages/editor/src/editor/__tests__/markdownMode.test.ts`, `packages/editor/src/editor/__tests__/MarkFlowEditor.test.tsx`, `packages/editor/src/editor/__tests__/outline.test.ts`, `packages/editor/src/editor/__tests__/indexer.test.ts`, and `packages/editor/src/__tests__/App.test.tsx` passed on 2026-04-16, alongside `pnpm --filter @markflow/editor lint`, `pnpm --filter @markflow/editor build`, and `pnpm harness:verify`. A small prerequisite fix in `packages/editor/src/components/GlobalSearch.tsx` / `.css` replaced blur-driven dismissal with backdrop dismissal so the existing navigation-history tests stay stable while the editor reclaims focus. `passes` remains false until manual verification confirms the persisted toggle and restart behavior against the same heading/list fixture. Sources: https://support.typora.io/Strict-Mode/ and https://support.typora.io/Markdown-Reference/."
+      "notesRef": "features/MF-100.md"
     },
     {
       "id": "MF-101",
@@ -2691,20 +1344,7 @@
       "passes": false,
       "lastVerifiedAt": null,
       "dependsOn": [],
-      "steps": [
-        "Trigger delete-word with the caret inside a word and confirm the current word is removed without corrupting adjacent markdown.",
-        "Trigger delete line or sentence inside prose, code blocks, math blocks, and tables and confirm the deletion respects the current block type instead of blindly deleting raw lines.",
-        "Trigger delete block or styled-scope on headings, list items, or inline styled spans and confirm only the intended markdown scope is removed."
-      ],
-      "verification": {
-        "automated": [
-          "Add command-level tests for delete-word, delete-line-or-sentence, delete-block, and delete-styled-scope behavior across paragraph, list, code, math, and table fixtures."
-        ],
-        "manual": [
-          "Exercise the delete-range shortcuts in a mixed markdown document and confirm each command removes the same scope Typora would remove."
-        ]
-      },
-      "notes": "Implemented on 2026-04-16 in `packages/editor/src/editor/extensions/deleteRange.ts`, `packages/editor/src/editor/MarkFlowEditor.tsx`, `packages/editor/src/App.tsx`, `packages/editor/src/editor/clearFormatting.ts`, `packages/editor/src/editor/extensions/smartInput.ts`, `packages/editor/src/editor/__tests__/deleteRange.test.ts`, and `packages/editor/src/editor/__tests__/MarkFlowEditor.test.tsx`. This run adds a dedicated delete-range command layer for Typora-style delete-word, delete-line-or-sentence, delete-block, and delete-styled-scope semantics: delete-word now removes the current lexical word while preserving adjacent markdown, delete-line-or-sentence dispatches by block type (sentence in prose, row in tables, source line in code or math blocks), delete-block removes the surrounding heading/paragraph/list-item or fenced block range, and delete-styled-scope drops the innermost inline wrapper under the caret. The command palette now exposes all four commands, while the editor binds `Mod-Shift-D` for delete word, `Mod-Shift-Backspace` for delete line or sentence, and `Mod-Shift-E` for delete styled scope. A tiny prerequisite fix moved `MF-079` duplication off `Mod-Shift-D` onto `Shift-Alt-ArrowDown` so the Typora delete-word shortcut could land without conflict. Automated verification passed again on 2026-04-16 with `pnpm --filter @markflow/editor exec vitest run src/editor/__tests__/deleteRange.test.ts src/editor/__tests__/MarkFlowEditor.test.tsx src/__tests__/App.test.tsx`, `pnpm --filter @markflow/editor lint`, `pnpm --filter @markflow/editor build`, and `pnpm harness:verify`, so the ledger status is now aligned to `ready`. `passes` remains false because the required mixed-document manual shortcut verification was not performed in this terminal session. Sources: https://support.typora.io/Delete-Range/ and https://support.typora.io/Shortcut-Keys/."
+      "notesRef": "features/MF-101.md"
     },
     {
       "id": "MF-102",
@@ -2716,20 +1356,7 @@
       "passes": false,
       "lastVerifiedAt": null,
       "dependsOn": [],
-      "steps": [
-        "Use View > Zoom In / Zoom Out or the matching shortcuts and confirm the window scale changes while the current document content, selection, and scroll position remain intact.",
-        "Trigger Actual Size / Reset Zoom and confirm the scale returns to baseline without recreating the editor view.",
-        "Continue editing after zooming and confirm typing, toolbar actions, and file save behavior still match the unzoomed editor."
-      ],
-      "verification": {
-        "automated": [
-          "Add a desktop test that asserts the View menu exposes `resetZoom`, `zoomIn`, and `zoomOut` roles or equivalent BrowserWindow zoom commands."
-        ],
-        "manual": [
-          "Interactive desktop check: zoom in, zoom out, and reset on a live document while watching selection and scroll stability."
-        ]
-      },
-      "notes": "Typora exposes zoom from the View menu plus shortcut-driven reset or actual-size flows. MarkFlow already wires Electron `resetZoom`, `zoomIn`, and `zoomOut` roles in `packages/desktop/src/main/index.ts`, but the capability had no ledger entry, no explicit verification, and no Typora-like zoom state affordance yet. Sources: https://support.typora.io/Zoom/ and https://support.typora.io/Shortcut-Keys/."
+      "notesRef": "features/MF-102.md"
     },
     {
       "id": "MF-103",
@@ -2744,20 +1371,7 @@
         "MF-007",
         "MF-041"
       ],
-      "steps": [
-        "Quit with a file or folder open and relaunch; confirm startup follows the selected launch option.",
-        "Switch to a default-folder launch option and confirm that folder opens on startup.",
-        "If the remembered/default path is missing, confirm MarkFlow falls back cleanly instead of crashing."
-      ],
-      "verification": {
-        "automated": [
-          "Add desktop persistence tests for launch-option state and startup path selection."
-        ],
-        "manual": [
-          "Verify clean relaunch behavior on macOS and Windows."
-        ]
-      },
-      "notes": "Implemented on 2026-04-16 in `packages/desktop/src/main/fileManager.ts`, `packages/desktop/src/main/index.ts`, `packages/desktop/src/main/menu.ts`, `packages/desktop/src/preload/index.ts`, `packages/shared/src/index.ts`, `packages/editor/src/App.tsx`, `packages/desktop/src/main/fileManager.test.ts`, `packages/desktop/src/main/menu.test.ts`, and `packages/editor/src/__tests__/App.test.tsx`. MarkFlow now persists a Typora-style launch behavior selection (`Open New File`, `Restore Last Folder`, `Restore Last File and Folder`, or `Open Default Folder`) in the desktop main process, exposes that choice from `File -> Launch Options`, resolves startup through a single desktop startup-state bridge, restores the remembered or configured folder without relying on `did-finish-load` IPC races, and falls back cleanly to an empty editor when the remembered/default path is missing. Automated verification passed on 2026-04-16 with `pnpm --filter @markflow/desktop exec vitest run src/main/fileManager.test.ts src/main/menu.test.ts`, `pnpm --filter @markflow/editor exec vitest run src/__tests__/App.test.tsx`, `pnpm --filter @markflow/shared build`, `pnpm --filter @markflow/desktop lint`, `pnpm --filter @markflow/desktop build`, `pnpm --filter @markflow/editor build`, and `pnpm harness:verify`. `passes` remains false because the required clean relaunch verification on both macOS and Windows was not truthfully performed in this terminal session. Sources: https://support.typora.io/File-Management/ and https://support.typora.io/Launch-Options/."
+      "notesRef": "features/MF-103.md"
     },
     {
       "id": "MF-104",
@@ -2771,22 +1385,7 @@
       "dependsOn": [
         "MF-012"
       ],
-      "steps": [
-        "Choose different light and dark themes from the app theme controls and relaunch MarkFlow; confirm both theme mappings persist.",
-        "While MarkFlow is running, switch the OS appearance between light and dark and confirm the matching theme applies immediately without restart.",
-        "Return to each appearance mode and confirm the previously selected light and dark theme ids are still preserved."
-      ],
-      "verification": {
-        "automated": [
-          "pnpm --filter @markflow/desktop exec vitest run src/main/themeManager.test.ts",
-          "pnpm --filter @markflow/editor exec vitest run src/__tests__/App.test.tsx -t \"manages separate light and dark themes and reflects runtime appearance switches\"",
-          "pnpm harness:verify"
-        ],
-        "manual": [
-          "Open the desktop app, set distinct light and dark themes, switch the macOS or Windows appearance while the app stays open, and confirm the rendered theme and the active appearance indicator update immediately."
-        ]
-      },
-      "notes": "Typora documents separate light and dark theme behavior that follows system appearance automatically. This run extends `packages/desktop/src/main/themeManager.ts`, `packages/desktop/src/preload/index.ts`, `packages/shared/src/index.ts`, and `packages/editor/src/App.tsx` so MarkFlow persists independent light/dark theme ids, exposes them to the renderer, and updates the active theme on Electron `nativeTheme` changes; focused desktop and renderer tests were added, but manual OS-level verification is still pending so `passes` remains false. Sources: https://support.typora.io/Dark-Mode/ and https://support.typora.io/. BUG (found 2026-04-16, live-preview test with `prefers-color-scheme: dark`): In dark mode the editor chrome (`.cm-editor` background `rgb(28, 28, 30)`, default text `rgb(255, 255, 255)`) is swapped correctly, but the CodeMirror syntax-highlight token colors are NOT theme-aware — keyword tokens (class `ͼb`, e.g. `function`, `return`) stay at `rgb(119, 0, 136)` (dark purple) and type tokens (class `ͼi`, e.g. `string`) stay at `rgb(0, 136, 85)` (dark green). Both produce very low contrast against the dark background and fail WCAG AA readability for code blocks. Confirmed via `preview_inspect` on the `function greet(...)` starter example. Fix should either (a) ship a dark-palette HighlightStyle switched on appearance, or (b) wire the existing light/dark theme CSS to override the default `@codemirror/language` `defaultHighlightStyle` colors."
+      "notesRef": "features/MF-104.md"
     },
     {
       "id": "MF-105",
@@ -2801,21 +1400,7 @@
         "MF-004",
         "MF-006"
       ],
-      "steps": [
-        "In WYSIWYG mode, place the caret at the end of a plain paragraph and press Enter; confirm the editor starts a new paragraph instead of inserting a lone source newline.",
-        "Switch to source mode after that edit and confirm the markdown now contains a blank line between the two paragraphs.",
-        "In WYSIWYG mode, press Shift+Enter inside a paragraph and confirm the editor inserts a single visible line break while keeping the text in the same paragraph when rendered."
-      ],
-      "verification": {
-        "automated": [
-          "pnpm --filter @markflow/editor exec vitest run src/editor/__tests__/smartInput.test.ts src/editor/__tests__/MarkFlowEditor.test.tsx",
-          "pnpm --filter @markflow/editor lint",
-          "pnpm --filter @markflow/editor build",
-          "pnpm harness:verify"
-        ],
-        "manual": []
-      },
-      "notes": "Typora's Markdown Reference and Line Break docs explicitly distinguish `Return` for a new paragraph from `Shift+Return` for a single line break, with source mode showing a blank line between paragraphs. The shipped editor behavior in `packages/editor/src/editor/extensions/smartInput.ts` is now locked by both keymap-level tests and real MarkFlowEditor DOM keydown coverage in `packages/editor/src/editor/__tests__/smartInput.test.ts` and `packages/editor/src/editor/__tests__/MarkFlowEditor.test.tsx`, including plain-paragraph Enter, Shift+Enter, source/split raw Enter behavior, and unordered/ordered/task list continuation plus empty-item exit so the paragraph-break feature cannot silently regress list handling. Automated verification passed on 2026-04-16 with the listed vitest, lint, build, and harness verification commands, so this feature can be truthfully marked verified without a separate desktop-only gate. Sources: https://support.typora.io/Markdown-Reference/ and https://support.typora.io/Line-Break/."
+      "notesRef": "features/MF-105.md"
     },
     {
       "id": "MF-106",
@@ -2831,21 +1416,7 @@
         "MF-013",
         "MF-014"
       ],
-      "steps": [
-        "Place the caret on a plain paragraph and press `Ctrl+T` on Windows/Linux or `Cmd+Opt+T` on macOS; confirm MarkFlow inserts a valid markdown table scaffold with a header row, separator row, and one body row, then places the caret inside the first editable cell.",
-        "Press `Ctrl+Shift+K` on Windows/Linux or `Cmd+Opt+C` on macOS; confirm a fenced code block scaffold is inserted at the current block and the caret lands inside the fence body.",
-        "Press `Ctrl+Shift+M` on Windows/Linux or `Cmd+Opt+B` on macOS; confirm a `$$` math block scaffold is inserted at the current block and the caret lands inside the math body without corrupting surrounding markdown."
-      ],
-      "verification": {
-        "automated": [
-          "pnpm --filter @markflow/editor exec vitest run src/editor/__tests__/smartInput.test.ts src/editor/__tests__/smartInput.mac.test.ts src/editor/__tests__/MarkFlowEditor.test.tsx",
-          "pnpm --filter @markflow/editor lint",
-          "pnpm --filter @markflow/editor build",
-          "pnpm harness:verify"
-        ],
-        "manual": []
-      },
-      "notes": "Updated on 2026-04-16: `packages/editor/src/editor/extensions/smartInput.ts` inserts table, fenced code block, and math block markdown scaffolds only when the active selection is a plain paragraph in WYSIWYG mode, using Typora-aligned bindings (`Ctrl+T`, `Ctrl+Shift+K`, `Ctrl+Shift+M` on Windows/Linux; `Cmd+Opt+T`, `Cmd+Opt+C`, `Cmd+Opt+B` on macOS). Automated coverage in `packages/editor/src/editor/__tests__/smartInput.test.ts`, `packages/editor/src/editor/__tests__/smartInput.mac.test.ts`, and `packages/editor/src/editor/__tests__/MarkFlowEditor.test.tsx` now proves the Win/Linux DOM shortcut path, a simulated Mac DOM shortcut path under `navigator.platform = MacIntel`, scaffold text/caret placement, source-mode editability after toggle, and no-op behavior outside WYSIWYG/non-paragraph contexts, so the feature can be truthfully marked verified. Source: https://support.typora.io/Shortcut-Keys/."
+      "notesRef": "features/MF-106.md"
     },
     {
       "id": "MF-107",
@@ -2853,27 +1424,13 @@
       "category": "phase-1-functional",
       "area": "@markflow/desktop",
       "priority": 2,
+      "status": "ready",
+      "passes": false,
+      "lastVerifiedAt": null,
       "dependsOn": [
         "MF-003"
       ],
-      "steps": [
-        "From File → Export, choose HTML; confirm the exported file matches the rendered WYSIWYG view including code highlighting, math, and tables.",
-        "From File → Export, choose PDF; confirm the exported PDF paginates cleanly on a long document (e.g. `harness/fixtures/mf-large-180k.md`) with working internal heading links.",
-        "Verify the exporter honors the active theme (light vs. dark) and active heading-numbering toggle, and reports errors without crashing when the target path is not writable."
-      ],
-      "verification": {
-        "automated": [
-          "pnpm --filter @markflow/desktop exec vitest run",
-          "pnpm --filter @markflow/editor exec vitest run"
-        ],
-        "manual": [
-          "Export a representative document to HTML and PDF and compare against the in-app render on macOS."
-        ]
-      },
-      "notes": "Implemented on 2026-04-17 in `packages/editor/src/export/htmlExport.ts`, `packages/editor/src/App.tsx`, `packages/desktop/src/main/fileManager.ts`, and the focused desktop/editor test suites. MarkFlow now serializes the hidden WYSIWYG export editor into standalone HTML with inlined stylesheet text, resolved `--mf-*` theme variables, heading-anchor `id`s, normalized internal links, and print CSS that keeps tables/code/math blocks from fragmenting awkwardly; PDF export now renders through a temporary HTML file instead of a giant data URL so long documents remain exportable, waits for fonts/images before printing, enables Electron's experimental PDF outline generation, and surfaces writable-path failures through a desktop error dialog instead of failing silently. Automated verification passed on 2026-04-17 with `pnpm --filter @markflow/desktop exec vitest run`, `pnpm --filter @markflow/editor exec vitest run`, `pnpm --filter @markflow/desktop lint`, `pnpm --filter @markflow/editor lint`, `pnpm --filter @markflow/desktop build`, `pnpm --filter @markflow/editor build`, and `pnpm harness:verify`. `passes` remains false because the required macOS manual export comparison against the live in-app render was not completed in this terminal session.",
-      "status": "ready",
-      "passes": false,
-      "lastVerifiedAt": null
+      "notesRef": "features/MF-107.md"
     },
     {
       "id": "MF-108",
@@ -2881,27 +1438,13 @@
       "category": "phase-2-polish",
       "area": "@markflow/editor",
       "priority": 2,
+      "status": "planned",
+      "passes": false,
+      "lastVerifiedAt": null,
       "dependsOn": [
         "MF-082"
       ],
-      "steps": [
-        "Open Preferences from the application menu; confirm a single dialog exposes editor behavior (markdown mode, statistics, smart input), appearance (theme, dark mode, heading numbering), export defaults, spellcheck language, and launch behavior.",
-        "Change each setting and confirm it persists across app restart and is reflected by the corresponding feature (e.g. strict mode, dark theme, launch behavior).",
-        "Confirm the dialog is fully keyboard navigable and reachable via the command palette."
-      ],
-      "verification": {
-        "automated": [
-          "pnpm --filter @markflow/editor exec vitest run",
-          "pnpm --filter @markflow/desktop exec vitest run"
-        ],
-        "manual": [
-          "Exercise every preference group on macOS and confirm persistence across restart."
-        ]
-      },
-      "notes": "Preferences are currently scattered across `statisticsPreferences.ts`, `markdownMode.ts`, `spellCheckProfile.ts`, `themeManager.ts`, and desktop launch options. Consolidating behind a typed preferences store in `@markflow/shared` unblocks MF-082 and reduces renderer-side drift.",
-      "status": "planned",
-      "passes": false,
-      "lastVerifiedAt": null
+      "notesRef": "features/MF-108.md"
     },
     {
       "id": "MF-109",
@@ -2909,24 +1452,11 @@
       "category": "code-health",
       "area": "@markflow/editor",
       "priority": 3,
-      "dependsOn": [],
-      "steps": [
-        "Split `packages/editor/src/App.tsx` (currently ~3,910 LOC) into focused hooks/components: desktop IPC bridge, statistics surface, search dialogs, vault/session hydration, palette registration, and navigation history.",
-        "Confirm behavior parity with the existing integration tests in `packages/editor/src/__tests__/App.test.tsx` (all 52 cases still pass).",
-        "Verify incremental rebuild time and keystroke latency on the 180k fixture are not worse than before the refactor."
-      ],
-      "verification": {
-        "automated": [
-          "pnpm --filter @markflow/editor exec vitest run",
-          "pnpm --filter @markflow/editor lint",
-          "pnpm --filter @markflow/editor build"
-        ],
-        "manual": []
-      },
-      "notes": "Implemented on 2026-04-17 in `packages/editor/src/App.tsx`, `packages/editor/src/app-shell/documents.ts`, `packages/editor/src/app-shell/useSearchDialogs.ts`, `packages/editor/src/app-shell/useStatusBarPanels.ts`, `packages/editor/src/app-shell/AppStatusBar.tsx`, `packages/editor/src/app-shell/useCommandPaletteActions.ts`, `packages/editor/src/app-shell/useDesktopBridge.ts`, and `packages/editor/src/app-shell/useNavigationHistoryController.ts`. The app shell now splits desktop IPC/startup hydration, status-bar statistics UI, search dialog state, command-palette registration, shared document helpers, and navigation-history control into focused modules, shrinking `App.tsx` from 3,896 lines at `HEAD` to 1,902 lines without changing the public UI contract. Automated verification passed on 2026-04-17 with `pnpm --filter @markflow/editor exec vitest run src/__tests__/App.test.tsx`, `pnpm --filter @markflow/editor exec vitest run`, `pnpm --filter @markflow/editor lint`, `pnpm --filter @markflow/editor build`, and `pnpm harness:verify`. Incremental rebuild time stayed effectively flat in a like-for-like Vite watch comparison against a detached `HEAD` worktree: baseline rebuilds were `3808 ms`, `4097 ms`, `4218 ms` (avg `4041 ms`) versus current rebuilds `3981 ms`, `3943 ms`, `4077 ms` (avg `4000 ms`). `passes` remains false because the remaining 180k keystroke-latency proof could not be completed truthfully from this terminal session: a CDP-driven Electron dev harness could stand up Vite + Electron and attach to the renderer, but the large-fixture startup hydration path did not yield a trustworthy mid-document typing probe, so no live latency number is recorded.",
       "status": "ready",
       "passes": false,
-      "lastVerifiedAt": null
+      "lastVerifiedAt": null,
+      "dependsOn": [],
+      "notesRef": "features/MF-109.md"
     },
     {
       "id": "MF-110",
@@ -2934,23 +1464,11 @@
       "category": "code-health",
       "area": "harness",
       "priority": 3,
+      "status": "verified",
+      "passes": true,
+      "lastVerifiedAt": "2026-04-17",
       "dependsOn": [],
-      "steps": [
-        "Move long-form `notes`, `steps`, and `verification` prose out of `harness/feature-ledger.json` (currently ~588 KB) into `harness/features/MF-XXX.md` files.",
-        "Keep only metadata (id, title, status, passes, priority, dependsOn, lastVerifiedAt, area, category, notesRef) in the JSON.",
-        "Update `scripts/harness/*` and `pnpm harness:start` / `pnpm harness:verify` to resolve the split structure, and confirm verify still passes."
-      ],
-      "verification": {
-        "automated": [
-          "pnpm harness:verify",
-          "pnpm harness:start"
-        ],
-        "manual": []
-      },
-      "notes": "The ledger has grown past the point where it can be read in one pass by many tools. Splitting metadata from prose keeps the JSON diff-friendly and makes feature history easier to review.",
-      "status": "planned",
-      "passes": false,
-      "lastVerifiedAt": null
+      "notesRef": "features/MF-110.md"
     },
     {
       "id": "MF-111",
@@ -2958,27 +1476,13 @@
       "category": "phase-2-polish",
       "area": "@markflow/editor",
       "priority": 2,
+      "status": "planned",
+      "passes": false,
+      "lastVerifiedAt": null,
       "dependsOn": [
         "MF-074"
       ],
-      "steps": [
-        "Add ARIA roles, labels, and focus traps to the command palette, quick open, global search, go-to-line, vault sidebar, and floating toolbar.",
-        "Ensure every interactive control has a visible focus ring and can be reached via keyboard from the editor surface.",
-        "Add automated axe-core smoke tests for the dialog components and confirm no serious/critical violations remain."
-      ],
-      "verification": {
-        "automated": [
-          "pnpm --filter @markflow/editor exec vitest run",
-          "pnpm --filter @markflow/editor lint"
-        ],
-        "manual": [
-          "Exercise a screen reader (VoiceOver on macOS) through each dialog and confirm it reads labels and state changes."
-        ]
-      },
-      "notes": "The dialogs in `packages/editor/src/components/` lack audited ARIA semantics. Adding `jest-axe`/`@axe-core/react` coverage prevents regression as more UI lands.",
-      "status": "planned",
-      "passes": false,
-      "lastVerifiedAt": null
+      "notesRef": "features/MF-111.md"
     },
     {
       "id": "MF-112",
@@ -2986,26 +1490,14 @@
       "category": "phase-2-polish",
       "area": "@markflow/editor",
       "priority": 3,
+      "status": "planned",
+      "passes": false,
+      "lastVerifiedAt": null,
       "dependsOn": [
         "MF-061",
         "MF-063"
       ],
-      "steps": [
-        "Capture open-to-interactive time, average keystroke latency, and scroll frame time on `harness/fixtures/mf-large-180k.md` using a Playwright or Vitest-browser harness.",
-        "Store the baseline in the repo and fail CI when any metric regresses by more than 10%.",
-        "Expose the latest metrics as a summary comment on pull requests."
-      ],
-      "verification": {
-        "automated": [
-          "pnpm --filter @markflow/editor exec vitest run",
-          "pnpm harness:verify"
-        ],
-        "manual": []
-      },
-      "notes": "No current perf guardrail exists despite the 180k-line fixture. A simple baseline + 10% threshold prevents silent slowdowns as features stack.",
-      "status": "planned",
-      "passes": false,
-      "lastVerifiedAt": null
+      "notesRef": "features/MF-112.md"
     },
     {
       "id": "MF-113",
@@ -3013,24 +1505,11 @@
       "category": "phase-4-release",
       "area": "@markflow/desktop",
       "priority": 2,
-      "dependsOn": [],
-      "steps": [
-        "Extend the GitHub Actions release workflow to produce Windows `.exe` (NSIS) and Linux `.AppImage`/`.deb` artifacts in addition to the existing macOS `.dmg`.",
-        "Smoke-test each artifact (launch, open a file, toggle WYSIWYG, quit) on its native platform.",
-        "Publish the artifacts to the GitHub release, signed and notarized where applicable."
-      ],
-      "verification": {
-        "automated": [
-          "pnpm --filter @markflow/desktop build"
-        ],
-        "manual": [
-          "Launch the produced Windows and Linux artifacts and walk through the core editor workflow."
-        ]
-      },
-      "notes": "The README pitches \"publish anywhere\" but only `dist-mac` is produced today. Windows and Linux parity is required before the Phase 4 release cadence can be honest.",
       "status": "ready",
       "passes": false,
-      "lastVerifiedAt": null
+      "lastVerifiedAt": null,
+      "dependsOn": [],
+      "notesRef": "features/MF-113.md"
     },
     {
       "id": "MF-114",
@@ -3038,26 +1517,13 @@
       "category": "phase-4-release",
       "area": "@markflow/desktop",
       "priority": 2,
+      "status": "planned",
+      "passes": false,
+      "lastVerifiedAt": null,
       "dependsOn": [
         "MF-113"
       ],
-      "steps": [
-        "Wire `electron-updater` (or equivalent) into the desktop shell, pointed at the beta channel.",
-        "Ensure every `main` merge publishes a signed beta artifact and release feed entry.",
-        "Confirm an installed beta build detects a newer release and applies the update on relaunch."
-      ],
-      "verification": {
-        "automated": [
-          "pnpm --filter @markflow/desktop build"
-        ],
-        "manual": [
-          "Install a prior beta, merge to main, and confirm the running app upgrades itself."
-        ]
-      },
-      "notes": "README roadmap commits to beta builds on every `main` merge with auto-update. Requires packaging (MF-113) and release signing to land first.",
-      "status": "planned",
-      "passes": false,
-      "lastVerifiedAt": null
+      "notesRef": "features/MF-114.md"
     },
     {
       "id": "MF-115",
@@ -3065,28 +1531,13 @@
       "category": "phase-1-functional",
       "area": "@markflow/editor",
       "priority": 3,
+      "status": "planned",
+      "passes": false,
+      "lastVerifiedAt": null,
       "dependsOn": [
         "MF-037"
       ],
-      "steps": [
-        "Review the reason MF-037 is currently marked blocked and document the constraint in its notes.",
-        "Add an inline decoration similar to `packages/editor/src/editor/decorations/inlineHtmlDecoration.ts` that renders `~sub~` and `^sup^` (or the agreed Typora syntax) without mutating the source.",
-        "Cover the decoration with focused tests in `packages/editor/src/editor/__tests__/` and confirm it co-exists with existing emphasis parsing."
-      ],
-      "verification": {
-        "automated": [
-          "pnpm --filter @markflow/editor exec vitest run",
-          "pnpm --filter @markflow/editor lint",
-          "pnpm --filter @markflow/editor build"
-        ],
-        "manual": [
-          "Type sub/sup syntax in WYSIWYG mode and confirm the rendered output matches Typora."
-        ]
-      },
-      "notes": "Tracks the follow-up work to unblock MF-037 without reopening the original entry retroactively. Keeps the blocked entry honest while capturing the plan.",
-      "status": "planned",
-      "passes": false,
-      "lastVerifiedAt": null
+      "notesRef": "features/MF-115.md"
     },
     {
       "id": "MF-116",
@@ -3094,24 +1545,13 @@
       "category": "code-health",
       "area": "@markflow/editor",
       "priority": 3,
+      "status": "planned",
+      "passes": false,
+      "lastVerifiedAt": null,
       "dependsOn": [
         "MF-100"
       ],
-      "steps": [
-        "Add a `fast-check` (or equivalent) property-based test suite that generates heading, list, and emphasis variants and compares strict vs. tolerant mode outcomes.",
-        "Ensure the suite asserts that no generated input crashes the parser or produces a decoration range outside the document.",
-        "Wire the suite into `pnpm test` without materially increasing CI runtime."
-      ],
-      "verification": {
-        "automated": [
-          "pnpm --filter @markflow/editor exec vitest run"
-        ],
-        "manual": []
-      },
-      "notes": "Strict vs. tolerant parsing (MF-100) is a common source of subtle bugs. Property-based coverage catches regressions that example-based tests miss.",
-      "status": "planned",
-      "passes": false,
-      "lastVerifiedAt": null
+      "notesRef": "features/MF-116.md"
     },
     {
       "id": "MF-117",
@@ -3119,27 +1559,13 @@
       "category": "phase-2-polish",
       "area": "@markflow/desktop",
       "priority": 3,
+      "status": "planned",
+      "passes": false,
+      "lastVerifiedAt": null,
       "dependsOn": [
         "MF-104"
       ],
-      "steps": [
-        "Add a `~/.markflow/themes/` watcher in the desktop main process that emits change events for `.css` files.",
-        "Hot-swap the renderer theme by replacing the injected stylesheet and reapplying CSS variables without reloading the window.",
-        "Expose theme selection (including community themes) from the preferences dialog."
-      ],
-      "verification": {
-        "automated": [
-          "pnpm --filter @markflow/desktop exec vitest run",
-          "pnpm --filter @markflow/editor exec vitest run"
-        ],
-        "manual": [
-          "Edit a theme CSS file on disk and confirm the running editor updates without restart."
-        ]
-      },
-      "notes": "Phase 2 roadmap item. Pairs naturally with the unified preferences dialog (MF-108) and unlocks a community-themes story.",
-      "status": "planned",
-      "passes": false,
-      "lastVerifiedAt": null
+      "notesRef": "features/MF-117.md"
     },
     {
       "id": "MF-118",
@@ -3147,25 +1573,11 @@
       "category": "phase-3-extensibility",
       "area": "@markflow/editor",
       "priority": 3,
-      "dependsOn": [],
-      "steps": [
-        "Promote `packages/editor/src/editor/extensions/markdownPostProcessor.ts` into a documented public API with `registerMarkdownPostProcessor`, `registerCommand`, and `registerView` entry points.",
-        "Ship one reference plugin (for example a word-count badge) under `packages/plugin-examples/` and load it from a plugin directory.",
-        "Document the API surface, lifecycle, and security boundaries in `docs/plugin-api.md`."
-      ],
-      "verification": {
-        "automated": [
-          "pnpm --filter @markflow/editor exec vitest run",
-          "pnpm --filter @markflow/editor build"
-        ],
-        "manual": [
-          "Load the reference plugin in the desktop app and confirm it activates and deactivates cleanly."
-        ]
-      },
-      "notes": "Phase 3 roadmap cornerstone. Validating the shape with a real example plugin avoids designing the API in the abstract.",
       "status": "planned",
       "passes": false,
-      "lastVerifiedAt": null
+      "lastVerifiedAt": null,
+      "dependsOn": [],
+      "notesRef": "features/MF-118.md"
     },
     {
       "id": "MF-119",
@@ -3173,24 +1585,11 @@
       "category": "code-health",
       "area": "repo",
       "priority": 4,
-      "dependsOn": [],
-      "steps": [
-        "Audit the repository root (`fix_code_ranges.py`, `fix_footnote.py`, `fix_syntax_tree.py`, `fix_virtual.py`, `run_codex.sh`, `Bn/`, `dist-mac/`) and either move each into `scripts/` or delete it.",
-        "Update `.gitignore` so generated artifacts like `dist-mac/` are no longer tracked.",
-        "Confirm `pnpm build`, `pnpm test`, and `pnpm harness:verify` all still succeed after the cleanup."
-      ],
-      "verification": {
-        "automated": [
-          "pnpm test",
-          "pnpm harness:verify",
-          "pnpm build"
-        ],
-        "manual": []
-      },
-      "notes": "Stray files at the repo root make onboarding noisier and accidentally ship generated artifacts into PR diffs. Pure hygiene.",
       "status": "planned",
       "passes": false,
-      "lastVerifiedAt": null
+      "lastVerifiedAt": null,
+      "dependsOn": [],
+      "notesRef": "features/MF-119.md"
     },
     {
       "id": "MF-120",
@@ -3198,22 +1597,11 @@
       "category": "phase-4-release",
       "area": "docs",
       "priority": 4,
-      "dependsOn": [],
-      "steps": [
-        "Add `CONTRIBUTING.md` describing the monorepo layout (`packages/editor`, `packages/desktop`, `packages/shared`), the harness workflow, and the Lore-protocol commit style.",
-        "Add `CHANGELOG.md` generated from feature ledger promotions and release tags.",
-        "Extend `README.md` with a screenshot/GIF section demonstrating WYSIWYG toggling, tables, math, and dark mode."
-      ],
-      "verification": {
-        "automated": [],
-        "manual": [
-          "Follow the documented contributor flow end-to-end on a fresh clone and confirm every step works without tribal knowledge."
-        ]
-      },
-      "notes": "Phase 4 cadence (monthly releases, public RFCs) needs documented process. The screenshot gallery also improves the project pitch on GitHub.",
       "status": "planned",
       "passes": false,
-      "lastVerifiedAt": null
+      "lastVerifiedAt": null,
+      "dependsOn": [],
+      "notesRef": "features/MF-120.md"
     },
     {
       "id": "MF-121",
@@ -3221,26 +1609,14 @@
       "category": "phase-2-polish",
       "area": "@markflow/editor",
       "priority": 3,
+      "status": "planned",
+      "passes": false,
+      "lastVerifiedAt": null,
       "dependsOn": [
         "MF-074",
         "MF-096"
       ],
-      "steps": [
-        "Extend `packages/editor/src/components/commandPaletteRegistry.ts` into a single command registry that owns id, title, default keybinding, and handler for every editor and desktop action.",
-        "Refactor the command palette, desktop menu builder, and keymap extension to read from the registry.",
-        "Expose the registry to the custom keybinding editor (MF-096) so user overrides live alongside defaults."
-      ],
-      "verification": {
-        "automated": [
-          "pnpm --filter @markflow/editor exec vitest run",
-          "pnpm --filter @markflow/desktop exec vitest run"
-        ],
-        "manual": []
-      },
-      "notes": "Commands are currently registered in multiple places (palette, menu, keymap). Unifying them is the prerequisite for a usable keybinding editor and for surfacing per-command help.",
-      "status": "planned",
-      "passes": false,
-      "lastVerifiedAt": null
+      "notesRef": "features/MF-121.md"
     }
   ]
 }
