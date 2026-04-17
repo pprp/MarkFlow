@@ -1,11 +1,20 @@
-import { type ChangeEvent, type FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import {
+  startTransition,
+  type ChangeEvent,
+  type FormEvent,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react'
 import { AppStatusBar } from './app-shell/AppStatusBar'
 import {
   INITIAL_CONTENT,
   buildWindowSessionState,
   createDocumentTab,
   findTabIndex,
-  getCurrentLineNumberForTab,
+  getLineNumberAtPosition,
   getTabLabel,
   type ClosedDocumentTabState,
   type DocumentTabState,
@@ -236,6 +245,7 @@ export function App() {
   const [closedTabs, setClosedTabs] = useState<ClosedDocumentTabState[]>([])
   const [loadingFile, setLoadingFile] = useState<MarkFlowFileLoadProgressPayload | null>(null)
   const [editorScrollMetrics, setEditorScrollMetrics] = useState<MinimapScrollMetrics | null>(null)
+  const [activeCursorLineNumber, setActiveCursorLineNumber] = useState(1)
   const tabsRef = useRef<DocumentTabState[]>(tabs)
   const activeTabIdRef = useRef<string | null>(null)
   const handleSaveTabRef = useRef<(tabId: string | null, forceSaveAs?: boolean) => Promise<boolean>>(
@@ -299,13 +309,20 @@ export function App() {
   }, [activeTabId, tabs])
 
   const replaceTabs = useCallback((nextTabs: DocumentTabState[]) => {
+    if (tabsRef.current === nextTabs) {
+      return nextTabs
+    }
     tabsRef.current = nextTabs
     setTabs(nextTabs)
     return nextTabs
   }, [])
 
   const updateTabs = useCallback((updater: (currentTabs: DocumentTabState[]) => DocumentTabState[]) => {
-    const nextTabs = updater(tabsRef.current)
+    const currentTabs = tabsRef.current
+    const nextTabs = updater(currentTabs)
+    if (nextTabs === currentTabs) {
+      return currentTabs
+    }
     tabsRef.current = nextTabs
     setTabs(nextTabs)
     return nextTabs
@@ -331,10 +348,34 @@ export function App() {
     activeTabIdRef.current = activeTab?.id ?? null
   }, [activeTab])
 
+  useEffect(() => {
+    if (!activeTab) {
+      setActiveCursorLineNumber(1)
+      return
+    }
+
+    startTransition(() => {
+      setActiveCursorLineNumber(getLineNumberAtPosition(activeTab.content, activeTab.cursorPosition))
+    })
+  }, [activeTab?.filePath, activeTab?.id])
+
   const updateTab = useCallback((tabId: string, updater: (tab: DocumentTabState) => DocumentTabState) => {
-    updateTabs((currentTabs) =>
-      currentTabs.map((tab) => (tab.id === tabId ? updater(tab) : tab)),
-    )
+    updateTabs((currentTabs) => {
+      let changed = false
+      const nextTabs = currentTabs.map((tab) => {
+        if (tab.id !== tabId) {
+          return tab
+        }
+
+        const nextTab = updater(tab)
+        if (nextTab !== tab) {
+          changed = true
+        }
+        return nextTab
+      })
+
+      return changed ? nextTabs : currentTabs
+    })
   }, [updateTabs])
 
   const syncWindowSession = useCallback(async (nextTabs: readonly DocumentTabState[], nextActiveTabId: string | null) => {
@@ -920,10 +961,9 @@ export function App() {
 
   const totalLines = activeTab?.largeFile?.totalLines ?? 0
 
-  const currentLineNumber = useMemo(
-    () => getCurrentLineNumberForTab(activeTab),
-    [activeTab],
-  )
+  const currentLineNumber = activeTab?.largeFile
+    ? Math.min(activeTab.largeFile.totalLines, activeTab.largeFile.windowStartLine + activeCursorLineNumber - 1)
+    : activeCursorLineNumber
 
   const windowSessionKey = useMemo(
     () => tabs.map((tab) => tab.filePath ?? '').join('\u0000'),
@@ -1471,15 +1511,17 @@ export function App() {
       return
     }
 
-    updateTab(currentActiveTabId, (tab) => {
-      if (tab.largeFile) {
-        return tab
-      }
+    startTransition(() => {
+      updateTab(currentActiveTabId, (tab) => {
+        if (tab.largeFile) {
+          return tab
+        }
 
-      return {
-        ...tab,
-        symbolTable: table,
-      }
+        return {
+          ...tab,
+          symbolTable: table,
+        }
+      })
     })
   }, [updateTab])
 
@@ -1489,32 +1531,37 @@ export function App() {
       return
     }
 
-    updateTab(currentActiveTabId, (tab) => {
-      if (tab.largeFile || areCollapsedRangesEqual(tab.collapsedRanges, nextRanges)) {
-        return tab
-      }
+    startTransition(() => {
+      updateTab(currentActiveTabId, (tab) => {
+        if (tab.largeFile || areCollapsedRangesEqual(tab.collapsedRanges, nextRanges)) {
+          return tab
+        }
 
-      return {
-        ...tab,
-        collapsedRanges: [...nextRanges],
-      }
+        return {
+          ...tab,
+          collapsedRanges: [...nextRanges],
+        }
+      })
     })
   }, [updateTab])
 
-  const handleCursorPositionChange = useCallback((position: number) => {
+  const handleCursorPositionChange = useCallback((position: number, lineNumber: number) => {
     const currentActiveTabId = activeTabIdRef.current
     if (!currentActiveTabId) {
       return
     }
 
-    updateTab(currentActiveTabId, (tab) =>
-      tab.cursorPosition === position
-        ? tab
-        : {
-            ...tab,
-            cursorPosition: position,
-          },
-    )
+    startTransition(() => {
+      setActiveCursorLineNumber(lineNumber)
+      updateTab(currentActiveTabId, (tab) =>
+        tab.cursorPosition === position
+          ? tab
+          : {
+              ...tab,
+              cursorPosition: position,
+            },
+      )
+    })
   }, [updateTab])
 
   const handleViewportPositionChange = useCallback((position: number) => {
@@ -1523,14 +1570,16 @@ export function App() {
       return
     }
 
-    updateTab(currentActiveTabId, (tab) =>
-      tab.viewportPosition === position
-        ? tab
-        : {
-            ...tab,
-            viewportPosition: position,
-          },
-    )
+    startTransition(() => {
+      updateTab(currentActiveTabId, (tab) =>
+        tab.viewportPosition === position
+          ? tab
+          : {
+              ...tab,
+              viewportPosition: position,
+            },
+      )
+    })
   }, [updateTab])
 
   const handleScrollMetricsChange = useCallback((metrics: MinimapScrollMetrics) => {

@@ -1867,6 +1867,29 @@ describe('App desktop integration', () => {
     expect(screen.getByText('line 1,000,000 / 1,500,000')).toBeInTheDocument()
   })
 
+  it('updates the large-file status bar line number from the editor cursor line directly', async () => {
+    const api = new MockMarkFlowAPI()
+    const initialPayload = buildWindowedPayload('/tmp/windowed.md', 100, 140, 100, 1_500_000)
+    window.markflow = api
+
+    const { container } = render(<App />)
+
+    await act(async () => {
+      api.emitFileOpened(initialPayload)
+    })
+
+    expect(screen.getByText('line 100 / 1,500,000')).toBeInTheDocument()
+
+    const view = getEditorView(container)
+    const targetLine = view.state.doc.line(25)
+
+    await act(async () => {
+      view.dispatch({ selection: { anchor: targetLine.from + 1 } })
+    })
+
+    expect(screen.getByText('line 124 / 1,500,000')).toBeInTheDocument()
+  })
+
   it('toggles the minimap from the View menu bridge and clicks through to proportional navigation', async () => {
     const api = new MockMarkFlowAPI()
     window.markflow = api

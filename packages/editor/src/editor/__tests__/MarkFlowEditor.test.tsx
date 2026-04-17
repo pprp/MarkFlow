@@ -209,6 +209,26 @@ describe('MarkFlowEditor', () => {
     vi.useRealTimers()
   })
 
+  it('reports the cursor line number directly from the editor state', () => {
+    const handleCursorPositionChange = vi.fn()
+    const { container } = render(
+      <MarkFlowEditor
+        content={['# Intro', 'Second line', 'Third line'].join('\n')}
+        viewMode="wysiwyg"
+        onChange={vi.fn()}
+        onCursorPositionChange={handleCursorPositionChange}
+      />,
+    )
+
+    const view = getEditorView(container)
+    handleCursorPositionChange.mockClear()
+
+    const targetPosition = view.state.doc.line(3).from + 2
+    view.dispatch({ selection: { anchor: targetPosition } })
+
+    expect(handleCursorPositionChange).toHaveBeenCalledWith(targetPosition, 3)
+  })
+
   it('shows source-mode line numbers only while the source-mode preference is enabled', async () => {
     const content = ['# Intro', 'Second line', 'Third line'].join('\n')
     const { container, rerender } = render(

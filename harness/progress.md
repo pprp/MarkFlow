@@ -9,6 +9,46 @@
 
 ## Session Log
 
+### 2026-04-17 - MF-050 removed App-shell no-op churn and per-cursor rescans, but the manual typing gate still blocks promotion
+
+- Author: Codex
+- Focus: obey the startup protocol for `MF-050`, stay inside this one feature, remove another concrete renderer-thread hot path around App-shell cursor/symbol updates during 180k outline hydration, rerun the required automation truthfully, and leave the ledger honest unless the remaining manual gate can actually be proven.
+- What changed:
+  - re-read the root `AGENTS.md`, ran `pnpm harness:start`, and ran `./harness/init.sh --smoke` before touching `MF-050`
+  - updated `packages/editor/src/editor/MarkFlowEditor.tsx` so cursor updates now report both the cursor offset and the current CodeMirror line number directly from editor state
+  - updated `packages/editor/src/App.tsx` so the shell now uses the editor-supplied line number instead of rescanning the full document on cursor-driven updates, moves symbol-table/collapsed-range/cursor/viewport observer writes into `startTransition(...)`, and bails out of `replaceTabs(...)` / `updateTabs(...)` / `updateTab(...)` when nothing actually changed
+  - expanded `packages/editor/src/editor/__tests__/MarkFlowEditor.test.tsx` to lock the new cursor line-number callback contract
+  - expanded `packages/editor/src/__tests__/App.test.tsx` to prove the large-file status bar still reflects the live editor line after cursor movement inside a windowed chunk
+  - updated `harness/features/MF-050.md` with this new App-shell churn reduction; `harness/feature-ledger.json` remains unchanged because this terminal session still cannot truthfully complete the required manual “type continuously while the document loads; confirm no input lag” gate
+- Changed files:
+  - `packages/editor/src/App.tsx`
+  - `packages/editor/src/editor/MarkFlowEditor.tsx`
+  - `packages/editor/src/editor/__tests__/MarkFlowEditor.test.tsx`
+  - `packages/editor/src/__tests__/App.test.tsx`
+  - `harness/features/MF-050.md`
+  - `harness/progress.md`
+- Simplifications made:
+  - reused the existing cursor callback instead of adding a second status-bar-only query path or another tab-state field for line numbers
+  - removed no-op `setTabs(...)` churn in the existing shell state helpers instead of introducing a new store or memo layer
+  - kept `harness/feature-ledger.json` untouched because the unresolved proof is still the live manual responsiveness gate, not the automated suite
+- Verification:
+  - `pnpm harness:start` (passes at session start; `MF-050` remains the next recommended feature)
+  - `./harness/init.sh --smoke` (passes at session start; reruns `pnpm harness:verify` plus the workspace test suite)
+  - `pnpm --filter @markflow/editor exec vitest run src/editor/__tests__/MarkFlowEditor.test.tsx src/__tests__/App.test.tsx --reporter=basic` (passes; 2 files / 110 tests with 3 skipped)
+  - `pnpm --filter @markflow/editor test:run -- src/editor/__tests__/indexer.test.ts src/editor/__tests__/outline.test.ts src/editor/__tests__/MarkFlowEditor.test.tsx src/__tests__/App.test.tsx` (passes after the final no-op-churn patch; the current package script still runs the full editor Vitest suite, 40 files / 450 tests with 3 skipped)
+  - `pnpm --filter @markflow/editor lint` (passes after the final patch)
+  - `pnpm --filter @markflow/editor build` (passes after the final patch)
+  - manual 180k typing/no-lag verification (not completed truthfully in this terminal session): the repo still has no checked-in MF-050-specific live probe, only the generic packaged-app smoke harness plus earlier partial CDP notes in `harness/progress.md`, so `passes` must remain false
+  - `pnpm harness:verify` (passes after the notes/progress updates; `121 total | verified=65 | ready=40 | planned=15 | blocked=1 | regression=0`)
+- Review / risks:
+  - this pass removes two real App-shell costs from the typing path: current-line recomputation no longer scans the whole document on every cursor-driven shell update, and no-op editor callbacks no longer force a fresh `tabs.map(...)` + `setTabs(...)` render cycle
+  - the background indexer is still same-thread batched work, recovery checkpointing still serializes the whole active document after idle, and the repo still lacks a checked-in 180k packaged-app latency probe; any of those can still contribute to the remaining fresh-launch typing stall
+  - because the required manual gate is still unproven here, `harness/feature-ledger.json` must remain `status=ready`, `passes=false`, and `lastVerifiedAt=null`
+- Newly verified features:
+  - none
+- Next recommended feature:
+  - `MF-050` - either promote the prior ad hoc packaged-app 180k probe into a checked-in harness script or use a trustworthy manual operator to rerun the fresh-launch typing/no-lag check before any ledger promotion
+
 ### 2026-04-17 - MF-050 coalesced large-document symbol-table publishes, but the fresh-launch typing gate still blocks promotion
 
 - Author: Codex
