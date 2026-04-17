@@ -6506,3 +6506,25 @@
   - Desktop export error logs seen during full workspace test run are pre-existing environment permission stderr noise from `packages/desktop/src/main/fileManager.test.ts` and do not affect MF-051 checks.
 - Next recommended feature:
   - `MF-051` - complete trusted manual multi-section scroll-sync verification in desktop app, then promote `MF-051` in `harness/feature-ledger.json` (`status`, `passes`, `lastVerifiedAt`) only after success.
+
+### 2026-04-17 - MF-051 verification rerun (this session): automation pass, manual blocked
+
+- Author: Codex
+- Focus: strict one-feature MF-051 cycle with required startup + verification.
+- What changed:
+  - Re-ran `pnpm harness:start`.
+  - Re-ran `./harness/init.sh --smoke`.
+  - Re-ran feature automation command:
+    - `pnpm --filter @markflow/editor test:run -- src/__tests__/App.test.tsx src/editor/__tests__/MarkFlowEditor.test.tsx src/editor/__tests__/outline.test.ts`
+  - Re-ran `pnpm harness:verify`.
+  - No source code changes were required for this feature in this session.
+- Verification:
+  - `pnpm harness:start` (pass)
+  - `./harness/init.sh --smoke` (pass)
+  - `pnpm --filter @markflow/editor test:run -- src/__tests__/App.test.tsx src/editor/__tests__/MarkFlowEditor.test.tsx src/editor/__tests__/outline.test.ts` (pass; 40 files / 451 tests, 3 skipped)
+  - `pnpm harness:verify` (pass; next remains `MF-051`)
+- Risk / blocker:
+  - Trusted manual desktop scroll-sync validation for MF-051 (multi-section viewport tracking) could not be executed in this environment.
+  - `harness/feature-ledger.json` remains unchanged (`status` still `ready`, `passes=false`, `lastVerifiedAt=null`) to keep state truthful.
+- Next recommended feature:
+  - `MF-051` - run trusted desktop manual check for active-outline-on-scroll, then set `passes=true` and `lastVerifiedAt` only when successful.
