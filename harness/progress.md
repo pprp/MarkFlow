@@ -23,6 +23,33 @@
 - Next recommended feature:
   - `MF-051` - complete the blocked manual scroll-sync check in a trusted desktop session, then update `harness/feature-ledger.json` (`status`, `passes`, `lastVerifiedAt`) only after that proof is recorded.
 
+### 2026-04-17 - MF-051 rerun under AGENTS protocol; automated pass, manual gate blocked
+
+- Author: Codex
+- Focus: complete required startup/verification flow for MF-051 and keep one-feature behavior truthful in this environment.
+- What changed:
+  - Re-read root `AGENTS.md`.
+  - Ran `pnpm harness:start`.
+  - Ran `./harness/init.sh --smoke`.
+  - Ran MF-051 automated verification:
+    - `pnpm --filter @markflow/editor test:run -- src/__tests__/App.test.tsx src/editor/__tests__/MarkFlowEditor.test.tsx src/editor/__tests__/outline.test.ts`
+  - Ran `pnpm harness:verify`.
+  - No implementation or verification-script files were changed.
+- Simplifications made:
+  - Kept strictly to the MF-051 loop.
+  - Avoided touching any unrelated feature implementation.
+- Verification:
+  - `pnpm harness:start` (pass)
+  - `./harness/init.sh --smoke` (pass)
+  - MF-051 automated command (pass; 40 files / 451 tests, 3 skipped)
+  - `pnpm harness:verify` (pass; next feature remains MF-051)
+- Review / risks:
+  - Trusted manual desktop scroll-sync validation for MF-051 remains blocked in this session (active outline item does not yet have a trusted viewport proof).
+  - `harness/feature-ledger.json` intentionally left unchanged (`MF-051`: `status=ready`, `passes=false`, `lastVerifiedAt=null`).
+  - Desktop test suite still logs pre-existing permission noise from `packages/desktop/src/main/fileManager.test.ts` when asserting expected export-write failures.
+- Next recommended feature:
+  - `MF-051` - complete trusted multi-section manual editor scroll-sync verification, then promote `harness/feature-ledger.json` only after both automated + manual criteria pass.
+
 ### 2026-04-17 - MF-051 session rerun: automation verified, manual scroll-sync blocked by environment
 
 - Author: Codex
