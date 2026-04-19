@@ -37,6 +37,7 @@ import { QuickOpen } from './components/QuickOpen'
 import { VaultSidebar } from './components/VaultSidebar'
 import { GlobalSearch } from './components/GlobalSearch'
 import { GoToLine } from './components/GoToLine'
+import { DocumentSearch } from './components/DocumentSearch'
 import { Minimap, type MinimapScrollMetrics } from './components/Minimap'
 import type { RegisteredCommandPaletteAction } from './components/commandPaletteRegistry'
 import { serializeMarkdownSelectionForClipboard } from './editor/clipboard'
@@ -83,11 +84,23 @@ import {
   persistLocalMarkdownModePreference,
   type MarkFlowMarkdownMode,
 } from './markdownMode'
+import { countFuzzySearchMatches } from './editor/documentSearch'
 import { serializeRenderedDocumentForExport } from './export/htmlExport'
 
 const THEME_STYLE_ELEMENT_ID = 'mf-theme-overrides'
 const EDITOR_ROOT_SELECTOR = '.cm-editor'
 export const RECOVERY_CHECKPOINT_SYNC_DELAY_MS = 750
+
+type DocumentSearchWorkerRequest = {
+  requestId: number
+  content: string
+  query: string
+}
+
+type DocumentSearchWorkerResponse = {
+  requestId: number
+  count: number
+}
 
 function formatLoadingBytes(bytes: number) {
   if (bytes >= 1024 * 1024) {
@@ -216,20 +229,25 @@ export function App() {
   } = statusBarPanels
   const {
     closeCommandPalette,
+    closeDocumentSearch,
     closeGlobalSearch,
     closeGoToLine,
     closeQuickOpen,
     isCommandPaletteOpen,
+    isDocumentSearchOpen,
     isGlobalSearchOpen,
     isGoToLineOpen,
     isQuickOpenOpen,
     openCommandPalette,
+    openDocumentSearch,
     openGlobalSearch,
     openGoToLine,
     openQuickOpen,
     toggleGlobalSearch,
   } = useSearchDialogs()
   const [toasts, setToasts] = useState<AppToast[]>([])
+  const [documentSearchQuery, setDocumentSearchQuery] = useState('')
+  const [documentSearchMatchCount, setDocumentSearchMatchCount] = useState(0)
   const [outlineCollapsed, setOutlineCollapsed] = useState(false)
   const [isExporting, setIsExporting] = useState(false)
   const [quickOpenItems, setQuickOpenItems] = useState<MarkFlowQuickOpenItem[]>([])
@@ -263,6 +281,8 @@ export function App() {
   const pluginHostRef = useRef<MarkFlowPluginHost | null>(null)
   const editorRef = useRef<MarkFlowEditorHandle | null>(null)
   const editorShellRef = useRef<HTMLDivElement | null>(null)
+  const documentSearchWorkerRef = useRef<Worker | null>(null)
+  const documentSearchRequestIdRef = useRef(0)
   const recoveryCheckpointTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const toastIdRef = useRef(0)
 
@@ -716,6 +736,127 @@ export function App() {
     return openGoToLine()
   }, [openGoToLine])
 
+  const handleOpenDocumentSearch = useCallback(() => {
+    if (!activeTab || activeTab.largeFile) {
+      return false
+    }
+
+    openDocumentSearch()
+    return true
+  }, [activeTab, openDocumentSearch])
+
+  const handleCloseDocumentSearch = useCallback(() => {
+    closeDocumentSearch()
+    setDocumentSearchQuery('')
+    setDocumentSearchMatchCount(0)
+    editorRef.current?.clearDocumentSearch()
+    editorRef.current?.focus()
+  }, [closeDocumentSearch])
+
+  const handleNextDocumentSearchMatch = useCallback(() => {
+    if (!documentSearchQuery.trim()) {
+      return
+    }
+
+    editorRef.current?.navigateDocumentSearch('next')
+  }, [documentSearchQuery])
+
+  const handlePreviousDocumentSearchMatch = useCallback(() => {
+    if (!documentSearchQuery.trim()) {
+      return
+    }
+
+    editorRef.current?.navigateDocumentSearch('previous')
+  }, [documentSearchQuery])
+
+  useEffect(() => {
+    if (typeof Worker === 'undefined') {
+      return
+    }
+
+    const worker = new Worker(new URL('./editor/documentSearch.worker.ts', import.meta.url), {
+      type: 'module',
+    })
+    documentSearchWorkerRef.current = worker
+
+    return () => {
+      worker.terminate()
+      documentSearchWorkerRef.current = null
+    }
+  }, [])
+
+  useEffect(() => {
+    const editor = editorRef.current
+    if (!editor) {
+      return
+    }
+
+    if (!isDocumentSearchOpen || !documentSearchQuery.trim()) {
+      editor.clearDocumentSearch()
+      return
+    }
+
+    editor.setDocumentSearchQuery(documentSearchQuery)
+  }, [activeTab?.content, activeTab?.id, documentSearchQuery, isDocumentSearchOpen])
+
+  useEffect(() => {
+    if (isDocumentSearchOpen) {
+      return
+    }
+
+    setDocumentSearchMatchCount(0)
+    editorRef.current?.clearDocumentSearch()
+  }, [isDocumentSearchOpen])
+
+  useEffect(() => {
+    if (!isDocumentSearchOpen || !activeTab || activeTab.largeFile || !documentSearchQuery.trim()) {
+      setDocumentSearchMatchCount(0)
+      return
+    }
+
+    const requestId = documentSearchRequestIdRef.current + 1
+    documentSearchRequestIdRef.current = requestId
+    const content = activeTab.content
+    const worker = documentSearchWorkerRef.current
+
+    if (!worker) {
+      const timeoutId = window.setTimeout(() => {
+        if (documentSearchRequestIdRef.current !== requestId) {
+          return
+        }
+
+        startTransition(() => {
+          setDocumentSearchMatchCount(countFuzzySearchMatches(content, documentSearchQuery))
+        })
+      }, 0)
+
+      return () => {
+        window.clearTimeout(timeoutId)
+      }
+    }
+
+    const handleMessage = (event: MessageEvent<DocumentSearchWorkerResponse>) => {
+      if (event.data.requestId !== requestId) {
+        return
+      }
+
+      startTransition(() => {
+        setDocumentSearchMatchCount(event.data.count)
+      })
+    }
+
+    worker.addEventListener('message', handleMessage)
+    worker.postMessage({
+      requestId,
+      content,
+      query: documentSearchQuery,
+    } satisfies DocumentSearchWorkerRequest)
+
+    return () => {
+      worker.removeEventListener('message', handleMessage)
+    }
+  }, [activeTab, documentSearchQuery, isDocumentSearchOpen])
+
   async function handleOpenFolder() {
     const api = window.markflow
     if (!api) {
@@ -1018,6 +1159,9 @@ export function App() {
       const isQuickOpenKey = isMac
         ? e.metaKey && e.shiftKey && lowerKey === 'o'
         : e.ctrlKey && lowerKey === 'p'
+      const isDocumentSearchKey = isMac
+        ? e.metaKey && !e.shiftKey && lowerKey === 'f'
+        : e.ctrlKey && !e.shiftKey && lowerKey === 'f'
 
       const isGlobalSearchKey = isMac
         ? e.metaKey && e.shiftKey && lowerKey === 'f'
@@ -1056,6 +1200,9 @@ export function App() {
       } else if (isReopenClosedTabKey) {
         e.preventDefault()
         await handleReopenClosedTab()
+      } else if (isDocumentSearchKey) {
+        e.preventDefault()
+        handleOpenDocumentSearch()
       } else if (isQuickOpenKey) {
         e.preventDefault()
         await handleOpenQuickOpen()
@@ -1073,6 +1220,7 @@ export function App() {
     handleCycleTabs,
     handleNavigateBack,
     handleNavigateForward,
+    handleOpenDocumentSearch,
     handleOpenCommandPalette,
     handleOpenGoToLine,
     handleOpenQuickOpen,
@@ -1821,6 +1969,15 @@ export function App() {
         ) : null}
         <div className="mf-body">
           <div ref={editorShellRef} className="mf-editor-shell">
+            <DocumentSearch
+              isOpen={isDocumentSearchOpen}
+              query={documentSearchQuery}
+              matchCount={documentSearchMatchCount}
+              onChange={setDocumentSearchQuery}
+              onClose={handleCloseDocumentSearch}
+              onNext={handleNextDocumentSearchMatch}
+              onPrevious={handlePreviousDocumentSearchMatch}
+            />
             {loadingFile ? (
               <section className="mf-file-loading" aria-live="polite">
                 <div className="mf-file-loading-header">
@@ -1869,6 +2026,7 @@ export function App() {
                 onSymbolTableChange={handleSymbolTableChange}
                 onNavigationHandled={clearEditorNavigationRequest}
                 onOpenPath={(filePath) => handleOpenPath(filePath, { pushHistory: true })}
+                onOpenDocumentSearch={handleOpenDocumentSearch}
                 onToggleMode={toggleViewMode}
                 onSelectionChange={handleSelectionChange}
                 onToggleFocusMode={toggleFocusMode}

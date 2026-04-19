@@ -1,0 +1,86 @@
+.mf-document-search {
+  position: absolute;
+  top: 16px;
+  right: 18px;
+  z-index: 9;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: min(520px, calc(100% - 32px));
+  padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, var(--mf-border-light) 82%, transparent);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--mf-bg-elevated) 92%, var(--mf-bg) 8%);
+  box-shadow: 0 18px 40px color-mix(in srgb, var(--mf-shadow-color, rgba(15, 23, 42, 0.16)) 24%, transparent);
+  backdrop-filter: blur(16px);
+}
+
+.mf-document-search-field {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  flex: 1;
+}
+
+.mf-document-search-label {
+  flex-shrink: 0;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--mf-accent);
+}
+
+.mf-document-search-field input {
+  width: 100%;
+  min-width: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--mf-fg-primary);
+  font: inherit;
+}
+
+.mf-document-search-field input::placeholder {
+  color: var(--mf-fg-secondary);
+}
+
+.mf-document-search-count {
+  flex-shrink: 0;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--mf-accent-subtle) 32%, transparent);
+  color: var(--mf-fg-secondary);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.mf-document-search-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.mf-document-search-actions button {
+  width: 28px;
+  height: 28px;
+  border: 1px solid color-mix(in srgb, var(--mf-border-light) 82%, transparent);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--mf-fg-secondary);
+  font: inherit;
+  cursor: pointer;
+  transition:
+    background 150ms var(--mf-ease-standard, cubic-bezier(0.4, 0, 0.2, 1)),
+    color 150ms var(--mf-ease-standard, cubic-bezier(0.4, 0, 0.2, 1)),
+    border-color 150ms var(--mf-ease-standard, cubic-bezier(0.4, 0, 0.2, 1));
+}
+
+.mf-document-search-actions button:hover,
+.mf-document-search-actions button:focus-visible {
+  background: color-mix(in srgb, var(--mf-accent-subtle) 28%, transparent);
+  color: var(--mf-accent);
+  border-color: color-mix(in srgb, var(--mf-accent) 32%, transparent);
+  outline: none;
+}

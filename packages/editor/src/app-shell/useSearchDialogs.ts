@@ -2,11 +2,13 @@ import { useCallback, useState } from 'react'
 
 export function useSearchDialogs() {
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false)
+  const [isDocumentSearchOpen, setIsDocumentSearchOpen] = useState(false)
   const [isQuickOpenOpen, setIsQuickOpenOpen] = useState(false)
   const [isGlobalSearchOpen, setIsGlobalSearchOpen] = useState(false)
   const [isGoToLineOpen, setIsGoToLineOpen] = useState(false)
 
   const closeSearchDialogs = useCallback(() => {
+    setIsDocumentSearchOpen(false)
     setIsQuickOpenOpen(false)
     setIsGlobalSearchOpen(false)
     setIsGoToLineOpen(false)
@@ -16,6 +18,19 @@ export function useSearchDialogs() {
     closeSearchDialogs()
     setIsCommandPaletteOpen(true)
   }, [closeSearchDialogs])
+
+  const openDocumentSearch = useCallback(() => {
+    setIsCommandPaletteOpen(false)
+    setIsQuickOpenOpen(false)
+    setIsGlobalSearchOpen(false)
+    setIsGoToLineOpen(false)
+    setIsDocumentSearchOpen(true)
+    return true
+  }, [])
+
+  const closeDocumentSearch = useCallback(() => {
+    setIsDocumentSearchOpen(false)
+  }, [])
 
   const closeCommandPalette = useCallback(() => {
     setIsCommandPaletteOpen(false)
@@ -66,11 +81,14 @@ export function useSearchDialogs() {
 
   return {
     isCommandPaletteOpen,
+    isDocumentSearchOpen,
     isQuickOpenOpen,
     isGlobalSearchOpen,
     isGoToLineOpen,
     openCommandPalette,
     closeCommandPalette,
+    openDocumentSearch,
+    closeDocumentSearch,
     openQuickOpen,
     closeQuickOpen,
     openGlobalSearch,

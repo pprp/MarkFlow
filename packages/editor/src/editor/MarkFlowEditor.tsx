@@ -1,5 +1,5 @@
 import { forwardRef, useRef, useEffect, useState, useCallback, useImperativeHandle } from 'react'
-import { Compartment, EditorSelection, EditorState, Transaction } from '@codemirror/state'
+import { Compartment, EditorSelection, EditorState, StateEffect, StateField, Transaction } from '@codemirror/state'
 import { EditorView, keymap, drawSelection, highlightActiveLine, lineNumbers } from '@codemirror/view'
 import {
   defaultKeymap,
@@ -21,7 +21,9 @@ import {
   indentOnInput,
   foldState,
 } from '@codemirror/language'
-import { searchKeymap, highlightSelectionMatches, openSearchPanel } from '@codemirror/search'
+import { RangeSetBuilder } from '@codemirror/state'
+import { Decoration, ViewPlugin, type ViewUpdate } from '@codemirror/view'
+import { SearchQuery, searchKeymap, highlightSelectionMatches, openSearchPanel } from '@codemirror/search'
 import { closeBrackets, closeBracketsKeymap } from '@codemirror/autocomplete'
 import {
   type MarkFlowPluginHost,
@@ -79,6 +81,13 @@ import {
   type MarkFlowMarkdownMode,
 } from '../markdownMode'
 import {
+  collectFuzzySearchMatches,
+  createFuzzySearchQuery,
+  findNextFuzzySearchMatch,
+  findPreviousFuzzySearchMatch,
+  type DocumentSearchMatch,
+} from './documentSearch'
+import {
   LARGE_DOCUMENT_CONTENT_SYNC_DELAY_MS,
   LARGE_DOCUMENT_SYMBOL_TABLE_SYNC_DELAY_MS,
   isLargeInteractiveDocument,
@@ -101,6 +110,7 @@ export interface MarkFlowEditorProps {
   onNavigationHandled?: () => void
   onOpenPath?: (filePath: string) => void | Promise<unknown>
   onToggleMode?: () => void
+  onOpenDocumentSearch?: () => void
   onSelectionChange?: (selectedText: string) => void
   onToggleFocusMode?: () => void
   onToggleTypewriterMode?: () => void
@@ -142,7 +152,10 @@ export type MarkFlowEditorCommand =
 export interface MarkFlowEditorHandle {
   captureSnapshot: () => MarkFlowEditorSnapshot | null
   executeCommand: (command: MarkFlowEditorCommand) => boolean
+  clearDocumentSearch: () => void
+  navigateDocumentSearch: (direction: 'next' | 'previous') => boolean
   replaceTextOccurrence: (searchText: string, replacementText: string, occurrenceIndex?: number) => boolean
+  setDocumentSearchQuery: (query: string) => void
   focus: () => void
   getContent: () => string | null
 }
@@ -167,6 +180,84 @@ const baseTheme = EditorView.theme({
   '.cm-scroller': {
     overflow: 'auto',
   },
+})
+
+type DocumentSearchState = {
+  activeMatch: DocumentSearchMatch | null
+  query: SearchQuery | null
+}
+
+const emptyDocumentSearchState: DocumentSearchState = {
+  activeMatch: null,
+  query: null,
+}
+
+const setDocumentSearchStateEffect = StateEffect.define<DocumentSearchState>()
+
+const documentSearchStateField = StateField.define<DocumentSearchState>({
+  create: () => emptyDocumentSearchState,
+  update(value, transaction) {
+    for (const effect of transaction.effects) {
+      if (effect.is(setDocumentSearchStateEffect)) {
+        return effect.value
+      }
+    }
+
+    return value
+  },
+})
+
+const documentSearchMatchMark = Decoration.mark({ class: 'cm-searchMatch' })
+const documentSearchSelectedMatchMark = Decoration.mark({ class: 'cm-searchMatch cm-searchMatch-selected' })
+
+const documentSearchHighlighter = ViewPlugin.fromClass(class {
+  decorations
+
+  constructor(view: EditorView) {
+    this.decorations = this.buildDecorations(view)
+  }
+
+  update(update: ViewUpdate) {
+    if (
+      update.docChanged ||
+      update.selectionSet ||
+      update.viewportChanged ||
+      update.state.field(documentSearchStateField) !== update.startState.field(documentSearchStateField)
+    ) {
+      this.decorations = this.buildDecorations(update.view)
+    }
+  }
+
+  private buildDecorations(view: EditorView) {
+    const documentSearch = view.state.field(documentSearchStateField)
+    if (!documentSearch.query) {
+      return Decoration.none
+    }
+
+    const builder = new RangeSetBuilder<Decoration>()
+    for (const visibleRange of view.visibleRanges) {
+      const fromLine = view.state.doc.lineAt(visibleRange.from)
+      const toLine = view.state.doc.lineAt(Math.max(visibleRange.from, visibleRange.to))
+      const matches = collectFuzzySearchMatches(
+        view.state,
+        documentSearch.query,
+        fromLine.from,
+        toLine.to,
+      )
+
+      for (const match of matches) {
+        const decoration =
+          documentSearch.activeMatch?.from === match.from && documentSearch.activeMatch.to === match.to
+            ? documentSearchSelectedMatchMark
+            : documentSearchMatchMark
+        builder.add(match.from, match.to, decoration)
+      }
+    }
+
+    return builder.finish()
+  }
+}, {
+  decorations: (value) => value.decorations,
 })
 
 function findNthOccurrence(text: string, searchText: string, occurrenceIndex: number) {
@@ -353,6 +444,7 @@ function getEditorExtensions(
   onSymbolTableChangeRef: React.MutableRefObject<MarkFlowEditorProps['onSymbolTableChange']>,
   onSelectionChangeRef: React.MutableRefObject<MarkFlowEditorProps['onSelectionChange']>,
   onToggleModeRef: React.MutableRefObject<MarkFlowEditorProps['onToggleMode']>,
+  onOpenDocumentSearchRef: React.MutableRefObject<MarkFlowEditorProps['onOpenDocumentSearch']>,
   onToggleFocusModeRef: React.MutableRefObject<MarkFlowEditorProps['onToggleFocusMode']>,
   onToggleTypewriterModeRef: React.MutableRefObject<MarkFlowEditorProps['onToggleTypewriterMode']>,
   onCollapsedRangesChangeRef: React.MutableRefObject<MarkFlowEditorProps['onCollapsedRangesChange']>,
@@ -427,6 +519,8 @@ function getEditorExtensions(
     highlightSelectionMatches(),
     syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
     markdownCompartment.of(getMarkdownSyntaxExtensions(markdownMode)),
+    documentSearchStateField,
+    documentSearchHighlighter,
     keymap.of([
       {
         key: 'Escape',
@@ -440,6 +534,14 @@ function getEditorExtensions(
           view.dispatch({
             selection: EditorSelection.cursor(main.head),
           })
+          return true
+        },
+      },
+      {
+        key: 'Mod-f',
+        preventDefault: true,
+        run: () => {
+          onOpenDocumentSearchRef.current?.()
           return true
         },
       },
@@ -557,6 +659,7 @@ export const MarkFlowEditor = forwardRef<MarkFlowEditorHandle, MarkFlowEditorPro
   onOpenPath,
   onToggleMode,
   onSelectionChange,
+  onOpenDocumentSearch,
   onToggleFocusMode,
   onToggleTypewriterMode,
   onCollapsedRangesChange,
@@ -583,6 +686,7 @@ export const MarkFlowEditor = forwardRef<MarkFlowEditorHandle, MarkFlowEditorPro
   const onSelectionChangeRef = useRef(onSelectionChange)
   const onToggleFocusModeRef = useRef(onToggleFocusMode)
   const onToggleTypewriterModeRef = useRef(onToggleTypewriterMode)
+  const onOpenDocumentSearchRef = useRef(onOpenDocumentSearch)
   const onCollapsedRangesChangeRef = useRef(onCollapsedRangesChange)
   const suppressNextOnChangeRef = useRef(false)
   const syncedContentRef = useRef(content)
@@ -643,6 +747,10 @@ export const MarkFlowEditor = forwardRef<MarkFlowEditorHandle, MarkFlowEditorPro
   }, [onSelectionChange])
 
   useEffect(() => {
+    onOpenDocumentSearchRef.current = onOpenDocumentSearch
+  }, [onOpenDocumentSearch])
+
+  useEffect(() => {
     onToggleFocusModeRef.current = onToggleFocusMode
   }, [onToggleFocusMode])
 
@@ -689,6 +797,7 @@ export const MarkFlowEditor = forwardRef<MarkFlowEditorHandle, MarkFlowEditorPro
       onSymbolTableChangeRef,
       onSelectionChangeRef,
       onToggleModeRef,
+      onOpenDocumentSearchRef,
       onToggleFocusModeRef,
       onToggleTypewriterModeRef,
       onCollapsedRangesChangeRef,
@@ -733,6 +842,7 @@ export const MarkFlowEditor = forwardRef<MarkFlowEditorHandle, MarkFlowEditorPro
       onSymbolTableChangeRef,
       onSelectionChangeRef,
       onToggleModeRef,
+      onOpenDocumentSearchRef,
       onToggleFocusModeRef,
       onToggleTypewriterModeRef,
       onCollapsedRangesChangeRef,
@@ -1280,6 +1390,51 @@ export const MarkFlowEditor = forwardRef<MarkFlowEditorHandle, MarkFlowEditorPro
             return false
         }
       },
+      clearDocumentSearch: () => {
+        const view = viewRef.current
+        if (!view) {
+          return
+        }
+
+        view.dispatch({
+          effects: setDocumentSearchStateEffect.of(emptyDocumentSearchState),
+        })
+      },
+      navigateDocumentSearch: (direction) => {
+        const view = viewRef.current
+        if (!view) {
+          return false
+        }
+
+        const documentSearch = view.state.field(documentSearchStateField)
+        if (!documentSearch.query) {
+          return false
+        }
+
+        const selection = view.state.selection.main
+        const nextMatch =
+          direction === 'previous'
+            ? findPreviousFuzzySearchMatch(view.state, documentSearch.query, selection.from)
+            : findNextFuzzySearchMatch(view.state, documentSearch.query, selection.to)
+
+        if (!nextMatch) {
+          return false
+        }
+
+        view.dispatch({
+          selection: EditorSelection.single(nextMatch.from, nextMatch.to),
+          effects: [
+            EditorView.scrollIntoView(nextMatch.from, { y: 'center' }),
+            setDocumentSearchStateEffect.of({
+              query: documentSearch.query,
+              activeMatch: nextMatch,
+            }),
+          ],
+          userEvent: 'select.search',
+        })
+        view.focus()
+        return true
+      },
       replaceTextOccurrence: (searchText, replacementText, occurrenceIndex = 0) => {
         const view = viewRef.current
         if (!view || !searchText) {
@@ -1300,6 +1455,19 @@ export const MarkFlowEditor = forwardRef<MarkFlowEditorHandle, MarkFlowEditorPro
           annotations: Transaction.addToHistory.of(false),
         })
         return true
+      },
+      setDocumentSearchQuery: (query) => {
+        const view = viewRef.current
+        if (!view) {
+          return
+        }
+
+        view.dispatch({
+          effects: setDocumentSearchStateEffect.of({
+            query: createFuzzySearchQuery(query),
+            activeMatch: null,
+          }),
+        })
       },
       focus: () => {
         viewRef.current?.focus()

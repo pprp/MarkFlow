@@ -2830,6 +2830,56 @@ describe('App command palette integration', () => {
       expect(alphaView.scrollDOM.scrollTop).toBe(40)
     })
   })
+
+  it('fuzzy-search opens on Mod-F, reports a match count, and navigates between highlighted matches', async () => {
+    const api = new MockMarkFlowAPI()
+    const content = ['MarkFlow', 'meta flow', 'microfilm'].join('\n')
+    api.setStartupState({
+      document: {
+        filePath: '/tmp/searchable.md',
+        content,
+      },
+      folderPath: null,
+      windowSession: null,
+    })
+    window.markflow = api
+
+    const { container } = render(<App />)
+
+    await waitFor(() => {
+      expect(getEditorView(container).state.doc.toString()).toBe(content)
+    })
+
+    fireEvent.keyDown(document, { key: 'f', ctrlKey: true })
+
+    const input = await screen.findByRole('textbox', { name: 'Search document' })
+    fireEvent.change(input, { target: { value: 'mf' } })
+
+    await waitFor(() => {
+      expect(screen.getByText('3 matches')).toBeInTheDocument()
+      expect(container.querySelectorAll('.cm-searchMatch').length).toBeGreaterThan(0)
+    })
+
+    const view = getEditorView(container)
+
+    fireEvent.keyDown(input, { key: 'Enter' })
+    await waitFor(() => {
+      expect(view.state.selection.main.from).toBe(0)
+      expect(view.state.sliceDoc(view.state.selection.main.from, view.state.selection.main.to)).toBe('MarkF')
+    })
+
+    fireEvent.keyDown(input, { key: 'Enter' })
+    await waitFor(() => {
+      expect(view.state.selection.main.from).toBe(content.indexOf('meta flow'))
+      expect(view.state.sliceDoc(view.state.selection.main.from, view.state.selection.main.to)).toBe('meta f')
+    })
+
+    fireEvent.keyDown(input, { key: 'Enter', shiftKey: true })
+    await waitFor(() => {
+      expect(view.state.selection.main.from).toBe(0)
+      expect(view.state.sliceDoc(view.state.selection.main.from, view.state.selection.main.to)).toBe('MarkF')
+    })
+  })
 })
 
 

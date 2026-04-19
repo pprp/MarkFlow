@@ -754,3 +754,34 @@ next: MF-051 - Outline panel lists all headings with live scroll-sync and click-
 - Remaining risks:
   - There is no standalone docs/marketing site in this repo today, so the docs/marketing refresh in this pass is limited to the in-app starter surface.
   - The workspace already contains unrelated dirty changes in package manifests, desktop build artifacts, and `global.css`; this handoff does not normalize or revert them.
+
+## 2026-04-19 - MF-053 fuzzy document search
+
+- Author: Codex
+- Focus: one-feature protocol completion for `MF-053` in this session.
+- What changed:
+  - Added a dedicated `Cmd/Ctrl+F` document-search bar in `packages/editor/src/components/DocumentSearch.tsx` and `DocumentSearch.css`.
+  - Added fuzzy-search query compilation and async count helpers in `packages/editor/src/editor/documentSearch.ts` plus `documentSearch.worker.ts`.
+  - Wired the App shell to open/close the document search bar, drive query state, and request async match counts in `packages/editor/src/App.tsx` and `packages/editor/src/app-shell/useSearchDialogs.ts`.
+  - Extended `packages/editor/src/editor/MarkFlowEditor.tsx` with viewport-limited fuzzy highlight decorations and `Enter` / `Shift+Enter` next/previous navigation.
+  - Added regression coverage in `packages/editor/src/editor/__tests__/documentSearch.test.ts` and `packages/editor/src/__tests__/App.test.tsx`.
+- Simplifications made:
+  - Reused the existing CodeMirror search-match visual classes instead of introducing a second highlight styling system.
+  - Kept fuzzy search separate from the older replace flow, so `Cmd/Ctrl+H` behavior stayed intact.
+  - Limited highlight decoration work to visible lines, matching the repo’s virtual-rendering strategy instead of scanning the whole DOM.
+- Verification:
+  - `pnpm harness:start`
+  - `./harness/init.sh --smoke`
+  - `pnpm --filter @markflow/editor exec vitest run src/editor/__tests__/documentSearch.test.ts src/__tests__/App.test.tsx`
+  - `pnpm --filter @markflow/editor test:run -- --grep fuzzy-search`
+  - `pnpm --filter @markflow/editor lint`
+  - `pnpm --filter @markflow/editor build`
+  - `pnpm harness:verify`
+- Remaining risks:
+  - Manual verification from `harness/features/MF-053.md` was not completed in a trusted live desktop session, so the large-file fixture behavior still lacks manual proof.
+  - Fuzzy navigation currently selects the minimal regex span (for example `MarkF` for query `mf`) rather than expanding to the entire surrounding token; that is consistent with the implemented matcher, but worth revisiting if product expectations shift.
+  - The workspace still contains unrelated pre-existing edits in `docs/editorial-chrome-cleanup-plan.md`, `packages/editor/src/components/VaultSidebar*`, and `packages/editor/src/styles/global.css`; this session did not modify or normalize those changes.
+- Ledger decision:
+  - Left `harness/feature-ledger.json` unchanged for `MF-053` (`status=ready`, `passes=false`, `lastVerifiedAt=null`) because automated verification passed but the required manual verification did not happen.
+- Next recommended feature:
+  - Continue `MF-053` with a trusted manual large-file verification pass, then update the ledger only after the live search-count check succeeds.
