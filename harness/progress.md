@@ -1077,3 +1077,35 @@ next: MF-051 - Outline panel lists all headings with live scroll-sync and click-
   - The workspace still contains unrelated pre-existing dirty changes in theme/menu/shared files; this session did not normalize or revert them.
 - Next recommended feature:
   - `MF-075` - Copy writes rich clipboard formats, while Copy as Markdown and Copy as HTML Code expose source formats.
+
+## 2026-04-19 - MF-075 live verification closeout
+
+- Author: Codex
+- Focus: finish the remaining manual verification gate for `MF-075` and update the harness state truthfully.
+- What changed:
+  - Did not modify the editor or desktop implementation.
+  - Updated `harness/features/MF-075.md` with live packaged-Electron clipboard verification evidence.
+  - Updated `harness/feature-ledger.json` to promote `MF-075` to `status=verified`, `passes=true`, `lastVerifiedAt=2026-04-19T12:51:23Z`.
+  - Appended this session handoff to `harness/progress.md`.
+- Simplifications made:
+  - Reused a packaged-app CDP probe plus `clipboard info` introspection instead of adding a repo-side clipboard harness.
+  - Used TextEdit in rich-text and plain-text modes as the external clipboard consumers so the proof stayed on real macOS targets.
+- Verification:
+  - `pnpm harness:start`
+  - `./harness/init.sh --smoke`
+  - `pnpm --filter @markflow/editor exec vitest run src/__tests__/App.test.tsx`
+  - `pnpm --filter @markflow/desktop exec vitest run src/main/menu.test.ts`
+  - `pnpm --filter @markflow/editor build`
+  - `pnpm harness:verify`
+  - `pnpm desktop:pack`
+  - Live packaged Electron CDP probe on `/tmp/markflow-mf075-app/MarkFlow.app` under isolated `--user-data-dir=/tmp/mf075-profile-*` state:
+    - `Copy` wrote rendered plain text `Before bold link and code` and exposed `«class HTML»` on the system clipboard.
+    - Pasting `Copy` into a rich TextEdit document and copying it back yielded `«class RTF »`, confirming a real rich-text target consumed the payload.
+    - Pasting `Copy` into a plain-text TextEdit document preserved only utf8/plain-text data with value `Before bold link and code`.
+    - `Copy as Markdown` pasted `Before **bold** [link](https://example.com) and \`code\`` into the plain-text TextEdit target.
+    - `Copy as HTML Code` pasted `<p>Before <strong>bold</strong> <a href="https://example.com">link</a> and <code>code</code></p>` into the plain-text TextEdit target.
+- Remaining risks:
+  - The live manual proof used TextEdit for both the rich-text and plain-text targets; I did not cross-check a second rich-text consumer such as Notes or Mail in this session.
+  - The workspace still contains unrelated pre-existing dirty changes in theme/sidebar/shared files; this session did not normalize or revert them.
+- Next recommended feature:
+  - Re-run `pnpm harness:next` from the updated ledger and pick the new highest-priority `passes=false` feature after this closeout commit lands.
