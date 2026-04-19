@@ -29,8 +29,24 @@ function createLaunchOptions() {
 
 function createMenuTemplate(overrides: Partial<Parameters<typeof createApplicationMenuTemplate>[0]> = {}) {
   return createApplicationMenuTemplate({
+    appearanceMenu: {
+      activeAppearance: 'light',
+      appearancePreference: 'system',
+      darkThemeId: 'midnight',
+      lightThemeId: 'paper',
+      themes: [
+        { id: 'paper', name: 'Paper' },
+        { id: 'github', name: 'GitHub' },
+        { id: 'midnight', name: 'Midnight' },
+        { id: 'night', name: 'Night' },
+      ],
+      selectAppearancePreference: vi.fn(),
+      selectThemeForAppearance: vi.fn(),
+    },
     canRevealCurrentFile: () => true,
+    installCliTool: vi.fn(),
     isAlwaysOnTop: false,
+    isCliToolInstalled: () => false,
     launchOptions: createLaunchOptions(),
     openRecent: createOpenRecentOptions(),
     revealCurrentFileInFolder: vi.fn(() => true),
@@ -223,6 +239,28 @@ describe('createApplicationMenuTemplate', () => {
     distractionFreeItem?.click?.({} as never, {} as never, {} as never)
 
     expect(sendMenuAction).toHaveBeenCalledWith('toggle-distraction-free')
+  })
+
+  it('exposes native appearance controls in the View menu', () => {
+    const template = createMenuTemplate()
+
+    expect(getNestedMenuItem(template, 'View', 'Appearance', 'Follow System')).toEqual(
+      expect.objectContaining({
+        type: 'radio',
+      }),
+    )
+    expect(getNestedMenuItem(template, 'View', 'Appearance', 'Light')).toEqual(
+      expect.objectContaining({
+        type: 'radio',
+      }),
+    )
+    expect(getNestedMenuItem(template, 'View', 'Appearance', 'Dark')).toEqual(
+      expect.objectContaining({
+        type: 'radio',
+      }),
+    )
+    expect(getNestedMenuItem(template, 'View', 'Appearance', 'Light Theme')).toBeDefined()
+    expect(getNestedMenuItem(template, 'View', 'Appearance', 'Dark Theme')).toBeDefined()
   })
 
   it('uses platform-specific fullscreen accelerators and toggles the window directly', () => {

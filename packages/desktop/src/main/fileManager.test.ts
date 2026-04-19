@@ -8,6 +8,7 @@ const {
   handleMock,
   onMock,
   removeAllListenersMock,
+  removeListenerMock,
   removeHandlerMock,
   showOpenDialogMock,
   showSaveDialogMock,
@@ -28,6 +29,7 @@ const {
   handleMock: vi.fn(),
   onMock: vi.fn(),
   removeAllListenersMock: vi.fn(),
+  removeListenerMock: vi.fn(),
   removeHandlerMock: vi.fn(),
   showOpenDialogMock: vi.fn(),
   showSaveDialogMock: vi.fn(),
@@ -41,11 +43,21 @@ const {
   showItemInFolderMock: vi.fn(),
   nativeThemeOnMock: vi.fn(),
   nativeThemeRemoveListenerMock: vi.fn(),
-  browserWindowConstructorMock: vi.fn((_options: unknown) => {}),
-  browserWindowLoadFileMock: vi.fn(async (_filePath: string) => {}),
+  browserWindowConstructorMock: vi.fn((options: unknown) => {
+    void options
+  }),
+  browserWindowLoadFileMock: vi.fn(async (filePath: string) => {
+    void filePath
+  }),
   browserWindowDestroyMock: vi.fn(),
-  browserWindowExecuteJavaScriptMock: vi.fn(async (_script: string) => true),
-  browserWindowPrintToPdfMock: vi.fn(async (_options: unknown) => Buffer.from('pdf-data')),
+  browserWindowExecuteJavaScriptMock: vi.fn(async (script: string) => {
+    void script
+    return true
+  }),
+  browserWindowPrintToPdfMock: vi.fn(async (options: unknown) => {
+    void options
+    return Buffer.from('pdf-data')
+  }),
 }))
 
 vi.mock('child_process', () => ({
@@ -85,6 +97,7 @@ vi.mock('electron', () => ({
     handle: handleMock,
     on: onMock,
     removeAllListeners: removeAllListenersMock,
+    removeListener: removeListenerMock,
     removeHandler: removeHandlerMock,
   },
   nativeTheme: {
@@ -112,6 +125,7 @@ describe('FileManager async saves', () => {
     handleMock.mockReset()
     onMock.mockReset()
     removeAllListenersMock.mockReset()
+    removeListenerMock.mockReset()
     removeHandlerMock.mockReset()
     showOpenDialogMock.mockReset()
     showSaveDialogMock.mockReset()
@@ -233,6 +247,7 @@ describe('FileManager recent history', () => {
     handleMock.mockReset()
     onMock.mockReset()
     removeAllListenersMock.mockReset()
+    removeListenerMock.mockReset()
     removeHandlerMock.mockReset()
     showOpenDialogMock.mockReset()
     showSaveDialogMock.mockReset()
@@ -365,6 +380,7 @@ describe('FileManager window sessions', () => {
     handleMock.mockReset()
     onMock.mockReset()
     removeAllListenersMock.mockReset()
+    removeListenerMock.mockReset()
     removeHandlerMock.mockReset()
     showOpenDialogMock.mockReset()
     showSaveDialogMock.mockReset()
@@ -420,6 +436,7 @@ describe('FileManager launch options', () => {
     handleMock.mockReset()
     onMock.mockReset()
     removeAllListenersMock.mockReset()
+    removeListenerMock.mockReset()
     removeHandlerMock.mockReset()
     showOpenDialogMock.mockReset()
     showSaveDialogMock.mockReset()
@@ -534,6 +551,7 @@ describe('FileManager fold state sidecars', () => {
     handleMock.mockReset()
     onMock.mockReset()
     removeAllListenersMock.mockReset()
+    removeListenerMock.mockReset()
     removeHandlerMock.mockReset()
     showOpenDialogMock.mockReset()
     showSaveDialogMock.mockReset()
@@ -577,6 +595,7 @@ describe('FileManager Pandoc exports', () => {
     handleMock.mockReset()
     onMock.mockReset()
     removeAllListenersMock.mockReset()
+    removeListenerMock.mockReset()
     removeHandlerMock.mockReset()
     showSaveDialogMock.mockReset()
     showMessageBoxMock.mockReset()
@@ -719,6 +738,7 @@ describe('FileManager chunk loader', () => {
     handleMock.mockReset()
     onMock.mockReset()
     removeAllListenersMock.mockReset()
+    removeListenerMock.mockReset()
     removeHandlerMock.mockReset()
     showOpenDialogMock.mockReset()
     showSaveDialogMock.mockReset()
@@ -780,6 +800,7 @@ describe('FileManager large file windowing', () => {
     handleMock.mockReset()
     onMock.mockReset()
     removeAllListenersMock.mockReset()
+    removeListenerMock.mockReset()
     removeHandlerMock.mockReset()
     showOpenDialogMock.mockReset()
     showSaveDialogMock.mockReset()
@@ -857,6 +878,7 @@ describe('FileManager auto-save recovery checkpoints', () => {
     handleMock.mockReset()
     onMock.mockReset()
     removeAllListenersMock.mockReset()
+    removeListenerMock.mockReset()
     removeHandlerMock.mockReset()
     showOpenDialogMock.mockReset()
     showSaveDialogMock.mockReset()

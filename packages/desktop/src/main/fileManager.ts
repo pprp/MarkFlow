@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain, shell, type IpcMainEvent } from 'electron'
 import * as fs from 'fs'
 import { execFile } from 'child_process'
 import { promisify } from 'util'
@@ -108,6 +108,9 @@ export class FileManager {
   private pendingRecoveryDraft: MarkFlowRecoveryDraft | null = null
   private recoveryWriteTimer: NodeJS.Timeout | null = null
   private readonly largeFileIndexes = new Map<string, MarkFlowLargeFileIndex>()
+  private readonly handleScheduleRecoveryCheckpoint = (_event: IpcMainEvent, draft: MarkFlowRecoveryDraft) => {
+    this.scheduleRecoveryCheckpoint(draft)
+  }
   private readonly options: FileManagerOptions
   private readonly launchOptionsPath = path.join(app.getPath('userData'), LAUNCH_OPTIONS_FILE_NAME)
   private readonly recoveryCheckpointPath = path.join(app.getPath('temp'), RECOVERY_CHECKPOINT_FILE_NAME)
@@ -158,7 +161,7 @@ export class FileManager {
     ipcMain.removeHandler('export-docx')
     ipcMain.removeHandler('export-epub')
     ipcMain.removeHandler('export-latex')
-    ipcMain.removeAllListeners('schedule-recovery-checkpoint')
+    ipcMain.removeListener('schedule-recovery-checkpoint', this.handleScheduleRecoveryCheckpoint)
 
     ipcMain.handle('open-file', () => this.openFile())
     ipcMain.handle('open-path', (_event, filePath: string) => this.openExistingPath(filePath))
@@ -186,9 +189,7 @@ export class FileManager {
     ipcMain.handle('confirm-close-tab', async (_event, documentName: string) =>
       this.confirmTabClose(documentName),
     )
-    ipcMain.on('schedule-recovery-checkpoint', (_event, draft: MarkFlowRecoveryDraft) => {
-      this.scheduleRecoveryCheckpoint(draft)
-    })
+    ipcMain.on('schedule-recovery-checkpoint', this.handleScheduleRecoveryCheckpoint)
     ipcMain.handle('get-recovery-checkpoint', () => this.getRecoveryCheckpoint())
     ipcMain.handle('discard-recovery-checkpoint', async () => {
       await this.discardRecoveryCheckpoint()

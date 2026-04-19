@@ -6,7 +6,6 @@ import type {
   MarkFlowMenuActionPayload,
   MarkFlowRecoveryCheckpoint,
   MarkFlowThemeState,
-  MarkFlowThemeSummary,
   MarkFlowWindowState,
 } from '@markflow/shared'
 import { createEmptySymbolTable } from '../editor/indexer'
@@ -54,7 +53,6 @@ type UseDesktopBridgeOptions = {
   setOutlineCollapsed: Dispatch<SetStateAction<boolean>>
   setShowMinimap: Dispatch<SetStateAction<boolean>>
   setShowSidebar: Dispatch<SetStateAction<boolean>>
-  setThemes: Dispatch<SetStateAction<MarkFlowThemeSummary[]>>
   setVaultFiles: Dispatch<SetStateAction<string[]>>
   setVaultPath: Dispatch<SetStateAction<string | null>>
   setWindowState: Dispatch<SetStateAction<MarkFlowWindowState>>
@@ -94,7 +92,6 @@ export function useDesktopBridge({
   setOutlineCollapsed,
   setShowMinimap,
   setShowSidebar,
-  setThemes,
   setVaultFiles,
   setVaultPath,
   setWindowState,
@@ -464,7 +461,6 @@ export function useDesktopBridge({
     void api.getWindowState().then((nextWindowState) => {
       setWindowState(nextWindowState)
     })
-    void api.getThemes().then(setThemes)
     void api.getThemeState().then((nextThemeState) => {
       applyThemeState(nextThemeState)
     })
@@ -506,7 +502,6 @@ export function useDesktopBridge({
     setOutlineCollapsed,
     setShowMinimap,
     setShowSidebar,
-    setThemes,
     setVaultFiles,
     setVaultPath,
     setWindowState,

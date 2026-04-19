@@ -10,6 +10,8 @@ files:
 extraResources:
   - from: ../editor/dist
     to: editor
+  - from: build/cli
+    to: cli
 extraMetadata:
   main: dist/main/index.js
 fileAssociations:

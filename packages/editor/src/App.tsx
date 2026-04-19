@@ -44,8 +44,6 @@ import { areCollapsedRangesEqual } from './editor/foldingState'
 import { createExternalLinkBadgePlugin } from './plugins/externalLinkBadgePlugin'
 import {
   MarkFlowPluginHost,
-  type MarkFlowAppearance,
-  type MarkFlowAppearancePreference,
   type MarkFlowDesktopAPI,
   type MarkFlowQuickOpenItem,
   type MarkFlowFileLoadProgressPayload,
@@ -54,7 +52,6 @@ import {
   type MarkFlowSpellCheckState,
   type MarkFlowTabCloseAction,
   type MarkFlowThemeState,
-  type MarkFlowThemeSummary,
   type ViewMode,
   type MarkFlowWindowState,
 } from '@markflow/shared'
@@ -100,10 +97,6 @@ function formatLoadingBytes(bytes: number) {
     return `${Math.round(bytes / 1024)} KB`
   }
   return `${bytes} B`
-}
-
-function formatAppearanceLabel(appearance: MarkFlowAppearance) {
-  return appearance === 'dark' ? 'Dark' : 'Light'
 }
 
 type AppToast = {
@@ -236,8 +229,6 @@ export function App() {
     openQuickOpen,
     toggleGlobalSearch,
   } = useSearchDialogs()
-  const [themes, setThemes] = useState<MarkFlowThemeSummary[]>([])
-  const [themeState, setThemeState] = useState<MarkFlowThemeState | null>(null)
   const [toasts, setToasts] = useState<AppToast[]>([])
   const [outlineCollapsed, setOutlineCollapsed] = useState(false)
   const [isExporting, setIsExporting] = useState(false)
@@ -552,7 +543,6 @@ export function App() {
     }
 
     style.textContent = nextThemeState?.activeTheme?.cssText ?? ''
-    setThemeState(nextThemeState)
   }, [])
 
   const toggleViewMode = useCallback(() => {
@@ -649,7 +639,6 @@ export function App() {
     setOutlineCollapsed,
     setShowMinimap,
     setShowSidebar,
-    setThemes,
     setVaultFiles,
     setVaultPath,
     setWindowState,
@@ -1387,30 +1376,6 @@ export function App() {
     await api.writeClipboard({ text: serializedSelection.html })
   }
 
-  async function handleThemeChange(appearance: MarkFlowAppearance, event: ChangeEvent<HTMLSelectElement>) {
-    const api = window.markflow
-    const nextThemeState = await api?.setThemeForAppearance(appearance, event.target.value)
-    if (!nextThemeState) {
-      return
-    }
-
-    applyThemeState(nextThemeState)
-
-    if (nextThemeState.activeAppearance !== appearance) {
-      const activatedThemeState = await api?.setThemeAppearancePreference(appearance)
-      if (activatedThemeState) {
-        applyThemeState(activatedThemeState)
-      }
-    }
-  }
-
-  async function handleThemeAppearancePreferenceChange(preference: MarkFlowAppearancePreference) {
-    const nextThemeState = await window.markflow?.setThemeAppearancePreference(preference)
-    if (nextThemeState) {
-      applyThemeState(nextThemeState)
-    }
-  }
-
   async function handleSpellCheckLanguageChange(event: ChangeEvent<HTMLSelectElement>) {
     const nextLanguage = event.target.value || null
     const api = window.markflow
@@ -1498,9 +1463,6 @@ export function App() {
     typewriterMode,
     viewMode,
   })
-
-  const activeAppearance = themeState?.activeAppearance ?? 'light'
-  const appearancePreference = themeState?.appearancePreference ?? 'system'
 
   const outlineHeadings = activeTab?.largeFile ? [] : activeTab?.symbolTable.headings ?? []
 
@@ -1658,78 +1620,6 @@ export function App() {
           </span>
         </div>
         <div className="mf-titlebar-right">
-          {themes.length > 0 && themeState ? (
-            <div className="mf-theme-controls" aria-label="Theme preferences">
-              <button
-                type="button"
-                className={`mf-theme-appearance-pill${appearancePreference === 'system' ? '' : ' mf-theme-appearance-pill-clickable'}`}
-                aria-live="polite"
-                disabled={appearancePreference === 'system'}
-                onClick={() => void handleThemeAppearancePreferenceChange('system')}
-                title={
-                  appearancePreference === 'system'
-                    ? `Following system ${formatAppearanceLabel(activeAppearance).toLowerCase()} appearance`
-                    : 'Return to system appearance'
-                }
-              >
-                {appearancePreference === 'system'
-                  ? `${formatAppearanceLabel(activeAppearance)} mode`
-                  : `${formatAppearanceLabel(activeAppearance)} locked`}
-              </button>
-              <div
-                className={`mf-theme-select-group${activeAppearance === 'light' ? ' mf-theme-select-group-active' : ''}`}
-                data-appearance="light"
-              >
-                <button
-                  type="button"
-                  className="mf-theme-select-label-button"
-                  onClick={() => void handleThemeAppearancePreferenceChange('light')}
-                  aria-pressed={activeAppearance === 'light'}
-                  title="Activate light appearance"
-                >
-                  Light
-                </button>
-                <select
-                  className="mf-theme-select"
-                  value={themeState.lightThemeId}
-                  onChange={(event) => void handleThemeChange('light', event)}
-                  aria-label="Light theme"
-                >
-                  {themes.map((theme) => (
-                    <option key={theme.id} value={theme.id}>
-                      {theme.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div
-                className={`mf-theme-select-group${activeAppearance === 'dark' ? ' mf-theme-select-group-active' : ''}`}
-                data-appearance="dark"
-              >
-                <button
-                  type="button"
-                  className="mf-theme-select-label-button"
-                  onClick={() => void handleThemeAppearancePreferenceChange('dark')}
-                  aria-pressed={activeAppearance === 'dark'}
-                  title="Activate dark appearance"
-                >
-                  Dark
-                </button>
-                <select
-                  className="mf-theme-select"
-                  value={themeState.darkThemeId}
-                  onChange={(event) => void handleThemeChange('dark', event)}
-                  aria-label="Dark theme"
-                >
-                  {themes.map((theme) => (
-                    <option key={theme.id} value={theme.id}>
-                      {theme.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-          ) : null}
           <button
             className={`mf-mode-toggle${typewriterMode ? ' mf-mode-active' : ''}`}
             onClick={toggleTypewriterMode}

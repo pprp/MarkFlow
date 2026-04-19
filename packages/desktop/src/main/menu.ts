@@ -1,6 +1,13 @@
 import * as path from 'path'
 import type { MenuItemConstructorOptions } from 'electron'
-import type { MarkFlowLaunchBehavior, MarkFlowMenuAction, MarkFlowRecentPathKind } from '@markflow/shared'
+import type {
+  MarkFlowAppearance,
+  MarkFlowAppearancePreference,
+  MarkFlowLaunchBehavior,
+  MarkFlowMenuAction,
+  MarkFlowRecentPathKind,
+  MarkFlowThemeSummary,
+} from '@markflow/shared'
 
 export interface OpenRecentMenuEntry {
   description: string
@@ -30,9 +37,22 @@ export interface LaunchOptionsMenuOptions {
   selectBehavior: (behavior: MarkFlowLaunchBehavior) => void
 }
 
+export interface AppearanceMenuOptions {
+  activeAppearance: MarkFlowAppearance
+  appearancePreference: MarkFlowAppearancePreference
+  darkThemeId: string
+  lightThemeId: string
+  themes: MarkFlowThemeSummary[]
+  selectAppearancePreference: (preference: MarkFlowAppearancePreference) => void
+  selectThemeForAppearance: (appearance: MarkFlowAppearance, themeId: string) => void
+}
+
 interface ApplicationMenuOptions {
+  appearanceMenu: AppearanceMenuOptions | null
   canRevealCurrentFile: () => boolean
+  installCliTool: () => void
   isAlwaysOnTop: boolean
+  isCliToolInstalled: () => boolean
   launchOptions: LaunchOptionsMenuOptions
   openRecent: OpenRecentMenuOptions
   revealCurrentFileInFolder: () => boolean
@@ -170,9 +190,71 @@ function buildLaunchOptionsSubmenu(launchOptions: LaunchOptionsMenuOptions): Men
   ]
 }
 
+function buildThemeSelectionSubmenu(
+  label: string,
+  appearance: MarkFlowAppearance,
+  selectedThemeId: string,
+  themes: MarkFlowThemeSummary[],
+  onSelect: (appearance: MarkFlowAppearance, themeId: string) => void,
+): MenuItemConstructorOptions {
+  return {
+    label,
+    submenu:
+      themes.length > 0
+        ? themes.map((theme) => ({
+            label: theme.name,
+            type: 'radio',
+            checked: theme.id === selectedThemeId,
+            click: () => onSelect(appearance, theme.id),
+          }))
+        : [{ label: 'No Themes Available', enabled: false }],
+  }
+}
+
+function buildAppearanceSubmenu(appearanceMenu: AppearanceMenuOptions): MenuItemConstructorOptions[] {
+  return [
+    {
+      label: 'Follow System',
+      type: 'radio',
+      checked: appearanceMenu.appearancePreference === 'system',
+      click: () => appearanceMenu.selectAppearancePreference('system'),
+    },
+    {
+      label: 'Light',
+      type: 'radio',
+      checked: appearanceMenu.appearancePreference === 'light',
+      click: () => appearanceMenu.selectAppearancePreference('light'),
+    },
+    {
+      label: 'Dark',
+      type: 'radio',
+      checked: appearanceMenu.appearancePreference === 'dark',
+      click: () => appearanceMenu.selectAppearancePreference('dark'),
+    },
+    { type: 'separator' },
+    buildThemeSelectionSubmenu(
+      'Light Theme',
+      'light',
+      appearanceMenu.lightThemeId,
+      appearanceMenu.themes,
+      appearanceMenu.selectThemeForAppearance,
+    ),
+    buildThemeSelectionSubmenu(
+      'Dark Theme',
+      'dark',
+      appearanceMenu.darkThemeId,
+      appearanceMenu.themes,
+      appearanceMenu.selectThemeForAppearance,
+    ),
+  ]
+}
+
 export function createApplicationMenuTemplate({
+  appearanceMenu,
   canRevealCurrentFile,
+  installCliTool,
   isAlwaysOnTop,
+  isCliToolInstalled,
   launchOptions,
   openRecent,
   revealCurrentFileInFolder,
@@ -292,6 +374,10 @@ export function createApplicationMenuTemplate({
           click: () => sendMenuAction('quick-open'),
         },
         { type: 'separator' },
+        ...(appearanceMenu
+          ? [{ label: 'Appearance', submenu: buildAppearanceSubmenu(appearanceMenu) } satisfies MenuItemConstructorOptions]
+          : []),
+        ...(appearanceMenu ? [{ type: 'separator' } satisfies MenuItemConstructorOptions] : []),
         { label: 'Toggle Sidebar', accelerator: 'Alt+CmdOrCtrl+S', click: () => sendMenuAction('toggle-sidebar') },
         { label: 'Toggle Outline', click: () => sendMenuAction('toggle-outline') },
         { label: 'Toggle Minimap', click: () => sendMenuAction('toggle-minimap') },
@@ -334,6 +420,20 @@ export function createApplicationMenuTemplate({
 
   if (isMac) {
     template.push({ role: 'windowMenu' })
+  }
+
+  if (isMac) {
+    template.push({
+      label: 'Help',
+      submenu: [
+        {
+          label: isCliToolInstalled()
+            ? "Reinstall 'markflow' Command in PATH"
+            : "Install 'markflow' Command in PATH",
+          click: () => installCliTool(),
+        },
+      ],
+    })
   }
 
   template.push({

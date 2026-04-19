@@ -1,6 +1,5 @@
 import { app, BrowserWindow, ipcMain, shell, Menu } from 'electron'
 import * as path from 'path'
-import * as fs from 'fs'
 import { FileManager } from './fileManager'
 import type { MarkFlowMenuAction, MarkFlowMenuActionPayload, MarkFlowWindowState } from '@markflow/shared'
 import { createWindowOpenHandler, handleWillNavigate } from './externalLinks'
@@ -9,6 +8,8 @@ import { SpellCheckManager } from './spellCheckManager'
 import { ImageUploadManager } from './imageUploadManager'
 import { createApplicationMenuTemplate } from './menu'
 import { WindowStateManager } from './windowStateManager'
+import { installCliTool, isCliToolInstalled } from './cliInstaller'
+import { parseLaunchTargetsFromArgv, type LaunchTarget } from './launchTargets'
 
 const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged
 const PRIMARY_WINDOW_STATE_ID = 'primary'
@@ -19,7 +20,7 @@ let themeManager: ThemeManager | null = null
 let spellCheckManager: SpellCheckManager | null = null
 let imageUploadManager: ImageUploadManager | null = null
 let windowStateManager: WindowStateManager | null = null
-let pendingOpenFilePath: string | null = null
+let pendingLaunchTargets: LaunchTarget[] = []
 
 function sendMenuAction(action: MarkFlowMenuAction, payload: Omit<MarkFlowMenuActionPayload, 'action'> = {}) {
   mainWindow?.webContents.send('menu-action', { action, ...payload })
@@ -52,15 +53,51 @@ async function toggleAlwaysOnTop() {
   await windowStateManager.toggleAlwaysOnTop()
 }
 
-function queueFileOpen(filePath: string) {
-  pendingOpenFilePath = filePath
-  if (fileManager) {
-    fileManager.setStartupOverrideFilePath(filePath)
+async function openPendingTarget(target: LaunchTarget) {
+  if (target.kind === 'file') {
+    await fileManager.openExistingPath(target.path)
+    return
   }
+
+  const openedFolder = await fileManager.openExistingFolderPath(target.path)
+  if (openedFolder) {
+    sendMenuAction('open-recent-folder', { path: openedFolder.folderPath })
+  }
+}
+
+async function flushPendingLaunchTargets() {
+  if (!mainWindow || mainWindow.webContents.isLoading() || pendingLaunchTargets.length === 0) {
+    return
+  }
+
+  const targets = [...pendingLaunchTargets]
+  pendingLaunchTargets = []
+
+  for (const target of targets) {
+    await openPendingTarget(target)
+  }
+}
+
+function queueLaunchTarget(target: LaunchTarget) {
+  const isDuplicate = pendingLaunchTargets.some(
+    (pendingTarget) => pendingTarget.kind === target.kind && pendingTarget.path === target.path,
+  )
+  if (!isDuplicate) {
+    pendingLaunchTargets.push(target)
+  }
+
   if (mainWindow && !mainWindow.webContents.isLoading()) {
-    void fileManager.openExistingPath(filePath)
-    pendingOpenFilePath = null
+    void flushPendingLaunchTargets()
   }
+}
+
+function queueLaunchPath(candidatePath: string) {
+  const targets = parseLaunchTargetsFromArgv([candidatePath])
+  if (!targets[0]) {
+    return
+  }
+
+  queueLaunchTarget(targets[0])
 }
 
 function createWindow() {
@@ -82,13 +119,13 @@ function createWindow() {
   })
 
   fileManager = new FileManager(mainWindow, () => buildMenu())
-  fileManager.setStartupOverrideFilePath(pendingOpenFilePath)
-  pendingOpenFilePath = null
   fileManager.registerIpcHandlers()
   fileManager.markSessionStarted()
   themeManager = new ThemeManager(mainWindow, app.getPath('userData'))
   themeManager.registerIpcHandlers()
-  void themeManager.initialize()
+  void themeManager.initialize().then(() => {
+    buildMenu()
+  })
   spellCheckManager = new SpellCheckManager(mainWindow, app.getPath('userData'))
   spellCheckManager.registerIpcHandlers()
   void spellCheckManager.initialize()
@@ -133,15 +170,38 @@ function createWindow() {
 
   mainWindow.webContents.once('did-finish-load', () => {
     sendWindowState()
+    void flushPendingLaunchTargets()
   })
 }
 
 function buildMenu() {
   const openRecent = fileManager?.getOpenRecentMenuState()
   const launchOptions = fileManager?.getLaunchOptionsMenuState()
+  const nextThemeState = themeManager?.getThemeState() ?? null
+  const nextThemes = themeManager?.getThemes() ?? []
   Menu.setApplicationMenu(
     Menu.buildFromTemplate(
       createApplicationMenuTemplate({
+        appearanceMenu:
+          nextThemeState
+            ? {
+                activeAppearance: nextThemeState.activeAppearance,
+                appearancePreference: nextThemeState.appearancePreference,
+                darkThemeId: nextThemeState.darkThemeId,
+                lightThemeId: nextThemeState.lightThemeId,
+                themes: nextThemes,
+                selectAppearancePreference: (preference) => {
+                  void themeManager?.setThemeAppearancePreference(preference).then(() => {
+                    buildMenu()
+                  })
+                },
+                selectThemeForAppearance: (appearance, themeId) => {
+                  void themeManager?.setThemeForAppearance(appearance, themeId).then(() => {
+                    buildMenu()
+                  })
+                },
+              }
+            : null,
         canRevealCurrentFile: () => fileManager?.canRevealCurrentFile() ?? false,
         launchOptions: launchOptions ?? {
           behavior: 'open-new-file',
@@ -164,6 +224,8 @@ function buildMenu() {
         },
         revealCurrentFileInFolder: () => fileManager?.revealCurrentFileInFolder() ?? false,
         sendMenuAction: (action) => sendMenuAction(action),
+        installCliTool: () => { void installCliTool() },
+        isCliToolInstalled,
         isAlwaysOnTop: windowStateManager?.isAlwaysOnTop() ?? false,
         toggleAlwaysOnTop: () => {
           void toggleAlwaysOnTop()
@@ -176,9 +238,8 @@ function buildMenu() {
 
 ipcMain.handle('get-window-state', () => getWindowState())
 
-const cliFile = process.argv.find((arg) => arg.endsWith('.md'))
-if (cliFile && fs.existsSync(cliFile)) {
-  queueFileOpen(cliFile)
+for (const target of parseLaunchTargetsFromArgv(isDev ? process.argv.slice(2) : process.argv.slice(1))) {
+  queueLaunchTarget(target)
 }
 
 app.whenReady().then(createWindow)
@@ -198,7 +259,7 @@ app.on('activate', () => {
 // Handle file open from macOS Finder
 app.on('open-file', (event, filePath) => {
   event.preventDefault()
-  queueFileOpen(filePath)
+  queueLaunchPath(filePath)
 
   if (app.isReady() && !mainWindow) {
     createWindow()

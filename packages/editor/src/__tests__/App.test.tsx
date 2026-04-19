@@ -1330,68 +1330,28 @@ describe('App desktop integration', () => {
     })
   })
 
-  it('activates the selected appearance from the titlebar theme controls and can return to system mode', async () => {
+  it('keeps theme controls out of the titlebar while still applying desktop theme updates', async () => {
     const api = new MockMarkFlowAPI()
     window.markflow = api
 
     render(<App />)
 
-    const lightSelect = (await screen.findByLabelText('Light theme')) as HTMLSelectElement
-    const darkSelect = (await screen.findByLabelText('Dark theme')) as HTMLSelectElement
+    await waitFor(() => {
+      expect(document.getElementById('mf-theme-overrides')).toHaveTextContent('--mf-accent: #9c5f2f')
+    })
 
-    expect(screen.getByText('Light mode')).toBeInTheDocument()
-    expect(lightSelect.value).toBe('paper')
-    expect(darkSelect.value).toBe('midnight')
+    expect(screen.queryByLabelText('Light theme')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Dark theme')).not.toBeInTheDocument()
+    expect(screen.queryByText('Light mode')).not.toBeInTheDocument()
+    expect(screen.queryByText('Dark mode')).not.toBeInTheDocument()
     expect(document.getElementById('mf-theme-overrides')).toHaveTextContent('--mf-accent: #9c5f2f')
-
-    fireEvent.change(lightSelect, { target: { value: 'github' } })
-
-    await waitFor(() => {
-      expect(api.setThemeForAppearance).toHaveBeenCalledWith('light', 'github')
-    })
-
-    await waitFor(() => {
-      expect(document.getElementById('mf-theme-overrides')).toHaveTextContent('--mf-accent: #0366d6')
-      expect(lightSelect.value).toBe('github')
-      expect(darkSelect.value).toBe('midnight')
-    })
-
-    fireEvent.change(darkSelect, { target: { value: 'night' } })
-
-    await waitFor(() => {
-      expect(api.setThemeForAppearance).toHaveBeenCalledWith('dark', 'night')
-      expect(api.setThemeAppearancePreference).toHaveBeenCalledWith('dark')
-      expect(darkSelect.value).toBe('night')
-      expect(screen.getByText('Dark locked')).toBeInTheDocument()
-      expect(document.getElementById('mf-theme-overrides')).toHaveTextContent('--mf-bg: #1d1f21')
-    })
-
-    fireEvent.click(screen.getByRole('button', { name: 'Light' }))
-
-    await waitFor(() => {
-      expect(api.setThemeAppearancePreference).toHaveBeenCalledWith('light')
-      expect(screen.getByText('Light locked')).toBeInTheDocument()
-      expect(document.getElementById('mf-theme-overrides')).toHaveTextContent('--mf-accent: #0366d6')
-      expect(lightSelect.value).toBe('github')
-      expect(darkSelect.value).toBe('night')
-    })
-
-    fireEvent.click(screen.getByRole('button', { name: 'Light locked' }))
-
-    await waitFor(() => {
-      expect(api.setThemeAppearancePreference).toHaveBeenCalledWith('system')
-      expect(screen.getByText('Light mode')).toBeInTheDocument()
-    })
 
     act(() => {
       api.setSystemAppearance('dark')
     })
 
     await waitFor(() => {
-      expect(screen.getByText('Dark mode')).toBeInTheDocument()
-      expect(document.getElementById('mf-theme-overrides')).toHaveTextContent('--mf-bg: #1d1f21')
-      expect(lightSelect.value).toBe('github')
-      expect(darkSelect.value).toBe('night')
+      expect(document.getElementById('mf-theme-overrides')).toHaveTextContent('--mf-bg: #111827')
     })
   })
 
@@ -2676,7 +2636,7 @@ describe('App command palette integration', () => {
     window.markflow = api
 
     render(<App />)
-    await screen.findByLabelText('Light theme')
+    await screen.findByLabelText('Typewriter mode')
 
     const event = new KeyboardEvent('keydown', {
       key: 'f',
