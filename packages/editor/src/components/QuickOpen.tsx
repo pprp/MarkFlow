@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react'
 import type { MarkFlowQuickOpenItem } from '@markflow/shared'
+import { OverlayScreen } from './OverlayScreen'
 import './QuickOpen.css'
 
 interface QuickOpenProps {
@@ -74,7 +75,35 @@ export const QuickOpen: React.FC<QuickOpenProps> = ({ isOpen, items, onClose, on
   }
 
   return (
-    <div className="mf-quick-open-overlay" onKeyDown={handleKeyDown}>
+    <OverlayScreen
+      title="Open quickly"
+      eyebrow="Workspace"
+      description="Jump between nearby and recent documents."
+      cardClassName="mf-quick-open-card"
+      bodyClassName="mf-quick-open-body"
+      footer={
+        <>
+          <span className="mf-overlay-screen-hint">
+            <span className="mf-overlay-screen-kbd">↑↓</span>
+            <span>move</span>
+          </span>
+          <span className="mf-overlay-screen-hint">
+            <span className="mf-overlay-screen-kbd">↵</span>
+            <span>open</span>
+          </span>
+          <span className="mf-overlay-screen-hint">
+            <span className="mf-overlay-screen-kbd">Esc</span>
+            <span>close</span>
+          </span>
+        </>
+      }
+      onKeyDown={handleKeyDown}
+      onBackdropMouseDown={(event) => {
+        if (event.target === event.currentTarget) {
+          onClose()
+        }
+      }}
+    >
       <div className="mf-quick-open-input-container">
         <input
           ref={inputRef}
@@ -113,6 +142,6 @@ export const QuickOpen: React.FC<QuickOpenProps> = ({ isOpen, items, onClose, on
           ))
         )}
       </ul>
-    </div>
+    </OverlayScreen>
   )
 }

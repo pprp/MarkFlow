@@ -89,6 +89,10 @@ function getOpenTabs() {
   return screen.getAllByRole('tab')
 }
 
+function expectActiveDocumentName(name: string | RegExp) {
+  return screen.getByText(name, { selector: '.mf-titlebar-document-name' })
+}
+
 function buildWindowedPayload(
   filePath: string,
   windowStartLine: number,
@@ -509,7 +513,8 @@ describe('App desktop integration', () => {
       expect(getEditorView(container).state.doc.toString()).toBe('# Session restore')
     })
 
-    expect(screen.getByRole('tab', { name: 'session.md' })).toBeInTheDocument()
+    expect(expectActiveDocumentName('session.md')).toBeInTheDocument()
+    expect(container.querySelector('.mf-tabstrip')).not.toBeInTheDocument()
   })
 
   it('opens the startup folder returned by the desktop bridge on mount', async () => {
@@ -556,7 +561,8 @@ describe('App desktop integration', () => {
 
     const view = getEditorView(container)
     expect(view.state.doc.toString()).toBe('# Notes')
-    expect(screen.getByRole('tab', { name: 'notes.md' })).toBeInTheDocument()
+    expect(expectActiveDocumentName('notes.md')).toBeInTheDocument()
+    expect(container.querySelector('.mf-tabstrip')).not.toBeInTheDocument()
 
     act(() => {
       view.dispatch({
@@ -564,7 +570,7 @@ describe('App desktop integration', () => {
       })
     })
 
-    expect(screen.getByRole('tab', { name: 'notes.md' })).toBeInTheDocument()
+    expect(expectActiveDocumentName('notes.md')).toBeInTheDocument()
     expect(container.querySelector('.mf-titlebar-dirty-dot')).toBeInTheDocument()
 
     await act(async () => {
@@ -579,7 +585,7 @@ describe('App desktop integration', () => {
       api.emitFileSaved({ filePath: '/tmp/notes.md' })
     })
 
-    expect(screen.getByRole('tab', { name: 'notes.md' })).toBeInTheDocument()
+    expect(expectActiveDocumentName('notes.md')).toBeInTheDocument()
   })
 
   it('saves the latest large-document editor content before deferred sync flushes', async () => {
@@ -740,7 +746,8 @@ describe('App desktop integration', () => {
 
     await waitFor(() => {
       const reopenedView = getEditorView(container)
-      expect(screen.getByRole('tab', { name: 'reopen.md' })).toHaveAttribute('aria-selected', 'true')
+      expect(expectActiveDocumentName('reopen.md')).toBeInTheDocument()
+      expect(container.querySelector('.mf-tabstrip')).toBeInTheDocument()
       expect(reopenedView.state.doc.toString()).toBe('# Reopen\nSaved line')
       expect(
         reopenedView.state.sliceDoc(reopenedView.state.selection.main.from, reopenedView.state.selection.main.to),
@@ -772,21 +779,21 @@ describe('App desktop integration', () => {
 
     api.setConfirmTabCloseAction('cancel')
     await act(async () => {
-      fireEvent.click(screen.getByLabelText('Close cancel.md'))
+      api.emitMenuAction('close-tab')
     })
 
     expect(api.confirmTabClose).toHaveBeenCalledWith('cancel.md')
-    expect(screen.getByRole('tab', { name: 'cancel.md' })).toBeInTheDocument()
+    expect(expectActiveDocumentName('cancel.md')).toBeInTheDocument()
     expect(api.saveFile).not.toHaveBeenCalled()
 
     api.setConfirmTabCloseAction('save')
     await act(async () => {
-      fireEvent.click(screen.getByLabelText('Close cancel.md'))
+      api.emitMenuAction('close-tab')
     })
 
     await waitFor(() => {
       expect(api.saveFile).toHaveBeenCalledWith('# Cancel\nDirty', expect.any(String))
-      expect(screen.queryByRole('tab', { name: 'cancel.md' })).not.toBeInTheDocument()
+      expect(expectActiveDocumentName(/Starter Document|Untitled/)).toBeInTheDocument()
     })
 
     await act(async () => {
@@ -800,11 +807,11 @@ describe('App desktop integration', () => {
 
     api.setConfirmTabCloseAction('discard')
     await act(async () => {
-      fireEvent.click(screen.getByLabelText('Close discard.md'))
+      api.emitMenuAction('close-tab')
     })
 
     await waitFor(() => {
-      expect(screen.queryByRole('tab', { name: 'discard.md' })).not.toBeInTheDocument()
+      expect(expectActiveDocumentName(/Starter Document|Untitled/)).toBeInTheDocument()
     })
 
     expect(api.saveFile).toHaveBeenCalledTimes(1)
@@ -852,7 +859,8 @@ describe('App desktop integration', () => {
 
     const { container } = render(<App />)
 
-    expect(screen.getByRole('tab', { name: 'Starter Document' })).toBeInTheDocument()
+    expect(expectActiveDocumentName('Starter Document')).toBeInTheDocument()
+    expect(container.querySelector('.mf-tabstrip')).not.toBeInTheDocument()
 
     await act(async () => {
       api.emitFileOpened({ filePath: '/tmp/draft.md', content: 'Draft' })
@@ -865,7 +873,8 @@ describe('App desktop integration', () => {
       })
     })
 
-    expect(screen.getByRole('tab', { name: 'draft.md' })).toBeInTheDocument()
+    expect(expectActiveDocumentName('draft.md')).toBeInTheDocument()
+    expect(container.querySelector('.mf-tabstrip')).not.toBeInTheDocument()
     expect(container.querySelector('.mf-titlebar-dirty-dot')).toBeInTheDocument()
 
     await act(async () => {
@@ -882,7 +891,8 @@ describe('App desktop integration', () => {
       api.emitFileOpened({ filePath: null, content: '' })
     })
 
-    expect(screen.getByRole('tab', { name: /Untitled/ })).toBeInTheDocument()
+    expect(expectActiveDocumentName(/Untitled/)).toBeInTheDocument()
+    expect(container.querySelector('.mf-tabstrip')).toBeInTheDocument()
     expect(getEditorView(container).state.doc.toString()).toBe('')
     expect(container.querySelector('.mf-titlebar-dirty-dot')).not.toBeInTheDocument()
   })
@@ -1945,7 +1955,7 @@ describe('App desktop integration', () => {
     await screen.findByRole('button', { name: 'Document minimap' })
 
     expect(container.querySelector('.mf-titlebar')).toBeInTheDocument()
-    expect(container.querySelector('.mf-tabstrip')).toBeInTheDocument()
+    expect(container.querySelector('.mf-tabstrip')).not.toBeInTheDocument()
     expect(container.querySelector('.mf-statusbar')).toBeInTheDocument()
     expect(container.querySelector('.mf-sidebar')).toBeInTheDocument()
     expect(screen.getByRole('navigation', { name: 'Outline' })).toBeInTheDocument()
@@ -1974,7 +1984,7 @@ describe('App desktop integration', () => {
       expect(appRoot).not.toHaveClass('mf-app-immersive')
       expect(appRoot).not.toHaveClass('mf-app-distraction-free')
       expect(container.querySelector('.mf-titlebar')).toBeInTheDocument()
-      expect(container.querySelector('.mf-tabstrip')).toBeInTheDocument()
+      expect(container.querySelector('.mf-tabstrip')).not.toBeInTheDocument()
       expect(container.querySelector('.mf-statusbar')).toBeInTheDocument()
       expect(container.querySelector('.mf-sidebar')).toBeInTheDocument()
       expect(screen.getByRole('navigation', { name: 'Outline' })).toBeInTheDocument()
@@ -2032,7 +2042,7 @@ describe('App desktop integration', () => {
       expect(appRoot).not.toHaveClass('mf-app-immersive')
       expect(appRoot).not.toHaveClass('mf-app-fullscreen')
       expect(container.querySelector('.mf-titlebar')).toBeInTheDocument()
-      expect(container.querySelector('.mf-tabstrip')).toBeInTheDocument()
+      expect(container.querySelector('.mf-tabstrip')).not.toBeInTheDocument()
       expect(container.querySelector('.mf-statusbar')).toBeInTheDocument()
       expect(container.querySelector('.mf-sidebar')).not.toBeInTheDocument()
       expect(screen.getByRole('button', { name: 'Document minimap' })).toBeInTheDocument()
@@ -2372,7 +2382,8 @@ describe('App auto-save', () => {
       expect(getEditorView(container).state.doc.toString()).toBe('# Recovered\n\ncheckpoint')
     })
 
-    expect(screen.getByRole('tab', { name: 'recovered.md' })).toBeInTheDocument()
+    expect(expectActiveDocumentName('recovered.md')).toBeInTheDocument()
+    expect(container.querySelector('.mf-tabstrip')).toBeInTheDocument()
     expect(container.querySelector('.mf-titlebar-dirty-dot')).toBeInTheDocument()
     expect(api.discardRecoveryCheckpoint).not.toHaveBeenCalled()
 
@@ -2461,6 +2472,59 @@ describe('App auto-save', () => {
 describe('App Quick Open integration', () => {
   afterEach(() => {
     delete window.markflow
+  })
+
+  it('renders the bundle sidebar with recent and outline sections when the left rail is open', async () => {
+    const api = new MockMarkFlowAPI()
+    api.setStartupState({
+      document: null,
+      folderPath: '/docs',
+      windowSession: null,
+    })
+    api.getVaultFiles = vi.fn(async () => ['/docs/alpha.md'])
+    api.getQuickOpenList = vi.fn(async () => [
+      {
+        id: 'file:/recent/cherry.md',
+        label: 'cherry.md',
+        description: '/recent',
+        filePath: '/recent/cherry.md',
+        kind: 'file' as const,
+        isRecent: true,
+        isPinned: false,
+      },
+    ])
+    window.markflow = api
+
+    const { container } = render(<App />)
+
+    await act(async () => {
+      api.emitFileOpened({
+        filePath: '/docs/alpha.md',
+        content: '# Alpha\n\n## Section 1\n\nBody',
+      })
+    })
+
+    const toggleSidebarButton = await screen.findByRole('button', { name: 'Toggle file sidebar' })
+    if (!container.querySelector('.mf-sidebar')) {
+      fireEvent.click(toggleSidebarButton)
+    }
+
+    const sidebar = await waitFor(() => {
+      const element = container.querySelector('.mf-sidebar')
+      expect(element).not.toBeNull()
+      return element as HTMLElement
+    })
+
+    await waitFor(() => {
+      expect(
+        within(sidebar).getByText('Recent', { selector: '.mf-vault-section-header span' }),
+      ).toBeInTheDocument()
+      expect(
+        within(sidebar).getByText('Outline', { selector: '.mf-vault-section-header span' }),
+      ).toBeInTheDocument()
+      expect(within(sidebar).getByRole('button', { name: 'cherry.md' })).toBeInTheDocument()
+      expect(within(sidebar).getByRole('button', { name: 'Section 1' })).toBeInTheDocument()
+    })
   })
 
   it('opens Quick Open on Mod-Shift-O, fuzzy-filters files, and dispatches file-open', async () => {

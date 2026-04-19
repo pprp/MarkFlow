@@ -1,0 +1,19 @@
+#!/bin/sh
+# MarkFlow CLI — open files/folders in MarkFlow from the terminal
+# Usage: markflow [file|directory ...]
+
+APP="MarkFlow"
+
+if [ $# -eq 0 ]; then
+  open -a "$APP"
+  exit 0
+fi
+
+for arg in "$@"; do
+  case "$arg" in
+    /*)  abs="$arg" ;;
+    .)   abs="$(pwd)" ;;
+    *)   abs="$(pwd)/$arg" ;;
+  esac
+  open -a "$APP" "$abs"
+done

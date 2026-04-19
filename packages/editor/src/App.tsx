@@ -561,6 +561,18 @@ export function App() {
     setIsDistractionFreeMode((v) => !v)
   }, [])
 
+  const refreshQuickOpenItems = useCallback(async () => {
+    const api = window.markflow
+    if (!api) {
+      setQuickOpenItems([])
+      return []
+    }
+
+    const items = await api.getQuickOpenList()
+    setQuickOpenItems(items)
+    return items
+  }, [])
+
   useEffect(() => {
     if (!isImmersiveMode) {
       return
@@ -572,6 +584,14 @@ export function App() {
   useEffect(() => {
     setEditorScrollMetrics(null)
   }, [activeTab?.id])
+
+  useEffect(() => {
+    if (!showSidebar) {
+      return
+    }
+
+    void refreshQuickOpenItems()
+  }, [activeTab?.filePath, refreshQuickOpenItems, showSidebar])
 
   const handleOpenCommandPalette = useCallback(() => {
     openCommandPalette()
@@ -656,11 +676,10 @@ export function App() {
       return false
     }
 
-    const items = await api.getQuickOpenList()
-    setQuickOpenItems(items)
+    await refreshQuickOpenItems()
     openQuickOpen()
     return true
-  }, [openQuickOpen])
+  }, [openQuickOpen, refreshQuickOpenItems])
 
   const handleOpenFolderPath = useCallback(
     async (folderPath: string) => {
@@ -679,9 +698,10 @@ export function App() {
       setShowSidebar(true)
       const files = await api.getVaultFiles(result.folderPath)
       setVaultFiles(files ?? [])
+      await refreshQuickOpenItems()
       return true
     },
-    [showToast],
+    [refreshQuickOpenItems, showToast],
   )
 
   const handleOpenGlobalSearch = useCallback(() => {
@@ -711,6 +731,7 @@ export function App() {
     setShowSidebar(true)
     const files = await api.getVaultFiles(result.folderPath)
     setVaultFiles(files ?? [])
+    await refreshQuickOpenItems()
   }
 
   async function handleVaultFileRename(oldPath: string, newName: string) {
@@ -1584,6 +1605,11 @@ export function App() {
   const largeFileNotice = activeTab?.largeFile
     ? `Large-file mode: showing lines ${activeTab.largeFile.windowStartLine.toLocaleString()}-${activeTab.largeFile.windowEndLine.toLocaleString()} of ${activeTab.largeFile.totalLines.toLocaleString()}. Editing and export stay disabled to keep memory bounded.`
     : null
+  const recentSidebarItems = useMemo(
+    () => quickOpenItems.filter((item) => item.isRecent).slice(0, 6),
+    [quickOpenItems],
+  )
+  const shouldShowTabstrip = !isImmersiveMode && tabs.length > 1
 
   const loadingProgressPercent = loadingFile
     ? Math.min(100, Math.round((loadingFile.bytesRead / Math.max(loadingFile.totalBytes, 1)) * 100))
@@ -1596,6 +1622,15 @@ export function App() {
   ]
     .filter(Boolean)
     .join(' ')
+  const handleToggleSidebar = useCallback(() => {
+    setShowSidebar((current) => {
+      const next = !current
+      if (next) {
+        void refreshQuickOpenItems()
+      }
+      return next
+    })
+  }, [refreshQuickOpenItems])
 
   return (
     <div className={appClassName} {...{ [HEADING_NUMBERING_ATTRIBUTE]: headingNumberingEnabled ? 'true' : 'false' }}>
@@ -1612,11 +1647,16 @@ export function App() {
           <span className="mf-titlebar-appname">MarkFlow</span>
         </div>
         <div className="mf-titlebar-center">
-          {activeTab?.isDirty && (
-            <span className="mf-titlebar-dirty-dot" aria-hidden="true" />
-          )}
+          <svg className="mf-titlebar-center-logo" width="16" height="16" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <path d="M3 6 Q7 3, 10 6 T17 6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" fill="none" opacity="0.95"/>
+            <path d="M3 10 Q7 7, 10 10 T17 10" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" fill="none" opacity="0.7"/>
+            <path d="M3 14 Q7 11, 10 14 T17 14" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" fill="none" opacity="0.45"/>
+          </svg>
           <span className="mf-titlebar-document">
-            {activeDocumentName}
+            <span className="mf-titlebar-document-name">{activeDocumentName}</span>
+            {activeTab?.isDirty && (
+              <span className="mf-titlebar-dirty-dot" aria-label="Unsaved changes" />
+            )}
           </span>
         </div>
         <div className="mf-titlebar-right">
@@ -1655,7 +1695,7 @@ export function App() {
           </button>
           <button
             className={`mf-mode-toggle${showSidebar ? ' mf-mode-active' : ''}`}
-            onClick={() => setShowSidebar((v) => !v)}
+            onClick={handleToggleSidebar}
             title="Toggle file sidebar"
             aria-label="Toggle file sidebar"
             aria-pressed={showSidebar}
@@ -1722,7 +1762,7 @@ export function App() {
         </div>
         </header>
       ) : null}
-      {!isImmersiveMode ? (
+      {shouldShowTabstrip ? (
         <div className="mf-tabstrip" role="tablist" aria-label="Open documents">
         {tabs.map((tab) => {
           const isActive = tab.id === activeTab?.id
@@ -1749,7 +1789,9 @@ export function App() {
                   void handleCloseTab(tab.id)
                 }}
               >
-                ×
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M6 6l12 12M18 6 6 18"/>
+                </svg>
               </button>
             </div>
           )
@@ -1763,10 +1805,17 @@ export function App() {
               folderPath={vaultPath}
               files={vaultFiles}
               activeFile={activeTab?.filePath ?? null}
+              recentItems={recentSidebarItems}
+              outlineItems={outlineHeadings}
+              activeOutlineAnchor={activeOutlineAnchor}
               onFileOpen={(fp) => void handleOpenPath(fp)}
               onFileRename={(old, newName) => void handleVaultFileRename(old, newName)}
               onFileDelete={(fp) => void handleVaultFileDelete(fp)}
               onOpenFolder={() => void handleOpenFolder()}
+              onRecentSelect={handleQuickOpenSelect}
+              onOutlineSelect={handleOutlineNavigate}
+              outlineCollapsed={outlineCollapsed}
+              onToggleOutline={() => setOutlineCollapsed((v) => !v)}
             />
           </div>
         ) : null}
@@ -1841,7 +1890,7 @@ export function App() {
               onNavigate={handleMinimapNavigate}
             />
           ) : null}
-          {outlineHeadings.length > 0 && !isImmersiveMode ? (
+          {outlineHeadings.length > 0 && !isImmersiveMode && !showSidebar ? (
             <aside className={`mf-outline-panel${outlineCollapsed ? ' mf-outline-panel-collapsed' : ''}`}>
               <div className="mf-outline-header">
                 {!outlineCollapsed && <span className="mf-outline-header-label">Outline</span>}

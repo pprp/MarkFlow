@@ -1,29 +1,13 @@
-.mf-quick-open-overlay {
-  position: absolute;
-  top: 10%;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 480px;
-  max-width: 90vw;
-  background-color: var(--mf-bg-elevated, #FFFFFF);
-  border: 1px solid var(--mf-border-light);
-  border-radius: var(--mf-radius-xl, 16px);
-  box-shadow: 0 24px 80px rgba(26, 20, 10, 0.15), 0 8px 24px rgba(26, 20, 10, 0.08);
-  z-index: 2000;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  font-family: var(--mf-font-sans);
-  animation: mf-quickopen-appear 0.18s cubic-bezier(0.34, 1.2, 0.64, 1);
+.mf-quick-open-card {
+  width: min(560px, 100%);
 }
 
-@keyframes mf-quickopen-appear {
-  from { opacity: 0; transform: translateX(-50%) translateY(-8px) scale(0.98); }
-  to   { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+.mf-quick-open-body {
+  min-height: 0;
 }
 
 .mf-quick-open-input-container {
-  padding: 14px 14px 12px;
+  padding: 0 18px 12px;
   border-bottom: 1px solid var(--mf-border-light);
 }
 
@@ -48,10 +32,10 @@
 }
 
 .mf-quick-open-list {
-  max-height: 380px;
+  flex: 1;
   overflow-y: auto;
   margin: 0;
-  padding: 4px;
+  padding: 4px 8px 8px;
   list-style: none;
 }
 

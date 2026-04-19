@@ -685,3 +685,22 @@ next: MF-051 - Outline panel lists all headings with live scroll-sync and click-
   - Kept  unchanged for  (, , ) to maintain truthfulness while manual verification is pending.
 - Next recommended feature:
   - Continue  by completing trusted multi-section manual outline scroll-sync validation, then update  only after passing both automation and manual checks.
+
+## 2026-04-19 - Aggressive bundle layout overhaul
+
+- Summary:
+  - Merged recent items and outline navigation into the left bundle rail in `packages/editor/src/components/VaultSidebar.tsx` and wired the rail from `packages/editor/src/App.tsx`.
+  - Introduced a shared overlay shell in `packages/editor/src/components/OverlayScreen.tsx` and aligned Quick Open, Command Palette, Global Search, and Go To Line around the same header/body/footer structure.
+  - Refreshed the starter document marketing surface in `packages/editor/src/app-shell/documents.ts` so the first-run experience speaks the new editorial bundle language and still exposes an early external link for link rendering coverage.
+- Tests added or updated:
+  - Added `packages/editor/src/components/QuickOpen.test.tsx`.
+  - Expanded `packages/editor/src/components/VaultSidebar.test.tsx`, `packages/editor/src/components/commandPalette.test.tsx`, and `packages/editor/src/__tests__/App.test.tsx` to cover merged-rail and overlay-shell behavior.
+- Verification:
+  - `pnpm --filter @markflow/editor exec vitest run src/components/VaultSidebar.test.tsx src/components/commandPalette.test.tsx src/components/QuickOpen.test.tsx src/__tests__/App.test.tsx`
+  - `pnpm --filter @markflow/editor lint`
+  - `pnpm --filter @markflow/editor test:run`
+  - `pnpm --filter @markflow/editor build`
+  - `pnpm harness:verify`
+- Remaining risks:
+  - There is no standalone docs/marketing site in this repo today, so the docs/marketing refresh in this pass is limited to the in-app starter surface.
+  - The workspace already contains unrelated dirty changes in package manifests, desktop build artifacts, and `global.css`; this handoff does not normalize or revert them.

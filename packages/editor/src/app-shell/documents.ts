@@ -10,85 +10,77 @@ import type { MarkFlowEditorSnapshot } from '../editor/MarkFlowEditor'
 import { createEmptySymbolTable, type SymbolTable } from '../editor/indexer'
 import type { NavigationLocation } from '../editor/navigationHistory'
 
-export const INITIAL_CONTENT = `# Welcome to MarkFlow
+export const INITIAL_CONTENT = `# MarkFlow
 
 *Write in flow, publish anywhere.*
 
-## Features
+> A warmer markdown workspace for academics, engineers, and technical writers who think in structure.
 
-- **WYSIWYG editing** — markdown syntax hides when you move your cursor away
-- *Italic*, **bold**, and \`inline code\` rendered inline
-- [Links](https://example.com) displayed as clickable text
+[See the editorial brief](https://example.com) for the design tone behind this starter bundle.
 
-## Getting Started
+## The Bundle
 
-Start typing here! Try writing some markdown and watch it render in real time.
+MarkFlow now revolves around three surfaces working together:
 
-### Code Example
+1. **The bundle rail** keeps files, recent places, and outline in one editorial column.
+2. **Overlay screens** let you jump, search, and command without breaking writing rhythm.
+3. **The document canvas** stays focused on the page instead of the markdown syntax.
+
+## Start Here
+
+- Open a folder to turn this starter note into a living workspace.
+- Use the left rail to move between files, recent drafts, and section structure.
+- Press \`Cmd/Ctrl+Shift+P\` for the command palette, or \`Cmd/Ctrl+Shift+O\` for Quick Open.
+
+## Publish-Ready Markdown
+
+You can still write plain markdown, but MarkFlow presents it with a more editorial voice:
+
+- **Bold**, *italic*, and \`inline code\` render inline
+- [Links](https://example.com) behave like real reading surfaces
+- Tables, math, diagrams, and callouts stay part of the same flow
+
+### A Small Code Block
 
 \`\`\`typescript
-function greet(name: string): string {
-  return \`Hello, \${name}!\`
+function publish(bundle: string): string {
+  return \`Ship \${bundle} without losing the draft.\`
 }
 \`\`\`
 
-### A Quote
+### A Pull Quote
 
-> The best way to predict the future is to invent it.
-> — Alan Kay
+> Good writing software disappears until structure matters.
 
-### Task List
-
-- [x] Set up CodeMirror 6
-- [x] Implement inline decorations
-- [ ] Add export support
-- [x] Build plugin system
-
----
-
-## Math — KaTeX
+## Proof Surface
 
 Inline math: $E = mc^2$ and $\\pi \\approx 3.14159$.
-
-Display math:
 
 $$
 \\int_0^\\infty e^{-x^2} dx = \\frac{\\sqrt{\\pi}}{2}
 $$
 
-## Mermaid Diagram
-
 \`\`\`mermaid
 graph TD
-  A[Start] --> B{Is it working?}
-  B -->|Yes| C[Great!]
-  B -->|No| D[Debug]
-  D --> B
+  A[Draft in flow] --> B[Shape the structure]
+  B --> C[Review in context]
+  C --> D[Publish anywhere]
 \`\`\`
 
-## Table
+| Surface | Role | Feel |
+|---------|------|------|
+| Bundle rail | Navigate context | Warm + compact |
+| Overlay screens | Jump fast | Glassy + intentional |
+| Editor canvas | Stay with the prose | Quiet + readable |
 
-| Feature   | Status  | Priority |
-|-----------|---------|----------|
-| Math      | ✅ Done  | High     |
-| Mermaid   | ✅ Done  | High     |
-| Tables    | ✅ Done  | Medium   |
-| Export    | Partial | Low      |
+## Next Moves
 
-## Image
+- Open a real folder
+- Rename this starter note
+- Try headings, tables, and a few longer sections
+- Export when the draft feels finished
 
-![MarkFlow placeholder](https://via.placeholder.com/400x120?text=MarkFlow+Image+Test)
-
-## Footnote
-
-This has a footnote[^1] and another[^2].
-
-[^1]: First footnote — rendered correctly.
-[^2]: Second footnote — also rendered.
-
----
-
-Happy writing!
+Happy writing.
 `
 
 let tabIdCounter = 0

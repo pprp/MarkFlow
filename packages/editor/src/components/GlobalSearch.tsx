@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react'
 import type { SearchResult } from '@markflow/shared'
+import { OverlayScreen } from './OverlayScreen'
 import './GlobalSearch.css'
 
 interface GlobalSearchProps {
@@ -125,79 +126,97 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({
   let resultIndex = 0
 
   return (
-    <div
-      className="mf-global-search-backdrop"
+    <OverlayScreen
+      title="Global search"
+      eyebrow="Workspace"
+      description="Search across every file in the current folder."
+      cardClassName="mf-global-search-card"
+      bodyClassName="mf-global-search-body"
+      footer={
+        results.length > 0 ? (
+          <span className="mf-global-search-status">
+            {results.length} result{results.length !== 1 ? 's' : ''} in {grouped.size} file{grouped.size !== 1 ? 's' : ''}
+          </span>
+        ) : (
+          <>
+            <span className="mf-overlay-screen-hint">
+              <span className="mf-overlay-screen-kbd">↑↓</span>
+              <span>move</span>
+            </span>
+            <span className="mf-overlay-screen-hint">
+              <span className="mf-overlay-screen-kbd">↵</span>
+              <span>jump</span>
+            </span>
+            <span className="mf-overlay-screen-hint">
+              <span className="mf-overlay-screen-kbd">Esc</span>
+              <span>close</span>
+            </span>
+          </>
+        )
+      }
       onKeyDown={handleKeyDown}
-      onMouseDown={(event) => {
+      onBackdropMouseDown={(event) => {
         if (event.target === event.currentTarget) {
           onClose()
         }
       }}
     >
-      <div className="mf-global-search-overlay" role="dialog" aria-modal="true" aria-label="Global search">
-        <div className="mf-global-search-input-container">
-          <input
-            ref={inputRef}
-            type="text"
-            className="mf-global-search-input"
-            placeholder={folderPath ? 'Search in files…' : 'Open a folder first to search'}
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            disabled={!folderPath}
-            aria-label="Search query"
-          />
-        </div>
+      <div className="mf-global-search-input-container">
+        <input
+          ref={inputRef}
+          type="text"
+          className="mf-global-search-input"
+          placeholder={folderPath ? 'Search in files…' : 'Open a folder first to search'}
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          disabled={!folderPath}
+          aria-label="Search query"
+        />
+      </div>
 
-        <div className="mf-global-search-results">
-          {!query.trim() && (
-            <div className="mf-global-search-empty">
-              {folderPath ? 'Type to search across all files' : 'No folder open'}
-            </div>
-          )}
-          {query.trim() && isSearching && (
-            <div className="mf-global-search-empty">Searching…</div>
-          )}
-          {query.trim() && !isSearching && results.length === 0 && (
-            <div className="mf-global-search-empty">No results found</div>
-          )}
-          {Array.from(grouped.entries()).map(([filePath, fileResults]) => (
-            <div key={filePath} className="mf-global-search-file-group">
-              <div className="mf-global-search-file-header" title={filePath}>
-                {basename(filePath)}
-              </div>
-              {fileResults.map((result) => {
-                const currentIndex = resultIndex++
-                const isSelected = currentIndex === selectedIndex
-                return (
-                  <div
-                    key={`${result.filePath}:${result.lineNumber}:${result.matchStart}`}
-                    className={`mf-global-search-result-item${isSelected ? ' is-selected' : ''}`}
-                    onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => onSelectResult(result)}
-                    onMouseEnter={() => setSelectedIndex(currentIndex)}
-                    role="button"
-                    tabIndex={-1}
-                    aria-label={`Line ${result.lineNumber}: ${result.lineText}`}
-                  >
-                    <span className="mf-global-search-line-number">Line {result.lineNumber}</span>
-                    <HighlightedLine
-                      lineText={result.lineText}
-                      matchStart={result.matchStart}
-                      matchEnd={result.matchEnd}
-                    />
-                  </div>
-                )
-              })}
-            </div>
-          ))}
-        </div>
-
-        {results.length > 0 && (
-          <div className="mf-global-search-status">
-            {results.length} result{results.length !== 1 ? 's' : ''} in {grouped.size} file{grouped.size !== 1 ? 's' : ''}
+      <div className="mf-global-search-results">
+        {!query.trim() && (
+          <div className="mf-global-search-empty">
+            {folderPath ? 'Type to search across all files' : 'No folder open'}
           </div>
         )}
+        {query.trim() && isSearching && (
+          <div className="mf-global-search-empty">Searching…</div>
+        )}
+        {query.trim() && !isSearching && results.length === 0 && (
+          <div className="mf-global-search-empty">No results found</div>
+        )}
+        {Array.from(grouped.entries()).map(([filePath, fileResults]) => (
+          <div key={filePath} className="mf-global-search-file-group">
+            <div className="mf-global-search-file-header" title={filePath}>
+              {basename(filePath)}
+            </div>
+            {fileResults.map((result) => {
+              const currentIndex = resultIndex++
+              const isSelected = currentIndex === selectedIndex
+              return (
+                <div
+                  key={`${result.filePath}:${result.lineNumber}:${result.matchStart}`}
+                  className={`mf-global-search-result-item${isSelected ? ' is-selected' : ''}`}
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => onSelectResult(result)}
+                  onMouseEnter={() => setSelectedIndex(currentIndex)}
+                  role="button"
+                  tabIndex={-1}
+                  aria-label={`Line ${result.lineNumber}: ${result.lineText}`}
+                >
+                  <span className="mf-global-search-line-number">Line {result.lineNumber}</span>
+                  <HighlightedLine
+                    lineText={result.lineText}
+                    matchStart={result.matchStart}
+                    matchEnd={result.matchEnd}
+                  />
+                </div>
+              )
+            })}
+          </div>
+        ))}
       </div>
-    </div>
+    </OverlayScreen>
   )
 }

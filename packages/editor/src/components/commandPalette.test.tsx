@@ -98,4 +98,22 @@ describe('CommandPalette', () => {
     fireEvent.keyDown(input, { key: 'Escape' })
     expect(onClose).toHaveBeenCalled()
   })
+
+  it('renders the design-system keyboard helper row when open', () => {
+    render(
+      <CommandPalette
+        isOpen
+        actions={createRepresentativeActions([])}
+        onClose={vi.fn()}
+        onSelect={() => {}}
+      />,
+    )
+
+    expect(screen.getByText('Command palette')).toBeInTheDocument()
+    expect(screen.getByText('Search commands, formats, and workspace actions.')).toBeInTheDocument()
+    expect(screen.getByText('Esc')).toBeInTheDocument()
+    expect(screen.getByText('navigate')).toBeInTheDocument()
+    expect(screen.getByText('run')).toBeInTheDocument()
+    expect(screen.getByText('close')).toBeInTheDocument()
+  })
 })

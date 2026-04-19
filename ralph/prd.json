@@ -1,69 +1,177 @@
 {
   "project": "MarkFlow",
-  "branchName": "ralph/bug-fixes-and-missing-features",
-  "description": "Fix identified bugs and implement missing features: keyboard shortcut wiring, task checkbox interactivity, relative image path resolution, and async file I/O",
+  "branchName": "ralph/design-system-polish",
+  "description": "Refactor editor UI to fully satisfy the MarkFlow Design System: integrate Lucide icon library, fix CommandPalette dimensions, add Toggle component, add Danger button, fix dark-mode shadows, and tighten typography/spacing to preview-spec values.",
   "userStories": [
     {
       "id": "US-001",
-      "title": "Wire Ctrl+/ keyboard shortcut for view mode toggle",
-      "description": "As a user, I want to press Ctrl+/ (or Cmd+/ on macOS) to toggle between WYSIWYG and source modes, so I don't need to click the toolbar button.",
+      "title": "Add Lucide icon library dependency",
+      "description": "As a developer, I need the Lucide icon library installed so components can use stroke-based icons instead of unicode glyphs and emoji.",
       "acceptanceCriteria": [
-        "Add a keymap extension to MarkFlowEditor.tsx that binds Ctrl+/ and Mod+/ to trigger view mode toggle",
-        "MarkFlowEditor.tsx accepts an optional onToggleMode callback prop",
-        "App.tsx passes the toggleMode handler to MarkFlowEditor via the new prop",
-        "Pressing Ctrl+/ in the editor calls onToggleMode",
+        "Add `lucide-react` to `packages/editor/package.json` dependencies",
+        "Run `pnpm install` from repo root so pnpm-lock.yaml is updated",
+        "Import of a single Lucide icon (e.g. `import { Search } from 'lucide-react'`) compiles without error in a test component",
         "Typecheck passes"
       ],
       "priority": 1,
-      "passes": true,
-      "notes": "Completed on 2026-04-10. `MarkFlowEditor` now accepts `onToggleMode`, binds `Mod-/`, and `App` passes the toggle handler. Verified by `packages/editor/src/editor/__tests__/MarkFlowEditor.test.tsx`, `packages/editor/src/__tests__/App.test.tsx`, plus full lint/test/build and harness smoke runs."
+      "passes": false,
+      "notes": ""
     },
     {
       "id": "US-002",
-      "title": "Implement task checkbox click-to-toggle in markdown source",
-      "description": "As a user, I want to click a rendered checkbox in WYSIWYG mode to toggle it between checked and unchecked, so I can manage task lists without switching to source mode.",
+      "title": "Replace titlebar and tabstrip chrome icons with Lucide",
+      "description": "As a user, I want the titlebar view-mode toggles, focus-mode button, and tab close buttons to display clean Lucide stroke icons instead of unicode glyphs.",
       "acceptanceCriteria": [
-        "CheckboxWidget in packages/editor/src/editor/decorations/listDecoration.ts handles click events",
-        "Clicking an unchecked checkbox dispatches a CodeMirror transaction replacing '[ ]' with '[x]' at the widget's source position",
-        "Clicking a checked checkbox dispatches a transaction replacing '[x]' with '[ ]' at the widget's source position",
-        "The markdown source updates immediately after click",
-        "Checkbox toggle only works in WYSIWYG mode (decorations are only active in WYSIWYG mode, so this is naturally enforced)",
-        "Typecheck passes"
+        "In App.tsx, the WYSIWYG/source toggle button uses Lucide `Eye` (WYSIWYG) and `Code` (source) icons at 14px stroke-width 1.5",
+        "The focus-mode toggle button uses Lucide `Focus` or `Maximize` icon at 14px",
+        "Tab close buttons (`✕`) are replaced with Lucide `X` at 12px",
+        "The new-tab add button uses Lucide `Plus` at 13px",
+        "All replaced icons inherit `color: currentColor` so they respond to hover/active states",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
       ],
       "priority": 2,
-      "passes": true,
-      "notes": "Completed on 2026-04-10. Rendered task-list checkboxes now toggle `[ ]` and `[x]` directly in the markdown source via CodeMirror transactions in WYSIWYG mode. Verified by `packages/editor/src/editor/__tests__/listAndBlockquoteDecoration.test.tsx` and full repo verification."
+      "passes": false,
+      "notes": ""
     },
     {
       "id": "US-003",
-      "title": "Resolve relative image paths against document file path",
-      "description": "As a user, I want images with relative paths (e.g., ./assets/diagram.png) to display correctly when a file is open in the desktop app, so my local images render in WYSIWYG mode.",
+      "title": "Replace floating format toolbar icons with Lucide",
+      "description": "As a user, I want the floating markdown format toolbar (Bold, Italic, Link, Code, etc.) to show clean Lucide stroke icons instead of the current emoji and unicode glyphs.",
       "acceptanceCriteria": [
-        "MarkFlowEditor.tsx accepts an optional filePath prop (string | undefined)",
-        "App.tsx passes currentDoc.filePath to MarkFlowEditor",
-        "buildLinkDecorations in linkDecoration.ts accepts an optional filePath parameter",
-        "When filePath is set and an image src is relative (starts with ./ or ../ or lacks a protocol), the src is resolved to an absolute file:// URL using the document directory and the relative image path",
-        "Images with absolute URLs (http://, https://, file://) are unaffected",
-        "Typecheck passes"
+        "The floating toolbar Bold button uses Lucide `Bold` icon",
+        "Italic button uses Lucide `Italic` icon",
+        "Link button replaces the `🔗` emoji with Lucide `Link` icon at 14px",
+        "Code button uses Lucide `Code` icon",
+        "Strikethrough button uses Lucide `Strikethrough` icon",
+        "All icons are 14px with stroke-width 1.5, color: currentColor",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
       ],
       "priority": 3,
-      "passes": true,
-      "notes": "Completed on 2026-04-10. `filePath` now flows from `App` into image decorations so relative image sources resolve to `file://` URLs while protocol URLs stay unchanged. Verified by `packages/editor/src/editor/__tests__/linkDecoration.test.tsx`, `packages/editor/src/__tests__/App.test.tsx`, and full repo verification."
+      "passes": false,
+      "notes": ""
     },
     {
       "id": "US-004",
-      "title": "Convert desktop file write operations to async",
-      "description": "As a developer, I want file save operations to use async I/O so the Electron main process event loop is not blocked during file writes.",
+      "title": "Replace sidebar and overlay icons with Lucide",
+      "description": "As a user, I want the VaultSidebar search icon, file/folder icons, and overlay panel icons (GoToLine, GlobalSearch, QuickOpen) to use Lucide stroke icons.",
       "acceptanceCriteria": [
-        "packages/desktop/src/main/fileManager.ts replaces fs.writeFileSync calls with await fs.promises.writeFile",
-        "IPC handlers that call writeFile are updated to async and return the resolved result to the renderer",
-        "The save and saveAs IPC handlers still return { success: true } or { success: false, error: string } to the renderer",
-        "Existing desktop tests in externalLinks.test.ts still pass",
-        "Typecheck passes"
+        "VaultSidebar search input prefix uses Lucide `Search` at 13px",
+        "VaultSidebar file items use Lucide `File` icon and folder items use `Folder` at 13px",
+        "VaultSidebar outline items use Lucide `Hash` icon at 11px",
+        "GlobalSearch input prefix uses Lucide `Search` at 14px",
+        "GoToLine input prefix uses Lucide `CornerDownRight` or `ArrowRight` at 14px",
+        "QuickOpen items use Lucide `File` at 13px",
+        "CommandPalette search prefix uses Lucide `Command` or `Search` at 14px",
+        "All icons use stroke-width 1.5, color: var(--mf-fg-muted)",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
       ],
       "priority": 4,
-      "passes": true,
-      "notes": "Completed on 2026-04-10. Desktop save and save-as now use `fs.promises.writeFile`, return `MarkFlowSaveResult`, and keep failure handling structured without corrupting the active file path on failed save-as writes. Verified by `packages/desktop/src/main/fileManager.test.ts`, `packages/desktop/src/main/externalLinks.test.ts`, and full lint/test/build/harness smoke runs."
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-005",
+      "title": "Fix CommandPalette dimensions and backdrop to design-spec values",
+      "description": "As a user, I want the CommandPalette to match the design system preview spec: 460px wide with 18px blur backdrop, correct item padding, and list max-height.",
+      "acceptanceCriteria": [
+        "In CommandPalette.css, `.command-palette` (or equivalent card element) has `width: min(460px, calc(100vw - 32px))`",
+        "Backdrop-filter is `blur(18px)` (was 16px)",
+        "Background uses `color-mix(in srgb, var(--mf-bg-tertiary) 92%, transparent)`",
+        "Result item padding is `7px 10px` per spec",
+        "Result list has `max-height: 280px` with overflow-y auto",
+        "Section headers use 10px, 600 weight, uppercase, 0.08em letter-spacing, `var(--mf-fg-muted)` color",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 5,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-006",
+      "title": "Add Toggle switch component",
+      "description": "As a user, I want a Toggle switch component available for settings and preferences panels, matching the design system's 32×18px pill-shaped toggle specification.",
+      "acceptanceCriteria": [
+        "Create `packages/editor/src/components/Toggle.tsx` exporting a `<Toggle checked value onChange label>` React component",
+        "Create `packages/editor/src/components/Toggle.css` with styles matching the design spec: width 32px, height 18px, border-radius 999px, transition 180ms",
+        "Off state: background `var(--mf-fill-secondary)`, border `1px solid var(--mf-border)`",
+        "On state: background `var(--mf-accent)`, no border",
+        "Knob: 14px white circle with `var(--mf-shadow-xs)`, translates 14px when on",
+        "Label: 10px, 600 weight, uppercase, 0.08em letter-spacing, `var(--mf-fg-muted)`",
+        "Wire at least one Toggle into the app (e.g., focus mode toggle in a settings section or titlebar popover)",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 6,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-007",
+      "title": "Add Danger button variant and standalone kbd-shortcut badge",
+      "description": "As a developer, I want the global button system to include a Danger variant and a standalone kbd-shortcut badge class as specified in the design system.",
+      "acceptanceCriteria": [
+        "In global.css, add `.btn-danger` class: color `#E05252`, border-color `rgba(224,82,82,0.30)`, hover background `rgba(224,82,82,0.08)`, active background `rgba(224,82,82,0.14)`",
+        "Add `.kbd-shortcut` class: font-family `var(--mf-font-mono)`, font-size 11px, color `var(--mf-fg-muted)`, tabular-nums — usable standalone outside the palette",
+        "Existing `.btn`, `.btn-primary`, `.btn-secondary`, `.btn-ghost` styles are unchanged",
+        "Typecheck passes"
+      ],
+      "priority": 7,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-008",
+      "title": "Fix dark mode shadows to use pure-black rgba values",
+      "description": "As a developer, the design system specifies pure-black shadows (rgba(0,0,0,...)) at higher alpha in dark mode instead of warm-tinted values used in both modes.",
+      "acceptanceCriteria": [
+        "In global.css, inside `@media (prefers-color-scheme: dark)` or `[data-theme='dark']`, override all four shadow tokens",
+        "`--mf-shadow-xs` in dark: `0 1px 2px rgba(0,0,0,0.18)`",
+        "`--mf-shadow-sm` in dark: `0 1px 3px rgba(0,0,0,0.22), 0 1px 2px rgba(0,0,0,0.14)`",
+        "`--mf-shadow` in dark: `0 4px 20px rgba(0,0,0,0.28), 0 1px 6px rgba(0,0,0,0.16)`",
+        "`--mf-shadow-lg` in dark: `0 12px 40px rgba(0,0,0,0.36), 0 4px 12px rgba(0,0,0,0.22)`",
+        "Light mode shadow tokens remain unchanged (warm-tinted rgba(26,20,10,...))",
+        "Typecheck passes"
+      ],
+      "priority": 8,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-009",
+      "title": "Tighten display typography to type-display.html spec values",
+      "description": "As a user, I want the editor heading typography to precisely match the design system preview: DM Serif Display for h1/h2 with correct size and tracking, DM Sans for h3+.",
+      "acceptanceCriteria": [
+        "In global.css or editor content styles, h1 renders at font-size 32px (or 2em from 16px base), line-height 1.1, letter-spacing -0.02em, font-family var(--mf-font-display)",
+        "h2 renders at font-size 22px, line-height 1.25, letter-spacing -0.015em, font-family var(--mf-font-display)",
+        "h3 renders at font-size 17px, font-weight 600, line-height 1.35, letter-spacing -0.012em, font-family var(--mf-font-sans)",
+        "h4/h5/h6 remain DM Sans, font-weight 600, successively smaller sizes",
+        "Editor WYSIWYG decorated headings reflect the same sizes when rendered",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 9,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-010",
+      "title": "Fix status bar pills and VaultSidebar items to full design-spec styling",
+      "description": "As a user, I want status bar action pills to use the correct pill border-radius (999px) and padding (2px 8px), and VaultSidebar section header spacing to be pixel-perfect per spec.",
+      "acceptanceCriteria": [
+        "Status bar `.pill` elements have `border-radius: 999px`, `padding: 2px 8px`, `font-size: 10.5px`",
+        "Status bar pill hover state: background `var(--mf-fill-secondary)`, color `var(--mf-fg)`, cursor pointer",
+        "VaultSidebar section headers: `font-size: 10px`, `font-weight: 600`, `text-transform: uppercase`, `letter-spacing: 0.08em`, `color: var(--mf-fg-muted)`, `padding: 8px 10px 4px`",
+        "VaultSidebar file items: `padding: 5px 8px`, `font-size: 13px`, hover: `var(--mf-fill-secondary)`, active: `var(--mf-accent-light)` bg + `var(--mf-accent)` color",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 10,
+      "passes": false,
+      "notes": ""
     }
   ]
 }

@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react'
+import { OverlayScreen } from './OverlayScreen'
 import './GoToLine.css'
 
 interface GoToLineProps {
@@ -46,14 +47,22 @@ export const GoToLine: React.FC<GoToLineProps> = ({
   }
 
   return (
-    <div className="mf-go-to-line-overlay" role="dialog" aria-label="Go to line">
-      <form className="mf-go-to-line-card" onSubmit={handleSubmit}>
-        <div className="mf-go-to-line-header">
-          <span className="mf-go-to-line-title">Go to line</span>
-          <span className="mf-go-to-line-meta">
-            Line {currentLine.toLocaleString()} of {totalLines.toLocaleString()}
-          </span>
-        </div>
+    <OverlayScreen
+      title="Go to line"
+      eyebrow="Navigation"
+      description="Jump to a precise line without breaking flow."
+      cardClassName="mf-go-to-line-card"
+      bodyClassName="mf-go-to-line-body"
+      onBackdropMouseDown={(event) => {
+        if (event.target === event.currentTarget) {
+          onClose()
+        }
+      }}
+    >
+      <form className="mf-go-to-line-form" onSubmit={handleSubmit}>
+        <span className="mf-go-to-line-meta">
+          Line {currentLine.toLocaleString()} of {totalLines.toLocaleString()}
+        </span>
         <input
           ref={inputRef}
           type="text"
@@ -73,6 +82,6 @@ export const GoToLine: React.FC<GoToLineProps> = ({
         />
         <p className="mf-go-to-line-hint">Press Enter to jump. Values outside the file clamp automatically.</p>
       </form>
-    </div>
+    </OverlayScreen>
   )
 }
