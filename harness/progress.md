@@ -1,3 +1,28 @@
+### 2026-04-19T08:42:10Z - MF-051 verified in a live renderer UI session
+
+- Author: Codex
+- Focus: strict one-feature completion for `MF-051` (outline live scroll-sync and click-to-jump navigation).
+- What changed:
+  - Ran `pnpm harness:start`.
+  - Ran `./harness/init.sh --smoke`.
+  - Launched `pnpm desktop` to confirm the dev shell still boots.
+  - Opened the live renderer at `http://localhost:5173` in a headed Microsoft Edge Playwright session because `Computer Use` access was unavailable and the feature scope is renderer-only (`@markflow/editor`).
+  - Did not modify source or implementation files for `MF-051`; only `harness/features/MF-051.md`, `harness/feature-ledger.json`, and `harness/progress.md` were updated after verification succeeded.
+- Verification:
+  - `pnpm --filter @markflow/editor test:run -- src/__tests__/App.test.tsx src/editor/__tests__/MarkFlowEditor.test.tsx src/editor/__tests__/outline.test.ts` passed on the current tree: `42` test files, `459` tests passed, `3` skipped, `0` failed.
+  - Manual UI verification passed in the live renderer session:
+    - clicking `Proof Surface` in the outline scrolled the editor from `scrollTop=0` to `scrollTop=1224` and revealed the target section at the top of the canvas.
+    - continuing to wheel-scroll moved the active outline item from `A Pull Quote` to `Proof Surface`, confirming viewport-driven sync.
+    - adding `## Browser Verification Heading` in source mode immediately added a ninth outline item, and a single undo immediately removed it again.
+  - `pnpm harness:verify` passed after the ledger/progress updates.
+- Remaining risks:
+  - No `MF-051`-specific blockers remain.
+  - Manual acceptance was captured against the live renderer session rather than direct Electron window control; `pnpm desktop` launched successfully in the same session, and the feature logic under test lives in `@markflow/editor`.
+- Ledger decision:
+  - Updated `harness/feature-ledger.json` to `MF-051.status=verified`, `MF-051.passes=true`, and `MF-051.lastVerifiedAt=2026-04-19`.
+- Next recommended feature:
+  - `MF-053` - Fuzzy document-wide search highlights all matches and jumps between them with keyboard shortcuts.
+
 ### 2026-04-19T08:23:09Z - MF-051 verification loop (automation pass, desktop UI proof still blocked)
 
 - Author: Codex
