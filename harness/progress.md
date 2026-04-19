@@ -1,3 +1,42 @@
+### 2026-04-19T09:48:11Z - MF-054 verified in a live renderer acceptance session
+
+- Author: Codex
+- Focus: strict one-feature completion for `MF-054` (regex / case-sensitive / whole-word find-and-replace).
+- What changed:
+  - Ran `pnpm harness:start`.
+  - Ran `./harness/init.sh --smoke`.
+  - Re-ran the required feature verification command:
+    - `pnpm --filter @markflow/editor exec vitest run src/editor/__tests__/findReplace.test.ts src/editor/__tests__/MarkFlowEditor.test.tsx`
+  - Completed manual acceptance in a live headed Microsoft Edge renderer session at `http://localhost:5173`.
+  - Updated only `harness/features/MF-054.md`, `harness/feature-ledger.json`, and `harness/progress.md` after the feature passed both automated and manual gates.
+- Simplifications made:
+  - Reused one five-line fixture to cover regex-only matching, case-sensitive narrowing, and whole-word replace-all instead of inventing separate manual fixtures.
+  - Kept the proof path renderer-only because the feature logic under test lives in `@markflow/editor`; Electron launch was still exercised in this session, but the dev shell’s auto-opened DevTools made page-level CDP attachment unreliable.
+- Verification:
+  - `pnpm harness:start` passed and selected `MF-054` as the next ready feature.
+  - `./harness/init.sh --smoke` passed on the current tree.
+  - `pnpm --filter @markflow/editor exec vitest run src/editor/__tests__/findReplace.test.ts src/editor/__tests__/MarkFlowEditor.test.tsx` passed: `2` test files, `61` tests passed, `3` skipped.
+  - Manual live acceptance passed in the headed renderer session:
+    - `Cmd/Ctrl+H` opened the find-and-replace panel and focused the replace field.
+    - Regexp query `Foo [0-9]+` highlighted exactly `3` matches: `foo 123`, `foo 456`, `Foo 789`.
+    - Enabling match-case narrowed the highlighted set to exactly `1` match: `Foo 789`.
+    - Switching to literal query `foo`, enabling whole-word, and running `Replace all` transformed the fixture to:
+      - `dog 123`
+      - `dog 456`
+      - `dog 789`
+      - `food 111`
+      - `dog dog`
+    - `diff -u` between expected and actual output was clean.
+  - `pnpm harness:verify` passed after the ledger/progress updates.
+- Remaining risks:
+  - No `MF-054`-specific blockers remain.
+  - Manual acceptance was captured against the live renderer session rather than a directly-driven Electron window because the dev Electron shell auto-opened DevTools and made page-target CDP unstable; the feature logic under test is renderer-only, so the acceptance evidence still matches the shipped behavior path.
+  - The workspace still contains unrelated pre-existing edits in `docs/editorial-chrome-cleanup-plan.md`, `packages/editor/src/App.tsx`, `packages/editor/src/__tests__/App.test.tsx`, `packages/editor/src/components/VaultSidebar.css`, `packages/editor/src/components/VaultSidebar.test.tsx`, `packages/editor/src/components/VaultSidebar.tsx`, `packages/editor/src/editor/MarkFlowEditor.tsx`, `packages/editor/src/editor/__tests__/MarkFlowEditor.test.tsx`, and `packages/editor/src/styles/global.css`; this session did not modify or normalize them.
+- Ledger decision:
+  - Updated `harness/feature-ledger.json` to `MF-054.status=verified`, `MF-054.passes=true`, and `MF-054.lastVerifiedAt=2026-04-19T09:48:11Z`.
+- Next recommended feature:
+  - `MF-061` - Lazy image loading defers off-screen image decoding until the image enters the viewport.
+
 ### 2026-04-19T08:42:10Z - MF-051 verified in a live renderer UI session
 
 - Author: Codex
