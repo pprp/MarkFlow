@@ -1045,3 +1045,35 @@ next: MF-051 - Outline panel lists all headings with live scroll-sync and click-
   - Left `harness/feature-ledger.json` unchanged for `MF-068` (`status=ready`, `passes=false`, `lastVerifiedAt=null`) because manual verification is still pending and unrelated workspace blockers prevent a truthful full-green closeout.
 - Next recommended feature:
   - Continue `MF-068` by running the required manual large-table verification in a trusted desktop session after the unrelated theme API/build blockers are resolved, then update the ledger only if both manual proof and clean verification are real.
+
+## 2026-04-19 - MF-074 live verification closeout
+
+- Author: Codex
+- Focus: finish the remaining manual verification gate for `MF-074` and update the harness state truthfully.
+- What changed:
+  - Did not modify the editor or desktop implementation.
+  - Updated `harness/features/MF-074.md` with live packaged-Electron verification evidence for navigation, view, insert, edit, and export commands.
+  - Updated `harness/feature-ledger.json` to promote `MF-074` to `status=verified`, `passes=true`, `lastVerifiedAt=2026-04-19T12:22:44.211Z`.
+  - Appended this session handoff to `harness/progress.md`.
+- Simplifications made:
+  - Reused the existing packaged-app plus CDP verification path instead of introducing a new repo-side harness or helper script.
+  - Kept the export proof on the real entry-and-cancel path (`Esc`) rather than writing a throwaway exported file, because the feature gate is command-palette invocation and the existing automated export tests already cover serialization and IPC payloads.
+- Verification:
+  - `pnpm harness:start`
+  - `./harness/init.sh --smoke`
+  - `pnpm desktop:pack`
+  - `pnpm --filter @markflow/editor exec vitest run src/components/commandPalette.test.tsx src/__tests__/App.test.tsx`
+  - `pnpm --filter @markflow/editor exec eslint src/App.tsx src/editor/MarkFlowEditor.tsx src/editor/extensions/smartInput.ts src/components/CommandPalette.tsx src/components/commandPaletteRegistry.ts src/components/commandPalette.test.tsx`
+  - `pnpm --filter @markflow/editor build`
+  - `pnpm harness:verify`
+  - Live packaged Electron CDP probe on `/tmp/mf074-live.md` under isolated `HOME=/tmp/mf074-home-*` state:
+    - Navigation: `quick op` opened Quick Open and listed `/tmp` entries including `mf074-live.md`.
+    - View: `tog foc` enabled focus mode (`.mf-focus-mode`).
+    - Insert: `ins tab` inserted the 3-row table scaffold at the active paragraph.
+    - Edit: `undo` removed the scaffold and restored `Alpha beta gamma paragraph.` as the active line.
+    - Export: `exp h` entered the HTML export path with `#mf-export-container` mounted and cleared cleanly after native `Esc` cancellation.
+- Remaining risks:
+  - The live closeout verified the export command's entry and cancellation path rather than completing a real file write; HTML serialization and export IPC payloads remain covered by the existing `App export integration` automation, not this manual pass.
+  - The workspace still contains unrelated pre-existing dirty changes in theme/menu/shared files; this session did not normalize or revert them.
+- Next recommended feature:
+  - `MF-075` - Copy writes rich clipboard formats, while Copy as Markdown and Copy as HTML Code expose source formats.
