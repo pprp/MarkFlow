@@ -1141,3 +1141,32 @@ next: MF-051 - Outline panel lists all headings with live scroll-sync and click-
   - Left `harness/feature-ledger.json` unchanged for `MF-076` (`status=ready`, `passes=false`, `lastVerifiedAt=null`) because the manual acceptance gate is still blocked.
 - Next recommended feature:
   - Continue `MF-076` only in a session that has `Microsoft Word.app` installed plus trusted native desktop UI control, then repeat the manual three-source paste comparison before promoting the ledger.
+
+## 2026-04-19 - MF-076 coverage tightening (manual Word gate still blocked)
+
+- Author: Codex
+- Focus: keep this session on `MF-076` only, tighten the missing shortcut/reset regression coverage, and refresh the blocker record without overstating completion.
+- What changed:
+  - Expanded `packages/editor/src/editor/__tests__/smartPaste.test.ts` with three additional `MF-076` regression cases:
+    - `Cmd+Shift+V` (`metaKey`) uses the plain-text path.
+    - editor `blur` clears the pending plain-text paste intent.
+    - the 1-second shortcut window expires back to the default HTML-to-Markdown paste path.
+  - Updated `harness/features/MF-076.md` and appended this handoff to `harness/progress.md`.
+- Simplifications made:
+  - Reused the existing test helpers and current `smartPaste` implementation; no production editor code changed.
+  - Kept `harness/feature-ledger.json` untouched because the remaining blocker is still manual acceptance, not automated behavior.
+- Verification:
+  - `pnpm harness:start`
+  - `./harness/init.sh --smoke`
+  - `pnpm --filter @markflow/editor exec vitest run src/editor/__tests__/smartPaste.test.ts` passed (`1` test file, `7` tests).
+  - `pnpm --filter @markflow/editor lint` passed.
+  - `pnpm --filter @markflow/editor build` passed.
+  - `pnpm harness:verify` passed (`features: 121 total | verified=75 | ready=30 | planned=15 | blocked=1 | regression=0`).
+  - Manual verification remained blocked: `mdfind "kMDItemCFBundleIdentifier == 'com.microsoft.Word'"` returned no results, and `/Applications` only exposed `Safari.app` plus `Visual Studio Code.app` among the required external sources.
+- Remaining risks:
+  - The required `MF-076` acceptance proof is still incomplete because the feature spec requires comparisons from Microsoft Word, a webpage, and VS Code with and without `Cmd/Ctrl+Shift+V`, and this machine still lacks `Microsoft Word.app`.
+  - The workspace still contains unrelated pre-existing dirty changes in desktop/theme/sidebar/shared files; this session did not normalize or revert them.
+- Ledger decision:
+  - Left `harness/feature-ledger.json` unchanged for `MF-076` (`status=ready`, `passes=false`, `lastVerifiedAt=null`) because the manual acceptance gate is still blocked.
+- Next recommended feature:
+  - Continue `MF-076` on a machine that has `Microsoft Word.app` installed, then reuse the packaged-app/CDP verification path plus real Word, webpage, and VS Code paste comparisons before promoting the ledger.

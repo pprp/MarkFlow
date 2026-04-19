@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { EditorState } from '@codemirror/state'
 import { EditorView } from '@codemirror/view'
 import { smartPasteExtension } from '../extensions/smartPaste'
@@ -65,7 +65,20 @@ function dispatchPaste(view: EditorView, payload: ClipboardPayload) {
   return event.defaultPrevented
 }
 
+function dispatchBlur(view: EditorView) {
+  const event = new FocusEvent('blur', {
+    bubbles: true,
+    cancelable: true,
+  })
+
+  view.contentDOM.dispatchEvent(event)
+}
+
 describe('smartPasteExtension', () => {
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
   it('converts rich HTML paste to markdown on the default paste path', () => {
     const view = makeView()
 
@@ -95,6 +108,21 @@ describe('smartPasteExtension', () => {
     view.destroy()
   })
 
+  it('uses plain text for Cmd+Shift+V on macOS instead of converting HTML', () => {
+    const view = makeView()
+
+    dispatchShortcut(view, { metaKey: true, shiftKey: true })
+    const handled = dispatchPaste(view, {
+      html: '<strong>bold</strong>',
+      text: 'bold',
+    })
+
+    expect(handled).toBe(true)
+    expect(view.state.doc.toString()).toBe('bold')
+
+    view.destroy()
+  })
+
   it('resets the plain-text shortcut after the matching paste', () => {
     const view = makeView()
 
@@ -109,6 +137,41 @@ describe('smartPasteExtension', () => {
     })
 
     expect(view.state.doc.toString()).toBe('bold**bold**')
+
+    view.destroy()
+  })
+
+  it('clears the plain-text shortcut intent when the editor blurs', () => {
+    const view = makeView()
+
+    dispatchShortcut(view, { ctrlKey: true, shiftKey: true })
+    dispatchBlur(view)
+    const handled = dispatchPaste(view, {
+      html: '<strong>bold</strong>',
+      text: 'bold',
+    })
+
+    expect(handled).toBe(true)
+    expect(view.state.doc.toString()).toBe('**bold**')
+
+    view.destroy()
+  })
+
+  it('falls back to the default paste path after the plain-text shortcut window expires', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-04-19T00:00:00Z'))
+
+    const view = makeView()
+
+    dispatchShortcut(view, { ctrlKey: true, shiftKey: true })
+    vi.advanceTimersByTime(1001)
+    const handled = dispatchPaste(view, {
+      html: '<strong>bold</strong>',
+      text: 'bold',
+    })
+
+    expect(handled).toBe(true)
+    expect(view.state.doc.toString()).toBe('**bold**')
 
     view.destroy()
   })
