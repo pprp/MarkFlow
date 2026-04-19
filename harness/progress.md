@@ -1,3 +1,39 @@
+### 2026-04-19T11:32:08Z - MF-068 verified in a live renderer table-command session
+
+- Author: Codex
+- Focus: strict one-feature completion for `MF-068` (table editing hotkeys for row/column insertion and row movement).
+- What changed:
+  - Ran `pnpm harness:start`.
+  - Ran `./harness/init.sh --smoke`.
+  - Re-ran the required feature automation:
+    - `pnpm --filter @markflow/editor exec vitest run src/editor/__tests__/tableCommands.test.ts`
+    - `pnpm --filter @markflow/editor lint`
+  - Completed live acceptance against the current renderer preview at `http://localhost:5173` with a 20-row, 5-column mixed-alignment table fixture.
+  - Updated only `harness/features/MF-068.md`, `harness/feature-ledger.json`, and `harness/progress.md` after the feature passed both automation and live acceptance.
+- Simplifications made:
+  - Reused one generated 20x5 mixed-alignment table fixture for all row/column command checks instead of preparing separate files per shortcut.
+  - Used the live renderer preview rather than a fully booted Electron shell because the behavior under test lives in `@markflow/editor` and the current desktop watcher errors are unrelated to the table-command path.
+- Verification:
+  - `pnpm harness:start` passed.
+  - `./harness/init.sh --smoke` passed on the current tree.
+  - `pnpm --filter @markflow/editor exec vitest run src/editor/__tests__/tableCommands.test.ts` passed twice in this session: `1` test file, `10` tests passed.
+  - `pnpm --filter @markflow/editor lint` passed.
+  - `pnpm harness:verify` passed before and after the ledger update.
+  - Live renderer acceptance passed on `http://localhost:5173`:
+    - `Cmd+Enter` from `R10C3` inserted a blank row below row 10, expanded the body from `20` to `21` rows, and kept the selection on the inserted row through undo, redo, and Source/Preview toggles.
+    - `Tab` from `R20C5` appended a blank row 21, undo restored the caret to `R20C5`, redo restored the appended row, and Source/Preview toggles preserved both the row count and selection.
+    - `Cmd+Shift+Backspace` on `R12C2` removed row 12, moved selection to `R13C2`, and kept the table rectangular through undo, redo, and Source/Preview toggles.
+    - `Alt+ArrowUp` and `Alt+ArrowDown` moved row 10 up and back down while keeping the selected cell on `R10C2`; the header and delimiter rows stayed intact across both undo/redo cycles.
+    - `Cmd+Alt+ArrowRight` inserted a blank column to the right of `R08C4`, increasing the table from `5` to `6` columns; `Cmd+Alt+Backspace` removed it again, returning the table to `5` columns. Both operations stayed rectangular through undo, redo, and Source/Preview toggles.
+    - The delimiter row normalized dash widths after edits but preserved alignment markers (`:---`, `---:`, `:---:`), so there was no malformed markdown or separator drift.
+- Remaining risks:
+  - `pnpm desktop` still cannot launch the Electron shell cleanly in this workspace because unrelated desktop theme API watcher errors remain in `packages/desktop/src/main/index.ts` and `packages/desktop/src/main/menu.ts`.
+  - The manual gate was therefore satisfied in the live renderer preview rather than a directly driven Electron window; that is sufficient for `MF-068` because the feature logic under test is renderer-only.
+- Ledger decision:
+  - Updated `harness/feature-ledger.json` to `MF-068.status=verified`, `MF-068.passes=true`, and `MF-068.lastVerifiedAt=2026-04-19T11:32:08Z`.
+- Next recommended feature:
+  - `MF-072` - Image drag-to-resize handles update width/height in markdown source.
+
 ### 2026-04-19T10:35:59Z - MF-067 verified in a live renderer math session
 
 - Author: Codex
