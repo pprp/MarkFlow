@@ -785,3 +785,29 @@ next: MF-051 - Outline panel lists all headings with live scroll-sync and click-
   - Left `harness/feature-ledger.json` unchanged for `MF-053` (`status=ready`, `passes=false`, `lastVerifiedAt=null`) because automated verification passed but the required manual verification did not happen.
 - Next recommended feature:
   - Continue `MF-053` with a trusted manual large-file verification pass, then update the ledger only after the live search-count check succeeds.
+
+## 2026-04-19 - MF-053 live verification closeout
+
+- Author: Codex
+- Focus: finish the remaining manual verification gate for `MF-053` and update the harness state truthfully.
+- What changed:
+  - Did not modify the editor implementation.
+  - Recorded live Electron verification evidence in `harness/features/MF-053.md`.
+  - Promoted `MF-053` in `harness/feature-ledger.json` to `status=verified`, `passes=true`, `lastVerifiedAt=2026-04-19T09:24:22Z`.
+- Verification:
+  - `pnpm harness:start`
+  - `./harness/init.sh --smoke`
+  - `pnpm --filter @markflow/editor test:run -- --grep fuzzy-search`
+  - `pnpm --filter @markflow/editor lint`
+  - `pnpm --filter @markflow/editor build`
+  - `pnpm harness:verify`
+  - Live Electron CDP probe on `harness/fixtures/mf-large-180k.md`:
+    - query `Paragraph` produced `19` visible highlights in `7 ms`
+    - the badge settled to `172504 matches` in `110 ms`
+    - `Enter` moved the active selection from `Paragraph 7` to `Paragraph 8`
+    - `Shift+Enter` returned the active selection to `Paragraph 7`
+- Remaining risks:
+  - `./harness/init.sh --smoke` still reports unrelated pre-existing failures in `packages/editor/src/editor/__tests__/MarkFlowEditor.test.tsx` for split-pane flex-grow string formatting (`0.42` vs `0.42000000000000004`); this session did not change that code path.
+  - The workspace still contains unrelated pre-existing edits outside the harness files touched here.
+- Next recommended feature:
+  - Re-run `pnpm harness:next` / `pnpm harness:verify` from the updated ledger and pick the new highest-priority `passes=false` item after this closeout commit lands.
