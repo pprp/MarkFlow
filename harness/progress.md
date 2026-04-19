@@ -1,3 +1,28 @@
+### 2026-04-19T08:23:09Z - MF-051 verification loop (automation pass, desktop UI proof still blocked)
+
+- Author: Codex
+- Focus: strict one-feature loop for `MF-051` (outline live scroll-sync and click-to-jump navigation), with startup protocol and truthful verification state preserved.
+- What changed:
+  - Ran `pnpm harness:start`.
+  - Ran `./harness/init.sh --smoke`.
+  - Ran the required feature verification command:
+    - `pnpm --filter @markflow/editor test:run -- src/__tests__/App.test.tsx src/editor/__tests__/MarkFlowEditor.test.tsx src/editor/__tests__/outline.test.ts`
+  - Ran `pnpm harness:verify`.
+  - Launched a real desktop dev session with `pnpm desktop` to pursue the missing `MF-051` manual proof path.
+  - Did not modify source or implementation files; existing `MF-051` code remains unchanged.
+- Verification:
+  - `pnpm harness:start` passed.
+  - `./harness/init.sh --smoke` passed in this environment.
+  - The required feature command passed on the current tree: `42` test files, `457` tests passed, `3` skipped, `0` failed.
+  - `pnpm harness:verify` passed (`features: 121 total | verified=66 | ready=39 | planned=15 | blocked=1 | regression=0`).
+- Remaining risk / blocker:
+  - The missing acceptance evidence is still the trusted desktop manual check for outline click-to-jump, viewport-driven active-heading sync while scrolling, and live heading add/remove updates.
+  - Although `pnpm desktop` launched Electron successfully, this session does not have a trustworthy window-control/inspection path for acceptance. `Computer Use` access was unavailable, and alternate headed-browser probing did not produce reliable UI evidence for ledger promotion.
+- Ledger decision:
+  - Kept `harness/feature-ledger.json` unchanged (`MF-051.status=ready`, `MF-051.passes=false`, `MF-051.lastVerifiedAt=null`) because the required manual desktop proof was not completed.
+- Next recommended feature:
+  - Continue with `MF-051` only. Re-run `./harness/init.sh --desktop-dev` in a session with trusted desktop UI access, open a multi-section markdown fixture, verify outline click-to-jump plus scroll-sync plus live heading add/remove, and only then set `status=verified`, `passes=true`, and `lastVerifiedAt`.
+
 ### 2026-04-17T22:06:14+08:00 - MF-051 protocol loop (automation pass, manual UI blocked)
 
 - Author: Codex
