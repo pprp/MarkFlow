@@ -1,3 +1,39 @@
+### 2026-04-19T10:35:59Z - MF-067 verified in a live renderer math session
+
+- Author: Codex
+- Focus: strict one-feature completion for `MF-067` (alternate LaTeX delimiters in WYSIWYG math rendering).
+- What changed:
+  - Ran `pnpm harness:start`.
+  - Ran `./harness/init.sh --smoke`.
+  - Re-ran the required feature automation:
+    - `pnpm --filter @markflow/editor exec vitest run src/editor/__tests__/mathDecoration.test.ts`
+    - `pnpm --filter @markflow/editor lint`
+    - `pnpm --filter @markflow/editor build`
+  - Completed live acceptance against the current production renderer preview at `http://localhost:4173`.
+  - Did not modify `MF-067` implementation files; updated only `harness/features/MF-067.md`, `harness/feature-ledger.json`, and `harness/progress.md` after the feature passed both automation and live acceptance.
+- Simplifications made:
+  - Reused one mixed-delimiter fixture to cover `$...$`, `$$...$$`, `\(...\)`, and `\[...\]` in a single pass.
+  - Kept the proof path renderer-only because the behavior under test lives in `@markflow/editor`; no desktop-shell-specific code path is involved in `MF-067`.
+- Verification:
+  - `pnpm harness:start` passed.
+  - `./harness/init.sh --smoke` passed on the current tree.
+  - `pnpm --filter @markflow/editor exec vitest run src/editor/__tests__/mathDecoration.test.ts` passed: `1` test file, `20` tests passed.
+  - `pnpm --filter @markflow/editor lint` passed.
+  - `pnpm --filter @markflow/editor build` passed.
+  - `pnpm harness:verify` passed before and after the ledger update.
+  - Live renderer acceptance passed with Preview mode active:
+    - the mixed-delimiter fixture rendered exactly `2` `.mf-math-inline` widgets plus `2` `.mf-math-block` widgets;
+    - moving the caret into `\(a^2+b^2=c^2\)` dropped the inline widget count to `1` and surfaced raw `\(a^2+b^2=c^2\)` source;
+    - moving the caret into `\[\int_0^1 x^2 dx\]` dropped the block widget count to `1` and surfaced raw `\[\int_0^1 x^2 dx\]` source;
+    - `view.state.doc.toString()` stayed byte-for-byte identical to the fixture after both caret moves, so source delimiters remained editable without corruption.
+- Remaining risks:
+  - Manual acceptance was captured against the current production renderer preview rather than a directly driven Electron window; that is sufficient for `MF-067` because the feature logic is renderer-only, but it does not add any new evidence about unrelated desktop-shell behavior.
+  - The workspace still contains unrelated pre-existing edits in `docs/editorial-chrome-cleanup-plan.md`, `packages/desktop/src/main/themeManager.test.ts`, `packages/desktop/src/main/themeManager.ts`, `packages/editor/src/App.tsx`, `packages/editor/src/__tests__/App.test.tsx`, `packages/editor/src/components/VaultSidebar.css`, `packages/editor/src/components/VaultSidebar.test.tsx`, `packages/editor/src/components/VaultSidebar.tsx`, `packages/editor/src/editor/MarkFlowEditor.tsx`, `packages/editor/src/editor/__tests__/MarkFlowEditor.test.tsx`, and `packages/editor/src/styles/global.css`; this session did not normalize them.
+- Ledger decision:
+  - Updated `harness/feature-ledger.json` to `MF-067.status=verified`, `MF-067.passes=true`, and `MF-067.lastVerifiedAt=2026-04-19T10:35:59Z`.
+- Next recommended feature:
+  - `MF-068` - Table editing hotkeys support row/column insertion and row movement without raw markdown surgery.
+
 ### 2026-04-19T10:20:42Z - MF-061 verified in a live renderer lazy-image session
 
 - Author: Codex
