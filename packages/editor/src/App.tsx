@@ -1795,11 +1795,6 @@ export function App() {
           <span className="mf-titlebar-appname">MarkFlow</span>
         </div>
         <div className="mf-titlebar-center">
-          <svg className="mf-titlebar-center-logo" width="16" height="16" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-            <path d="M3 6 Q7 3, 10 6 T17 6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" fill="none" opacity="0.95"/>
-            <path d="M3 10 Q7 7, 10 10 T17 10" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" fill="none" opacity="0.7"/>
-            <path d="M3 14 Q7 11, 10 14 T17 14" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" fill="none" opacity="0.45"/>
-          </svg>
           <span className="mf-titlebar-document">
             <span className="mf-titlebar-document-name">{activeDocumentName}</span>
             {activeTab?.isDirty && (
@@ -1809,7 +1804,7 @@ export function App() {
         </div>
         <div className="mf-titlebar-right">
           <button
-            className={`mf-mode-toggle${typewriterMode ? ' mf-mode-active' : ''}`}
+            className={`mf-mode-toggle mf-mode-toggle-utility${typewriterMode ? ' mf-mode-active' : ''}`}
             onClick={toggleTypewriterMode}
             title="Typewriter mode (Ctrl+Shift+T)"
             aria-label="Typewriter mode"
@@ -1823,10 +1818,9 @@ export function App() {
               <rect x="3.8" y="7.5" width="4.4" height="1" rx="0.3" fill="currentColor" opacity="0.5"/>
               <rect x="3.5" y="1.2" width="5" height="1.2" rx="0.6" fill="currentColor" opacity="0.3"/>
             </svg>
-            Typewriter
           </button>
           <button
-            className={`mf-mode-toggle${focusMode ? ' mf-mode-active' : ''}`}
+            className={`mf-mode-toggle mf-mode-toggle-utility${focusMode ? ' mf-mode-active' : ''}`}
             onClick={toggleFocusMode}
             title="Focus mode (Ctrl+Shift+F)"
             aria-label="Focus mode"
@@ -1839,7 +1833,6 @@ export function App() {
               <path d="M11 9V10.5A0.5 0.5 0 0 1 10.5 11H9" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
               <path d="M3 11H1.5A0.5 0.5 0 0 1 1 10.5V9" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
             </svg>
-            Focus
           </button>
           <button
             className={`mf-mode-toggle${showSidebar ? ' mf-mode-active' : ''}`}

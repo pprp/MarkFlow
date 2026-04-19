@@ -81,6 +81,7 @@ describe('tableCommands', () => {
 
     expect(undo(view)).toBe(true)
     expect(view.state.doc.toString()).toBe(TABLE_DOC)
+    expect(getSelectedLine(view)).toBe('| Alpha | Open |')
 
     expect(redo(view)).toBe(true)
     expect(view.state.doc.toString()).toBe(`| Name  | Status |
@@ -88,6 +89,7 @@ describe('tableCommands', () => {
 | Alpha | Open   |
 |       |        |
 | Beta  | Done   |`)
+    expect(getSelectedLine(view)).toBe('|       |        |')
 
     view.destroy()
   })

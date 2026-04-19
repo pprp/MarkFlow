@@ -1,82 +1,84 @@
+/* VaultSidebar — Notion + Claude Code aesthetic */
+
 .mf-vault-sidebar {
   display: flex;
   flex-direction: column;
   height: 100%;
-  background: var(--mf-bg-secondary, #F3F2EE);
+  background: var(--mf-bg-secondary, #F9F8F6);
   font-size: 13px;
   user-select: none;
+  overflow: hidden;
 }
 
+/* ── Workspace header ──────────────────────────────────────── */
 .mf-vault-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 12px 14px 10px;
-  font-weight: 600;
-  font-size: 10px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--mf-fg-muted, rgba(26, 26, 26, 0.35));
-  border-bottom: 1px solid var(--mf-border-light, rgba(26, 26, 26, 0.06));
+  gap: 4px;
+  padding: 10px 8px 8px 12px;
   flex-shrink: 0;
+  min-width: 0;
+  border-bottom: 1px solid var(--mf-border-light, rgba(26, 26, 26, 0.06));
 }
 
-.mf-vault-scroll {
-  flex: 1;
-  overflow-y: auto;
-  padding: 10px 10px 16px;
-}
-
-.mf-vault-hero {
+.mf-vault-header-workspace {
   display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: 14px;
-  border: 1px solid var(--mf-border-light, rgba(26, 26, 26, 0.06));
-  border-radius: var(--mf-radius-lg, 12px);
-  background:
-    linear-gradient(180deg, color-mix(in srgb, var(--mf-accent-subtle) 82%, var(--mf-bg-elevated) 18%) 0%, var(--mf-bg-elevated, #FFFFFF) 100%);
-  box-shadow: var(--mf-shadow-xs);
+  align-items: center;
+  gap: 7px;
+  flex: 1;
+  min-width: 0;
 }
 
-.mf-vault-hero-eyebrow {
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--mf-accent, #C47625);
+.mf-vault-header-icon {
+  color: var(--mf-accent, #D97757);
+  flex-shrink: 0;
+  display: inline-flex;
+  opacity: 0.85;
 }
 
-.mf-vault-hero-title {
-  font-family: var(--mf-font-display);
-  font-size: 24px;
-  font-weight: 400;
-  line-height: 0.98;
-  letter-spacing: -0.03em;
-  color: var(--mf-heading-color, #111111);
+.mf-vault-header-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--mf-fg, #1A1A1A);
+  letter-spacing: -0.015em;
 }
 
-.mf-vault-hero-description {
-  color: var(--mf-fg-secondary, rgba(26, 26, 26, 0.55));
-  font-size: 12px;
-  line-height: 1.55;
+.mf-vault-header-count {
+  flex-shrink: 0;
+  font-size: 10.5px;
+  font-weight: 500;
+  color: var(--mf-fg-muted, rgba(26, 26, 26, 0.38));
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--mf-fill-secondary, rgba(26, 26, 26, 0.04));
+  letter-spacing: 0;
 }
 
+/* ── Search ────────────────────────────────────────────────── */
 .mf-vault-search {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-top: 12px;
-  padding: 7px 10px;
-  border: 1px solid var(--mf-border-light, rgba(26, 26, 26, 0.06));
+  gap: 7px;
+  margin: 8px 10px 4px;
+  padding: 6px 10px;
   border-radius: var(--mf-radius-sm, 6px);
-  background: var(--mf-bg-elevated, #FFFFFF);
-  color: var(--mf-fg-muted, rgba(26, 26, 26, 0.35));
+  background: var(--mf-fill-secondary, rgba(26, 26, 26, 0.04));
+  border: 1px solid var(--mf-border-light, rgba(26, 26, 26, 0.06));
+  color: var(--mf-fg-muted, rgba(26, 26, 26, 0.38));
+  transition: border-color var(--mf-transition-fast, 0.12s ease),
+              box-shadow var(--mf-transition-fast, 0.12s ease);
+  flex-shrink: 0;
+  cursor: text;
 }
 
 .mf-vault-search:focus-within {
-  border-color: var(--mf-accent, #C47625);
-  box-shadow: 0 0 0 3px rgba(196, 118, 37, 0.12);
+  border-color: color-mix(in srgb, var(--mf-accent, #D97757) 40%, transparent);
+  box-shadow: 0 0 0 2px var(--mf-accent-subtle, rgba(217, 119, 87, 0.06));
+  background: var(--mf-bg-elevated, #fff);
 }
 
 .mf-vault-search-icon {
@@ -92,47 +94,180 @@
   background: transparent;
   color: var(--mf-fg, #1A1A1A);
   font: inherit;
-  font-size: 12.5px;
+  font-size: 12px;
   outline: none;
 }
 
 .mf-vault-search-input::placeholder {
-  color: var(--mf-fg-muted, rgba(26, 26, 26, 0.35));
+  color: var(--mf-fg-muted, rgba(26, 26, 26, 0.38));
 }
 
+/* ── Scrollable content area ───────────────────────────────── */
+.mf-vault-scroll {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 4px 6px 16px;
+}
+
+/* ── Hero (no folder open) ─────────────────────────────────── */
+.mf-vault-hero {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 12px 14px;
+  margin: 6px 0 4px;
+  border-radius: var(--mf-radius, 8px);
+  background: color-mix(in srgb, var(--mf-accent-subtle, rgba(217, 119, 87, 0.06)) 80%, var(--mf-bg-elevated, #fff) 20%);
+  border: 1px solid var(--mf-border-light, rgba(26, 26, 26, 0.06));
+}
+
+.mf-vault-hero-eyebrow {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--mf-accent, #D97757);
+}
+
+.mf-vault-hero-title {
+  font-family: var(--mf-font-display, Georgia, serif);
+  font-size: 20px;
+  font-weight: 400;
+  line-height: 1.1;
+  letter-spacing: -0.025em;
+  color: var(--mf-heading-color, #0D0D0D);
+}
+
+.mf-vault-hero-description {
+  color: var(--mf-fg-secondary, rgba(26, 26, 26, 0.58));
+  font-size: 11.5px;
+  line-height: 1.5;
+}
+
+/* ── Sections ──────────────────────────────────────────────── */
 .mf-vault-section {
   margin-top: 12px;
 }
 
-.mf-vault-section-grow {
-  min-height: 12rem;
+.mf-vault-section-files {
+  margin-top: 8px;
 }
 
 .mf-vault-section-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
-  padding: 0 6px 6px;
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--mf-fg-muted, rgba(26, 26, 26, 0.35));
+  gap: 6px;
+  padding: 2px 10px 5px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--mf-fg-muted, rgba(26, 26, 26, 0.38));
+  letter-spacing: 0.01em;
 }
 
 .mf-vault-section-meta {
-  font-family: var(--mf-font-mono, "JetBrains Mono", monospace);
+  font-family: var(--mf-font-mono, monospace);
   font-size: 10px;
   letter-spacing: 0;
+  color: var(--mf-fg-muted, rgba(26, 26, 26, 0.38));
 }
 
-.mf-vault-nav-list,
-.mf-vault-outline-list,
+/* ── File list ─────────────────────────────────────────────── */
 .mf-vault-files {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 1px;
+}
+
+.mf-vault-file-item {
+  display: flex;
+  align-items: center;
+  padding: 4px 6px 4px 8px;
+  cursor: pointer;
+  border-radius: var(--mf-radius-sm, 6px);
+  gap: 6px;
+  transition: background var(--mf-transition-fast, 0.12s ease);
+  min-height: 28px;
+  position: relative;
+  border-left: 2px solid transparent;
+  margin-left: 0;
+}
+
+.mf-vault-file-item:hover {
+  background: var(--mf-fill, rgba(26, 26, 26, 0.07));
+}
+
+.mf-vault-file-item.mf-vault-file-active {
+  background: var(--mf-accent-light, rgba(217, 119, 87, 0.10));
+  border-left-color: var(--mf-accent, #D97757);
+}
+
+.mf-vault-file-icon {
+  color: var(--mf-fg-muted, rgba(26, 26, 26, 0.38));
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+}
+
+.mf-vault-file-active .mf-vault-file-icon {
+  color: var(--mf-accent, #D97757);
+}
+
+.mf-vault-file-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12.5px;
+  font-weight: 400;
+  color: var(--mf-fg, #1A1A1A);
+  letter-spacing: -0.012em;
+}
+
+.mf-vault-file-active .mf-vault-file-name {
+  color: var(--mf-accent, #D97757);
+  font-weight: 500;
+}
+
+/* ── File hover-reveal actions ─────────────────────────────── */
+.mf-vault-file-actions {
+  display: none;
+  gap: 1px;
+  flex-shrink: 0;
+}
+
+.mf-vault-file-item:hover .mf-vault-file-actions {
+  display: flex;
+}
+
+/* ── Action buttons ────────────────────────────────────────── */
+.mf-vault-action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 3px;
+  border-radius: var(--mf-radius-xs, 4px);
+  color: var(--mf-fg-muted, rgba(26, 26, 26, 0.38));
+  transition: background var(--mf-transition-fast, 0.12s ease),
+              color var(--mf-transition-fast, 0.12s ease);
+  -webkit-app-region: no-drag;
+}
+
+.mf-vault-action-btn:hover {
+  background: var(--mf-fill, rgba(26, 26, 26, 0.07));
+  color: var(--mf-fg, #1A1A1A);
+}
+
+/* ── Nav items (Recent, Outline) ───────────────────────────── */
+.mf-vault-nav-list,
+.mf-vault-outline-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
 }
 
 .mf-vault-nav-item,
@@ -144,35 +279,34 @@
 .mf-vault-nav-item {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
   width: 100%;
-  padding: 10px 12px;
-  border: 1px solid transparent;
-  border-radius: var(--mf-radius, 8px);
+  padding: 5px 8px 5px 10px;
+  border: none;
+  border-left: 2px solid transparent;
+  border-radius: var(--mf-radius-sm, 6px);
   background: transparent;
   color: var(--mf-fg, #1A1A1A);
   cursor: pointer;
   text-align: left;
-  transition: all var(--mf-transition-fast, 0.12s ease);
+  transition: background var(--mf-transition-fast, 0.12s ease);
 }
 
-.mf-vault-nav-item:hover,
-.mf-vault-file-item:hover {
-  background: var(--mf-fill, rgba(26, 26, 26, 0.08));
+.mf-vault-nav-item:hover {
+  background: var(--mf-fill, rgba(26, 26, 26, 0.07));
 }
 
-.mf-vault-nav-item-active,
-.mf-vault-file-item.mf-vault-file-active {
-  border-color: color-mix(in srgb, var(--mf-accent) 24%, transparent);
-  background: var(--mf-accent-light, rgba(196, 118, 37, 0.10));
-  color: var(--mf-accent, #C47625);
+.mf-vault-nav-item-active {
+  background: var(--mf-accent-light, rgba(217, 119, 87, 0.10));
+  border-left-color: var(--mf-accent, #D97757);
+  color: var(--mf-accent, #D97757);
 }
 
 .mf-vault-nav-item-topline {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: 6px;
 }
 
 .mf-vault-nav-item-copy {
@@ -180,12 +314,12 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   font-size: 12.5px;
-  font-weight: 500;
-  letter-spacing: -0.01em;
+  font-weight: 400;
+  letter-spacing: -0.012em;
 }
 
 .mf-vault-nav-item-meta {
-  color: var(--mf-fg-muted, rgba(26, 26, 26, 0.35));
+  color: var(--mf-fg-muted, rgba(26, 26, 26, 0.38));
   font-size: 11px;
   white-space: nowrap;
   overflow: hidden;
@@ -196,133 +330,86 @@
   display: inline-flex;
   flex-wrap: wrap;
   justify-content: flex-end;
-  gap: 4px;
+  gap: 3px;
 }
 
 .mf-vault-nav-badge {
   display: inline-flex;
   align-items: center;
-  padding: 2px 7px;
+  padding: 1px 5px;
   border-radius: 999px;
   background: var(--mf-fill-secondary, rgba(26, 26, 26, 0.04));
-  color: var(--mf-fg-muted, rgba(26, 26, 26, 0.35));
+  color: var(--mf-fg-muted, rgba(26, 26, 26, 0.38));
   font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  font-weight: 500;
+  letter-spacing: 0.02em;
 }
 
+/* ── Outline toggle button ─────────────────────────────────── */
 .mf-vault-outline-toggle {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 22px;
-  height: 22px;
+  width: 20px;
+  height: 20px;
   border: none;
-  border-radius: var(--mf-radius-sm, 6px);
+  border-radius: var(--mf-radius-xs, 4px);
   background: transparent;
-  color: inherit;
+  color: var(--mf-fg-muted, rgba(26, 26, 26, 0.38));
   cursor: pointer;
-  transition: background var(--mf-transition-fast, 0.12s ease), color var(--mf-transition-fast, 0.12s ease);
+  transition: background var(--mf-transition-fast, 0.12s ease),
+              color var(--mf-transition-fast, 0.12s ease);
 }
 
-.mf-vault-outline-toggle:hover,
-.mf-vault-action-btn:hover {
-  background: var(--mf-fill, rgba(26, 26, 26, 0.08));
+.mf-vault-outline-toggle:hover {
+  background: var(--mf-fill, rgba(26, 26, 26, 0.07));
   color: var(--mf-fg, #1A1A1A);
 }
 
+/* ── Outline items ─────────────────────────────────────────── */
 .mf-vault-outline-item {
-  padding-top: 8px;
-  padding-bottom: 8px;
+  padding-top: 4px;
+  padding-bottom: 4px;
 }
 
+/* ── Open folder CTA ───────────────────────────────────────── */
 .mf-vault-open-btn {
-  background: var(--mf-accent, #C47625);
+  background: var(--mf-accent, #D97757);
   color: #fff;
   border: none;
   border-radius: var(--mf-radius, 8px);
-  padding: 10px 14px;
-  font-size: 12px;
-  font-weight: 600;
+  padding: 9px 14px;
+  font-size: 12.5px;
+  font-weight: 500;
   cursor: pointer;
   width: 100%;
-  transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: background var(--mf-transition-fast, 0.12s ease);
   letter-spacing: -0.01em;
+  margin-top: 4px;
 }
 
 .mf-vault-open-btn:hover {
-  background: var(--mf-accent-hover, #B06A1F);
-  box-shadow: 0 2px 8px rgba(196, 118, 37, 0.25);
+  background: var(--mf-accent-hover, #C5643F);
 }
 
-.mf-vault-file-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 8px 10px;
-  cursor: pointer;
-  border: 1px solid transparent;
-  border-radius: var(--mf-radius-sm, 6px);
-  gap: 6px;
-  transition: all 0.12s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.mf-vault-file-name {
-  flex: 1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 13px;
-  font-weight: 400;
-  color: var(--mf-fg, #1A1A1A);
-  letter-spacing: -0.01em;
-}
-
-.mf-vault-file-item.mf-vault-file-active .mf-vault-file-name {
-  color: var(--mf-accent, #C47625);
-  font-weight: 600;
-}
-
-.mf-vault-file-actions {
-  display: none;
-  gap: 2px;
-}
-
-.mf-vault-file-item:hover .mf-vault-file-actions {
-  display: flex;
-}
-
-.mf-vault-action-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 3px 5px;
-  border-radius: var(--mf-radius-xs, 4px);
-  font-size: 11px;
-  color: var(--mf-fg-muted, rgba(26, 26, 26, 0.35));
-  transition: all 0.12s ease;
-}
-
+/* ── Empty state ───────────────────────────────────────────── */
 .mf-vault-empty {
-  padding: 24px 14px;
-  color: var(--mf-fg-muted, rgba(26, 26, 26, 0.35));
+  padding: 16px 10px;
+  color: var(--mf-fg-muted, rgba(26, 26, 26, 0.38));
   font-size: 12px;
   text-align: center;
   line-height: 1.5;
 }
 
+/* ── Rename input ──────────────────────────────────────────── */
 .mf-vault-rename-input {
   flex: 1;
-  border: 1px solid var(--mf-accent, #C47625);
+  border: 1px solid var(--mf-accent, #D97757);
   border-radius: var(--mf-radius-xs, 4px);
-  padding: 2px 6px;
-  font-size: 13px;
-  background: var(--mf-bg, #FAFAF8);
+  padding: 1px 5px;
+  font-size: 12.5px;
+  background: var(--mf-bg-elevated, #fff);
   color: var(--mf-fg, #1A1A1A);
   outline: none;
-  box-shadow: 0 0 0 3px rgba(196, 118, 37, 0.12);
+  box-shadow: 0 0 0 2px var(--mf-accent-subtle, rgba(217, 119, 87, 0.06));
 }

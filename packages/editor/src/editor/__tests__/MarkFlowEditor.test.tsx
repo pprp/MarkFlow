@@ -23,6 +23,7 @@ interface PointerEventInitWithId extends MouseEventInit {
 const IS_MAC_PLATFORM = /Mac|iPhone|iPad|iPod/.test(globalThis.navigator?.platform ?? '')
 
 afterEach(() => {
+  vi.restoreAllMocks()
   vi.useRealTimers()
 })
 
@@ -1324,7 +1325,27 @@ describe('MarkFlowEditor', () => {
     expect(previewView!.state.doc.toString()).toBe('Hello world')
   })
 
-  it('adjusts layout correctly on pane resize', () => {
+  it('renders split view with a source-first editorial hierarchy by default', () => {
+    const { container } = render(
+      <MarkFlowEditor content="Split" viewMode="split" onChange={vi.fn()} />,
+    )
+
+    const splitContainer = container.querySelector('.mf-split-container')
+    const sourcePane = container.querySelector('.mf-split-pane-source')
+    const previewPane = container.querySelector('.mf-split-pane-preview')
+    const divider = container.querySelector('.mf-split-divider')
+    const dividerHandle = container.querySelector('.mf-split-divider-handle')
+
+    expect(splitContainer).not.toBeNull()
+    expect(sourcePane).not.toBeNull()
+    expect(previewPane).not.toBeNull()
+    expect(divider).not.toBeNull()
+    expect(dividerHandle).not.toBeNull()
+    expect(Number.parseFloat((sourcePane as HTMLElement).style.flexGrow)).toBeCloseTo(0.58)
+    expect(Number.parseFloat((previewPane as HTMLElement).style.flexGrow)).toBeCloseTo(0.42)
+  })
+
+  it('adjusts split-pane layout correctly on pane resize', () => {
     const { container } = render(
       <MarkFlowEditor content="Split" viewMode="split" onChange={vi.fn()} />,
     )
@@ -1334,10 +1355,8 @@ describe('MarkFlowEditor', () => {
 
     const splitContainer = container.querySelector('.mf-split-container')
     expect(splitContainer).not.toBeNull()
-    
 
-
-// PointerEvent polyfill for jsdom
+    // PointerEvent polyfill for jsdom
     if (!window.PointerEvent) {
       class MockPointerEvent extends MouseEvent {
         pointerId: number
@@ -1370,13 +1389,14 @@ describe('MarkFlowEditor', () => {
     Element.prototype.setPointerCapture = vi.fn()
     Element.prototype.releasePointerCapture = vi.fn()
 
+    const sourcePane = container.querySelector('.mf-split-pane-source')
+    const previewPane = container.querySelector('.mf-split-pane-preview')
+    expect(sourcePane).not.toBeNull()
+    expect(previewPane).not.toBeNull()
 
-    const panes = container.querySelectorAll('.mf-split-pane')
-    expect(panes).toHaveLength(2)
-
-    // Initial state (ratio 0.5)
-    expect((panes[0] as HTMLElement).style.flexGrow).toBe('0.5')
-    expect((panes[1] as HTMLElement).style.flexGrow).toBe('0.5')
+    // Initial state favors the writing surface.
+    expect(Number.parseFloat((sourcePane as HTMLElement).style.flexGrow)).toBeCloseTo(0.58)
+    expect(Number.parseFloat((previewPane as HTMLElement).style.flexGrow)).toBeCloseTo(0.42)
 
     // Simulate pointer down, move, and up
     fireEvent.pointerDown(divider as Element, { pointerId: 1 })
@@ -1384,16 +1404,16 @@ describe('MarkFlowEditor', () => {
     fireEvent.pointerUp(divider as Element, { pointerId: 1 })
 
     // 300 / 1000 = 0.3
-    expect((panes[0] as HTMLElement).style.flexGrow).toBe('0.3')
-    expect((panes[1] as HTMLElement).style.flexGrow).toBe('0.7')
-    
+    expect((sourcePane as HTMLElement).style.flexGrow).toBe('0.3')
+    expect((previewPane as HTMLElement).style.flexGrow).toBe('0.7')
+
     // Limits
     fireEvent.pointerDown(divider as Element, { pointerId: 1 })
     fireEvent.pointerMove(divider as Element, { pointerId: 1, clientX: 50 })
     fireEvent.pointerUp(divider as Element, { pointerId: 1 })
-    
+
     // Should cap at 0.1
-    expect((panes[0] as HTMLElement).style.flexGrow).toBe('0.1')
-    expect((panes[1] as HTMLElement).style.flexGrow).toBe('0.9')
+    expect((sourcePane as HTMLElement).style.flexGrow).toBe('0.1')
+    expect((previewPane as HTMLElement).style.flexGrow).toBe('0.9')
   })
 })

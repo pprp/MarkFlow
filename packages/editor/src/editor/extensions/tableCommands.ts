@@ -1,3 +1,4 @@
+import { isolateHistory } from '@codemirror/commands'
 import { ensureSyntaxTree, syntaxTree } from '@codemirror/language'
 import { EditorSelection, Prec } from '@codemirror/state'
 import { EditorView, type KeyBinding, keymap } from '@codemirror/view'
@@ -359,7 +360,13 @@ function applyTableEdit(
       to: model.to,
       insert: formatted.text,
     },
+    annotations: [isolateHistory.of('full')],
+  })
+
+  view.dispatch({
     selection,
+    annotations: [isolateHistory.of('full')],
+    scrollIntoView: true,
   })
 
   return true

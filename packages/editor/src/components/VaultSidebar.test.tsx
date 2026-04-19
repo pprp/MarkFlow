@@ -10,7 +10,7 @@ function renderSidebar() {
   const onRecentSelect = vi.fn()
   const onOutlineSelect = vi.fn()
 
-  render(
+  const view = render(
     <VaultSidebar
       folderPath="/Users/pprp/Notes"
       files={[
@@ -50,6 +50,7 @@ function renderSidebar() {
   )
 
   return {
+    ...view,
     onFileOpen,
     onFileRename,
     onFileDelete,
@@ -97,5 +98,15 @@ describe('VaultSidebar', () => {
       }),
     )
     expect(onOutlineSelect).toHaveBeenCalledWith(0)
+  })
+
+  it('renders workspace name in header and avoids hero/badges when a folder is open', () => {
+    const { container } = renderSidebar()
+
+    expect(container.querySelector('.mf-vault-header-workspace')).toBeInTheDocument()
+    expect(container.querySelector('.mf-vault-header-name')?.textContent).toBe('Notes')
+    expect(container.querySelector('.mf-vault-header-count')?.textContent).toBe('3')
+    expect(container.querySelector('.mf-vault-hero')).not.toBeInTheDocument()
+    expect(container.querySelectorAll('.mf-vault-nav-badge')).toHaveLength(0)
   })
 })

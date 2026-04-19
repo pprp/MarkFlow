@@ -920,3 +920,21 @@ next: MF-051 - Outline panel lists all headings with live scroll-sync and click-
   - The workspace still contains unrelated pre-existing edits outside the harness files touched here.
 - Next recommended feature:
   - Re-run `pnpm harness:next` / `pnpm harness:verify` from the updated ledger and pick the new highest-priority `passes=false` item after this closeout commit lands.
+
+## 2026-04-19 - Editorial chrome black tab follow-up
+
+- Author: Codex
+- Focus: remove the remaining dark active-tab/header surface mismatch reported in the desktop chrome.
+- What changed:
+  - Added dedicated desktop chrome surface tokens in `packages/editor/src/styles/global.css`.
+  - Switched the titlebar, tabstrip, active tab pill, and active view-mode segment to those derived chrome surfaces instead of relying on `--mf-bg-elevated`.
+- Simplifications made:
+  - Kept the fix local to shared chrome CSS instead of expanding the theme manager contract.
+  - Derived chrome colors from `--mf-bg` and `--mf-bg-secondary` so incomplete theme overrides cannot leave only the active tab dark.
+- Verification:
+  - `pnpm --filter @markflow/editor exec vitest run src/__tests__/App.test.tsx`
+  - `pnpm --filter @markflow/editor lint`
+  - `pnpm --filter @markflow/editor build`
+- Remaining risks:
+  - I did not capture a trusted live Electron screenshot in this pass, so the final visual confirmation is still based on the CSS/token path plus automated verification.
+  - The editor workspace already contains unrelated in-flight edits in `packages/editor/src/__tests__/App.test.tsx`, `packages/desktop/src/main/themeManager.ts`, and `packages/desktop/src/main/themeManager.test.ts`; this handoff did not normalize them.

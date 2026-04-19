@@ -24,6 +24,35 @@ function basename(filePath: string): string {
   return filePath.split(/[\\/]/).at(-1) ?? filePath
 }
 
+function FileIcon() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true">
+      <path
+        d="M2.5 1.5h5.5L11 4v7a.5.5 0 0 1-.5.5h-8a.5.5 0 0 1-.5-.5v-9a.5.5 0 0 1 .5-.5z"
+        stroke="currentColor"
+        strokeWidth="1"
+        fill="none"
+      />
+      <path d="M7.5 1.5V4H11" stroke="currentColor" strokeWidth="1" fill="none" strokeLinejoin="round" />
+      <path d="M4 6h5M4 7.5h5M4 9h3" stroke="currentColor" strokeWidth="0.85" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+function WorkspaceIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+      <path
+        d="M1.5 5.5a1 1 0 0 1 1-1h2.6l.9 1H12a.5.5 0 0 1 .5.5v5a.5.5 0 0 1-.5.5H2.5a1 1 0 0 1-1-1z"
+        stroke="currentColor"
+        strokeWidth="1.1"
+        fill="none"
+        strokeLinejoin="round"
+      />
+    </svg>
+  )
+}
+
 export function VaultSidebar({
   activeFile,
   activeOutlineAnchor = null,
@@ -69,7 +98,7 @@ export function VaultSidebar({
     }
   }
 
-  const folderName = folderPath ? basename(folderPath) : 'MarkFlow Bundle'
+  const folderName = folderPath ? basename(folderPath) : 'MarkFlow'
   const normalizedSearchQuery = searchQuery.trim().toLowerCase()
   const filteredFiles = useMemo(() => {
     if (!normalizedSearchQuery) {
@@ -86,8 +115,19 @@ export function VaultSidebar({
 
   return (
     <div className="mf-vault-sidebar">
+      {/* Workspace header */}
       <div className="mf-vault-header">
-        <span>{folderPath ? folderName : 'Start here'}</span>
+        <div className="mf-vault-header-workspace">
+          <span className="mf-vault-header-icon">
+            <WorkspaceIcon />
+          </span>
+          <span className="mf-vault-header-name" title={folderPath ?? undefined}>
+            {folderName}
+          </span>
+          {folderPath ? (
+            <span className="mf-vault-header-count">{files.length}</span>
+          ) : null}
+        </div>
         <button
           className="mf-vault-action-btn"
           onClick={onOpenFolder}
@@ -111,111 +151,36 @@ export function VaultSidebar({
         </button>
       </div>
 
+      {/* Search — always visible */}
+      <label className="mf-vault-search" aria-label="Search files">
+        <span className="mf-vault-search-icon" aria-hidden="true">
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+            <circle cx="5.5" cy="5.5" r="3.5" stroke="currentColor" strokeWidth="1.1" />
+            <path d="M8.5 8.5L11 11" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" />
+          </svg>
+        </span>
+        <input
+          type="text"
+          className="mf-vault-search-input"
+          value={searchQuery}
+          onChange={(event) => setSearchQuery(event.target.value)}
+          placeholder="Search files…"
+        />
+      </label>
+
       <div className="mf-vault-scroll">
-        <section className="mf-vault-hero">
-          <span className="mf-vault-hero-eyebrow">{folderPath ? 'Current workspace' : 'Editorial bundle'}</span>
-          <h2 className="mf-vault-hero-title">{folderName}</h2>
-          <p className="mf-vault-hero-description">
-            {folderPath
-              ? 'Files, recent places, and live outline now live in one rail so structure feels like part of writing.'
-              : 'Open a folder to turn MarkFlow into a warmer writing workspace with recent context and live structure.'}
-          </p>
-        </section>
-
-        {folderPath ? (
-          <label className="mf-vault-search" aria-label="Search files">
-            <span className="mf-vault-search-icon" aria-hidden="true">
-              <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
-                <circle cx="6" cy="6" r="3.8" stroke="currentColor" strokeWidth="1.1" />
-                <path d="M8.9 8.9L11.4 11.4" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" />
-              </svg>
-            </span>
-            <input
-              type="text"
-              className="mf-vault-search-input"
-              value={searchQuery}
-              onChange={(event) => setSearchQuery(event.target.value)}
-              placeholder="Search files…"
-            />
-          </label>
-        ) : null}
-
-        {visibleRecentItems.length > 0 ? (
-          <section className="mf-vault-section">
-            <div className="mf-vault-section-header">
-              <span>Recent</span>
-            </div>
-            <div className="mf-vault-nav-list">
-              {visibleRecentItems.map((item) => (
-                <button
-                  key={item.id}
-                  type="button"
-                  className="mf-vault-nav-item"
-                  aria-label={item.label}
-                  onClick={() => onRecentSelect?.(item)}
-                >
-                  <span className="mf-vault-nav-item-topline">
-                    <span className="mf-vault-nav-item-copy">{item.label}</span>
-                    <span className="mf-vault-nav-badges">
-                      {item.kind === 'folder' ? <span className="mf-vault-nav-badge">Folder</span> : null}
-                      {item.isPinned ? <span className="mf-vault-nav-badge">Pinned</span> : null}
-                      {item.isRecent ? <span className="mf-vault-nav-badge">Recent</span> : null}
-                    </span>
-                  </span>
-                  {item.description ? <span className="mf-vault-nav-item-meta">{item.description}</span> : null}
-                </button>
-              ))}
-            </div>
+        {!folderPath ? (
+          <section className="mf-vault-hero">
+            <span className="mf-vault-hero-eyebrow">Editorial bundle</span>
+            <h2 className="mf-vault-hero-title">MarkFlow Bundle</h2>
+            <p className="mf-vault-hero-description">
+              Open a folder to turn MarkFlow into a warmer writing workspace with recent context and live structure.
+            </p>
           </section>
         ) : null}
 
-        {outlineItems.length > 0 ? (
-          <section className="mf-vault-section">
-            <div className="mf-vault-section-header">
-              <span>Outline</span>
-              {onToggleOutline ? (
-                <button
-                  type="button"
-                  className="mf-vault-outline-toggle"
-                  aria-label={outlineCollapsed ? 'Expand outline' : 'Collapse outline'}
-                  title={outlineCollapsed ? 'Expand outline' : 'Collapse outline'}
-                  onClick={onToggleOutline}
-                >
-                  <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-                    {outlineCollapsed ? (
-                      <path d="M5 2L10 7L5 12" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
-                    ) : (
-                      <path d="M9 2L4 7L9 12" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
-                    )}
-                  </svg>
-                </button>
-              ) : null}
-            </div>
-            {!outlineCollapsed ? (
-              <nav className="mf-vault-outline-list" aria-label="Outline">
-                {outlineItems.map((heading) => {
-                  const isActive = heading.anchor === activeOutlineAnchor
-
-                  return (
-                    <button
-                      key={`${heading.anchor}:${heading.from}`}
-                      type="button"
-                      className={`mf-vault-nav-item mf-vault-outline-item${isActive ? ' mf-vault-nav-item-active' : ''}`}
-                      aria-label={heading.text}
-                      aria-current={isActive ? 'true' : undefined}
-                      style={{ paddingLeft: `${12 + (heading.level - 1) * 14}px` }}
-                      onClick={() => onOutlineSelect?.(heading.from)}
-                    >
-                      <span className="mf-vault-nav-item-copy">{heading.text}</span>
-                    </button>
-                  )
-                })}
-              </nav>
-            ) : null}
-          </section>
-        ) : null}
-
-        <section className={`mf-vault-section${folderPath ? ' mf-vault-section-grow' : ''}`}>
+        {/* Files section — primary content */}
+        <section className="mf-vault-section mf-vault-section-files">
           <div className="mf-vault-section-header">
             <span>Files</span>
             {folderPath ? <span className="mf-vault-section-meta">{filteredFiles.length}</span> : null}
@@ -246,6 +211,11 @@ export function VaultSidebar({
                     onKeyDown={(e) => e.key === 'Enter' && !isRenaming && onFileOpen(filePath)}
                     aria-current={isActive ? 'true' : undefined}
                   >
+                    {!isRenaming ? (
+                      <span className="mf-vault-file-icon">
+                        <FileIcon />
+                      </span>
+                    ) : null}
                     {isRenaming ? (
                       <input
                         ref={renameInputRef}
@@ -311,6 +281,84 @@ export function VaultSidebar({
             </div>
           )}
         </section>
+
+        {/* Recent section */}
+        {visibleRecentItems.length > 0 ? (
+          <section className="mf-vault-section">
+            <div className="mf-vault-section-header">
+              <span>Recent</span>
+            </div>
+            <div className="mf-vault-nav-list">
+              {visibleRecentItems.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  className="mf-vault-nav-item"
+                  aria-label={item.label}
+                  onClick={() => onRecentSelect?.(item)}
+                >
+                  <span className="mf-vault-nav-item-topline">
+                    <span className="mf-vault-nav-item-copy">{item.label}</span>
+                    {item.kind === 'folder' || item.isPinned ? (
+                      <span className="mf-vault-nav-badges">
+                        {item.kind === 'folder' ? <span className="mf-vault-nav-badge">Folder</span> : null}
+                        {item.isPinned ? <span className="mf-vault-nav-badge">Pinned</span> : null}
+                      </span>
+                    ) : null}
+                  </span>
+                  {item.description ? <span className="mf-vault-nav-item-meta">{item.description}</span> : null}
+                </button>
+              ))}
+            </div>
+          </section>
+        ) : null}
+
+        {/* Outline section */}
+        {outlineItems.length > 0 ? (
+          <section className="mf-vault-section">
+            <div className="mf-vault-section-header">
+              <span>Outline</span>
+              {onToggleOutline ? (
+                <button
+                  type="button"
+                  className="mf-vault-outline-toggle"
+                  aria-label={outlineCollapsed ? 'Expand outline' : 'Collapse outline'}
+                  title={outlineCollapsed ? 'Expand outline' : 'Collapse outline'}
+                  onClick={onToggleOutline}
+                >
+                  <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+                    {outlineCollapsed ? (
+                      <path d="M4 2L9 6L4 10" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+                    ) : (
+                      <path d="M8 2L3 6L8 10" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+                    )}
+                  </svg>
+                </button>
+              ) : null}
+            </div>
+            {!outlineCollapsed ? (
+              <nav className="mf-vault-outline-list" aria-label="Outline">
+                {outlineItems.map((heading) => {
+                  const isActive = heading.anchor === activeOutlineAnchor
+
+                  return (
+                    <button
+                      key={`${heading.anchor}:${heading.from}`}
+                      type="button"
+                      className={`mf-vault-nav-item mf-vault-outline-item${isActive ? ' mf-vault-nav-item-active' : ''}`}
+                      aria-label={heading.text}
+                      aria-current={isActive ? 'true' : undefined}
+                      style={{ paddingLeft: `${10 + (heading.level - 1) * 12}px` }}
+                      onClick={() => onOutlineSelect?.(heading.from)}
+                    >
+                      <span className="mf-vault-nav-item-copy">{heading.text}</span>
+                    </button>
+                  )
+                })}
+              </nav>
+            ) : null}
+          </section>
+        ) : null}
       </div>
     </div>
   )

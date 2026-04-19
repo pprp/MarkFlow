@@ -56,6 +56,14 @@
   --mf-content-width:   720px;
   --mf-content-padding: 3rem;
 
+  /* ── Desktop chrome surfaces ───────────────────────────────── */
+  /* Derive top-level UI chrome from the current theme background
+     so partial theme overrides cannot leave titlebar surfaces dark. */
+  --mf-chrome-bg:       color-mix(in srgb, var(--mf-bg) 97%, var(--mf-bg-secondary) 3%);
+  --mf-chrome-surface:  color-mix(in srgb, var(--mf-bg) 90%, var(--mf-bg-secondary) 10%);
+  --mf-chrome-hover:    color-mix(in srgb, var(--mf-bg) 82%, var(--mf-bg-secondary) 18%);
+  --mf-chrome-border:   color-mix(in srgb, var(--mf-border-light) 82%, transparent);
+
   /* ── Radii ──────────────────────────────────────────────────── */
   --mf-radius-xs:       4px;
   --mf-radius-sm:       6px;
@@ -216,18 +224,19 @@ body {
   align-items: center;
   height: 48px;
   padding: 0 16px 0 0;
-  background: var(--mf-bg);
+  background: var(--mf-chrome-bg);
   border-bottom: 1px solid var(--mf-border-light);
   user-select: none;
   -webkit-app-region: drag;
   position: relative;
   flex-shrink: 0;
+  overflow: hidden;
   transition: background var(--mf-transition);
 }
 
 @media (prefers-color-scheme: dark) {
   .mf-titlebar {
-    background: var(--mf-bg);
+    background: var(--mf-chrome-bg);
   }
 }
 
@@ -236,11 +245,36 @@ body {
   flex-shrink: 0;
 }
 
+/* Responsive: hide app name at medium widths */
+@media (max-width: 800px) {
+  .mf-titlebar-appname {
+    display: none;
+  }
+}
+
+/* Responsive: compact titlebar at small widths */
+@media (max-width: 640px) {
+  .mf-titlebar {
+    grid-template-columns: 72px 0 auto 1fr;
+    padding: 0 8px 0 0;
+  }
+  .mf-titlebar-traffic-spacer {
+    width: 72px;
+  }
+  .mf-mode-toggle-utility {
+    display: none;
+  }
+  .mf-segment-btn {
+    padding: 4px 7px;
+  }
+}
+
 .mf-titlebar-left {
   display: flex;
   align-items: center;
   gap: 8px;
   min-width: 0;
+  overflow: hidden;
 }
 
 .mf-logo-icon {
@@ -269,14 +303,7 @@ body {
   align-items: center;
   justify-content: center;
   min-width: 0;
-  gap: 10px;
-  color: var(--mf-accent);
-}
-
-.mf-titlebar-center-logo {
-  color: var(--mf-accent);
-  flex-shrink: 0;
-  display: block;
+  gap: 0;
 }
 
 .mf-titlebar-dirty-dot {
@@ -317,6 +344,8 @@ body {
   align-items: center;
   justify-content: flex-end;
   gap: 3px;
+  min-width: 0;
+  overflow: hidden;
 }
 
 /* ── Tabstrip — refined pill tabs ───────────────────────────── */
@@ -326,7 +355,7 @@ body {
   gap: 2px;
   min-height: 36px;
   padding: 0 16px 0;
-  background: var(--mf-bg);
+  background: var(--mf-chrome-bg);
   border-bottom: 1px solid var(--mf-border-light);
   overflow-x: auto;
   scrollbar-width: none;
@@ -338,7 +367,7 @@ body {
 
 @media (prefers-color-scheme: dark) {
   .mf-tabstrip {
-    background: var(--mf-bg);
+    background: var(--mf-chrome-bg);
   }
 }
 
@@ -357,13 +386,13 @@ body {
 }
 
 .mf-tab:hover {
-  background: var(--mf-fill-secondary);
+  background: var(--mf-chrome-hover);
 }
 
 .mf-tab-active {
-  background: var(--mf-bg-elevated);
-  border-color: var(--mf-border-light);
-  box-shadow: var(--mf-shadow-sm);
+  background: var(--mf-chrome-surface);
+  border-color: var(--mf-chrome-border);
+  box-shadow: var(--mf-shadow-xs);
 }
 
 .mf-tab-button {
@@ -485,6 +514,12 @@ body {
   white-space: nowrap;
 }
 
+.mf-mode-toggle-utility {
+  width: 28px;
+  padding: 0;
+  gap: 0;
+}
+
 .mf-mode-toggle:hover {
   background: var(--mf-fill-secondary);
   color: var(--mf-fg-secondary);
@@ -544,14 +579,14 @@ body {
 
 .mf-segment-active {
   color: var(--mf-fg);
-  background: var(--mf-bg-elevated, var(--mf-bg));
+  background: var(--mf-chrome-surface);
   box-shadow: var(--mf-shadow-xs);
   font-weight: 600;
 }
 
 @media (prefers-color-scheme: dark) {
   .mf-segment-active {
-    background: var(--mf-bg-tertiary);
+    background: var(--mf-chrome-surface);
   }
 }
 
@@ -575,10 +610,13 @@ body {
 
 .mf-sidebar {
   width: 240px;
+  min-width: 200px;
   border-right: 1px solid var(--mf-border-light);
-  overflow-y: auto;
+  overflow: hidden;
   flex-shrink: 0;
   background: var(--mf-bg-secondary);
+  display: flex;
+  flex-direction: column;
 }
 
 .mf-body {
@@ -740,21 +778,66 @@ body {
   height: 100%;
   width: 100%;
   gap: 0;
-  background: var(--mf-border, rgba(60,60,67,0.18));
+  background: color-mix(in srgb, var(--mf-bg-secondary) 76%, var(--mf-bg) 24%);
 }
 
 .mf-split-pane {
   flex: 1;
+  min-width: 0;
   overflow: hidden;
-  background: var(--mf-bg, #fff);
   position: relative;
+  background: var(--mf-bg, #fff);
+}
+
+.mf-split-pane-source {
+  --mf-split-source-bg: color-mix(in srgb, var(--mf-bg-elevated) 72%, var(--mf-bg-secondary) 28%);
+  --mf-bg: var(--mf-split-source-bg);
+  box-shadow: inset -1px 0 0 var(--mf-border-light);
+}
+
+.mf-split-pane-preview {
+  --mf-split-preview-bg: color-mix(in srgb, var(--mf-bg-secondary) 74%, var(--mf-bg-tertiary) 26%);
+  --mf-bg: var(--mf-split-preview-bg);
+  --mf-content-width: 680px;
 }
 
 .mf-split-divider {
-  width: 1px;
-  background: var(--mf-border, rgba(60,60,67,0.18));
+  position: relative;
+  width: 18px;
   cursor: col-resize;
   flex-shrink: 0;
+  background: transparent;
+  touch-action: none;
+}
+
+.mf-split-divider::before {
+  content: '';
+  position: absolute;
+  top: 18px;
+  bottom: 18px;
+  left: 50%;
+  width: 1px;
+  transform: translateX(-50%);
+  background: var(--mf-border-light);
+}
+
+.mf-split-divider-handle {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 4px;
+  height: 72px;
+  transform: translate(-50%, -50%);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--mf-border) 72%, transparent);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--mf-bg-secondary) 82%, transparent);
+  transition: background-color var(--mf-transition-fast), box-shadow var(--mf-transition-fast);
+}
+
+.mf-split-divider:hover .mf-split-divider-handle,
+.mf-split-divider:active .mf-split-divider-handle {
+  background: color-mix(in srgb, var(--mf-accent) 28%, var(--mf-border));
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--mf-accent-subtle) 58%, transparent);
 }
 
 /* ── Reading mode ───────────────────────────────────────────── */
@@ -762,9 +845,9 @@ body {
   cursor: default;
 }
 
-/* ── Outline panel — refined sidebar ─────────────────────────── */
+/* ── Outline panel — Notion-inspired sidebar ─────────────────── */
 .mf-outline-panel {
-  width: 220px;
+  width: 210px;
   display: flex;
   flex-direction: column;
   border-left: 1px solid var(--mf-border-light);
@@ -781,13 +864,12 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 12px 10px 16px;
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  padding: 11px 10px 9px 14px;
+  font-size: 11px;
+  font-weight: 500;
   color: var(--mf-fg-muted);
   flex-shrink: 0;
+  letter-spacing: 0.01em;
 }
 
 .mf-outline-panel-collapsed .mf-outline-header {
@@ -825,14 +907,15 @@ body {
   display: flex;
   flex-direction: column;
   gap: 1px;
-  padding: 2px 8px 16px;
+  padding: 2px 6px 16px;
   overflow: auto;
 }
 
 .mf-outline-item {
   width: 100%;
-  padding: 5px 10px;
+  padding: 4px 8px;
   border: none;
+  border-left: 2px solid transparent;
   border-radius: var(--mf-radius-sm);
   background: transparent;
   color: var(--mf-fg-secondary);
@@ -842,7 +925,7 @@ body {
   line-height: 1.4;
   text-align: left;
   cursor: default;
-  transition: all var(--mf-transition-fast);
+  transition: background var(--mf-transition-fast), color var(--mf-transition-fast), border-color var(--mf-transition-fast);
   letter-spacing: -0.01em;
 }
 
@@ -851,15 +934,16 @@ body {
   background: var(--mf-fill);
 }
 
-/* Selected state: warm accent background */
+/* Notion-style: left border + subtle bg instead of solid fill */
 .mf-outline-item-active {
-  color: #FFFFFF;
-  background: var(--mf-accent);
+  color: var(--mf-accent);
+  background: var(--mf-accent-light);
+  border-left-color: var(--mf-accent);
 }
 
 .mf-outline-item-active:hover {
-  color: #FFFFFF;
-  background: var(--mf-accent-hover);
+  color: var(--mf-accent-hover);
+  background: var(--mf-accent-light);
 }
 
 .mf-outline-item-text {
@@ -869,6 +953,13 @@ body {
   white-space: nowrap;
 }
 
+/* Hide right outline panel at narrow widths — sidebar shows it instead */
+@media (max-width: 820px) {
+  .mf-outline-panel {
+    display: none;
+  }
+}
+
 /* ── Status bar — refined bottom bar ────────────────────────── */
 .mf-statusbar {
   position: relative;
@@ -876,6 +967,7 @@ body {
   align-items: center;
   gap: 6px;
   height: 28px;
+  min-height: 28px;
   padding: 0 16px;
   background: var(--mf-bg-secondary);
   border-top: 1px solid var(--mf-border-light);
@@ -884,6 +976,7 @@ body {
   color: var(--mf-fg-muted);
   user-select: none;
   flex-shrink: 0;
+  overflow: hidden;
   letter-spacing: -0.01em;
 }
 

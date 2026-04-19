@@ -93,6 +93,10 @@ import {
   isLargeInteractiveDocument,
 } from '../largeDocument'
 
+const DEFAULT_SPLIT_RATIO = 0.58
+const MIN_SPLIT_RATIO = 0.1
+const MAX_SPLIT_RATIO = 0.9
+
 export interface MarkFlowEditorProps {
   content: string
   viewMode: ViewMode
@@ -1316,7 +1320,7 @@ export const MarkFlowEditor = forwardRef<MarkFlowEditorHandle, MarkFlowEditorPro
     applyHandled()
   }, [navigationRequest])
 
-  const [splitRatio, setSplitRatio] = useState(0.5)
+  const [splitRatio, setSplitRatio] = useState(DEFAULT_SPLIT_RATIO)
   const isDraggingRef = useRef(false)
   const splitContainerRef = useRef<HTMLDivElement>(null)
 
@@ -1329,9 +1333,9 @@ export const MarkFlowEditor = forwardRef<MarkFlowEditorHandle, MarkFlowEditorPro
     if (!isDraggingRef.current || !splitContainerRef.current) return
     const rect = splitContainerRef.current.getBoundingClientRect()
     let newRatio = (e.clientX - rect.left) / rect.width
-    // Keep it reasonable (between 10% and 90%)
-    if (newRatio < 0.1) newRatio = 0.1
-    if (newRatio > 0.9) newRatio = 0.9
+    // Keep it reasonable without collapsing either pane.
+    if (newRatio < MIN_SPLIT_RATIO) newRatio = MIN_SPLIT_RATIO
+    if (newRatio > MAX_SPLIT_RATIO) newRatio = MAX_SPLIT_RATIO
     setSplitRatio(newRatio)
   }, [])
 
@@ -1507,19 +1511,21 @@ export const MarkFlowEditor = forwardRef<MarkFlowEditorHandle, MarkFlowEditorPro
   if (viewMode === 'split') {
     return (
       <div className="mf-split-container" ref={splitContainerRef}>
-        <div className="mf-split-pane" style={{ flex: splitRatio }}>
+        <div className="mf-split-pane mf-split-pane-source" style={{ flex: splitRatio }}>
           <div ref={containerRef} className="mf-editor-container" style={{ height: '100%' }} />
           <FloatingToolbar view={editorView} />
         </div>
-        <div 
-          className="mf-split-divider" 
-          aria-hidden="true" 
+        <div
+          className="mf-split-divider"
+          aria-hidden="true"
           onPointerDown={handlePointerDown}
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUp}
           onPointerCancel={handlePointerUp}
-        />
-        <div className="mf-split-pane" style={{ flex: 1 - splitRatio }}>
+        >
+          <span className="mf-split-divider-handle" />
+        </div>
+        <div className="mf-split-pane mf-split-pane-preview" style={{ flex: 1 - splitRatio }}>
           <div ref={previewContainerRef} className="mf-editor-container" style={{ height: '100%' }} />
         </div>
       </div>

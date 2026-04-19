@@ -1,0 +1,163 @@
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - generic [ref=e5]:
+      - img [ref=e6]
+      - generic [ref=e9]: MarkFlow
+    - generic [ref=e12]: Starter Document
+    - generic [ref=e13]:
+      - button "Typewriter mode" [ref=e14]:
+        - img [ref=e15]
+      - button "Focus mode" [ref=e22]:
+        - img [ref=e23]
+      - button "Toggle file sidebar" [ref=e29]:
+        - img [ref=e30]
+        - text: Files
+      - group "View mode" [ref=e32]:
+        - button "Preview mode" [pressed] [ref=e33]:
+          - img [ref=e34]
+          - text: Preview
+        - button "Source mode" [ref=e39]:
+          - img [ref=e40]
+          - text: Source
+        - button "Reading mode" [ref=e44]: Reading
+        - button "Split view" [ref=e45]: Split
+  - main [ref=e46]:
+    - generic [ref=e47]:
+      - generic [ref=e52]:
+        - generic [ref=e54]:
+          - generic [ref=e55]: ⌄
+          - generic [ref=e56]: ⌄
+          - generic [ref=e57]: ⌄
+          - generic [ref=e58]: ⌄
+          - generic [ref=e59]: ⌄
+          - generic [ref=e60]: ⌄
+          - generic [ref=e61]: ⌄
+          - generic [ref=e62]: ⌄
+          - generic [ref=e63]: ⌄
+          - generic [ref=e64]: ⌄
+          - generic [ref=e65]: ⌄
+          - generic [ref=e66]: ⌄
+          - generic [ref=e67]: ⌄
+          - generic [ref=e68]: ⌄
+        - textbox [ref=e69]:
+          - generic [ref=e70]: "# MarkFlow"
+          - generic [ref=e73]: Write in flow, publish anywhere.
+          - generic [ref=e75]: A warmer markdown workspace for academics, engineers, and technical writers who think in structure.
+          - generic [ref=e77]:
+            - link "See the editorial brief" [ref=e78] [cursor=pointer]:
+              - /url: https://example.com
+              - generic [ref=e79]: See the editorial brief
+            - text: for the design tone behind this starter bundle.
+          - generic [ref=e81]: The Bundle
+          - generic [ref=e83]: "MarkFlow now revolves around three surfaces working together:"
+          - generic [ref=e85]:
+            - text: "1."
+            - generic [ref=e86]: The bundle rail
+            - text: keeps files, recent places, and outline in one editorial column.
+          - generic [ref=e87]:
+            - text: "2."
+            - generic [ref=e88]: Overlay screens
+            - text: let you jump, search, and command without breaking writing rhythm.
+          - generic [ref=e89]:
+            - text: "3."
+            - generic [ref=e90]: The document canvas
+            - text: stays focused on the page instead of the markdown syntax.
+          - generic [ref=e92]: Start Here
+          - generic [ref=e94]: • Open a folder to turn this starter note into a living workspace.
+          - generic [ref=e95]: • Use the left rail to move between files, recent drafts, and section structure.
+          - generic [ref=e96]:
+            - text: • Press
+            - generic [ref=e97]: Cmd/Ctrl+Shift+P
+            - text: for the command palette, or
+            - generic [ref=e98]: Cmd/Ctrl+Shift+O
+            - text: for Quick Open.
+          - generic [ref=e100]: Publish-Ready Markdown
+          - generic [ref=e102]: "You can still write plain markdown, but MarkFlow presents it with a more editorial voice:"
+          - generic [ref=e104]:
+            - text: •
+            - generic [ref=e105]: Bold
+            - text: ","
+            - generic [ref=e106]: italic
+            - text: ", and"
+            - generic [ref=e107]: inline code
+            - text: render inline
+          - generic [ref=e108]:
+            - text: •
+            - link "Links" [ref=e109] [cursor=pointer]:
+              - /url: https://example.com
+              - generic [ref=e110]: Links
+            - text: behave like real reading surfaces
+          - generic [ref=e111]: • Tables, math, diagrams, and callouts stay part of the same flow
+          - generic [ref=e113]: A Small Code Block
+          - generic [ref=e117]: typescript
+          - generic [ref=e118]: "function publish(bundle: string): string {"
+          - generic [ref=e119]: "return `Ship ${bundle} without losing the draft.`"
+          - generic [ref=e120]: "}"
+          - generic [ref=e123]: A Pull Quote
+          - generic [ref=e125]: Good writing software disappears until structure matters.
+          - generic [ref=e127]: Proof Surface
+          - generic [ref=e129]:
+            - text: "Inline math:"
+            - generic [ref=e131]:
+              - math [ref=e133]:
+                - generic [ref=e135]:
+                  - generic [ref=e136]: E
+                  - generic [ref=e137]: =
+                  - generic [ref=e138]: m
+                  - generic [ref=e139]:
+                    - generic [ref=e140]: c
+                    - generic [ref=e141]: "2"
+              - generic [ref=e142]:
+                - generic [ref=e143]: E =
+                - generic [ref=e144]:
+                  - text: m
+                  - generic [ref=e145]:
+                    - text: c
+                    - generic [ref=e150]: "2"
+            - text: and
+            - generic [ref=e152]:
+              - math [ref=e154]:
+                - generic [ref=e156]:
+                  - generic [ref=e157]: π
+                  - generic [ref=e158]: ≈
+                  - generic [ref=e159]: "3.14159"
+              - generic [ref=e160]:
+                - generic [ref=e161]: π ≈
+                - generic [ref=e162]: "3.14159"
+            - text: .
+      - complementary [ref=e164]:
+        - generic [ref=e165]:
+          - generic [ref=e166]: Outline
+          - button "Collapse outline" [ref=e167]:
+            - img [ref=e168]
+        - navigation "Outline" [ref=e170]:
+          - button "MarkFlow" [ref=e171]:
+            - generic [ref=e172]: MarkFlow
+          - button "The Bundle" [ref=e173]:
+            - generic [ref=e174]: The Bundle
+          - button "Start Here" [ref=e175]:
+            - generic [ref=e176]: Start Here
+          - button "Publish-Ready Markdown" [ref=e177]:
+            - generic [ref=e178]: Publish-Ready Markdown
+          - button "A Small Code Block" [ref=e179]:
+            - generic [ref=e180]: A Small Code Block
+          - button "A Pull Quote" [ref=e181]:
+            - generic [ref=e182]: A Pull Quote
+          - button "Proof Surface" [ref=e183]:
+            - generic [ref=e184]: Proof Surface
+          - button "Next Moves" [ref=e185]:
+            - generic [ref=e186]: Next Moves
+  - contentinfo "Document statistics" [ref=e187]:
+    - button "Show document statistics" [ref=e188] [cursor=pointer]:
+      - generic [ref=e189]: 256 words
+      - generic [ref=e190]: ·
+      - generic [ref=e191]: 72 lines
+      - generic [ref=e192]: ·
+      - generic [ref=e193]: 1,769 characters
+      - generic [ref=e194]: ·
+      - generic [ref=e195]: 2 min read
+    - generic [ref=e196]:
+      - button "Markdown mode settings" [ref=e197]: "Markdown: Tolerant"
+      - button "Heading numbering settings" [ref=e198]: "Headings: Plain"
+      - button "Source line-number settings" [ref=e199]: "Source lines: On"
+      - button "Spellcheck settings" [ref=e200]: "Spell: Default"

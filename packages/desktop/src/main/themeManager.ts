@@ -1,10 +1,8 @@
 import * as fs from 'fs'
 import * as path from 'path'
-import { ipcMain, nativeTheme, type BrowserWindow } from 'electron'
+import { ipcMain, type BrowserWindow } from 'electron'
 import chokidar, { type FSWatcher } from 'chokidar'
 import type {
-  MarkFlowAppearance,
-  MarkFlowAppearancePreference,
   MarkFlowThemePayload,
   MarkFlowThemeState,
   MarkFlowThemeSummary,
@@ -14,248 +12,361 @@ interface ThemeFile extends MarkFlowThemeSummary {
   filePath: string
 }
 
-interface ThemeState {
+interface PersistedThemeState {
   themeId?: string
-  lightThemeId?: string
-  darkThemeId?: string
-  appearancePreference?: MarkFlowAppearancePreference
 }
 
-interface ResolvedThemeState {
-  appearancePreference: MarkFlowAppearancePreference
-  lightThemeId: string
-  darkThemeId: string
-}
-
-const DEFAULT_THEME_IDS: Record<MarkFlowAppearance, string> = {
-  light: 'paper',
-  dark: 'midnight',
-}
-
-const DEFAULT_THEME_STATE: ResolvedThemeState = {
-  appearancePreference: 'system',
-  lightThemeId: DEFAULT_THEME_IDS.light,
-  darkThemeId: DEFAULT_THEME_IDS.dark,
-}
+const DEFAULT_THEME_ID = 'claude'
 
 const BUILTIN_THEMES: Array<{ id: string; name: string; cssText: string }> = [
+  {
+    id: 'claude',
+    name: 'Claude',
+    cssText: `:root {
+  --mf-bg:              #FFFFFF;
+  --mf-bg-secondary:    #F9F8F6;
+  --mf-bg-tertiary:     #F1F0EE;
+  --mf-bg-code:         #F5F4F2;
+  --mf-bg-elevated:     #FFFFFF;
+  --mf-fg:              #1A1A1A;
+  --mf-fg-secondary:    rgba(26, 26, 26, 0.58);
+  --mf-fg-muted:        rgba(26, 26, 26, 0.38);
+  --mf-heading-color:   #0D0D0D;
+  --mf-fill:            rgba(26, 26, 26, 0.07);
+  --mf-fill-secondary:  rgba(26, 26, 26, 0.04);
+  --mf-fill-tertiary:   rgba(26, 26, 26, 0.025);
+  --mf-border:          rgba(26, 26, 26, 0.10);
+  --mf-border-light:    rgba(26, 26, 26, 0.06);
+  --mf-hr-color:        rgba(26, 26, 26, 0.08);
+  --mf-accent:          #D97757;
+  --mf-accent-hover:    #C5643F;
+  --mf-accent-light:    rgba(217, 119, 87, 0.10);
+  --mf-accent-pressed:  rgba(217, 119, 87, 0.18);
+  --mf-accent-subtle:   rgba(217, 119, 87, 0.06);
+  --mf-link-color:      #C5643F;
+  --mf-code-fg:         #B45450;
+  --mf-blockquote-border: rgba(217, 119, 87, 0.22);
+  --mf-blockquote-fg:   rgba(26, 26, 26, 0.48);
+  --mf-selection:       rgba(217, 119, 87, 0.13);
+  --mf-shadow-xs: 0 1px 2px rgba(26, 20, 10, 0.05);
+  --mf-shadow-sm: 0 1px 3px rgba(26, 20, 10, 0.06), 0 1px 2px rgba(26, 20, 10, 0.03);
+  --mf-shadow:    0 4px 20px rgba(26, 20, 10, 0.07), 0 1px 6px rgba(26, 20, 10, 0.03);
+}`
+  },
   {
     id: 'paper',
     name: 'Paper',
     cssText: `:root {
-  --mf-bg: #fbf6ec;
-  --mf-bg-secondary: #f2ead9;
-  --mf-bg-code: #f6efe2;
-  --mf-fg: #2d241c;
-  --mf-fg-muted: #7f6f62;
-  --mf-heading-color: #201913;
-  --mf-border: #decfbb;
-  --mf-border-light: #eadfce;
-  --mf-hr-color: #d4c2a6;
-  --mf-accent: #9c5f2f;
-  --mf-accent-hover: #7d4820;
-  --mf-link-color: #9c5f2f;
-  --mf-code-fg: #b4543f;
-  --mf-blockquote-border: #d6c2ab;
-  --mf-blockquote-fg: #7d6f61;
-  --mf-selection: #e7d5b8;
+  --mf-bg:              #FBF7F0;
+  --mf-bg-secondary:    #F4EDE0;
+  --mf-bg-tertiary:     #ECE3D0;
+  --mf-bg-code:         #F0E8D8;
+  --mf-bg-elevated:     #FEFCF8;
+  --mf-fg:              #2C2118;
+  --mf-fg-secondary:    rgba(44, 33, 24, 0.60);
+  --mf-fg-muted:        rgba(44, 33, 24, 0.40);
+  --mf-heading-color:   #1C140E;
+  --mf-fill:            rgba(44, 33, 24, 0.08);
+  --mf-fill-secondary:  rgba(44, 33, 24, 0.05);
+  --mf-fill-tertiary:   rgba(44, 33, 24, 0.03);
+  --mf-border:          #D8C9B4;
+  --mf-border-light:    #E8DAC8;
+  --mf-hr-color:        #D0BEA4;
+  --mf-accent:          #96582A;
+  --mf-accent-hover:    #7A4420;
+  --mf-accent-light:    rgba(150, 88, 42, 0.10);
+  --mf-accent-pressed:  rgba(150, 88, 42, 0.18);
+  --mf-accent-subtle:   rgba(150, 88, 42, 0.06);
+  --mf-link-color:      #96582A;
+  --mf-code-fg:         #A8422E;
+  --mf-blockquote-border: #CDBFA8;
+  --mf-blockquote-fg:   rgba(44, 33, 24, 0.52);
+  --mf-selection:       rgba(150, 88, 42, 0.16);
+  --mf-shadow-xs: 0 1px 2px rgba(44, 30, 10, 0.08);
+  --mf-shadow-sm: 0 1px 3px rgba(44, 30, 10, 0.09), 0 1px 2px rgba(44, 30, 10, 0.05);
+  --mf-shadow:    0 4px 20px rgba(44, 30, 10, 0.10), 0 1px 6px rgba(44, 30, 10, 0.05);
 }`
   },
   {
     id: 'midnight',
     name: 'Midnight',
     cssText: `:root {
-  --mf-bg: #111827;
-  --mf-bg-secondary: #182235;
-  --mf-bg-code: #1e293b;
-  --mf-fg: #dbe4f3;
-  --mf-fg-muted: #94a3b8;
-  --mf-heading-color: #f8fafc;
-  --mf-border: #2f3f56;
-  --mf-border-light: #243246;
-  --mf-hr-color: #334155;
-  --mf-accent: #38bdf8;
-  --mf-accent-hover: #7dd3fc;
-  --mf-link-color: #7dd3fc;
-  --mf-code-fg: #fda4af;
-  --mf-blockquote-border: #3b4f69;
-  --mf-blockquote-fg: #93a4ba;
-  --mf-selection: #1d4f7a;
+  --mf-bg:              #0F1117;
+  --mf-bg-secondary:    #161820;
+  --mf-bg-tertiary:     #1E2130;
+  --mf-bg-code:         #181A24;
+  --mf-bg-elevated:     #1C1F2E;
+  --mf-fg:              #CDD6F4;
+  --mf-fg-secondary:    rgba(205, 214, 244, 0.62);
+  --mf-fg-muted:        rgba(205, 214, 244, 0.38);
+  --mf-heading-color:   #E6ECF8;
+  --mf-fill:            rgba(205, 214, 244, 0.08);
+  --mf-fill-secondary:  rgba(205, 214, 244, 0.04);
+  --mf-fill-tertiary:   rgba(205, 214, 244, 0.025);
+  --mf-border:          rgba(205, 214, 244, 0.12);
+  --mf-border-light:    rgba(205, 214, 244, 0.07);
+  --mf-hr-color:        rgba(205, 214, 244, 0.10);
+  --mf-accent:          #89B4FA;
+  --mf-accent-hover:    #B4D0FF;
+  --mf-accent-light:    rgba(137, 180, 250, 0.14);
+  --mf-accent-pressed:  rgba(137, 180, 250, 0.22);
+  --mf-accent-subtle:   rgba(137, 180, 250, 0.07);
+  --mf-link-color:      #89B4FA;
+  --mf-code-fg:         #F38BA8;
+  --mf-blockquote-border: rgba(137, 180, 250, 0.30);
+  --mf-blockquote-fg:   rgba(205, 214, 244, 0.48);
+  --mf-selection:       rgba(137, 180, 250, 0.22);
+  --mf-shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.30);
+  --mf-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.36), 0 1px 2px rgba(0, 0, 0, 0.24);
+  --mf-shadow:    0 4px 20px rgba(0, 0, 0, 0.44), 0 2px 6px rgba(0, 0, 0, 0.28);
 }`
   },
   {
     id: 'github',
     name: 'GitHub',
     cssText: `:root {
-  --mf-bg: #ffffff;
-  --mf-bg-secondary: #f6f8fa;
-  --mf-bg-tertiary: #ffffff;
-  --mf-bg-code: #f6f8fa;
-  --mf-fg: #24292e;
-  --mf-fg-secondary: #586069;
-  --mf-fg-muted: #6a737d;
-  --mf-heading-color: #24292e;
-  --mf-border: #e1e4e8;
-  --mf-border-light: #eaecef;
-  --mf-hr-color: #e1e4e8;
-  --mf-accent: #0366d6;
-  --mf-accent-hover: #005cc5;
-  --mf-accent-light: rgba(3, 102, 214, 0.08);
-  --mf-link-color: #0366d6;
-  --mf-code-fg: #e01e5a;
-  --mf-blockquote-border: #dfe2e5;
-  --mf-blockquote-fg: #6a737d;
-  --mf-selection: rgba(3, 102, 214, 0.15);
+  --mf-bg:              #FFFFFF;
+  --mf-bg-secondary:    #F6F8FA;
+  --mf-bg-tertiary:     #EAEEF2;
+  --mf-bg-code:         #F6F8FA;
+  --mf-bg-elevated:     #FFFFFF;
+  --mf-fg:              #1F2328;
+  --mf-fg-secondary:    rgba(31, 35, 40, 0.60);
+  --mf-fg-muted:        rgba(31, 35, 40, 0.40);
+  --mf-heading-color:   #1F2328;
+  --mf-fill:            rgba(31, 35, 40, 0.07);
+  --mf-fill-secondary:  rgba(31, 35, 40, 0.04);
+  --mf-fill-tertiary:   rgba(31, 35, 40, 0.025);
+  --mf-border:          #D0D7DE;
+  --mf-border-light:    #E8ECF0;
+  --mf-hr-color:        #D0D7DE;
+  --mf-accent:          #0969DA;
+  --mf-accent-hover:    #0550AE;
+  --mf-accent-light:    rgba(9, 105, 218, 0.08);
+  --mf-accent-pressed:  rgba(9, 105, 218, 0.16);
+  --mf-accent-subtle:   rgba(9, 105, 218, 0.05);
+  --mf-link-color:      #0969DA;
+  --mf-code-fg:         #CF222E;
+  --mf-blockquote-border: #D0D7DE;
+  --mf-blockquote-fg:   rgba(31, 35, 40, 0.52);
+  --mf-selection:       rgba(9, 105, 218, 0.14);
   --mf-font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
   --mf-font-display: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
-  --mf-font-size: 16px;
+  --mf-font-size: 15px;
   --mf-line-height: 1.6;
-  --mf-content-width: 780px;
+  --mf-content-width: 760px;
+  --mf-shadow-xs: 0 1px 2px rgba(31, 35, 40, 0.06);
+  --mf-shadow-sm: 0 1px 3px rgba(31, 35, 40, 0.08), 0 1px 2px rgba(31, 35, 40, 0.04);
+  --mf-shadow:    0 4px 20px rgba(31, 35, 40, 0.10), 0 1px 6px rgba(31, 35, 40, 0.04);
 }`
   },
   {
     id: 'night',
     name: 'Night',
     cssText: `:root {
-  --mf-bg: #1d1f21;
-  --mf-bg-secondary: #282a2e;
-  --mf-bg-tertiary: #282a2e;
-  --mf-bg-code: #282a2e;
-  --mf-fg: #c5c8c6;
-  --mf-fg-secondary: #969896;
-  --mf-fg-muted: #707780;
-  --mf-heading-color: #e0e2e0;
-  --mf-fill: rgba(255, 255, 255, 0.06);
-  --mf-fill-secondary: rgba(255, 255, 255, 0.04);
-  --mf-border: #373b41;
-  --mf-border-light: #2d2f31;
-  --mf-hr-color: #373b41;
-  --mf-accent: #81a2be;
-  --mf-accent-hover: #a8c0d6;
-  --mf-accent-light: rgba(129, 162, 190, 0.12);
-  --mf-link-color: #81a2be;
-  --mf-code-fg: #cc6666;
-  --mf-blockquote-border: #4a4e58;
-  --mf-blockquote-fg: #969896;
-  --mf-selection: rgba(129, 162, 190, 0.25);
-  --mf-font-size: 15px;
-  --mf-line-height: 1.7;
+  --mf-bg:              #1E2127;
+  --mf-bg-secondary:    #252931;
+  --mf-bg-tertiary:     #2C313A;
+  --mf-bg-code:         #282C34;
+  --mf-bg-elevated:     #2C313A;
+  --mf-fg:              #ABB2BF;
+  --mf-fg-secondary:    rgba(171, 178, 191, 0.65);
+  --mf-fg-muted:        rgba(171, 178, 191, 0.40);
+  --mf-heading-color:   #D8DEE9;
+  --mf-fill:            rgba(171, 178, 191, 0.08);
+  --mf-fill-secondary:  rgba(171, 178, 191, 0.05);
+  --mf-fill-tertiary:   rgba(171, 178, 191, 0.03);
+  --mf-border:          #3E4451;
+  --mf-border-light:    #323842;
+  --mf-hr-color:        #3E4451;
+  --mf-accent:          #61AFEF;
+  --mf-accent-hover:    #88C5F7;
+  --mf-accent-light:    rgba(97, 175, 239, 0.12);
+  --mf-accent-pressed:  rgba(97, 175, 239, 0.20);
+  --mf-accent-subtle:   rgba(97, 175, 239, 0.06);
+  --mf-link-color:      #61AFEF;
+  --mf-code-fg:         #E06C75;
+  --mf-blockquote-border: rgba(97, 175, 239, 0.28);
+  --mf-blockquote-fg:   rgba(171, 178, 191, 0.52);
+  --mf-selection:       rgba(97, 175, 239, 0.22);
+  --mf-shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.28);
+  --mf-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.34), 0 1px 2px rgba(0, 0, 0, 0.22);
+  --mf-shadow:    0 4px 20px rgba(0, 0, 0, 0.40), 0 2px 6px rgba(0, 0, 0, 0.26);
 }`
   },
   {
     id: 'newsprint',
     name: 'Newsprint',
     cssText: `:root {
-  --mf-bg: #f4ecd8;
-  --mf-bg-secondary: #ede0c4;
-  --mf-bg-tertiary: #f4ecd8;
-  --mf-bg-code: #e8dcc4;
-  --mf-fg: #2c2416;
-  --mf-fg-secondary: #5c4a2a;
-  --mf-fg-muted: #8a7055;
-  --mf-heading-color: #1a1208;
-  --mf-border: #c8ab80;
-  --mf-border-light: #d8c098;
-  --mf-hr-color: #c0a070;
-  --mf-accent: #7c4a1e;
-  --mf-accent-hover: #5e3614;
-  --mf-accent-light: rgba(124, 74, 30, 0.10);
-  --mf-link-color: #7c4a1e;
-  --mf-code-fg: #8b3220;
-  --mf-blockquote-border: #c0a070;
-  --mf-blockquote-fg: #6a5438;
-  --mf-selection: rgba(124, 74, 30, 0.18);
+  --mf-bg:              #F5EDDA;
+  --mf-bg-secondary:    #EDE3CA;
+  --mf-bg-tertiary:     #E4D9BC;
+  --mf-bg-code:         #EAE0CC;
+  --mf-bg-elevated:     #FAF4E6;
+  --mf-fg:              #261D0E;
+  --mf-fg-secondary:    rgba(38, 29, 14, 0.62);
+  --mf-fg-muted:        rgba(38, 29, 14, 0.42);
+  --mf-heading-color:   #160E04;
+  --mf-fill:            rgba(38, 29, 14, 0.08);
+  --mf-fill-secondary:  rgba(38, 29, 14, 0.05);
+  --mf-fill-tertiary:   rgba(38, 29, 14, 0.03);
+  --mf-border:          #C4A878;
+  --mf-border-light:    #D8BC94;
+  --mf-hr-color:        #BCA070;
+  --mf-accent:          #7A4218;
+  --mf-accent-hover:    #5E3010;
+  --mf-accent-light:    rgba(122, 66, 24, 0.10);
+  --mf-accent-pressed:  rgba(122, 66, 24, 0.18);
+  --mf-accent-subtle:   rgba(122, 66, 24, 0.06);
+  --mf-link-color:      #7A4218;
+  --mf-code-fg:         #8B3220;
+  --mf-blockquote-border: #C0A070;
+  --mf-blockquote-fg:   rgba(38, 29, 14, 0.52);
+  --mf-selection:       rgba(122, 66, 24, 0.16);
   --mf-font-sans: Georgia, "Palatino Linotype", Palatino, "Times New Roman", serif;
   --mf-font-display: "Palatino Linotype", Palatino, Georgia, "Book Antiqua", serif;
   --mf-font-size: 17px;
   --mf-line-height: 1.82;
   --mf-content-width: 680px;
+  --mf-shadow-xs: 0 1px 2px rgba(38, 29, 14, 0.10);
+  --mf-shadow-sm: 0 1px 3px rgba(38, 29, 14, 0.12), 0 1px 2px rgba(38, 29, 14, 0.06);
+  --mf-shadow:    0 4px 20px rgba(38, 29, 14, 0.14), 0 1px 6px rgba(38, 29, 14, 0.06);
 }`
   },
   {
     id: 'cobalt',
     name: 'Cobalt',
     cssText: `:root {
-  --mf-bg: #002240;
-  --mf-bg-secondary: #00294d;
-  --mf-bg-tertiary: #00294d;
-  --mf-bg-code: #003359;
-  --mf-fg: #b0d1e8;
-  --mf-fg-secondary: #7daec8;
-  --mf-fg-muted: #5a8fa8;
-  --mf-heading-color: #e0f0ff;
-  --mf-fill: rgba(255, 255, 255, 0.05);
-  --mf-fill-secondary: rgba(255, 255, 255, 0.03);
-  --mf-border: #1a4a6a;
-  --mf-border-light: #0f3655;
-  --mf-hr-color: #1a4a6a;
-  --mf-accent: #ffc600;
-  --mf-accent-hover: #ffdd4a;
-  --mf-accent-light: rgba(255, 198, 0, 0.12);
-  --mf-link-color: #ffc600;
-  --mf-code-fg: #ff9d00;
-  --mf-blockquote-border: #1a5a80;
-  --mf-blockquote-fg: #6a9ab8;
-  --mf-selection: rgba(255, 198, 0, 0.20);
-  --mf-font-size: 15px;
-  --mf-line-height: 1.68;
-}`
-  },
-  {
-    id: 'pixyll',
-    name: 'Pixyll',
-    cssText: `:root {
-  --mf-bg: #ffffff;
-  --mf-bg-secondary: #f9f9f9;
-  --mf-bg-tertiary: #ffffff;
-  --mf-bg-code: #f5f5f5;
-  --mf-fg: #333333;
-  --mf-fg-secondary: #666666;
-  --mf-fg-muted: #999999;
-  --mf-heading-color: #111111;
-  --mf-border: #eeeeee;
-  --mf-border-light: #f5f5f5;
-  --mf-hr-color: #eeeeee;
-  --mf-accent: #2568ba;
-  --mf-accent-hover: #1a50a0;
-  --mf-accent-light: rgba(37, 104, 186, 0.08);
-  --mf-link-color: #2568ba;
-  --mf-code-fg: #c7254e;
-  --mf-blockquote-border: #cccccc;
-  --mf-blockquote-fg: #888888;
-  --mf-selection: rgba(37, 104, 186, 0.15);
-  --mf-font-sans: "Open Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
-  --mf-font-display: "Open Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
-  --mf-font-size: 16px;
-  --mf-line-height: 1.75;
-  --mf-content-width: 740px;
+  --mf-bg:              #00213A;
+  --mf-bg-secondary:    #002848;
+  --mf-bg-tertiary:     #003259;
+  --mf-bg-code:         #003054;
+  --mf-bg-elevated:     #00304E;
+  --mf-fg:              #A8CCDF;
+  --mf-fg-secondary:    rgba(168, 204, 223, 0.65);
+  --mf-fg-muted:        rgba(168, 204, 223, 0.40);
+  --mf-heading-color:   #D8EEFF;
+  --mf-fill:            rgba(168, 204, 223, 0.07);
+  --mf-fill-secondary:  rgba(168, 204, 223, 0.04);
+  --mf-fill-tertiary:   rgba(168, 204, 223, 0.025);
+  --mf-border:          rgba(168, 204, 223, 0.18);
+  --mf-border-light:    rgba(168, 204, 223, 0.10);
+  --mf-hr-color:        rgba(168, 204, 223, 0.15);
+  --mf-accent:          #FFC200;
+  --mf-accent-hover:    #FFD44A;
+  --mf-accent-light:    rgba(255, 194, 0, 0.12);
+  --mf-accent-pressed:  rgba(255, 194, 0, 0.22);
+  --mf-accent-subtle:   rgba(255, 194, 0, 0.07);
+  --mf-link-color:      #FFC200;
+  --mf-code-fg:         #FF9D44;
+  --mf-blockquote-border: rgba(255, 194, 0, 0.32);
+  --mf-blockquote-fg:   rgba(168, 204, 223, 0.55);
+  --mf-selection:       rgba(255, 194, 0, 0.22);
+  --mf-shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.36);
+  --mf-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.42), 0 1px 2px rgba(0, 0, 0, 0.28);
+  --mf-shadow:    0 4px 20px rgba(0, 0, 0, 0.50), 0 2px 6px rgba(0, 0, 0, 0.32);
 }`
   },
   {
     id: 'forest',
     name: 'Forest',
     cssText: `:root {
-  --mf-bg: #f0f4f0;
-  --mf-bg-secondary: #e4ece4;
-  --mf-bg-tertiary: #f0f4f0;
-  --mf-bg-code: #e8f0e8;
-  --mf-fg: #1c2e1c;
-  --mf-fg-secondary: #3a5a3a;
-  --mf-fg-muted: #5a7a5a;
-  --mf-heading-color: #122212;
-  --mf-border: #c0d4c0;
-  --mf-border-light: #d4e4d4;
-  --mf-hr-color: #b0c8b0;
-  --mf-accent: #2d7d2d;
-  --mf-accent-hover: #1f611f;
-  --mf-accent-light: rgba(45, 125, 45, 0.10);
-  --mf-link-color: #2d7d2d;
-  --mf-code-fg: #8b4513;
-  --mf-blockquote-border: #a8c8a8;
-  --mf-blockquote-fg: #507050;
-  --mf-selection: rgba(45, 125, 45, 0.15);
-  --mf-font-size: 15px;
-  --mf-line-height: 1.72;
+  --mf-bg:              #F2F6F0;
+  --mf-bg-secondary:    #E6EDE2;
+  --mf-bg-tertiary:     #D8E4D2;
+  --mf-bg-code:         #EAF0E6;
+  --mf-bg-elevated:     #F8FAF6;
+  --mf-fg:              #1A2C1A;
+  --mf-fg-secondary:    rgba(26, 44, 26, 0.62);
+  --mf-fg-muted:        rgba(26, 44, 26, 0.40);
+  --mf-heading-color:   #0E1E0E;
+  --mf-fill:            rgba(26, 44, 26, 0.08);
+  --mf-fill-secondary:  rgba(26, 44, 26, 0.05);
+  --mf-fill-tertiary:   rgba(26, 44, 26, 0.03);
+  --mf-border:          #B8CEAC;
+  --mf-border-light:    #CCE0C0;
+  --mf-hr-color:        #AABEA0;
+  --mf-accent:          #2D7A3A;
+  --mf-accent-hover:    #205E2C;
+  --mf-accent-light:    rgba(45, 122, 58, 0.10);
+  --mf-accent-pressed:  rgba(45, 122, 58, 0.18);
+  --mf-accent-subtle:   rgba(45, 122, 58, 0.06);
+  --mf-link-color:      #2D7A3A;
+  --mf-code-fg:         #7A3B1A;
+  --mf-blockquote-border: #A8C8A0;
+  --mf-blockquote-fg:   rgba(26, 44, 26, 0.52);
+  --mf-selection:       rgba(45, 122, 58, 0.15);
+  --mf-shadow-xs: 0 1px 2px rgba(14, 30, 14, 0.08);
+  --mf-shadow-sm: 0 1px 3px rgba(14, 30, 14, 0.10), 0 1px 2px rgba(14, 30, 14, 0.05);
+  --mf-shadow:    0 4px 20px rgba(14, 30, 14, 0.12), 0 1px 6px rgba(14, 30, 14, 0.05);
+}`
+  },
+  {
+    id: 'rose',
+    name: 'Rose Pine',
+    cssText: `:root {
+  --mf-bg:              #191724;
+  --mf-bg-secondary:    #1F1D2E;
+  --mf-bg-tertiary:     #26233A;
+  --mf-bg-code:         #1F1D2E;
+  --mf-bg-elevated:     #26233A;
+  --mf-fg:              #E0DEF4;
+  --mf-fg-secondary:    rgba(224, 222, 244, 0.62);
+  --mf-fg-muted:        rgba(224, 222, 244, 0.38);
+  --mf-heading-color:   #F0EEF8;
+  --mf-fill:            rgba(224, 222, 244, 0.07);
+  --mf-fill-secondary:  rgba(224, 222, 244, 0.04);
+  --mf-fill-tertiary:   rgba(224, 222, 244, 0.025);
+  --mf-border:          rgba(224, 222, 244, 0.12);
+  --mf-border-light:    rgba(224, 222, 244, 0.07);
+  --mf-hr-color:        rgba(224, 222, 244, 0.10);
+  --mf-accent:          #C4A7E7;
+  --mf-accent-hover:    #D8C0F8;
+  --mf-accent-light:    rgba(196, 167, 231, 0.13);
+  --mf-accent-pressed:  rgba(196, 167, 231, 0.22);
+  --mf-accent-subtle:   rgba(196, 167, 231, 0.07);
+  --mf-link-color:      #C4A7E7;
+  --mf-code-fg:         #EB6F92;
+  --mf-blockquote-border: rgba(196, 167, 231, 0.28);
+  --mf-blockquote-fg:   rgba(224, 222, 244, 0.50);
+  --mf-selection:       rgba(196, 167, 231, 0.20);
+  --mf-shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.32);
+  --mf-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.38), 0 1px 2px rgba(0, 0, 0, 0.24);
+  --mf-shadow:    0 4px 20px rgba(0, 0, 0, 0.46), 0 2px 6px rgba(0, 0, 0, 0.28);
+}`
+  },
+  {
+    id: 'solarized',
+    name: 'Solarized',
+    cssText: `:root {
+  --mf-bg:              #FDF6E3;
+  --mf-bg-secondary:    #F5EDCF;
+  --mf-bg-tertiary:     #EDE5C4;
+  --mf-bg-code:         #F0E8D2;
+  --mf-bg-elevated:     #FFFBF0;
+  --mf-fg:              #657B83;
+  --mf-fg-secondary:    rgba(101, 123, 131, 0.75);
+  --mf-fg-muted:        rgba(101, 123, 131, 0.50);
+  --mf-heading-color:   #002B36;
+  --mf-fill:            rgba(101, 123, 131, 0.09);
+  --mf-fill-secondary:  rgba(101, 123, 131, 0.05);
+  --mf-fill-tertiary:   rgba(101, 123, 131, 0.03);
+  --mf-border:          #DDD3AB;
+  --mf-border-light:    #EBE2C0;
+  --mf-hr-color:        #D4CAAA;
+  --mf-accent:          #268BD2;
+  --mf-accent-hover:    #1A6EAA;
+  --mf-accent-light:    rgba(38, 139, 210, 0.10);
+  --mf-accent-pressed:  rgba(38, 139, 210, 0.18);
+  --mf-accent-subtle:   rgba(38, 139, 210, 0.06);
+  --mf-link-color:      #268BD2;
+  --mf-code-fg:         #DC322F;
+  --mf-blockquote-border: #B5AC84;
+  --mf-blockquote-fg:   rgba(101, 123, 131, 0.70);
+  --mf-selection:       rgba(38, 139, 210, 0.15);
+  --mf-shadow-xs: 0 1px 2px rgba(0, 43, 54, 0.08);
+  --mf-shadow-sm: 0 1px 3px rgba(0, 43, 54, 0.10), 0 1px 2px rgba(0, 43, 54, 0.05);
+  --mf-shadow:    0 4px 20px rgba(0, 43, 54, 0.12), 0 1px 6px rgba(0, 43, 54, 0.05);
 }`
   },
 ]
@@ -271,16 +382,8 @@ function formatThemeName(themeId: string) {
 export class ThemeManager {
   private readonly themeDir: string
   private readonly statePath: string
-  private currentThemeId = DEFAULT_THEME_IDS.light
-  private themeState: ResolvedThemeState = { ...DEFAULT_THEME_STATE }
+  private currentThemeId = DEFAULT_THEME_ID
   private watcher: FSWatcher | null = null
-  private readonly handleNativeThemeUpdated = () => {
-    if (this.themeState.appearancePreference !== 'system') {
-      return
-    }
-
-    void this.applyThemeForAppearance(this.getCurrentAppearance(), { emit: true })
-  }
 
   constructor(
     private window: BrowserWindow,
@@ -302,32 +405,21 @@ export class ThemeManager {
     ipcMain.handle('get-theme-state', () => this.getThemeState())
     ipcMain.handle('get-current-theme', () => this.getCurrentTheme())
     ipcMain.handle('set-theme', async (_event, themeId: string) => this.setTheme(themeId))
-    ipcMain.handle('set-theme-for-appearance', async (_event, appearance: MarkFlowAppearance, themeId: string) =>
-      this.setThemeForAppearance(appearance, themeId),
+    // Legacy handlers — kept so old renderers don't crash on missing channel
+    ipcMain.handle('set-theme-for-appearance', async (_event, _appearance: string, themeId: string) =>
+      this.setTheme(themeId),
     )
-    ipcMain.handle(
-      'set-theme-appearance-preference',
-      async (_event, preference: MarkFlowAppearancePreference) => this.setThemeAppearancePreference(preference),
-    )
+    ipcMain.handle('set-theme-appearance-preference', async () => this.getThemeState())
   }
 
   async initialize() {
     this.ensureThemeFiles()
-    this.themeState = this.readPersistedThemeState()
-    nativeTheme.themeSource = this.themeState.appearancePreference
-    this.currentThemeId = this.getThemeIdForAppearance(this.getCurrentAppearance())
+    this.currentThemeId = this.readPersistedThemeId()
     await this.watchThemeFile(this.currentThemeId)
-    nativeTheme.removeListener('updated', this.handleNativeThemeUpdated)
-    nativeTheme.on('updated', this.handleNativeThemeUpdated)
   }
 
   async dispose() {
-    nativeTheme.removeListener('updated', this.handleNativeThemeUpdated)
-
-    if (!this.watcher) {
-      return
-    }
-
+    if (!this.watcher) return
     await this.watcher.close()
     this.watcher = null
   }
@@ -344,67 +436,25 @@ export class ThemeManager {
   getThemeState(): MarkFlowThemeState | null {
     this.ensureThemeFiles()
     const theme =
-      this.findTheme(this.currentThemeId) ?? this.findTheme(DEFAULT_THEME_IDS[this.getCurrentAppearance()])
-
+      this.findTheme(this.currentThemeId) ?? this.findTheme(DEFAULT_THEME_ID)
     return {
-      activeAppearance: this.getCurrentAppearance(),
-      appearancePreference: this.themeState.appearancePreference,
-      lightThemeId: this.themeState.lightThemeId,
-      darkThemeId: this.themeState.darkThemeId,
+      activeThemeId: theme?.id ?? DEFAULT_THEME_ID,
       activeTheme: theme ? this.readThemePayload(theme) : null,
     }
   }
 
   async setTheme(themeId: string): Promise<MarkFlowThemePayload | null> {
-    const state = await this.setThemeForAppearance(this.getCurrentAppearance(), themeId)
-    return state?.activeTheme ?? null
-  }
-
-  async setThemeForAppearance(
-    appearance: MarkFlowAppearance,
-    themeId: string,
-  ): Promise<MarkFlowThemeState | null> {
     this.ensureThemeFiles()
     const theme = this.findTheme(themeId)
-    if (!theme) {
-      return null
-    }
+    if (!theme) return null
 
-    this.themeState = {
-      ...this.themeState,
-      [this.getStateKeyForAppearance(appearance)]: theme.id,
-    }
+    this.currentThemeId = theme.id
     this.persistThemeState()
-
-    if (appearance === this.getCurrentAppearance()) {
-      await this.applyThemeById(theme.id, { emit: true })
-      return this.getThemeState()
-    }
+    await this.watchThemeFile(theme.id)
 
     const state = this.getThemeState()
-    if (state) {
-      this.emitThemeState(state)
-    }
-    return state
-  }
-
-  async setThemeAppearancePreference(
-    preference: MarkFlowAppearancePreference,
-  ): Promise<MarkFlowThemeState | null> {
-    this.ensureThemeFiles()
-
-    const nextPreference =
-      preference === 'light' || preference === 'dark' || preference === 'system' ? preference : 'system'
-
-    this.themeState = {
-      ...this.themeState,
-      appearancePreference: nextPreference,
-    }
-    this.persistThemeState()
-    nativeTheme.themeSource = nextPreference
-
-    await this.applyThemeForAppearance(this.getCurrentAppearance(), { emit: true })
-    return this.getThemeState()
+    if (state) this.emitThemeState(state)
+    return state?.activeTheme ?? null
   }
 
   private ensureThemeFiles() {
@@ -430,15 +480,20 @@ export class ThemeManager {
         const id = path.basename(entry.name, '.css')
         return {
           id,
-          name: BUILTIN_THEMES.find((theme) => theme.id === id)?.name ?? formatThemeName(id),
+          name: BUILTIN_THEMES.find((t) => t.id === id)?.name ?? formatThemeName(id),
           filePath: path.join(this.themeDir, entry.name),
         }
       })
-      .sort((left, right) => left.name.localeCompare(right.name))
+      .sort((a, b) => {
+        // Claude first, then alphabetical
+        if (a.id === DEFAULT_THEME_ID) return -1
+        if (b.id === DEFAULT_THEME_ID) return 1
+        return a.name.localeCompare(b.name)
+      })
   }
 
   private findTheme(themeId: string) {
-    return this.readThemeFiles().find((theme) => theme.id === themeId) ?? null
+    return this.readThemeFiles().find((t) => t.id === themeId) ?? null
   }
 
   private readThemePayload(theme: ThemeFile): MarkFlowThemePayload {
@@ -449,100 +504,21 @@ export class ThemeManager {
     }
   }
 
-  private readPersistedThemeState(): ResolvedThemeState {
+  private readPersistedThemeId(): string {
     try {
       const raw = fs.readFileSync(this.statePath, 'utf8')
-      const state = JSON.parse(raw) as ThemeState
-
-      const legacyThemeId = this.findTheme(state.themeId ?? '')?.id ?? null
-      if (legacyThemeId && !state.lightThemeId && !state.darkThemeId) {
-        const currentAppearance = this.getCurrentAppearance()
-        return {
-          appearancePreference: 'system',
-          lightThemeId: currentAppearance === 'light' ? legacyThemeId : DEFAULT_THEME_IDS.light,
-          darkThemeId: currentAppearance === 'dark' ? legacyThemeId : DEFAULT_THEME_IDS.dark,
-        }
-      }
-
-      return {
-        appearancePreference: this.resolvePersistedAppearancePreference(state.appearancePreference),
-        lightThemeId: this.resolvePersistedThemeId(state.lightThemeId, 'light'),
-        darkThemeId: this.resolvePersistedThemeId(state.darkThemeId, 'dark'),
-      }
+      const state = JSON.parse(raw) as PersistedThemeState
+      // Accept both new "themeId" and legacy "lightThemeId"
+      const id = state.themeId ?? (state as Record<string, unknown>)['lightThemeId']
+      return this.findTheme(String(id ?? ''))?.id ?? DEFAULT_THEME_ID
     } catch {
-      return { ...DEFAULT_THEME_STATE }
+      return DEFAULT_THEME_ID
     }
-  }
-
-  private resolvePersistedThemeId(themeId: string | null | undefined, appearance: MarkFlowAppearance) {
-    return this.findTheme(themeId ?? '')?.id ?? DEFAULT_THEME_IDS[appearance]
-  }
-
-  private resolvePersistedAppearancePreference(
-    preference: MarkFlowAppearancePreference | null | undefined,
-  ): MarkFlowAppearancePreference {
-    if (preference === 'light' || preference === 'dark' || preference === 'system') {
-      return preference
-    }
-
-    return 'system'
-  }
-
-  private getCurrentAppearance(): MarkFlowAppearance {
-    if (this.themeState.appearancePreference === 'light' || this.themeState.appearancePreference === 'dark') {
-      return this.themeState.appearancePreference
-    }
-
-    if (nativeTheme.themeSource === 'light' || nativeTheme.themeSource === 'dark') {
-      return nativeTheme.themeSource
-    }
-
-    return nativeTheme.shouldUseDarkColors ? 'dark' : 'light'
-  }
-
-  private getStateKeyForAppearance(appearance: MarkFlowAppearance): keyof ResolvedThemeState {
-    return appearance === 'dark' ? 'darkThemeId' : 'lightThemeId'
-  }
-
-  private getThemeIdForAppearance(appearance: MarkFlowAppearance) {
-    return this.themeState[this.getStateKeyForAppearance(appearance)]
   }
 
   private persistThemeState() {
-    fs.writeFileSync(this.statePath, JSON.stringify(this.themeState, null, 2), 'utf8')
-  }
-
-  private async applyThemeForAppearance(
-    appearance: MarkFlowAppearance,
-    options: { emit: boolean },
-  ): Promise<MarkFlowThemePayload | null> {
-    return this.applyThemeById(this.getThemeIdForAppearance(appearance), options)
-  }
-
-  private async applyThemeById(
-    themeId: string,
-    options: { emit: boolean },
-  ): Promise<MarkFlowThemePayload | null> {
-    const theme =
-      this.findTheme(themeId) ??
-      this.findTheme(DEFAULT_THEME_IDS[this.getCurrentAppearance()]) ??
-      this.findTheme(DEFAULT_THEME_IDS.light)
-    if (!theme) {
-      return null
-    }
-
-    this.currentThemeId = theme.id
-    await this.watchThemeFile(theme.id)
-
-    const payload = this.readThemePayload(theme)
-    if (options.emit) {
-      const state = this.getThemeState()
-      if (state) {
-        this.emitThemeState(state)
-      }
-    }
-
-    return payload
+    const state: PersistedThemeState = { themeId: this.currentThemeId }
+    fs.writeFileSync(this.statePath, JSON.stringify(state, null, 2), 'utf8')
   }
 
   private async watchThemeFile(themeId: string) {
@@ -552,19 +528,12 @@ export class ThemeManager {
     }
 
     const theme = this.findTheme(themeId)
-    if (!theme) {
-      return
-    }
+    if (!theme) return
 
-    this.watcher = chokidar.watch(theme.filePath, {
-      ignoreInitial: true,
-    })
-
+    this.watcher = chokidar.watch(theme.filePath, { ignoreInitial: true })
     this.watcher.on('change', () => {
       const state = this.getThemeState()
-      if (state) {
-        this.emitThemeState(state)
-      }
+      if (state) this.emitThemeState(state)
     })
   }
 

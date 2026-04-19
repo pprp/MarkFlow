@@ -1,7 +1,5 @@
 import { clipboard, contextBridge, ipcRenderer } from 'electron'
 import type {
-  MarkFlowAppearance,
-  MarkFlowAppearancePreference,
   MarkFlowDesktopAPI,
   MarkFlowImageIngestRequest,
   MarkFlowImageIngestResult,
@@ -71,10 +69,6 @@ const api: MarkFlowDesktopAPI = {
   getThemeState: () => ipcRenderer.invoke('get-theme-state'),
   getCurrentTheme: () => ipcRenderer.invoke('get-current-theme'),
   setTheme: (themeId: string) => ipcRenderer.invoke('set-theme', themeId),
-  setThemeForAppearance: (appearance: MarkFlowAppearance, themeId: string) =>
-    ipcRenderer.invoke('set-theme-for-appearance', appearance, themeId),
-  setThemeAppearancePreference: (preference: MarkFlowAppearancePreference) =>
-    ipcRenderer.invoke('set-theme-appearance-preference', preference),
   getSpellCheckState: () =>
     ipcRenderer.invoke('get-spellcheck-state') as Promise<MarkFlowSpellCheckState>,
   setSpellCheckLanguage: (language: string | null) =>
