@@ -1,6 +1,6 @@
-import { isolateHistory } from '@codemirror/commands'
+import { invertedEffects, isolateHistory } from '@codemirror/commands'
 import { ensureSyntaxTree, syntaxTree } from '@codemirror/language'
-import { EditorSelection, Prec } from '@codemirror/state'
+import { EditorSelection, Prec, StateEffect, Transaction } from '@codemirror/state'
 import { EditorView, type KeyBinding, keymap } from '@codemirror/view'
 import type { SyntaxNode } from '@lezer/common'
 
@@ -28,6 +28,10 @@ interface TableModel {
   currentRowIndex: number
   currentCellIndex: number
 }
+
+const tableCommandSelectionEffect = StateEffect.define<EditorSelection>({
+  map: (selection, changes) => selection.map(changes),
+})
 
 function isTableCommandEnabled(options?: TableCommandOptions) {
   return options?.isWysiwygMode ? options.isWysiwygMode() : true
@@ -150,7 +154,7 @@ function findCurrentCellIndex(lineText: string, indentLength: number, lineOffset
   let escaped = false
   let lastPipe = text.startsWith('|') ? 0 : -1
 
-  for (let index = 0; index < text.length; index++) {
+  for (let index = text.startsWith('|') ? 1 : 0; index < text.length; index++) {
     const char = text[index]
 
     if (escaped) {
@@ -352,7 +356,9 @@ function applyTableEdit(
   target: TableCursorTarget,
 ) {
   const formatted = formatTable(model, target)
-  const selection = EditorSelection.cursor(model.from + formatted.selectionOffset, -1)
+  const selection = EditorSelection.create([
+    EditorSelection.cursor(model.from + formatted.selectionOffset, -1),
+  ])
 
   view.dispatch({
     changes: {
@@ -360,11 +366,8 @@ function applyTableEdit(
       to: model.to,
       insert: formatted.text,
     },
-    annotations: [isolateHistory.of('full')],
-  })
-
-  view.dispatch({
     selection,
+    effects: tableCommandSelectionEffect.of(selection),
     annotations: [isolateHistory.of('full')],
     scrollIntoView: true,
   })
@@ -634,5 +637,30 @@ function buildTableCommandKeymap(options?: TableCommandOptions): KeyBinding[] {
 }
 
 export function tableCommandExtension(options?: TableCommandOptions) {
-  return Prec.highest(keymap.of(buildTableCommandKeymap(options)))
+  return Prec.highest([
+    keymap.of(buildTableCommandKeymap(options)),
+    invertedEffects.of((tr) => {
+      const selectionEffect = tr.effects.find((effect) => effect.is(tableCommandSelectionEffect))
+      return selectionEffect ? [tableCommandSelectionEffect.of(selectionEffect.value)] : []
+    }),
+    EditorView.updateListener.of((update) => {
+      for (const transaction of update.transactions) {
+        const selectionEffect = transaction.effects.find((effect) => effect.is(tableCommandSelectionEffect))
+        if (!selectionEffect || transaction.annotation(Transaction.userEvent) === 'undo') {
+          continue
+        }
+
+        if (update.state.selection.eq(selectionEffect.value)) {
+          continue
+        }
+
+        update.view.dispatch({
+          selection: selectionEffect.value,
+          annotations: Transaction.addToHistory.of(false),
+          scrollIntoView: true,
+        })
+        break
+      }
+    }),
+  ])
 }

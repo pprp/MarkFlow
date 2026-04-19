@@ -938,3 +938,36 @@ next: MF-051 - Outline panel lists all headings with live scroll-sync and click-
 - Remaining risks:
   - I did not capture a trusted live Electron screenshot in this pass, so the final visual confirmation is still based on the CSS/token path plus automated verification.
   - The editor workspace already contains unrelated in-flight edits in `packages/editor/src/__tests__/App.test.tsx`, `packages/desktop/src/main/themeManager.ts`, and `packages/desktop/src/main/themeManager.test.ts`; this handoff did not normalize them.
+
+## 2026-04-19 - MF-068 redo caret parity
+
+- Author: Codex
+- Focus: one-feature protocol completion attempt for `MF-068` in this session.
+- What changed:
+  - Fixed `packages/editor/src/editor/extensions/tableCommands.ts` so active-cell detection ignores the leading table pipe instead of shifting commands into the next column.
+  - Added a mapped table-selection history effect in `packages/editor/src/editor/extensions/tableCommands.ts` so redo restores the intended row/cell selection after table commands.
+  - Expanded `packages/editor/src/editor/__tests__/tableCommands.test.ts` to cover undo/redo selection parity for row insert, last-cell row append, row delete, row move, and column insert/delete.
+- Simplifications made:
+  - Kept the fix inside the existing table command extension instead of wiring separate undo/redo hooks through `MarkFlowEditor`.
+  - Reused CodeMirror history/effect plumbing rather than adding command-specific redo branches for each table operation.
+- Verification:
+  - `pnpm harness:start`
+  - `./harness/init.sh --smoke`
+  - `pnpm --filter @markflow/editor exec vitest run src/editor/__tests__/tableCommands.test.ts`
+  - `pnpm --filter @markflow/editor lint`
+  - `pnpm --filter @markflow/editor build`
+  - `pnpm harness:verify`
+- Verification results:
+  - Passed: `pnpm harness:start`
+  - Failed, unrelated blocker: `./harness/init.sh --smoke` because `packages/desktop/src/main/themeManager.test.ts` is already broken by in-flight theme API changes outside `MF-068`.
+  - Passed: `pnpm --filter @markflow/editor exec vitest run src/editor/__tests__/tableCommands.test.ts` (`10` tests)
+  - Passed: `pnpm --filter @markflow/editor lint`
+  - Failed, unrelated blocker: `pnpm --filter @markflow/editor build` because `packages/editor/src/__tests__/App.test.tsx` still expects stale `MarkFlowDesktopAPI` and `MarkFlowThemeState` fields from the same theme API drift.
+  - Passed: `pnpm harness:verify`
+- Remaining risks:
+  - Manual verification from `harness/features/MF-068.md` was not completed in a trusted desktop session, so caret behavior across repeated live table edits and source/WYSIWYG switching still lacks manual proof.
+  - Workspace-wide smoke/build health is currently blocked by unrelated theme work in `packages/desktop/src/main/themeManager*`, `packages/editor/src/__tests__/App.test.tsx`, and shared theme API surfaces; this session did not change those files.
+- Ledger decision:
+  - Left `harness/feature-ledger.json` unchanged for `MF-068` (`status=ready`, `passes=false`, `lastVerifiedAt=null`) because manual verification is still pending and unrelated workspace blockers prevent a truthful full-green closeout.
+- Next recommended feature:
+  - Continue `MF-068` by running the required manual large-table verification in a trusted desktop session after the unrelated theme API/build blockers are resolved, then update the ledger only if both manual proof and clean verification are real.

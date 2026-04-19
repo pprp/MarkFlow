@@ -18,6 +18,11 @@ const TABLE_DOC = `| Name | Status |
 | Alpha | Open |
 | Beta | Done |`
 
+const FORMATTED_TABLE_DOC = `| Name  | Status |
+| :---- | -----: |
+| Alpha | Open   |
+| Beta  | Done   |`
+
 function makeView(
   doc: string,
   cursor: number,
@@ -58,6 +63,46 @@ function getSelectedLine(view: EditorView) {
   return view.state.doc.lineAt(view.state.selection.main.head).text
 }
 
+function getSelectedCell(view: EditorView) {
+  const line = view.state.doc.lineAt(view.state.selection.main.head)
+  const relativeOffset = view.state.selection.main.head - line.from
+  const ranges: Array<{ from: number; to: number }> = []
+  let escaped = false
+  let lastPipe = line.text.startsWith('|') ? 0 : -1
+
+  for (let index = line.text.startsWith('|') ? 1 : 0; index < line.text.length; index++) {
+    const char = line.text[index]
+
+    if (escaped) {
+      escaped = false
+      continue
+    }
+
+    if (char === '\\') {
+      escaped = true
+      continue
+    }
+
+    if (char !== '|') {
+      continue
+    }
+
+    if (lastPipe >= 0) {
+      ranges.push({ from: lastPipe + 1, to: index })
+    }
+    lastPipe = index
+  }
+
+  const cellIndex = ranges.findIndex((range) => relativeOffset <= range.to)
+  const currentCellIndex = cellIndex === -1 ? ranges.length - 1 : cellIndex
+  const currentRange = ranges[currentCellIndex]
+
+  return {
+    index: currentCellIndex,
+    text: line.text.slice(currentRange.from, currentRange.to).trim(),
+  }
+}
+
 describe('tableCommands', () => {
   it('inserts an empty row below the active table row on Mod-Enter and keeps undo/redo syntax stable', () => {
     const view = makeView(TABLE_DOC, TABLE_DOC.indexOf('Alpha') + 2)
@@ -78,6 +123,7 @@ describe('tableCommands', () => {
 |       |        |
 | Beta  | Done   |`)
     expect(getSelectedLine(view)).toBe('|       |        |')
+    expect(getSelectedCell(view)).toEqual({ index: 0, text: '' })
 
     expect(undo(view)).toBe(true)
     expect(view.state.doc.toString()).toBe(TABLE_DOC)
@@ -94,7 +140,7 @@ describe('tableCommands', () => {
     view.destroy()
   })
 
-  it('appends a new row when Tab is pressed from the last cell of the last body row', () => {
+  it('appends a new row when Tab is pressed from the last cell of the last body row and restores the appended row on redo', () => {
     const view = makeView(TABLE_DOC, TABLE_DOC.indexOf('Done') + 2)
 
     expect(
@@ -111,6 +157,20 @@ describe('tableCommands', () => {
 | Beta  | Done   |
 |       |        |`)
     expect(getSelectedLine(view)).toBe('|       |        |')
+    expect(getSelectedCell(view)).toEqual({ index: 0, text: '' })
+
+    expect(undo(view)).toBe(true)
+    expect(view.state.doc.toString()).toBe(TABLE_DOC)
+    expect(getSelectedLine(view)).toBe('| Beta | Done |')
+
+    expect(redo(view)).toBe(true)
+    expect(view.state.doc.toString()).toBe(`| Name  | Status |
+| :---- | -----: |
+| Alpha | Open   |
+| Beta  | Done   |
+|       |        |`)
+    expect(getSelectedLine(view)).toBe('|       |        |')
+    expect(getSelectedCell(view)).toEqual({ index: 0, text: '' })
 
     view.destroy()
   })
@@ -141,11 +201,13 @@ describe('tableCommands', () => {
     expect(view.state.doc.toString()).toBe(`| Name  | Status |
 | :---- | -----: |
 | Alpha | Open   |`)
+    expect(getSelectedLine(view)).toBe('| Alpha | Open   |')
+    expect(getSelectedCell(view)).toEqual({ index: 0, text: 'Alpha' })
 
     view.destroy()
   })
 
-  it('moves the active body row up and down with Alt-Arrow while keeping the header and separator fixed', () => {
+  it('moves the active body row up and down with Alt-Arrow while keeping the header and separator fixed across undo/redo', () => {
     const view = makeView(TABLE_DOC, TABLE_DOC.indexOf('Beta') + 2)
 
     expect(
@@ -162,6 +224,20 @@ describe('tableCommands', () => {
 | Beta  | Done   |
 | Alpha | Open   |`)
     expect(getSelectedLine(view)).toBe('| Beta  | Done   |')
+    expect(getSelectedCell(view)).toEqual({ index: 0, text: 'Beta' })
+
+    expect(undo(view)).toBe(true)
+    expect(view.state.doc.toString()).toBe(TABLE_DOC)
+    expect(getSelectedLine(view)).toBe('| Beta | Done |')
+    expect(getSelectedCell(view)).toEqual({ index: 0, text: 'Beta' })
+
+    expect(redo(view)).toBe(true)
+    expect(view.state.doc.toString()).toBe(`| Name  | Status |
+| :---- | -----: |
+| Beta  | Done   |
+| Alpha | Open   |`)
+    expect(getSelectedLine(view)).toBe('| Beta  | Done   |')
+    expect(getSelectedCell(view)).toEqual({ index: 0, text: 'Beta' })
 
     expect(
       dispatchEditorShortcut(view, {
@@ -172,11 +248,9 @@ describe('tableCommands', () => {
       }),
     ).toBe(true)
 
-    expect(view.state.doc.toString()).toBe(`| Name  | Status |
-| :---- | -----: |
-| Alpha | Open   |
-| Beta  | Done   |`)
+    expect(view.state.doc.toString()).toBe(FORMATTED_TABLE_DOC)
     expect(getSelectedLine(view)).toBe('| Beta  | Done   |')
+    expect(getSelectedCell(view)).toEqual({ index: 0, text: 'Beta' })
 
     view.destroy()
   })
@@ -207,6 +281,7 @@ describe('tableCommands', () => {
 | :---- | -----: | --- |
 | Alpha | Open   |     |
 | Beta  | Done   |     |`)
+    expect(getSelectedCell(view)).toEqual({ index: 2, text: '' })
 
     expect(
       dispatchEditorShortcut(view, {
@@ -222,12 +297,18 @@ describe('tableCommands', () => {
 | :---- | -----: |
 | Alpha | Open   |
 | Beta  | Done   |`)
+    expect(getSelectedCell(view)).toEqual({ index: 1, text: 'Open' })
 
     expect(undo(view)).toBe(true)
     expect(view.state.doc.toString()).toBe(`| Name  | Status |     |
 | :---- | -----: | --- |
 | Alpha | Open   |     |
 | Beta  | Done   |     |`)
+    expect(getSelectedCell(view)).toEqual({ index: 2, text: '' })
+
+    expect(redo(view)).toBe(true)
+    expect(view.state.doc.toString()).toBe(FORMATTED_TABLE_DOC)
+    expect(getSelectedCell(view)).toEqual({ index: 1, text: 'Open' })
 
     view.destroy()
   })
