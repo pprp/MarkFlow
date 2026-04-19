@@ -185,18 +185,13 @@ function buildMenu() {
         appearanceMenu:
           nextThemeState
             ? {
-                activeAppearance: nextThemeState.activeAppearance,
-                appearancePreference: nextThemeState.appearancePreference,
-                darkThemeId: nextThemeState.darkThemeId,
-                lightThemeId: nextThemeState.lightThemeId,
+                activeThemeId:
+                  nextThemeState.activeThemeId ??
+                  nextThemeState.activeTheme?.id ??
+                  nextThemeState.lightThemeId,
                 themes: nextThemes,
-                selectAppearancePreference: (preference) => {
-                  void themeManager?.setThemeAppearancePreference(preference).then(() => {
-                    buildMenu()
-                  })
-                },
-                selectThemeForAppearance: (appearance, themeId) => {
-                  void themeManager?.setThemeForAppearance(appearance, themeId).then(() => {
+                selectTheme: (themeId) => {
+                  void themeManager?.setTheme(themeId).then(() => {
                     buildMenu()
                   })
                 },

@@ -1,8 +1,10 @@
 import * as fs from 'fs'
 import * as path from 'path'
-import { ipcMain, type BrowserWindow } from 'electron'
+import { ipcMain, nativeTheme, type BrowserWindow } from 'electron'
 import chokidar, { type FSWatcher } from 'chokidar'
 import type {
+  MarkFlowAppearance,
+  MarkFlowAppearancePreference,
   MarkFlowThemePayload,
   MarkFlowThemeState,
   MarkFlowThemeSummary,
@@ -14,6 +16,9 @@ interface ThemeFile extends MarkFlowThemeSummary {
 
 interface PersistedThemeState {
   themeId?: string
+  lightThemeId?: string
+  darkThemeId?: string
+  appearancePreference?: MarkFlowAppearancePreference
 }
 
 const DEFAULT_THEME_ID = 'claude'
@@ -383,6 +388,9 @@ export class ThemeManager {
   private readonly themeDir: string
   private readonly statePath: string
   private currentThemeId = DEFAULT_THEME_ID
+  private lightThemeId = DEFAULT_THEME_ID
+  private darkThemeId = DEFAULT_THEME_ID
+  private appearancePreference: MarkFlowAppearancePreference = 'system'
   private watcher: FSWatcher | null = null
 
   constructor(
@@ -406,15 +414,22 @@ export class ThemeManager {
     ipcMain.handle('get-current-theme', () => this.getCurrentTheme())
     ipcMain.handle('set-theme', async (_event, themeId: string) => this.setTheme(themeId))
     // Legacy handlers — kept so old renderers don't crash on missing channel
-    ipcMain.handle('set-theme-for-appearance', async (_event, _appearance: string, themeId: string) =>
-      this.setTheme(themeId),
+    ipcMain.handle('set-theme-for-appearance', async (_event, appearance: MarkFlowAppearance, themeId: string) =>
+      this.setThemeForAppearance(appearance, themeId),
     )
-    ipcMain.handle('set-theme-appearance-preference', async () => this.getThemeState())
+    ipcMain.handle(
+      'set-theme-appearance-preference',
+      async (_event, preference: MarkFlowAppearancePreference) => this.setThemeAppearancePreference(preference),
+    )
   }
 
   async initialize() {
     this.ensureThemeFiles()
-    this.currentThemeId = this.readPersistedThemeId()
+    const persistedState = this.readPersistedThemeState()
+    this.currentThemeId = persistedState.currentThemeId
+    this.lightThemeId = persistedState.lightThemeId
+    this.darkThemeId = persistedState.darkThemeId
+    this.appearancePreference = persistedState.appearancePreference
     await this.watchThemeFile(this.currentThemeId)
   }
 
@@ -435,10 +450,15 @@ export class ThemeManager {
 
   getThemeState(): MarkFlowThemeState | null {
     this.ensureThemeFiles()
-    const theme =
-      this.findTheme(this.currentThemeId) ?? this.findTheme(DEFAULT_THEME_ID)
+    const activeAppearance = this.getActiveAppearance()
+    const activeThemeId = this.getActiveThemeId()
+    const theme = this.findTheme(activeThemeId) ?? this.findTheme(this.currentThemeId) ?? this.findTheme(DEFAULT_THEME_ID)
     return {
-      activeThemeId: theme?.id ?? DEFAULT_THEME_ID,
+      activeThemeId: theme?.id ?? activeThemeId,
+      activeAppearance,
+      appearancePreference: this.appearancePreference,
+      lightThemeId: this.findTheme(this.lightThemeId)?.id ?? this.currentThemeId,
+      darkThemeId: this.findTheme(this.darkThemeId)?.id ?? this.currentThemeId,
       activeTheme: theme ? this.readThemePayload(theme) : null,
     }
   }
@@ -449,12 +469,50 @@ export class ThemeManager {
     if (!theme) return null
 
     this.currentThemeId = theme.id
+    this.lightThemeId = theme.id
+    this.darkThemeId = theme.id
     this.persistThemeState()
     await this.watchThemeFile(theme.id)
 
     const state = this.getThemeState()
     if (state) this.emitThemeState(state)
     return state?.activeTheme ?? null
+  }
+
+  async setThemeForAppearance(
+    appearance: MarkFlowAppearance,
+    themeId: string,
+  ): Promise<MarkFlowThemeState | null> {
+    this.ensureThemeFiles()
+    const theme = this.findTheme(themeId)
+    if (!theme) return this.getThemeState()
+
+    if (appearance === 'light') {
+      this.lightThemeId = theme.id
+    } else {
+      this.darkThemeId = theme.id
+    }
+
+    this.currentThemeId = this.getActiveThemeId()
+    this.persistThemeState()
+    await this.watchThemeFile(this.currentThemeId)
+
+    const state = this.getThemeState()
+    if (state) this.emitThemeState(state)
+    return state
+  }
+
+  async setThemeAppearancePreference(
+    preference: MarkFlowAppearancePreference,
+  ): Promise<MarkFlowThemeState | null> {
+    this.appearancePreference = this.normalizeAppearancePreference(preference)
+    this.currentThemeId = this.getActiveThemeId()
+    this.persistThemeState()
+    await this.watchThemeFile(this.currentThemeId)
+
+    const state = this.getThemeState()
+    if (state) this.emitThemeState(state)
+    return state
   }
 
   private ensureThemeFiles() {
@@ -504,15 +562,55 @@ export class ThemeManager {
     }
   }
 
-  private readPersistedThemeId(): string {
+  private getActiveAppearance(): MarkFlowAppearance {
+    if (this.appearancePreference === 'system') {
+      return nativeTheme.shouldUseDarkColors ? 'dark' : 'light'
+    }
+
+    return this.appearancePreference
+  }
+
+  private getActiveThemeId(): string {
+    const activeAppearance = this.getActiveAppearance()
+    const preferredThemeId = activeAppearance === 'dark' ? this.darkThemeId : this.lightThemeId
+    return this.findTheme(preferredThemeId)?.id ?? this.findTheme(this.currentThemeId)?.id ?? DEFAULT_THEME_ID
+  }
+
+  private normalizeAppearancePreference(
+    preference: MarkFlowAppearancePreference | undefined,
+  ): MarkFlowAppearancePreference {
+    return preference === 'light' || preference === 'dark' || preference === 'system'
+      ? preference
+      : 'system'
+  }
+
+  private readPersistedThemeState() {
     try {
       const raw = fs.readFileSync(this.statePath, 'utf8')
       const state = JSON.parse(raw) as PersistedThemeState
-      // Accept both new "themeId" and legacy "lightThemeId"
-      const id = state.themeId ?? (state as Record<string, unknown>)['lightThemeId']
-      return this.findTheme(String(id ?? ''))?.id ?? DEFAULT_THEME_ID
+      const appearancePreference = this.normalizeAppearancePreference(state.appearancePreference)
+      const fallbackThemeId = this.findTheme(
+        String(state.themeId ?? state.lightThemeId ?? state.darkThemeId ?? DEFAULT_THEME_ID),
+      )?.id
+      const lightThemeId = this.findTheme(String(state.lightThemeId ?? fallbackThemeId ?? DEFAULT_THEME_ID))?.id ?? DEFAULT_THEME_ID
+      const darkThemeId = this.findTheme(String(state.darkThemeId ?? fallbackThemeId ?? DEFAULT_THEME_ID))?.id ?? DEFAULT_THEME_ID
+
+      this.appearancePreference = appearancePreference
+      this.lightThemeId = lightThemeId
+      this.darkThemeId = darkThemeId
+      return {
+        currentThemeId: this.getActiveThemeId(),
+        lightThemeId,
+        darkThemeId,
+        appearancePreference,
+      }
     } catch {
-      return DEFAULT_THEME_ID
+      return {
+        currentThemeId: DEFAULT_THEME_ID,
+        lightThemeId: DEFAULT_THEME_ID,
+        darkThemeId: DEFAULT_THEME_ID,
+        appearancePreference: 'system' as const,
+      }
     }
   }
 

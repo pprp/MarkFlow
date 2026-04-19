@@ -14,7 +14,6 @@ export interface VaultSidebarProps {
   onOpenFolder: () => void
   onOutlineSelect?: (position: number) => void
   onRecentSelect?: (item: MarkFlowQuickOpenItem) => void
-  onToggleOutline?: () => void
   outlineCollapsed?: boolean
   outlineItems?: readonly OutlineHeading[]
   recentItems?: readonly MarkFlowQuickOpenItem[]
@@ -64,7 +63,6 @@ export function VaultSidebar({
   onOpenFolder,
   onOutlineSelect,
   onRecentSelect,
-  onToggleOutline,
   outlineCollapsed = false,
   outlineItems = [],
   recentItems = [],
@@ -318,23 +316,6 @@ export function VaultSidebar({
           <section className="mf-vault-section">
             <div className="mf-vault-section-header">
               <span>Outline</span>
-              {onToggleOutline ? (
-                <button
-                  type="button"
-                  className="mf-vault-outline-toggle"
-                  aria-label={outlineCollapsed ? 'Expand outline' : 'Collapse outline'}
-                  title={outlineCollapsed ? 'Expand outline' : 'Collapse outline'}
-                  onClick={onToggleOutline}
-                >
-                  <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
-                    {outlineCollapsed ? (
-                      <path d="M4 2L9 6L4 10" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
-                    ) : (
-                      <path d="M8 2L3 6L8 10" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
-                    )}
-                  </svg>
-                </button>
-              ) : null}
             </div>
             {!outlineCollapsed ? (
               <nav className="mf-vault-outline-list" aria-label="Outline">

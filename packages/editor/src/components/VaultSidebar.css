@@ -271,7 +271,6 @@
 }
 
 .mf-vault-nav-item,
-.mf-vault-outline-toggle,
 .mf-vault-open-btn {
   -webkit-app-region: no-drag;
 }
@@ -346,26 +345,6 @@
 }
 
 /* ── Outline toggle button ─────────────────────────────────── */
-.mf-vault-outline-toggle {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 20px;
-  height: 20px;
-  border: none;
-  border-radius: var(--mf-radius-xs, 4px);
-  background: transparent;
-  color: var(--mf-fg-muted, rgba(26, 26, 26, 0.38));
-  cursor: pointer;
-  transition: background var(--mf-transition-fast, 0.12s ease),
-              color var(--mf-transition-fast, 0.12s ease);
-}
-
-.mf-vault-outline-toggle:hover {
-  background: var(--mf-fill, rgba(26, 26, 26, 0.07));
-  color: var(--mf-fg, #1A1A1A);
-}
-
 /* ── Outline items ─────────────────────────────────────────── */
 .mf-vault-outline-item {
   padding-top: 4px;

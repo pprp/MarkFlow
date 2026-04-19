@@ -132,7 +132,10 @@ class MockMarkFlowAPI implements MarkFlowDesktopAPI {
     { id: 'night', name: 'Night' },
   ]
   private themeState: MarkFlowThemeState = {
-    activeThemeId: 'paper',
+    activeAppearance: 'light',
+    appearancePreference: 'system',
+    lightThemeId: 'paper',
+    darkThemeId: 'paper',
     activeTheme: {
       id: 'paper',
       name: 'Paper',
@@ -246,12 +249,43 @@ class MockMarkFlowAPI implements MarkFlowDesktopAPI {
     }
 
     const nextState: MarkFlowThemeState = {
-      activeThemeId: themeId,
+      activeAppearance: this.themeState.activeAppearance,
+      appearancePreference: this.themeState.appearancePreference,
+      lightThemeId: this.themeState.lightThemeId,
+      darkThemeId: this.themeState.darkThemeId,
       activeTheme: theme,
     }
     this.emitThemeUpdated(nextState)
     return theme
   })
+  setThemeForAppearance: MarkFlowDesktopAPI['setThemeForAppearance'] = vi.fn(
+    async (appearance, themeId: string) => {
+      const theme = this.buildThemePayload(themeId)
+      if (!theme) {
+        return null
+      }
+
+      const nextState: MarkFlowThemeState = {
+        ...this.themeState,
+        activeAppearance: appearance,
+        activeTheme: theme,
+        lightThemeId: appearance === 'light' ? themeId : this.themeState.lightThemeId,
+        darkThemeId: appearance === 'dark' ? themeId : this.themeState.darkThemeId,
+      }
+      this.emitThemeUpdated(nextState)
+      return nextState
+    },
+  )
+  setThemeAppearancePreference: MarkFlowDesktopAPI['setThemeAppearancePreference'] = vi.fn(
+    async (preference) => {
+      const nextState: MarkFlowThemeState = {
+        ...this.themeState,
+        appearancePreference: preference,
+      }
+      this.emitThemeUpdated(nextState)
+      return nextState
+    },
+  )
   getSpellCheckState: MarkFlowDesktopAPI['getSpellCheckState'] = vi.fn(async () => this.spellCheckState)
   setSpellCheckLanguage: MarkFlowDesktopAPI['setSpellCheckLanguage'] = vi.fn(async (language: string | null) => {
     const nextLanguage =
@@ -858,11 +892,27 @@ describe('App desktop integration', () => {
 
     expect(expectActiveDocumentName('Starter Document')).toBeInTheDocument()
     expect(titlebar.querySelector('.mf-titlebar-center-logo')).not.toBeInTheDocument()
+    const titlebarLeft = titlebar.querySelector('.mf-titlebar-left')
+    const titlebarRight = titlebar.querySelector('.mf-titlebar-right')
+
+    expect(titlebarLeft).not.toBeNull()
+    expect(titlebarRight).not.toBeNull()
     expect(within(titlebar).getByRole('button', { name: 'Typewriter mode' })).toBeInTheDocument()
     expect(within(titlebar).getByRole('button', { name: 'Focus mode' })).toBeInTheDocument()
     expect(within(titlebar).queryByText(/^Typewriter$/)).not.toBeInTheDocument()
     expect(within(titlebar).queryByText(/^Focus$/)).not.toBeInTheDocument()
-    expect(within(titlebar).getByRole('button', { name: 'Toggle file sidebar' })).toBeInTheDocument()
+    expect(within(titlebarLeft as HTMLElement).getByRole('button', { name: 'Toggle file sidebar' })).toBeInTheDocument()
+
+    await act(async () => {
+      api.emitFileOpened({
+        filePath: '/tmp/titlebar-outline.md',
+        content: '# Intro\n\n## Details\n\nBody',
+      })
+    })
+
+    await waitFor(() => {
+      expect(within(titlebarRight as HTMLElement).getByRole('button', { name: 'Collapse outline' })).toBeInTheDocument()
+    })
   })
 
   it('restores saved folding state on reopen and persists folding after a save', async () => {
@@ -1326,7 +1376,10 @@ describe('App desktop integration', () => {
 
     act(() => {
       api.emitThemeUpdated({
-        activeThemeId: 'midnight',
+        activeAppearance: 'dark',
+        appearancePreference: 'system',
+        lightThemeId: 'paper',
+        darkThemeId: 'midnight',
         activeTheme: { id: 'midnight', name: 'Midnight', cssText: ':root { --mf-bg: #111827; }' },
       })
     })

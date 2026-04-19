@@ -1779,6 +1779,11 @@ export function App() {
       return next
     })
   }, [refreshQuickOpenItems])
+  const handleToggleOutline = useCallback(() => {
+    setOutlineCollapsed((current) => !current)
+  }, [])
+  const shouldShowOutlineToggle = !isImmersiveMode && outlineHeadings.length > 0
+  const shouldShowStandaloneOutline = shouldShowOutlineToggle && !showSidebar && !outlineCollapsed
 
   return (
     <div className={appClassName} {...{ [HEADING_NUMBERING_ATTRIBUTE]: headingNumberingEnabled ? 'true' : 'false' }}>
@@ -1788,6 +1793,22 @@ export function App() {
         {/* Spacer for macOS traffic lights (hiddenInset titleBarStyle) */}
         <div className="mf-titlebar-traffic-spacer" />
         <div className="mf-titlebar-left">
+          <button
+            type="button"
+            className={`mf-titlebar-edge-toggle mf-sidebar-toggle${showSidebar ? ' mf-titlebar-edge-toggle-active' : ''}`}
+            onClick={handleToggleSidebar}
+            title="Toggle file sidebar"
+            aria-label="Toggle file sidebar"
+            aria-pressed={showSidebar}
+          >
+            <svg className="mf-titlebar-edge-toggle-icon" width="13" height="13" viewBox="0 0 13 13" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <rect x="1.25" y="1.25" width="10.5" height="10.5" rx="1.75" stroke="currentColor" strokeWidth="1.1" />
+              <path d="M4.6 1.7V11.3" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" />
+              <path d="M6.7 4.2H9.25" stroke="currentColor" strokeWidth="1.05" strokeLinecap="round" />
+              <path d="M6.7 6.5H9.75" stroke="currentColor" strokeWidth="1.05" strokeLinecap="round" />
+              <path d="M6.7 8.8H8.85" stroke="currentColor" strokeWidth="1.05" strokeLinecap="round" />
+            </svg>
+          </button>
           <svg className="mf-logo-icon" width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
             <path d="M2 13L5.5 5.5L9 10.5L12.5 7.5L16 13" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
             <circle cx="9" cy="3" r="1.3" fill="currentColor" opacity="0.7"/>
@@ -1833,22 +1854,6 @@ export function App() {
               <path d="M11 9V10.5A0.5 0.5 0 0 1 10.5 11H9" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
               <path d="M3 11H1.5A0.5 0.5 0 0 1 1 10.5V9" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
             </svg>
-          </button>
-          <button
-            className={`mf-mode-toggle${showSidebar ? ' mf-mode-active' : ''}`}
-            onClick={handleToggleSidebar}
-            title="Toggle file sidebar"
-            aria-label="Toggle file sidebar"
-            aria-pressed={showSidebar}
-          >
-            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-              <rect x="1" y="1" width="10" height="10" rx="1.5" stroke="currentColor" strokeWidth="1.1" fill="none"/>
-              <line x1="4.5" y1="1" x2="4.5" y2="11" stroke="currentColor" strokeWidth="1.1"/>
-              <line x1="1.5" y1="4" x2="4" y2="4" stroke="currentColor" strokeWidth="0.8" strokeLinecap="round"/>
-              <line x1="1.5" y1="6" x2="4" y2="6" stroke="currentColor" strokeWidth="0.8" strokeLinecap="round"/>
-              <line x1="1.5" y1="8" x2="3.5" y2="8" stroke="currentColor" strokeWidth="0.8" strokeLinecap="round"/>
-            </svg>
-            Files
           </button>
           {/* Segmented control for view mode */}
           <div className="mf-segment-control" role="group" aria-label="View mode">
@@ -1900,6 +1905,24 @@ export function App() {
               Split
             </button>
           </div>
+          {shouldShowOutlineToggle ? (
+            <button
+              type="button"
+              className={`mf-titlebar-edge-toggle mf-outline-titlebar-toggle${!outlineCollapsed ? ' mf-titlebar-edge-toggle-active' : ''}`}
+              onClick={handleToggleOutline}
+              title={outlineCollapsed ? 'Expand outline' : 'Collapse outline'}
+              aria-label={outlineCollapsed ? 'Expand outline' : 'Collapse outline'}
+              aria-pressed={!outlineCollapsed}
+            >
+              <svg className="mf-titlebar-edge-toggle-icon" width="13" height="13" viewBox="0 0 13 13" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <rect x="1.25" y="1.25" width="10.5" height="10.5" rx="1.75" stroke="currentColor" strokeWidth="1.1" />
+                <path d="M8.4 1.7V11.3" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" />
+                <path d="M3.75 4.2H6.3" stroke="currentColor" strokeWidth="1.05" strokeLinecap="round" />
+                <path d="M3.25 6.5H6.3" stroke="currentColor" strokeWidth="1.05" strokeLinecap="round" />
+                <path d="M4.15 8.8H6.3" stroke="currentColor" strokeWidth="1.05" strokeLinecap="round" />
+              </svg>
+            </button>
+          ) : null}
         </div>
         </header>
       ) : null}
@@ -1956,7 +1979,6 @@ export function App() {
               onRecentSelect={handleQuickOpenSelect}
               onOutlineSelect={handleOutlineNavigate}
               outlineCollapsed={outlineCollapsed}
-              onToggleOutline={() => setOutlineCollapsed((v) => !v)}
             />
           </div>
         ) : null}
@@ -2041,46 +2063,30 @@ export function App() {
               onNavigate={handleMinimapNavigate}
             />
           ) : null}
-          {outlineHeadings.length > 0 && !isImmersiveMode && !showSidebar ? (
-            <aside className={`mf-outline-panel${outlineCollapsed ? ' mf-outline-panel-collapsed' : ''}`}>
+          {shouldShowStandaloneOutline ? (
+            <aside className="mf-outline-panel">
               <div className="mf-outline-header">
-                {!outlineCollapsed && <span className="mf-outline-header-label">Outline</span>}
-                <button
-                  type="button"
-                  className="mf-outline-toggle"
-                  onClick={() => setOutlineCollapsed((v) => !v)}
-                  title={outlineCollapsed ? 'Expand outline' : 'Collapse outline'}
-                  aria-label={outlineCollapsed ? 'Expand outline' : 'Collapse outline'}
-                >
-                  <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-                    {outlineCollapsed
-                      ? <path d="M5 2L10 7L5 12" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
-                      : <path d="M9 2L4 7L9 12" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
-                    }
-                  </svg>
-                </button>
+                <span className="mf-outline-header-label">Outline</span>
               </div>
-              {!outlineCollapsed && (
-                <nav className="mf-outline-nav" aria-label="Outline">
-                  {outlineHeadings.map((heading) => {
-                    const isActive = heading.anchor === activeOutlineAnchor
+              <nav className="mf-outline-nav" aria-label="Outline">
+                {outlineHeadings.map((heading) => {
+                  const isActive = heading.anchor === activeOutlineAnchor
 
-                    return (
-                      <button
-                        key={`${heading.anchor}:${heading.from}`}
-                        type="button"
-                        className={`mf-outline-item${isActive ? ' mf-outline-item-active' : ''}`}
-                        {...{ [HEADING_NUMBERING_OUTLINE_LEVEL_ATTRIBUTE]: String(heading.level) }}
-                        style={{ paddingLeft: `${12 + (heading.level - 1) * 14}px` }}
-                        aria-current={isActive ? 'true' : undefined}
-                        onClick={() => handleOutlineNavigate(heading.from)}
-                      >
-                        <span className="mf-outline-item-text">{heading.text}</span>
-                      </button>
-                    )
-                  })}
-                </nav>
-              )}
+                  return (
+                    <button
+                      key={`${heading.anchor}:${heading.from}`}
+                      type="button"
+                      className={`mf-outline-item${isActive ? ' mf-outline-item-active' : ''}`}
+                      {...{ [HEADING_NUMBERING_OUTLINE_LEVEL_ATTRIBUTE]: String(heading.level) }}
+                      style={{ paddingLeft: `${12 + (heading.level - 1) * 14}px` }}
+                      aria-current={isActive ? 'true' : undefined}
+                      onClick={() => handleOutlineNavigate(heading.from)}
+                    >
+                      <span className="mf-outline-item-text">{heading.text}</span>
+                    </button>
+                  )
+                })}
+              </nav>
             </aside>
           ) : null}
         </div>

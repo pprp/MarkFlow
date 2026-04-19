@@ -1,8 +1,6 @@
 import * as path from 'path'
 import type { MenuItemConstructorOptions } from 'electron'
 import type {
-  MarkFlowAppearance,
-  MarkFlowAppearancePreference,
   MarkFlowLaunchBehavior,
   MarkFlowMenuAction,
   MarkFlowRecentPathKind,
@@ -38,13 +36,9 @@ export interface LaunchOptionsMenuOptions {
 }
 
 export interface AppearanceMenuOptions {
-  activeAppearance: MarkFlowAppearance
-  appearancePreference: MarkFlowAppearancePreference
-  darkThemeId: string
-  lightThemeId: string
+  activeThemeId: string
   themes: MarkFlowThemeSummary[]
-  selectAppearancePreference: (preference: MarkFlowAppearancePreference) => void
-  selectThemeForAppearance: (appearance: MarkFlowAppearance, themeId: string) => void
+  selectTheme: (themeId: string) => void
 }
 
 interface ApplicationMenuOptions {
@@ -190,63 +184,15 @@ function buildLaunchOptionsSubmenu(launchOptions: LaunchOptionsMenuOptions): Men
   ]
 }
 
-function buildThemeSelectionSubmenu(
-  label: string,
-  appearance: MarkFlowAppearance,
-  selectedThemeId: string,
-  themes: MarkFlowThemeSummary[],
-  onSelect: (appearance: MarkFlowAppearance, themeId: string) => void,
-): MenuItemConstructorOptions {
-  return {
-    label,
-    submenu:
-      themes.length > 0
-        ? themes.map((theme) => ({
-            label: theme.name,
-            type: 'radio',
-            checked: theme.id === selectedThemeId,
-            click: () => onSelect(appearance, theme.id),
-          }))
-        : [{ label: 'No Themes Available', enabled: false }],
-  }
-}
-
 function buildAppearanceSubmenu(appearanceMenu: AppearanceMenuOptions): MenuItemConstructorOptions[] {
-  return [
-    {
-      label: 'Follow System',
-      type: 'radio',
-      checked: appearanceMenu.appearancePreference === 'system',
-      click: () => appearanceMenu.selectAppearancePreference('system'),
-    },
-    {
-      label: 'Light',
-      type: 'radio',
-      checked: appearanceMenu.appearancePreference === 'light',
-      click: () => appearanceMenu.selectAppearancePreference('light'),
-    },
-    {
-      label: 'Dark',
-      type: 'radio',
-      checked: appearanceMenu.appearancePreference === 'dark',
-      click: () => appearanceMenu.selectAppearancePreference('dark'),
-    },
-    { type: 'separator' },
-    buildThemeSelectionSubmenu(
-      'Light Theme',
-      'light',
-      appearanceMenu.lightThemeId,
-      appearanceMenu.themes,
-      appearanceMenu.selectThemeForAppearance,
-    ),
-    buildThemeSelectionSubmenu(
-      'Dark Theme',
-      'dark',
-      appearanceMenu.darkThemeId,
-      appearanceMenu.themes,
-      appearanceMenu.selectThemeForAppearance,
-    ),
-  ]
+  return appearanceMenu.themes.length > 0
+    ? appearanceMenu.themes.map((theme) => ({
+        label: theme.name,
+        type: 'radio',
+        checked: theme.id === appearanceMenu.activeThemeId,
+        click: () => appearanceMenu.selectTheme(theme.id),
+      }))
+    : [{ label: 'No Themes Available', enabled: false }]
 }
 
 export function createApplicationMenuTemplate({

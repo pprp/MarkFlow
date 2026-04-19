@@ -28,20 +28,17 @@ function createLaunchOptions() {
 }
 
 function createMenuTemplate(overrides: Partial<Parameters<typeof createApplicationMenuTemplate>[0]> = {}) {
+  const selectTheme = vi.fn()
   return createApplicationMenuTemplate({
     appearanceMenu: {
-      activeAppearance: 'light',
-      appearancePreference: 'system',
-      darkThemeId: 'midnight',
-      lightThemeId: 'paper',
+      activeThemeId: 'paper',
       themes: [
         { id: 'paper', name: 'Paper' },
         { id: 'github', name: 'GitHub' },
         { id: 'midnight', name: 'Midnight' },
         { id: 'night', name: 'Night' },
       ],
-      selectAppearancePreference: vi.fn(),
-      selectThemeForAppearance: vi.fn(),
+      selectTheme,
     },
     canRevealCurrentFile: () => true,
     installCliTool: vi.fn(),
@@ -244,23 +241,39 @@ describe('createApplicationMenuTemplate', () => {
   it('exposes native appearance controls in the View menu', () => {
     const template = createMenuTemplate()
 
-    expect(getNestedMenuItem(template, 'View', 'Appearance', 'Follow System')).toEqual(
+    expect(getNestedMenuItem(template, 'View', 'Appearance', 'Paper')).toEqual(
+      expect.objectContaining({
+        type: 'radio',
+        checked: true,
+      }),
+    )
+    expect(getNestedMenuItem(template, 'View', 'Appearance', 'GitHub')).toEqual(
       expect.objectContaining({
         type: 'radio',
       }),
     )
-    expect(getNestedMenuItem(template, 'View', 'Appearance', 'Light')).toEqual(
-      expect.objectContaining({
-        type: 'radio',
-      }),
-    )
-    expect(getNestedMenuItem(template, 'View', 'Appearance', 'Dark')).toEqual(
-      expect.objectContaining({
-        type: 'radio',
-      }),
-    )
-    expect(getNestedMenuItem(template, 'View', 'Appearance', 'Light Theme')).toBeDefined()
-    expect(getNestedMenuItem(template, 'View', 'Appearance', 'Dark Theme')).toBeDefined()
+    expect(getNestedMenuItem(template, 'View', 'Appearance', 'Follow System')).toBeUndefined()
+    expect(getNestedMenuItem(template, 'View', 'Appearance', 'Light Theme')).toBeUndefined()
+    expect(getNestedMenuItem(template, 'View', 'Appearance', 'Dark Theme')).toBeUndefined()
+  })
+
+  it('routes Appearance theme picks directly to the shared theme selector', () => {
+    const selectTheme = vi.fn()
+    const template = createMenuTemplate({
+      appearanceMenu: {
+        activeThemeId: 'paper',
+        themes: [
+          { id: 'paper', name: 'Paper' },
+          { id: 'github', name: 'GitHub' },
+        ],
+        selectTheme,
+      },
+    })
+    const githubThemeItem = getNestedMenuItem(template, 'View', 'Appearance', 'GitHub')
+
+    githubThemeItem?.click?.({} as never, {} as never, {} as never)
+
+    expect(selectTheme).toHaveBeenCalledWith('github')
   })
 
   it('uses platform-specific fullscreen accelerators and toggles the window directly', () => {
