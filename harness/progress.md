@@ -1109,3 +1109,35 @@ next: MF-051 - Outline panel lists all headings with live scroll-sync and click-
   - The workspace still contains unrelated pre-existing dirty changes in theme/sidebar/shared files; this session did not normalize or revert them.
 - Next recommended feature:
   - Re-run `pnpm harness:next` from the updated ledger and pick the new highest-priority `passes=false` feature after this closeout commit lands.
+
+## 2026-04-19 - MF-076 verification loop (automation pass, manual Word gate blocked)
+
+- Author: Codex
+- Focus: strict one-feature loop for `MF-076` under the current workspace constraints.
+- What changed:
+  - Ran `pnpm harness:start`.
+  - Ran `./harness/init.sh --smoke`.
+  - Re-ran the required `MF-076` automated verification:
+    - `pnpm --filter @markflow/editor exec vitest run src/editor/__tests__/smartPaste.test.ts`
+    - `pnpm --filter @markflow/editor lint`
+    - `pnpm --filter @markflow/editor build`
+  - Ran `pnpm harness:verify`.
+  - Updated `harness/features/MF-076.md` and `harness/progress.md` with the current verification state and blocker details.
+- Simplifications made:
+  - Did not touch the existing `smartPaste` implementation or its tests because the feature behavior and automated coverage were already green on the current tree.
+  - Refused to substitute `Pages` for `Word`; the feature note now records the exact missing acceptance precondition instead of overstating completion.
+- Verification:
+  - `pnpm harness:start` passed and continued to point at `MF-076`.
+  - `./harness/init.sh --smoke` passed on the current tree.
+  - `pnpm --filter @markflow/editor exec vitest run src/editor/__tests__/smartPaste.test.ts` passed (`1` test file, `4` tests).
+  - `pnpm --filter @markflow/editor lint` passed.
+  - `pnpm --filter @markflow/editor build` passed.
+  - `pnpm harness:verify` passed (`features: 121 total | verified=75 | ready=30 | planned=15 | blocked=1 | regression=0`).
+- Remaining risks:
+  - The required manual acceptance for `MF-076` is still open. The feature spec calls for paste comparisons from Microsoft Word, a webpage, and VS Code with and without `Cmd/Ctrl+Shift+V`; this machine does not have `Microsoft Word.app`, so that checklist cannot be completed truthfully here.
+  - Native desktop app-control tooling is not reliable in this session (`Computer Use` app enumeration returned Apple event error `-1743`), which also prevents a trustworthy native-app fallback for the missing Word path.
+  - The workspace still contains unrelated pre-existing dirty changes in desktop/theme/sidebar/shared files; this session did not normalize or revert them.
+- Ledger decision:
+  - Left `harness/feature-ledger.json` unchanged for `MF-076` (`status=ready`, `passes=false`, `lastVerifiedAt=null`) because the manual acceptance gate is still blocked.
+- Next recommended feature:
+  - Continue `MF-076` only in a session that has `Microsoft Word.app` installed plus trusted native desktop UI control, then repeat the manual three-source paste comparison before promoting the ledger.
