@@ -1,3 +1,37 @@
+### 2026-04-19T10:20:42Z - MF-061 verified in a live renderer lazy-image session
+
+- Author: Codex
+- Focus: strict one-feature completion for `MF-061` (lazy image loading for off-screen images).
+- What changed:
+  - Ran `pnpm harness:start`.
+  - Ran `./harness/init.sh --smoke`.
+  - Built the current renderer bundle and launched a headed Playwright Chromium session against `http://127.0.0.1:4173`.
+  - Created a local 500-image verification fixture and served it from `http://127.0.0.1:4174`.
+  - Did not modify `MF-061` implementation files; updated only `harness/features/MF-061.md`, `harness/feature-ledger.json`, and `harness/progress.md` after the feature passed both automated and live acceptance gates.
+- Simplifications made:
+  - Reused the existing shipped renderer bundle instead of creating a special verification build.
+  - Leaned on the editor’s existing virtual rendering window, so the live proof measured cumulative resource loading rather than trying to force all `500` images into the DOM at once.
+  - Kept the acceptance path renderer-only because the lazy-image behavior lives in `@markflow/editor`; the packaged Electron app still built successfully in this session, but its `page` target did not respond to `Runtime.enable`, so browser-side proof was the more reliable evidence source.
+- Verification:
+  - `pnpm --filter @markflow/editor test:run -- --grep lazy-image` passed on the current tree. In this repo’s current Vitest wiring the command exercised the full editor suite; result: `43` test files, `464` tests passed, `3` skipped.
+  - `pnpm --filter @markflow/editor exec vitest run src/editor/__tests__/lazyImage.test.tsx` passed: `1` test file, `3` tests passed.
+  - `pnpm --filter @markflow/editor lint` passed.
+  - `pnpm --filter @markflow/editor build` passed.
+  - `pnpm harness:verify` passed after the ledger update.
+  - Live acceptance passed in the headed renderer session with `4x` CPU throttling:
+    - at the top of the 500-image document, only `5` of `10` visible image widgets had `src` assigned/decoded and only `5` image resources had been fetched;
+    - at mid-document, `8` of `11` visible image widgets were decoded and cumulative resource fetches rose to `9`;
+    - at the bottom viewport, only `6` of `7` visible image widgets were decoded and cumulative resource fetches stayed at `9`, confirming off-screen images were not eagerly decoded;
+    - a `120`-step scroll traversal increased cumulative fetched image resources to `250`, with `maxFrameGapMs=81.4`, `avgFrameGapMs=21.56`, `over100Ms=0`, `longTaskCount=1`, and `maxLongTaskMs=67`, so no obvious scroll jank appeared under the required CPU slowdown.
+- Remaining risks:
+  - No `MF-061`-specific blockers remain.
+  - The manual gate was satisfied in the built renderer preview rather than via packaged Electron DevTools because the packaged app’s `page` target did not answer runtime CDP commands in this environment; that is a tooling limitation, not a feature failure, and the lazy-image logic under test is renderer-only.
+  - The workspace still contains unrelated pre-existing edits in `docs/editorial-chrome-cleanup-plan.md`, `packages/desktop/src/main/themeManager.test.ts`, `packages/desktop/src/main/themeManager.ts`, `packages/editor/src/App.tsx`, `packages/editor/src/__tests__/App.test.tsx`, `packages/editor/src/components/VaultSidebar.css`, `packages/editor/src/components/VaultSidebar.test.tsx`, `packages/editor/src/components/VaultSidebar.tsx`, `packages/editor/src/editor/MarkFlowEditor.tsx`, `packages/editor/src/editor/__tests__/MarkFlowEditor.test.tsx`, and `packages/editor/src/styles/global.css`; this session did not modify or normalize them.
+- Ledger decision:
+  - Updated `harness/feature-ledger.json` to `MF-061.status=verified`, `MF-061.passes=true`, and `MF-061.lastVerifiedAt=2026-04-19T10:20:42Z`.
+- Next recommended feature:
+  - `MF-067` - Alternate LaTeX delimiters `\(...\)` and `\[...\]` render as math in WYSIWYG mode.
+
 ### 2026-04-19T09:48:11Z - MF-054 verified in a live renderer acceptance session
 
 - Author: Codex

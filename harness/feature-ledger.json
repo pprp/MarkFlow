@@ -785,9 +785,9 @@
       "category": "phase-2-performance",
       "area": "@markflow/editor",
       "priority": 2,
-      "status": "ready",
-      "passes": false,
-      "lastVerifiedAt": null,
+      "status": "verified",
+      "passes": true,
+      "lastVerifiedAt": "2026-04-19T10:20:42Z",
       "dependsOn": [
         "MF-048"
       ],
