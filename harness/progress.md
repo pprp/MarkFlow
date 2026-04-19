@@ -1170,3 +1170,37 @@ next: MF-051 - Outline panel lists all headings with live scroll-sync and click-
   - Left `harness/feature-ledger.json` unchanged for `MF-076` (`status=ready`, `passes=false`, `lastVerifiedAt=null`) because the manual acceptance gate is still blocked.
 - Next recommended feature:
   - Continue `MF-076` on a machine that has `Microsoft Word.app` installed, then reuse the packaged-app/CDP verification path plus real Word, webpage, and VS Code paste comparisons before promoting the ledger.
+
+## 2026-04-19 - MF-076 webpage live evidence, Word/plain-text matrix still blocked
+
+- Author: Codex
+- Focus: keep this session on `MF-076` only, rerun the required automation, and push the manual acceptance evidence as far as the current machine allows without overstating completion.
+- What changed:
+  - Did not modify the editor or desktop implementation.
+  - Updated `harness/features/MF-076.md` with packaged-app webpage clipboard evidence and narrower blocker details.
+  - Left `harness/feature-ledger.json` unchanged.
+  - Appended this handoff to `harness/progress.md`.
+- Simplifications made:
+  - Reused the existing packaged-app plus CDP path and native clipboard/keystroke flows instead of adding a repo-side helper script.
+  - Refused to count split shortcut/paste probes as manual proof for `Cmd+Shift+V`; they are diagnostic evidence only.
+- Verification:
+  - `pnpm harness:start`
+  - `./harness/init.sh --smoke`
+  - `pnpm desktop:pack`
+  - `pnpm --filter @markflow/editor exec vitest run src/editor/__tests__/smartPaste.test.ts`
+  - `pnpm --filter @markflow/editor lint`
+  - `pnpm --filter @markflow/editor build`
+  - `pnpm harness:verify`
+  - Live packaged Electron + browser clipboard probe:
+    - A real `Microsoft Edge` page copy exposed `«class HTML»` plus plain-text clipboard flavors for `Bold link and code`.
+    - Native `Cmd+V` into the packaged MarkFlow app saved `**Bold** [link](https://example.com/) and \`code\`` to disk, confirming the default webpage paste path still follows the HTML-to-markdown route.
+    - Native `Cmd+Shift+V` desktop automation did not produce a trustworthy paste event, and both split probes still saved the default markdown conversion, so the webpage plain-text step remains unverified.
+    - `mdfind "kMDItemCFBundleIdentifier == 'com.microsoft.Word'"` returned no results.
+    - A `Code` source probe did not yield stable clipboard evidence, so the VS Code source remains unverified.
+- Remaining risks:
+  - The required manual acceptance matrix is still incomplete: Word is unavailable, the webpage plain-text shortcut path could not be truthfully proven with native desktop automation, and the VS Code source still lacks live clipboard evidence.
+  - The browser-source proof used `Microsoft Edge` rather than Safari; that is sufficient to validate one real webpage source, but it does not close the full three-source matrix on its own.
+- Ledger decision:
+  - Left `harness/feature-ledger.json` unchanged for `MF-076` (`status=ready`, `passes=false`, `lastVerifiedAt=null`) because the required manual acceptance is still incomplete.
+- Next recommended feature:
+  - Continue `MF-076` in a session that has `Microsoft Word.app` installed and trusted native shortcut control, then complete the remaining webpage plain-text and VS Code comparisons before promoting the ledger.
