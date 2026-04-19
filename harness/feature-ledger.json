@@ -942,9 +942,9 @@
       "category": "phase-2-functional",
       "area": "@markflow/editor",
       "priority": 2,
-      "status": "ready",
-      "passes": false,
-      "lastVerifiedAt": null,
+      "status": "verified",
+      "passes": true,
+      "lastVerifiedAt": "2026-04-19T11:51:56Z",
       "dependsOn": [
         "MF-011",
         "MF-029"

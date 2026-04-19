@@ -1,3 +1,41 @@
+### 2026-04-19T11:51:56Z - MF-072 verified in a live renderer image-resize session
+
+- Author: Codex
+- Focus: strict one-feature completion for `MF-072` (image drag-to-resize handles persist width/height into markdown source).
+- What changed:
+  - Ran `pnpm harness:start`.
+  - Ran `./harness/init.sh --smoke`.
+  - Re-ran the required feature automation:
+    - `pnpm --filter @markflow/editor test:run -- src/editor/__tests__/linkDecoration.test.tsx`
+    - `pnpm --filter @markflow/editor exec vitest run src/editor/__tests__/linkDecoration.test.tsx`
+    - `pnpm --filter @markflow/editor lint`
+    - `pnpm --filter @markflow/editor build`
+  - Completed live acceptance against the production renderer preview at `http://localhost:4173` with three temporary SVG fixtures served from `http://localhost:4174`.
+  - Updated only `harness/features/MF-072.md`, `harness/feature-ledger.json`, and `harness/progress.md` after the feature passed focused automation and live acceptance.
+- Simplifications made:
+  - Reused three local HTTP-served SVG fixtures with distinct aspect ratios instead of introducing packaged sample assets or routing through the desktop shell.
+  - Kept the proof path renderer-only because the resize logic under test lives in `@markflow/editor`; the current desktop watcher churn is unrelated to this feature.
+- Verification:
+  - `pnpm harness:start` passed.
+  - `./harness/init.sh --smoke` passed on the current tree.
+  - `pnpm --filter @markflow/editor test:run -- src/editor/__tests__/linkDecoration.test.tsx` failed because that package script currently fans out to the full editor suite and hit an unrelated dirty-tree failure in `src/__tests__/App.test.tsx` (`renders a quieter titlebar by demoting secondary writing modes to icon controls`).
+  - `pnpm --filter @markflow/editor exec vitest run src/editor/__tests__/linkDecoration.test.tsx` passed: `1` test file, `9` tests passed.
+  - `pnpm --filter @markflow/editor lint` passed.
+  - `pnpm --filter @markflow/editor build` passed.
+  - `pnpm harness:verify` passed before and after the ledger update.
+  - Live renderer acceptance passed on `http://localhost:4173`:
+    - the three-image fixture rendered all three resizeable image widgets once the caret moved off the final image line;
+    - dragging the southeast handle persisted `416x234`, `312x312`, and `223x372` sizes into Source mode as canonical `{width=... height=...}` attributes;
+    - returning to Preview reapplied those exact persisted sizes to all three image widgets, so the renderer round-tripped the markdown without corruption.
+- Remaining risks:
+  - The `test:run -- <path>` alias is currently misleading for single-feature closeout because it still executes the entire editor suite and can be dragged red by unrelated dirty-tree failures.
+  - The manual gate was satisfied in the live renderer preview rather than a directly driven Electron window; that is sufficient for `MF-072` because the behavior under test is renderer-only.
+  - The workspace still contains unrelated pre-existing edits in `packages/desktop/src/main/index.ts`, `packages/desktop/src/main/menu.test.ts`, `packages/desktop/src/main/menu.ts`, `packages/desktop/src/main/themeManager.ts`, `packages/desktop/src/preload/index.ts`, `packages/editor/src/App.tsx`, `packages/editor/src/__tests__/App.test.tsx`, `packages/editor/src/components/VaultSidebar.css`, `packages/editor/src/components/VaultSidebar.tsx`, `packages/editor/src/styles/global.css`, and `packages/shared/src/index.ts`; this session did not normalize them.
+- Ledger decision:
+  - Updated `harness/feature-ledger.json` to `MF-072.status=verified`, `MF-072.passes=true`, and `MF-072.lastVerifiedAt=2026-04-19T11:51:56Z`.
+- Next recommended feature:
+  - `MF-074` - Command palette (Cmd/Ctrl+Shift+P) invokes any editor or desktop action by name.
+
 ### 2026-04-19T11:32:08Z - MF-068 verified in a live renderer table-command session
 
 - Author: Codex
