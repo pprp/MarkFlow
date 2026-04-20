@@ -1263,6 +1263,41 @@ next: MF-051 - Outline panel lists all headings with live scroll-sync and click-
 - Next recommended feature:
   - Continue `MF-076` in a trusted desktop session that has `Microsoft Word.app` installed, then complete the with-and-without-shortcut comparisons across Word, webpage, and VS Code before promoting the ledger.
 
+## 2026-04-20 - MF-076 closeout rerun, automation green and Word gate still blocks completion
+
+- Author: Codex
+- Focus: keep this session on `MF-076` only, rerun the required verification on the current tree, and record the still-blocked manual acceptance truthfully.
+- What changed:
+  - Did not modify the editor or desktop implementation.
+  - Updated `harness/features/MF-076.md` with today's sixth 2026-04-20 rerun note.
+  - Left `harness/feature-ledger.json` unchanged.
+  - Appended this handoff to `harness/progress.md`.
+- Changed files:
+  - `harness/features/MF-076.md`
+  - `harness/progress.md`
+- Simplifications made:
+  - Reused the existing `smartPaste` regression test plus the required editor lint/build and harness verification flow instead of widening scope beyond `MF-076`.
+  - Did not rerun partial live webpage/VS Code clipboard probes, because the missing `Microsoft Word.app` source already keeps the required three-source matrix incomplete and would not change the ledger decision.
+- Verification:
+  - `pnpm harness:start`
+  - `./harness/init.sh --smoke` passed on the current tree:
+    - `packages/desktop`: `10` test files, `65` tests passed.
+    - `packages/editor`: `43` test files, `467` tests passed, `3` skipped.
+  - `pnpm --filter @markflow/editor exec vitest run src/editor/__tests__/smartPaste.test.ts` passed (`1` test file, `7` tests).
+  - `pnpm --filter @markflow/editor lint` passed.
+  - `pnpm --filter @markflow/editor build` passed.
+  - `pnpm harness:verify` passed (`features: 121 total | verified=75 | ready=30 | planned=15 | blocked=1 | regression=0`; next: `MF-076`).
+  - Environment gate checks:
+    - `mdfind "kMDItemCFBundleIdentifier == 'com.microsoft.Word'"` returned no results.
+    - `/Applications` exposed `Codex.app`, `Microsoft Edge.app`, `Microsoft Outlook.app`, `Microsoft PowerPoint.app`, `Safari.app`, and `Visual Studio Code.app`, but no `Microsoft Word.app`.
+- Remaining risks:
+  - The required manual acceptance is still incomplete because `MF-076` requires paste comparisons from Word, webpage, and VS Code with and without `Cmd/Ctrl+Shift+V`, and this machine still lacks `Microsoft Word.app`.
+  - The earlier partial live webpage and VS Code evidence still does not close the matrix without the missing Word source and the missing fresh plain-text-shortcut proof.
+- Ledger decision:
+  - Left `harness/feature-ledger.json` unchanged for `MF-076` (`status=ready`, `passes=false`, `lastVerifiedAt=null`) because the required manual matrix is still incomplete.
+- Next recommended feature:
+  - Continue `MF-076` in a trusted desktop session that has `Microsoft Word.app` installed, then complete the with-and-without-shortcut comparisons across Word, webpage, and VS Code before promoting the ledger.
+
 ## 2026-04-20 - MF-076 closeout rerun, automation still green and Word still absent
 
 - Author: Codex
