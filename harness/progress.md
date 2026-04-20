@@ -1,3 +1,49 @@
+### 2026-04-20T15:26:58+08:00 - MF-076 closeout rerun (automation green again, Word gate still blocks honest completion)
+
+- Author: Codex
+- Focus: strict one-feature session for `MF-076` only, refresh the required verification on the current tree, and write the still-blocked closeout state back into the harness files without widening scope.
+- What changed:
+  - Re-ran the required session-start protocol:
+    - `pnpm harness:start`
+    - `./harness/init.sh --smoke`
+  - Re-ran the required `MF-076` automated verification:
+    - `pnpm --filter @markflow/editor exec vitest run src/editor/__tests__/smartPaste.test.ts`
+    - `pnpm --filter @markflow/editor lint`
+    - `pnpm --filter @markflow/editor build`
+    - `pnpm harness:verify`
+  - Re-checked the manual acceptance environment gate with:
+    - `mdfind "kMDItemCFBundleIdentifier == 'com.microsoft.Word'"`
+    - `find /Applications ~/Applications -maxdepth 3 \( -name 'Microsoft Word.app' -o -name 'Word.app' -o -name 'Microsoft Edge.app' -o -name 'Safari.app' -o -name 'Visual Studio Code.app' \) 2>/dev/null | sort`
+  - Rewrote `harness/features/MF-076.md` into a concise current-state summary so the feature note preserves the same truth without another copy of the rerun log.
+  - Updated `harness/progress.md`; left `harness/feature-ledger.json` unchanged.
+- Changed files:
+  - `harness/features/MF-076.md`
+  - `harness/progress.md`
+- Simplifications made:
+  - Collapsed the repeated rerun prose in `harness/features/MF-076.md` into a single current-status summary plus the still-relevant partial manual evidence and blocker state.
+  - Reused the existing focused `smartPaste` verification path instead of touching already-green implementation or tests.
+- Verification:
+  - `pnpm harness:start` completed at session start and still selected `MF-076`.
+  - `./harness/init.sh --smoke` passed on the current tree:
+    - `packages/desktop`: `10` test files / `65` tests passed.
+    - `packages/editor`: `43` test files / `467` tests passed / `3` skipped.
+  - `pnpm --filter @markflow/editor exec vitest run src/editor/__tests__/smartPaste.test.ts` passed (`1` test file / `7` tests).
+  - `pnpm --filter @markflow/editor lint` passed.
+  - `pnpm --filter @markflow/editor build` passed.
+  - `pnpm harness:verify` passed (`features: 121 total | verified=75 | ready=30 | planned=15 | blocked=1 | regression=0`; next: `MF-076`).
+  - Manual gate is still blocked:
+    - `mdfind "kMDItemCFBundleIdentifier == 'com.microsoft.Word'"` returned no results.
+    - `find /Applications ~/Applications -maxdepth 3 \( -name 'Microsoft Word.app' -o -name 'Word.app' -o -name 'Microsoft Edge.app' -o -name 'Safari.app' -o -name 'Visual Studio Code.app' \) 2>/dev/null | sort` only found `/Applications/Microsoft Edge.app`, `/Applications/Safari.app`, and `/Applications/Visual Studio Code.app`.
+- Failed verification / blocker:
+  - The required manual matrix for Word, webpage, and VS Code with and without `Cmd/Ctrl+Shift+V` could not be completed honestly because `Microsoft Word.app` is absent in this environment, and this session did not produce any new trustworthy native plain-text-shortcut proof that would close the remaining gap.
+- Remaining risks:
+  - `MF-076` still cannot be promoted to `status=verified` or `passes=true` until the full three-source manual matrix completes in a trusted desktop session.
+  - The workspace still contains unrelated pre-existing edits in `.claude/launch.json`, `README.md`, `build.sh`, `packages/desktop/electron-builder.yml`, `packages/editor/src/styles/global.css`, `docs/logos/`, and `packages/desktop/build/entitlements.mac.plist`; this session did not normalize them.
+- Ledger decision:
+  - Left `harness/feature-ledger.json` unchanged for `MF-076` (`status=ready`, `passes=false`, `lastVerifiedAt=null`) because the manual acceptance gate is still blocked.
+- Next recommended feature:
+  - Continue `MF-076` only in a trusted desktop session that has `Microsoft Word.app` installed, then complete the Word/webpage/VS Code with-and-without-shortcut matrix before promoting the ledger.
+
 ### 2026-04-20T15:06:52+08:00 - MF-076 closeout rerun (fresh automation green, Word gate still blocks truthful promotion)
 
 - Author: Codex
