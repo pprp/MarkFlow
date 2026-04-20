@@ -1,3 +1,38 @@
+### 2026-04-20T05:59:29Z - MF-076 closeout rerun (automation green, Word-gated manual matrix still blocked)
+
+- Author: Codex
+- Focus: strict one-feature loop for `MF-076` (paste as plain text shortcut strips rich formatting before insertion).
+- What changed:
+  - Ran `pnpm harness:start`.
+  - Ran `./harness/init.sh --smoke`.
+  - Re-ran the required feature automation:
+    - `pnpm --filter @markflow/editor exec vitest run src/editor/__tests__/smartPaste.test.ts`
+    - `pnpm --filter @markflow/editor lint`
+    - `pnpm --filter @markflow/editor build`
+    - `pnpm harness:verify`
+  - Re-checked the manual acceptance gate with:
+    - `mdfind "kMDItemCFBundleIdentifier == 'com.microsoft.Word'"`
+    - `ls /Applications | rg 'Microsoft|Safari|Visual Studio Code|Codex'`
+  - Updated only `harness/features/MF-076.md` and `harness/progress.md`; left `harness/feature-ledger.json` unchanged because the required manual matrix is still incomplete.
+- Simplifications made:
+  - Reused the existing `MF-076` automation set instead of widening scope into unrelated editor or desktop verification.
+  - Did not rerun partial packaged-app clipboard probes from Edge or VS Code because missing `Microsoft Word.app` already makes the required three-source matrix impossible to complete honestly in this environment.
+- Verification:
+  - `pnpm harness:start` passed and still selected `MF-076`.
+  - `./harness/init.sh --smoke` passed on the current tree (`packages/desktop`: `10` test files / `65` tests; `packages/editor`: `43` test files / `467` tests / `3` skipped).
+  - `pnpm --filter @markflow/editor exec vitest run src/editor/__tests__/smartPaste.test.ts` passed: `1` file, `7` tests passed.
+  - `pnpm --filter @markflow/editor lint` passed.
+  - `pnpm --filter @markflow/editor build` passed.
+  - `pnpm harness:verify` passed (`features: 121 total | verified=75 | ready=30 | planned=15 | blocked=1 | regression=0`; next: `MF-076`).
+  - Manual acceptance remains blocked: `mdfind "kMDItemCFBundleIdentifier == 'com.microsoft.Word'"` returned no results, and `/Applications` exposed `Codex.app`, `Microsoft Edge.app`, `Microsoft Outlook.app`, `Microsoft PowerPoint.app`, `Safari.app`, and `Visual Studio Code.app`, but still no `Microsoft Word.app`.
+- Remaining risks:
+  - `MF-076` cannot be promoted honestly until the required Word/webpage/VS Code with-and-without-shortcut matrix is completed in a trusted desktop session.
+  - The workspace still contains unrelated pre-existing edits in `.claude/launch.json`, `README.md`, `build.sh`, `packages/desktop/electron-builder.yml`, `packages/editor/src/styles/global.css`, `docs/logos/`, and `packages/desktop/build/entitlements.mac.plist`; this session did not normalize them.
+- Ledger decision:
+  - Kept `harness/feature-ledger.json` unchanged at `MF-076.status=ready`, `MF-076.passes=false`, and `MF-076.lastVerifiedAt=null`.
+- Next recommended feature:
+  - Continue with `MF-076` only after `Microsoft Word.app` is available and the full three-source shortcut comparison can be executed in a trusted desktop session.
+
 ### 2026-04-19T11:51:56Z - MF-072 verified in a live renderer image-resize session
 
 - Author: Codex
