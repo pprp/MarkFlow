@@ -45,6 +45,8 @@ const RECENT_HISTORY_FILE_NAME = '.markflow-open-recent.json'
 const LAUNCH_OPTIONS_FILE_NAME = '.markflow-launch-options.json'
 const MAX_RECENT_HISTORY_ITEMS = 20
 const DEFAULT_LAUNCH_BEHAVIOR: MarkFlowLaunchBehavior = 'open-new-file'
+const HARNESS_TEMP_DIR_ENV = 'MARKFLOW_HARNESS_TEMP_DIR'
+const HARNESS_USER_DATA_DIR_ENV = 'MARKFLOW_HARNESS_USER_DATA_DIR'
 
 interface MarkFlowSessionState {
   cleanExit: boolean
@@ -99,6 +101,12 @@ const DEFAULT_FILE_MANAGER_OPTIONS: FileManagerOptions = {
   windowedReadChunkSize: WINDOWED_READ_CHUNK_SIZE,
 }
 
+function getFileManagerAppPath(name: 'temp' | 'userData'): string {
+  const override =
+    name === 'temp' ? process.env[HARNESS_TEMP_DIR_ENV] : process.env[HARNESS_USER_DATA_DIR_ENV]
+  return override && override.trim().length > 0 ? override : app.getPath(name)
+}
+
 export class FileManager {
   private currentFilePath: string | null = null
   private currentFolderPath: string | null = null
@@ -112,11 +120,11 @@ export class FileManager {
     this.scheduleRecoveryCheckpoint(draft)
   }
   private readonly options: FileManagerOptions
-  private readonly launchOptionsPath = path.join(app.getPath('userData'), LAUNCH_OPTIONS_FILE_NAME)
-  private readonly recoveryCheckpointPath = path.join(app.getPath('temp'), RECOVERY_CHECKPOINT_FILE_NAME)
-  private readonly recentHistoryPath = path.join(app.getPath('userData'), RECENT_HISTORY_FILE_NAME)
-  private readonly sessionStatePath = path.join(app.getPath('userData'), SESSION_STATE_FILE_NAME)
-  private readonly windowSessionPath = path.join(app.getPath('userData'), WINDOW_SESSION_FILE_NAME)
+  private readonly launchOptionsPath = path.join(getFileManagerAppPath('userData'), LAUNCH_OPTIONS_FILE_NAME)
+  private readonly recoveryCheckpointPath = path.join(getFileManagerAppPath('temp'), RECOVERY_CHECKPOINT_FILE_NAME)
+  private readonly recentHistoryPath = path.join(getFileManagerAppPath('userData'), RECENT_HISTORY_FILE_NAME)
+  private readonly sessionStatePath = path.join(getFileManagerAppPath('userData'), SESSION_STATE_FILE_NAME)
+  private readonly windowSessionPath = path.join(getFileManagerAppPath('userData'), WINDOW_SESSION_FILE_NAME)
 
   constructor(
     private window: BrowserWindow,

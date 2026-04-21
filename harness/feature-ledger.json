@@ -1,7 +1,7 @@
 {
   "version": 2,
   "project": "MarkFlow",
-  "generatedAt": "2026-04-17",
+  "generatedAt": "2026-04-21",
   "instructions": [
     "Do not remove feature entries from this file unless the product scope has genuinely changed.",
     "Treat `passes` as the source of truth for completion.",
@@ -1617,6 +1617,21 @@
         "MF-096"
       ],
       "notesRef": "features/MF-121.md"
+    },
+    {
+      "id": "MF-123",
+      "title": "Saving an untitled new file prompts for the target folder and filename",
+      "category": "phase-1-functional",
+      "area": "@markflow/desktop",
+      "priority": 1,
+      "status": "verified",
+      "passes": true,
+      "lastVerifiedAt": "2026-04-21T13:33:10+08:00",
+      "dependsOn": [
+        "MF-008",
+        "MF-009"
+      ],
+      "notesRef": "features/MF-123.md"
     }
   ]
 }

@@ -961,6 +961,42 @@ describe('FileManager auto-save recovery checkpoints', () => {
     )
   })
 
+  it('uses harness storage path overrides for isolated desktop verification sessions', async () => {
+    const harnessTempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'markflow-harness-temp-'))
+    const harnessUserDataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'markflow-harness-user-data-'))
+    const writeFileMock = vi.spyOn(fs.promises, 'writeFile').mockResolvedValue()
+
+    process.env.MARKFLOW_HARNESS_TEMP_DIR = harnessTempDir
+    process.env.MARKFLOW_HARNESS_USER_DATA_DIR = harnessUserDataDir
+
+    try {
+      const manager = new FileManager(createWindowStub() as never)
+      await ((manager as unknown) as {
+        writeSessionState(state: { cleanExit: boolean }): Promise<void>
+      }).writeSessionState({ cleanExit: false })
+
+      manager.scheduleRecoveryCheckpoint({
+        activeTabId: 'tab-1',
+        documents: [{ tabId: 'tab-1', filePath: null, content: '# isolated draft' }],
+      })
+      await vi.advanceTimersByTimeAsync(30_000)
+
+      expect(writeFileMock).toHaveBeenCalledWith(
+        path.join(harnessUserDataDir, '.markflow-recovery-session.json'),
+        JSON.stringify({ cleanExit: false }),
+        'utf-8',
+      )
+      expect(writeFileMock).toHaveBeenCalledWith(
+        path.join(harnessTempDir, '.markflow-recovery'),
+        expect.stringContaining('# isolated draft'),
+        'utf-8',
+      )
+    } finally {
+      delete process.env.MARKFLOW_HARNESS_TEMP_DIR
+      delete process.env.MARKFLOW_HARNESS_USER_DATA_DIR
+    }
+  })
+
   it('surfaces the last auto-save checkpoint after an unclean shutdown and discards it after a manual save', async () => {
     vi.useRealTimers()
 

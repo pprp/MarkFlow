@@ -2111,3 +2111,51 @@ next: MF-051 - Outline panel lists all headings with live scroll-sync and click-
   - Kept `harness/feature-ledger.json` truthful for `MF-123` (`status=ready`, `passes=false`, `lastVerifiedAt=null`) because the manual verification did not complete.
 - Next recommended feature:
   - Continue `MF-123` only in a desktop environment where the native Save panel can complete the final write, then promote the ledger only after both automated and manual checks are green.
+
+### 2026-04-21T13:33:10+08:00 - MF-123 verified after isolated native save pass
+
+- Author: Codex
+- Focus: finish only `MF-123`; no second feature was implemented.
+- What changed:
+  - Added `MARKFLOW_HARNESS_TEMP_DIR` and `MARKFLOW_HARNESS_USER_DATA_DIR` support in `FileManager` so manual desktop verification can run against isolated recovery/session storage instead of global app state.
+  - Added desktop coverage proving those harness storage overrides are honored for recovery checkpoints and session state.
+  - Promoted `MF-123` in `harness/feature-ledger.json` to `status=verified`, `passes=true`, `lastVerifiedAt=2026-04-21T13:33:10+08:00`.
+- Changed files:
+  - `harness/features/MF-123.md`
+  - `packages/desktop/src/main/fileManager.ts`
+  - `packages/desktop/src/main/fileManager.test.ts`
+  - `harness/feature-ledger.json`
+  - `harness/progress.md`
+- Simplifications made:
+  - Kept the isolation hook to two explicit harness environment variables instead of adding a new app setting or changing normal Electron storage paths.
+  - Reused the existing native Save As path for the manual proof; no new save API was introduced.
+- Verification:
+  - Startup:
+    - `pnpm harness:start` passed and selected `MF-123`.
+    - `./harness/init.sh --smoke` passed (`packages/desktop`: `66` tests; `packages/editor`: `468` passed, `3` skipped).
+  - TDD check for the prerequisite isolation fix:
+    - `pnpm --filter @markflow/desktop exec vitest run src/main/fileManager.test.ts -t "uses harness storage path overrides"` failed before implementation because recovery/session paths still used `/tmp`.
+    - The same command passed after implementation.
+  - Feature automated verification:
+    - `pnpm --filter @markflow/desktop exec vitest run src/main/fileManager.test.ts -t "prompts for a target when saving an active untitled"` passed.
+    - `pnpm --filter @markflow/editor exec vitest run src/__tests__/App.test.tsx -t "routes Save for an active untitled tab"` passed.
+    - `pnpm --filter @markflow/desktop exec vitest run src/main/fileManager.test.ts` passed (`27` tests).
+  - Additional verification:
+    - `pnpm --filter @markflow/desktop lint` passed.
+    - `pnpm --filter @markflow/desktop build` passed.
+    - `pnpm harness:verify` passed after ledger promotion (`features: 123 total | verified=76 | ready=31 | planned=15 | blocked=1 | regression=0`; next: `MF-076`).
+- Manual verification:
+  - Created `/tmp/markflow-mf123-manual-501/existing/original.md` with SHA-256 `a9a525098771c8da9ecf97e12f6799094bf1271472caeeabe8b8a1e2fbf0a7f3`.
+  - Launched dev Electron with isolated `MARKFLOW_HARNESS_TEMP_DIR=/tmp/markflow-mf123-manual-501/tmp` and `MARKFLOW_HARNESS_USER_DATA_DIR=/tmp/markflow-mf123-manual-501/user-data`; no global recovery prompt appeared.
+  - Opened `original.md`, created `Untitled 2`, entered `# MF-123 Manual Save` plus body text, and pressed `Cmd+S`.
+  - Confirmed the native Save panel opened from the untitled tab with default filename `untitled.md` and Markdown format selected.
+  - Saved as `/tmp/markflow-mf123-manual-501/output/untitled-saved.md`; the active window/tab title changed to `untitled-saved.md`.
+  - Reopened `untitled-saved.md` through the native Open panel and confirmed the rendered content matched the saved buffer.
+  - Verified the original file SHA-256 stayed `a9a525098771c8da9ecf97e12f6799094bf1271472caeeabe8b8a1e2fbf0a7f3` and the saved file contained:
+    - `# MF-123 Manual Save`
+    - `Saved from an untitled tab.`
+- Remaining risks:
+  - Normal app behavior is unchanged unless the two `MARKFLOW_HARNESS_*` variables are set.
+  - The workspace still has unrelated pre-existing edits in `.claude/launch.json`, `README.md`, `build.sh`, `packages/desktop/electron-builder.yml`, `packages/editor/src/App.tsx`, `packages/editor/src/__tests__/App.test.tsx`, `packages/editor/src/components/DocumentSearch.tsx`, `packages/editor/src/editor/MarkFlowEditor.tsx`, `packages/editor/src/styles/global.css`, `docs/logos/`, `harness/features/MF-122.md`, and `packages/desktop/build/entitlements.mac.plist`; this session did not normalize them.
+- Next recommended feature:
+  - `MF-076` - Paste as plain text shortcut strips rich formatting before insertion.
