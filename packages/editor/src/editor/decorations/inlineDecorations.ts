@@ -151,6 +151,7 @@ function getSelectionRescanRanges(update: ViewUpdate, windowFrom: number, window
 function buildDecorations(view: EditorView, scanRanges?: ReadonlyArray<DirtyRegion>): DecorationSet {
   const builder = new RangeSetBuilder<Decoration>()
   const cursorHead = view.state.selection.main.head
+  const revealMarkdownAtCursor = view.state.facet(EditorView.editable)
   const doc = view.state.doc
   const { from: minFrom, to: maxTo } = getDecorationViewportWindow(view)
   const activeRanges =
@@ -175,7 +176,7 @@ function buildDecorations(view: EditorView, scanRanges?: ReadonlyArray<DirtyRegi
         if (headingClass) {
           const lineStart = doc.lineAt(from).from
           const lineEnd = doc.lineAt(to).to
-          const cursorInside = cursorHead >= lineStart && cursorHead <= lineEnd
+          const cursorInside = revealMarkdownAtCursor && cursorHead >= lineStart && cursorHead <= lineEnd
 
           // Decoration.line() must be added first (startSide = -1 < replace's startSide = 1)
           addDecoration(lineStart, lineStart, Decoration.line({ class: headingClass }))

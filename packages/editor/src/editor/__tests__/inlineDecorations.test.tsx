@@ -5,9 +5,17 @@ import { markdown, markdownLanguage } from '@codemirror/lang-markdown'
 import { syntaxHighlighting, defaultHighlightStyle } from '@codemirror/language'
 import { wysiwygDecorations } from '../decorations/inlineDecorations'
 
-function makeView(doc: string, cursorOffset = 0) {
-  // cursor at doc.length + cursorOffset (clamped to valid range)
-  const cursor = Math.max(0, Math.min(doc.length, doc.length + cursorOffset))
+interface MakeViewOptions {
+  cursorOffset?: number
+  cursor?: number
+  editable?: boolean
+}
+
+function makeView(doc: string, options: number | MakeViewOptions = 0) {
+  const settings = typeof options === 'number' ? { cursorOffset: options } : options
+  const cursor =
+    settings.cursor ?? Math.max(0, Math.min(doc.length, doc.length + (settings.cursorOffset ?? 0)))
+  const editable = settings.editable ?? true
   const state = EditorState.create({
     doc,
     selection: { anchor: cursor },
@@ -16,6 +24,7 @@ function makeView(doc: string, cursorOffset = 0) {
       syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
       drawSelection(),
       wysiwygDecorations(),
+      EditorView.editable.of(editable),
       EditorView.lineWrapping,
     ],
   })
@@ -69,6 +78,17 @@ describe('wysiwygDecorations — headings', () => {
     document.body.appendChild(parent)
     const view = new EditorView({ state, parent })
     expect(view).toBeTruthy()
+    destroyView(view)
+  })
+
+  it('hides the first heading marker in a read-only split preview when the cursor starts at position 0', () => {
+    const doc = '# MarkFlow\n\nBody'
+    const view = makeView(doc, { cursor: 0, editable: false })
+
+    expect(view.state.facet(EditorView.editable)).toBe(false)
+    expect(lineText(view, 0)).toBe('MarkFlow')
+    expect(view.state.doc.toString()).toBe(doc)
+
     destroyView(view)
   })
 })

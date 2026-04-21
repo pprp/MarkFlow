@@ -1632,6 +1632,18 @@
         "MF-009"
       ],
       "notesRef": "features/MF-123.md"
+    },
+    {
+      "id": "MF-124",
+      "title": "Split view preview pane always shows raw `#` on the first heading",
+      "category": "bug",
+      "area": "@markflow/editor",
+      "priority": 1,
+      "status": "verified",
+      "passes": true,
+      "lastVerifiedAt": "2026-04-21T14:25:31+08:00",
+      "dependsOn": ["MF-035"],
+      "notesRef": "features/MF-124.md"
     }
   ]
 }

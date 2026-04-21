@@ -2389,3 +2389,47 @@ next: MF-051 - Outline panel lists all headings with live scroll-sync and click-
   - Left `harness/feature-ledger.json` unchanged for `MF-076` (`status=ready`, `passes=false`, `lastVerifiedAt=null`) because the manual matrix is still blocked.
 - Next recommended feature:
   - Continue `MF-076` in a trusted desktop session with `Microsoft Word.app` installed, then complete the Word/webpage/VS Code with-and-without-shortcut paste matrix before promoting the ledger.
+
+### 2026-04-21T14:25:31+08:00 - MF-124 split preview hides the first heading marker
+
+- Author: Codex
+- Focus: strict one-feature session for `MF-124`; no second feature was implemented.
+- What changed:
+  - Added a regression test for a non-editable split-preview-like `EditorView` whose selection starts at position `0`.
+  - Updated WYSIWYG heading decoration logic so cursor-position markdown reveal only applies when the editor is editable.
+  - Promoted `MF-124` in `harness/feature-ledger.json` only after automated and manual verification passed.
+- Changed files:
+  - `packages/editor/src/editor/decorations/inlineDecorations.ts`
+  - `packages/editor/src/editor/__tests__/inlineDecorations.test.tsx`
+  - `harness/feature-ledger.json`
+  - `harness/features/MF-124.md`
+  - `harness/progress.md`
+- Simplifications made:
+  - Reused the existing heading decoration path and CodeMirror `EditorView.editable` facet instead of adding split-view-specific state.
+  - Kept the fix scoped to heading marker reveal behavior; no unrelated split-view backlog items were touched.
+- Verification:
+  - `pnpm harness:start` passed and selected `MF-124`.
+  - `./harness/init.sh --smoke` passed:
+    - `packages/desktop`: `10` test files, `67` tests passed.
+    - `packages/editor`: `43` test files, `468` tests passed, `3` skipped.
+  - RED check passed by failing as expected before the implementation:
+    - `pnpm --filter @markflow/editor exec vitest run src/editor/__tests__/inlineDecorations.test.tsx -t "hides the first heading marker"` failed with expected `# MarkFlow` vs `MarkFlow`.
+  - GREEN and regression verification passed:
+    - `pnpm --filter @markflow/editor exec vitest run src/editor/__tests__/inlineDecorations.test.tsx -t "hides the first heading marker"` passed.
+    - `pnpm --filter @markflow/editor exec vitest run src/editor/__tests__/inlineDecorations.test.tsx` passed (`17` tests).
+    - `pnpm --filter @markflow/editor test:run` passed (`43` test files, `469` tests passed, `3` skipped).
+    - `pnpm --filter @markflow/editor lint` passed.
+    - `pnpm --filter @markflow/editor build` passed, with the existing Vite large-chunk warning.
+    - `pnpm harness:verify` passed (`features: 135 total | verified=77 | ready=42 | planned=15 | blocked=1 | regression=0`; next: `MF-125`).
+  - Manual verification via Vite + Playwright on Microsoft Edge:
+    - In Split view, `.mf-split-pane-preview .cm-line:first` returned `MarkFlow` with no leading `#`.
+    - The source pane still showed raw `# MarkFlow`.
+    - After clicking another line in the source pane, the preview first heading still returned `MarkFlow`.
+- Remaining risks:
+  - Build still reports the pre-existing Vite large-chunk warning.
+  - Playwright reported a missing `/favicon.ico` 404 during dev-server manual verification; it is unrelated to the split-preview heading behavior.
+  - The worktree still contains unrelated pre-existing local changes and untracked future feature notes; this session did not modify or stage them.
+- Ledger decision:
+  - Updated `MF-124` to `status=verified`, `passes=true`, `lastVerifiedAt=2026-04-21T14:25:31+08:00`.
+- Next recommended feature:
+  - `MF-125` - Split view scroll positions are desynced on load.
