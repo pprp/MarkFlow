@@ -1167,6 +1167,7 @@ export const MarkFlowEditor = forwardRef<MarkFlowEditorHandle, MarkFlowEditorPro
     if (sourceView) {
       let isSyncingLeft = false
       let isSyncingRight = false
+      let initialSyncFrame: number | null = null
 
       const handleSourceScroll = () => {
         if (!previewViewRef.current || isSyncingLeft) return
@@ -1214,8 +1215,15 @@ export const MarkFlowEditor = forwardRef<MarkFlowEditorHandle, MarkFlowEditorPro
 
       // Initial sync
       handleSourceScroll()
+      initialSyncFrame = requestAnimationFrame(() => {
+        initialSyncFrame = null
+        handleSourceScroll()
+      })
 
       return () => {
+        if (initialSyncFrame !== null) {
+          cancelAnimationFrame(initialSyncFrame)
+        }
         sourceView.scrollDOM.removeEventListener('scroll', handleSourceScroll)
         previewView.scrollDOM.removeEventListener('scroll', handlePreviewScroll)
         previewView.destroy()

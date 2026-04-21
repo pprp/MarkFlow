@@ -1644,6 +1644,18 @@
       "lastVerifiedAt": "2026-04-21T14:25:31+08:00",
       "dependsOn": ["MF-035"],
       "notesRef": "features/MF-124.md"
+    },
+    {
+      "id": "MF-125",
+      "title": "Split view scroll positions are desynced on load",
+      "category": "bug",
+      "area": "@markflow/editor",
+      "priority": 1,
+      "status": "verified",
+      "passes": true,
+      "lastVerifiedAt": "2026-04-21T14:43:58+08:00",
+      "dependsOn": ["MF-035"],
+      "notesRef": "features/MF-125.md"
     }
   ]
 }

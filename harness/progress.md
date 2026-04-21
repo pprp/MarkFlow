@@ -2433,3 +2433,47 @@ next: MF-051 - Outline panel lists all headings with live scroll-sync and click-
   - Updated `MF-124` to `status=verified`, `passes=true`, `lastVerifiedAt=2026-04-21T14:25:31+08:00`.
 - Next recommended feature:
   - `MF-125` - Split view scroll positions are desynced on load.
+
+### 2026-04-21T14:43:58+08:00 - MF-125 split view aligns scroll after layout
+
+- Author: Codex
+- Focus: strict one-feature session for `MF-125`; no second feature was implemented.
+- What changed:
+  - Added a regression test that opens Split view from a mid-document source scroll and waits for layout frames before checking source/preview scroll ratio alignment.
+  - Deferred the split preview's initial source-to-preview scroll sync by one animation frame so it re-reads settled source and preview scroll dimensions after the preview pane has laid out.
+  - Promoted `MF-125` in `harness/feature-ledger.json` only after automated, harness, lint/build, and manual verification passed.
+- Changed files:
+  - `packages/editor/src/editor/MarkFlowEditor.tsx`
+  - `packages/editor/src/editor/__tests__/MarkFlowEditor.test.tsx`
+  - `harness/feature-ledger.json`
+  - `harness/progress.md`
+- Simplifications made:
+  - Reused the existing percentage-based source/preview scroll sync path instead of introducing document-position mapping or new pane state.
+  - Kept the fix to initial Split-view entry only; no content-sync or split-resize backlog items were touched.
+- Verification:
+  - `pnpm harness:start` passed and selected `MF-125`.
+  - `./harness/init.sh --smoke` passed before implementation:
+    - `packages/desktop`: `10` test files, `67` tests passed.
+    - `packages/editor`: `43` test files, `469` tests passed, `3` skipped.
+  - RED check passed by failing as expected before the implementation:
+    - `pnpm --filter @markflow/editor exec vitest run src/editor/__tests__/MarkFlowEditor.test.tsx -t "aligns split preview scroll"` failed with preview ratio `0` vs source ratio `0.5`.
+  - GREEN and regression verification passed:
+    - `pnpm --filter @markflow/editor exec vitest run src/editor/__tests__/MarkFlowEditor.test.tsx -t "aligns split preview scroll"` passed.
+    - `pnpm --filter @markflow/editor exec vitest run src/editor/__tests__/MarkFlowEditor.test.tsx` passed (`55` tests passed, `3` skipped).
+    - `pnpm --filter @markflow/editor test:run` passed (`43` test files, `470` tests passed, `3` skipped).
+    - `pnpm --filter @markflow/editor lint` passed.
+    - `pnpm --filter @markflow/editor build` passed, with the existing Vite large-chunk warning.
+    - `pnpm harness:verify` passed before ledger promotion (`features: 135 total | verified=77 | ready=42 | planned=15 | blocked=1 | regression=0`; next: `MF-125`).
+    - `pnpm harness:verify` passed after ledger promotion (`features: 135 total | verified=78 | ready=41 | planned=15 | blocked=1 | regression=0`; next: `MF-126`).
+  - Manual verification via Vite + Playwright on Microsoft Edge:
+    - Entering Split view after scrolling the starter document produced aligned source/preview ratios: `0.4914` and `0.4914`.
+    - Scrolling the source pane to ratio `0.72` synced the preview pane to `0.7199`.
+    - Scrolling the preview pane to ratio `0.28` synced the source pane to `0.28`.
+- Remaining risks:
+  - Build still reports the pre-existing Vite large-chunk warning.
+  - Playwright reported the existing missing `/favicon.ico` 404 during dev-server manual verification; it is unrelated to split-view scroll sync.
+  - The worktree still contains unrelated pre-existing local changes and untracked future feature notes; this session did not modify or stage unrelated feature work.
+- Ledger decision:
+  - Updated `MF-125` to `status=verified`, `passes=true`, `lastVerifiedAt=2026-04-21T14:43:58+08:00`.
+- Next recommended feature:
+  - `MF-126` - Split view content sync replaces the entire preview document on every keystroke.

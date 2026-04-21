@@ -1345,6 +1345,62 @@ describe('MarkFlowEditor', () => {
     expect(Number.parseFloat((previewPane as HTMLElement).style.flexGrow)).toBeCloseTo(0.42)
   })
 
+  it('aligns split preview scroll after layout when opening split view mid-document', async () => {
+    const content = Array.from(
+      { length: 80 },
+      (_, index) => `## Section ${index + 1}\n\nParagraph ${index + 1}`,
+    ).join('\n\n')
+    const { container, rerender } = render(
+      <MarkFlowEditor content={content} viewMode="wysiwyg" onChange={vi.fn()} />,
+    )
+
+    const sourceView = getEditorView(container)
+    Object.defineProperty(sourceView.scrollDOM, 'scrollHeight', {
+      configurable: true,
+      value: 1200,
+    })
+    Object.defineProperty(sourceView.scrollDOM, 'clientHeight', {
+      configurable: true,
+      value: 300,
+    })
+    Object.defineProperty(sourceView.scrollDOM, 'scrollTop', {
+      configurable: true,
+      value: 450,
+      writable: true,
+    })
+
+    rerender(<MarkFlowEditor content={content} viewMode="split" onChange={vi.fn()} />)
+
+    const editors = container.querySelectorAll('.cm-editor')
+    expect(editors).toHaveLength(2)
+
+    const previewView = EditorView.findFromDOM(editors[1] as HTMLElement)
+    expect(previewView).not.toBeNull()
+    Object.defineProperty(previewView!.scrollDOM, 'scrollHeight', {
+      configurable: true,
+      value: 1800,
+    })
+    Object.defineProperty(previewView!.scrollDOM, 'clientHeight', {
+      configurable: true,
+      value: 300,
+    })
+    Object.defineProperty(previewView!.scrollDOM, 'scrollTop', {
+      configurable: true,
+      value: 0,
+      writable: true,
+    })
+
+    await new Promise((resolve) => requestAnimationFrame(resolve))
+    await new Promise((resolve) => requestAnimationFrame(resolve))
+
+    const sourceRange = sourceView.scrollDOM.scrollHeight - sourceView.scrollDOM.clientHeight
+    const previewRange = previewView!.scrollDOM.scrollHeight - previewView!.scrollDOM.clientHeight
+    const sourceRatio = sourceView.scrollDOM.scrollTop / sourceRange
+    const previewRatio = previewView!.scrollDOM.scrollTop / previewRange
+
+    expect(previewRatio).toBeCloseTo(sourceRatio, 2)
+  })
+
   it('adjusts split-pane layout correctly on pane resize', () => {
     const { container } = render(
       <MarkFlowEditor content="Split" viewMode="split" onChange={vi.fn()} />,
