@@ -2078,3 +2078,36 @@ next: MF-051 - Outline panel lists all headings with live scroll-sync and click-
   - Because manual verification is incomplete, `harness/feature-ledger.json` was intentionally left unchanged for `MF-123` (`status=ready`, `passes=false`, `lastVerifiedAt=null`).
 - Next recommended feature:
   - Continue `MF-123` in an isolated desktop app session and complete the listed manual verification before promoting the ledger to verified.
+
+### 2026-04-21T13:17:12+08:00 - MF-123 manual closeout remains blocked by native save-panel state
+
+- Author: Codex
+- Focus: continue only `MF-123` from the current harness-selected feature; no second feature was implemented.
+- What changed:
+  - No product source changes in this closeout pass.
+  - Re-ran the required startup, smoke, targeted automated verification, and an isolated desktop manual attempt for `MF-123`.
+  - Left `harness/feature-ledger.json` unchanged because the manual gate still did not complete.
+- Manual verification attempt:
+  - Created `/tmp/markflow-mf123-manual/existing/original.md` and verified its starting SHA-256 as `9d3ee04c146697a747d1dfff713a9db8ae83ae1c8a4d3ad1aef31ebdcc94437b`.
+  - Launched a dev Electron instance with isolated `--user-data-dir` and an isolated temp path. A first isolation attempt showed the global MarkFlow recovery checkpoint prompt; I did not click Cancel or OK because Cancel would delete that unrelated recovery checkpoint.
+  - Opened the existing fixture in the desktop app, created a dirty `Untitled 2` tab with `Cmd+N`, typed `# MF-123 Manual Save`, then triggered Save with `Cmd+S`.
+  - Confirmed the native Save panel opened from the untitled tab with default filename `untitled.md` and the Markdown file type selected.
+  - Attempted to choose `/tmp/markflow-mf123-manual/output` and filename `untitled-saved.md`, but the native Save and New Folder buttons remained disabled across collapsed/expanded panel states and multiple folder choices. The panel could not complete the write in this environment.
+  - Rechecked the original fixture SHA-256 after the attempt; it remained `9d3ee04c146697a747d1dfff713a9db8ae83ae1c8a4d3ad1aef31ebdcc94437b`.
+  - Confirmed `/tmp/markflow-mf123-manual/output/untitled-saved.md` was not created.
+- Verification:
+  - `pnpm harness:start` passed and selected `MF-123`.
+  - `./harness/init.sh --smoke` passed:
+    - `packages/desktop`: `10` test files, `66` tests passed.
+    - `packages/editor`: `43` test files, `468` tests passed, `3` skipped.
+  - `pnpm --filter @markflow/desktop build` passed before the manual desktop attempt.
+  - `pnpm --filter @markflow/desktop exec vitest run src/main/fileManager.test.ts -t "prompts for a target when saving an active untitled"` passed (`1` test, `25` skipped).
+  - `pnpm --filter @markflow/editor exec vitest run src/__tests__/App.test.tsx -t "routes Save for an active untitled tab"` passed (`1` test, `60` skipped).
+- Remaining risks:
+  - Native manual verification is still incomplete because the dev Electron Save panel would open but would not enable the final Save action in this environment.
+  - `MF-123` should not be promoted until a trusted desktop session can complete the full save: choose a folder/name, write the file, confirm the active tab title/path updates, reopen the file, and confirm the prior `original.md` remains unchanged.
+  - The workspace still contains unrelated pre-existing edits in `.claude/launch.json`, `README.md`, `build.sh`, `packages/desktop/electron-builder.yml`, `packages/editor/src/styles/global.css`, `docs/logos/`, and `packages/desktop/build/entitlements.mac.plist`; this session did not normalize them.
+- Ledger decision:
+  - Kept `harness/feature-ledger.json` truthful for `MF-123` (`status=ready`, `passes=false`, `lastVerifiedAt=null`) because the manual verification did not complete.
+- Next recommended feature:
+  - Continue `MF-123` only in a desktop environment where the native Save panel can complete the final write, then promote the ledger only after both automated and manual checks are green.
