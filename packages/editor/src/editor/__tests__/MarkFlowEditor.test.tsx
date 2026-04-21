@@ -1,6 +1,6 @@
 import { fireEvent, render } from '@testing-library/react'
 import { isolateHistory, redo, undo, undoDepth } from '@codemirror/commands'
-import { EditorSelection, Transaction } from '@codemirror/state'
+import { ChangeSet, EditorSelection, Transaction, type ChangeSpec } from '@codemirror/state'
 import { EditorView, runScopeHandlers } from '@codemirror/view'
 import { syntaxTree } from '@codemirror/language'
 import { createRef } from 'react'
@@ -20,6 +20,17 @@ interface PointerEventInitWithId extends MouseEventInit {
   pointerId?: number
 }
 
+type ChangedRange = {
+  replacedLength: number
+  insertedLength: number
+}
+
+type ObjectChangeSpec = {
+  from: number
+  to?: number
+  insert?: { length: number }
+}
+
 const IS_MAC_PLATFORM = /Mac|iPhone|iPad|iPod/.test(globalThis.navigator?.platform ?? '')
 
 afterEach(() => {
@@ -35,6 +46,35 @@ function getEditorView(container: HTMLElement) {
   expect(view).not.toBeNull()
 
   return view as EditorView
+}
+
+function getChangedRangesFromSpec(changes: ChangeSpec | undefined): ChangedRange[] {
+  const ranges: ChangedRange[] = []
+
+  if (!changes) {
+    return ranges
+  }
+
+  if (changes instanceof ChangeSet) {
+    changes.iterChanges((fromA, toA, _fromB, _toB, inserted) => {
+      ranges.push({
+        replacedLength: toA - fromA,
+        insertedLength: inserted.length,
+      })
+    }, true)
+    return ranges
+  }
+
+  if (Array.isArray(changes)) {
+    return (changes as readonly ChangeSpec[]).flatMap((change) => getChangedRangesFromSpec(change))
+  }
+
+  const change = changes as ObjectChangeSpec
+  ranges.push({
+    replacedLength: (change.to ?? change.from) - change.from,
+    insertedLength: change.insert?.length ?? 0,
+  })
+  return ranges
 }
 
 function getVisibleLineNumbers(container: HTMLElement) {
@@ -1323,6 +1363,62 @@ describe('MarkFlowEditor', () => {
     rerender(<MarkFlowEditor content="Hello world" viewMode="split" onChange={vi.fn()} />)
 
     expect(previewView!.state.doc.toString()).toBe('Hello world')
+  })
+
+  it('syncs split preview incrementally within the 100-keystroke budget', () => {
+    const keystrokeCount = 100
+    const splitPreviewBudgetMs = 2_500
+    const content = [
+      '# Split Preview Performance',
+      '',
+      '$$',
+      'E = mc^2',
+      '$$',
+      '',
+      ...Array.from({ length: 5_020 }, (_, index) => `Line ${String(index + 1).padStart(4, '0')}`),
+    ].join('\n')
+    const insertStart = content.indexOf('Line 0001')
+    expect(insertStart).toBeGreaterThan(0)
+
+    const { container, rerender } = render(
+      <MarkFlowEditor content={content} viewMode="split" onChange={vi.fn()} />,
+    )
+
+    const editors = container.querySelectorAll('.cm-editor')
+    expect(editors).toHaveLength(2)
+
+    const sourceView = EditorView.findFromDOM(editors[0] as HTMLElement)
+    const previewView = EditorView.findFromDOM(editors[1] as HTMLElement)
+
+    expect(sourceView).not.toBeNull()
+    expect(previewView).not.toBeNull()
+
+    const previewDispatch = vi.spyOn(previewView!, 'dispatch')
+    const startedAt = performance.now()
+
+    for (let index = 0; index < keystrokeCount; index += 1) {
+      sourceView!.dispatch({
+        changes: { from: insertStart + index, insert: 'x' },
+      })
+      rerender(
+        <MarkFlowEditor
+          content={sourceView!.state.doc.toString()}
+          viewMode="split"
+          onChange={vi.fn()}
+        />,
+      )
+    }
+
+    const elapsedMs = performance.now() - startedAt
+    const changedRanges = previewDispatch.mock.calls.flatMap((specs) =>
+      specs.flatMap((spec) => getChangedRangesFromSpec(spec.changes)),
+    )
+
+    expect(previewView!.state.doc.toString()).toBe(sourceView!.state.doc.toString())
+    expect(changedRanges).toHaveLength(keystrokeCount)
+    expect(Math.max(...changedRanges.map((range) => range.replacedLength))).toBeLessThanOrEqual(1)
+    expect(Math.max(...changedRanges.map((range) => range.insertedLength))).toBeLessThanOrEqual(1)
+    expect(elapsedMs).toBeLessThan(splitPreviewBudgetMs)
   })
 
   it('renders split view with a source-first editorial hierarchy by default', () => {

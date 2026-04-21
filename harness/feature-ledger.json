@@ -1656,6 +1656,18 @@
       "lastVerifiedAt": "2026-04-21T14:43:58+08:00",
       "dependsOn": ["MF-035"],
       "notesRef": "features/MF-125.md"
+    },
+    {
+      "id": "MF-126",
+      "title": "Split view content sync replaces the entire preview document on every keystroke",
+      "category": "bug",
+      "area": "@markflow/editor",
+      "priority": 1,
+      "status": "verified",
+      "passes": true,
+      "lastVerifiedAt": "2026-04-21T15:05:19+08:00",
+      "dependsOn": ["MF-035"],
+      "notesRef": "features/MF-126.md"
     }
   ]
 }

@@ -1,5 +1,13 @@
 import { forwardRef, useRef, useEffect, useState, useCallback, useImperativeHandle } from 'react'
-import { Compartment, EditorSelection, EditorState, StateEffect, StateField, Transaction } from '@codemirror/state'
+import {
+  Compartment,
+  EditorSelection,
+  EditorState,
+  StateEffect,
+  StateField,
+  Transaction,
+  type ChangeSpec,
+} from '@codemirror/state'
 import { EditorView, keymap, drawSelection, highlightActiveLine, lineNumbers } from '@codemirror/view'
 import {
   defaultKeymap,
@@ -308,6 +316,37 @@ function countOccurrencesBefore(text: string, searchText: string, beforeIndex: n
   return occurrenceCount
 }
 
+function getMinimalContentChange(currentContent: string, nextContent: string): ChangeSpec | null {
+  const sharedLength = Math.min(currentContent.length, nextContent.length)
+  let from = 0
+
+  while (from < sharedLength && currentContent.charCodeAt(from) === nextContent.charCodeAt(from)) {
+    from += 1
+  }
+
+  if (from === currentContent.length && from === nextContent.length) {
+    return null
+  }
+
+  let currentTo = currentContent.length
+  let nextTo = nextContent.length
+
+  while (
+    currentTo > from &&
+    nextTo > from &&
+    currentContent.charCodeAt(currentTo - 1) === nextContent.charCodeAt(nextTo - 1)
+  ) {
+    currentTo -= 1
+    nextTo -= 1
+  }
+
+  return {
+    from,
+    to: currentTo,
+    insert: nextContent.slice(from, nextTo),
+  }
+}
+
 function getRenderedExtensions(
   renderedViewMode: MarkFlowRenderedViewMode,
   markdownMode: MarkFlowMarkdownMode,
@@ -455,6 +494,7 @@ function getEditorExtensions(
   suppressNextOnChangeRef: React.MutableRefObject<boolean>,
   syncedContentRef: React.MutableRefObject<string>,
   viewModeRef: React.MutableRefObject<ViewMode>,
+  previewViewRef: React.MutableRefObject<EditorView | null>,
   pruneHistoryRef: React.MutableRefObject<((view: EditorView) => void) | null>,
   pendingContentSyncTimerRef: React.MutableRefObject<ReturnType<typeof setTimeout> | null>,
   pendingSymbolTableSyncTimerRef: React.MutableRefObject<ReturnType<typeof setTimeout> | null>,
@@ -508,6 +548,22 @@ function getEditorExtensions(
         onSymbolTableChangeRef.current?.(nextTable)
       }
     }, LARGE_DOCUMENT_SYMBOL_TABLE_SYNC_DELAY_MS)
+  }
+
+  const syncSplitPreviewFromSourceChange = (update: ViewUpdate) => {
+    if (viewModeRef.current !== 'split') {
+      return
+    }
+
+    const previewView = previewViewRef.current
+    if (!previewView || !previewView.state.doc.eq(update.startState.doc)) {
+      return
+    }
+
+    previewView.dispatch({
+      changes: update.changes,
+      annotations: Transaction.addToHistory.of(false),
+    })
   }
 
   return [
@@ -596,6 +652,7 @@ function getEditorExtensions(
     EditorView.lineWrapping,
     EditorView.updateListener.of((update) => {
       if (update.docChanged) {
+        syncSplitPreviewFromSourceChange(update)
         if (suppressNextOnChangeRef.current) {
           suppressNextOnChangeRef.current = false
         } else {
@@ -808,6 +865,7 @@ export const MarkFlowEditor = forwardRef<MarkFlowEditorHandle, MarkFlowEditorPro
       suppressNextOnChangeRef,
       syncedContentRef,
       viewModeRef,
+      previewViewRef,
       pruneHistoryRef,
       pendingContentSyncTimerRef,
       pendingSymbolTableSyncTimerRef,
@@ -853,6 +911,7 @@ export const MarkFlowEditor = forwardRef<MarkFlowEditorHandle, MarkFlowEditorPro
       suppressNextOnChangeRef,
       syncedContentRef,
       viewModeRef,
+      previewViewRef,
       pruneHistoryRef,
       pendingContentSyncTimerRef,
       pendingSymbolTableSyncTimerRef,
@@ -1245,8 +1304,11 @@ export const MarkFlowEditor = forwardRef<MarkFlowEditorHandle, MarkFlowEditorPro
     const currentContent = previewView.state.doc.toString()
     if (content === currentContent) return
 
+    const changes = getMinimalContentChange(currentContent, content)
+    if (!changes) return
+
     previewView.dispatch({
-      changes: { from: 0, to: currentContent.length, insert: content },
+      changes,
       annotations: Transaction.addToHistory.of(false),
     })
   }, [content, viewMode])

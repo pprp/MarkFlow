@@ -2477,3 +2477,49 @@ next: MF-051 - Outline panel lists all headings with live scroll-sync and click-
   - Updated `MF-125` to `status=verified`, `passes=true`, `lastVerifiedAt=2026-04-21T14:43:58+08:00`.
 - Next recommended feature:
   - `MF-126` - Split view content sync replaces the entire preview document on every keystroke.
+
+### 2026-04-21T15:06:37+08:00 - MF-126 split preview syncs incrementally
+
+- Author: Codex
+- Focus: strict one-feature session for `MF-126`; no second feature was implemented.
+- What changed:
+  - Added a regression benchmark that simulates 100 rapid source-pane edits in Split view on a 5,000+ line document with a math block.
+  - Mirrored source CodeMirror transactions directly into the split preview when both panes share the same start document, preserving widget decorations instead of replacing the whole preview document.
+  - Replaced the preview `content` prop fallback with a smallest-prefix/suffix diff so external content sync also avoids full-document replacement when possible.
+  - Promoted `MF-126` only after automated, harness, lint/build, and manual verification passed.
+- Changed files:
+  - `packages/editor/src/editor/MarkFlowEditor.tsx`
+  - `packages/editor/src/editor/__tests__/MarkFlowEditor.test.tsx`
+  - `harness/feature-ledger.json`
+  - `harness/features/MF-126.md`
+  - `harness/progress.md`
+- Simplifications made:
+  - Reused CodeMirror `ChangeSet` data from the source transaction instead of introducing pane-specific diff state or a new dependency.
+  - Kept the fallback diff as a local helper in `MarkFlowEditor.tsx`; no broader content-sync refactor was introduced.
+- Verification:
+  - `pnpm harness:start` passed and selected `MF-126`.
+  - `./harness/init.sh --smoke` passed before implementation:
+    - `packages/desktop`: `10` test files, `67` tests passed.
+    - `packages/editor`: `43` test files, `470` tests passed, `3` skipped.
+  - RED check passed by failing as expected before implementation:
+    - `pnpm --filter @markflow/editor exec vitest run src/editor/__tests__/MarkFlowEditor.test.tsx -t "syncs split preview incrementally"` failed with a preview replacement range of `50343` characters.
+  - GREEN and regression verification passed:
+    - `pnpm --filter @markflow/editor exec vitest run src/editor/__tests__/MarkFlowEditor.test.tsx -t "syncs split preview incrementally"` passed.
+    - `pnpm --filter @markflow/editor exec vitest run src/editor/__tests__/MarkFlowEditor.test.tsx` passed (`56` tests passed, `3` skipped).
+    - `pnpm --filter @markflow/editor test:run` passed (`43` test files, `471` tests passed, `3` skipped).
+    - `pnpm --filter @markflow/editor lint` passed.
+    - `pnpm --filter @markflow/editor build` passed, with the existing Vite large-chunk warning.
+    - `pnpm harness:verify` passed before ledger promotion (`features: 135 total | verified=78 | ready=41 | planned=15 | blocked=1 | regression=0`; next: `MF-126`).
+    - `pnpm harness:verify` passed after ledger promotion (`features: 135 total | verified=79 | ready=40 | planned=15 | blocked=1 | regression=0`; next: `MF-076`).
+  - Manual verification via Vite + Playwright on Microsoft Edge:
+    - In Split view with a visible KaTeX block, 60 rapid source-pane keypresses with a 5ms interval kept `.mf-math-block` mounted as the same DOM node.
+    - The math node was never removed, the typed preview text appeared, and the probe recorded no console errors during the run.
+- Remaining risks:
+  - Build still reports the pre-existing Vite large-chunk warning.
+  - The dev server still reports external Google Fonts load failure and missing `/favicon.ico` in Playwright; neither is related to split preview sync.
+  - An artificial no-delay Playwright keypress loop can still trigger an existing React maximum-update-depth warning in the App shell; the realistic rapid-key probe used for verification did not reproduce it.
+  - The worktree still contains unrelated pre-existing local changes and untracked future feature notes; this session did not modify or stage unrelated implementation work.
+- Ledger decision:
+  - Updated `MF-126` to `status=verified`, `passes=true`, `lastVerifiedAt=2026-04-21T15:05:19+08:00`.
+- Next recommended feature:
+  - `MF-076` - Paste as plain text shortcut strips rich formatting before insertion; it still needs the trusted desktop manual paste matrix with Microsoft Word available before promotion.
