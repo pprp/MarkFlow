@@ -965,7 +965,8 @@ export function App() {
       )
       await syncWindowSession(currentTabs, tabId)
 
-      const result = forceSaveAs
+      const shouldPromptForPath = forceSaveAs || tab.filePath == null
+      const result = shouldPromptForPath
         ? await api.saveFileAs(latestContent, tab.recoveryTabId ?? tabId)
         : await api.saveFile(latestContent, tab.recoveryTabId ?? tabId)
       if (!result?.success) {

@@ -197,6 +197,50 @@ describe('FileManager async saves', () => {
     expect(((manager as unknown) as { currentFilePath: string | null }).currentFilePath).toBe('/tmp/notes-copy.md')
   })
 
+  it('prompts for a target when saving an active untitled document after another file was open', async () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'markflow-untitled-save-'))
+    appGetPathMock.mockImplementation(() => tempDir)
+
+    const originalPath = path.join(tempDir, 'original.md')
+    const selectedPath = path.join(tempDir, 'new-draft.md')
+    fs.writeFileSync(originalPath, '# Original', 'utf-8')
+
+    const window = createWindowStub()
+    const manager = new FileManager(window as never)
+    await manager.saveWindowSession({
+      filePaths: [originalPath],
+      activeFilePath: originalPath,
+    })
+    await manager.saveWindowSession({
+      filePaths: [originalPath],
+      activeFilePath: null,
+    })
+
+    showSaveDialogMock.mockResolvedValue({
+      canceled: false,
+      filePath: selectedPath,
+    })
+
+    const result = await manager.saveFile('# Untitled draft', 'tab-untitled')
+
+    expect(result).toEqual({ success: true, filePath: selectedPath })
+    expect(showSaveDialogMock).toHaveBeenCalledWith(
+      window,
+      expect.objectContaining({
+        defaultPath: 'untitled.md',
+        filters: [
+          { name: 'Markdown', extensions: ['md'] },
+          { name: 'All Files', extensions: ['*'] },
+        ],
+      }),
+    )
+    expect(fs.readFileSync(originalPath, 'utf-8')).toBe('# Original')
+    expect(fs.readFileSync(selectedPath, 'utf-8')).toBe('# Untitled draft')
+    expect(window.webContents.send).toHaveBeenCalledWith('file-saved', { filePath: selectedPath })
+    expect(window.setRepresentedFilename).toHaveBeenCalledWith(selectedPath)
+    expect(((manager as unknown) as { currentFilePath: string | null }).currentFilePath).toBe(selectedPath)
+  })
+
   it('returns a structured async error when writing fails', async () => {
     vi.spyOn(fs.promises, 'writeFile').mockRejectedValue(new Error('disk full'))
     const window = createWindowStub()

@@ -77,6 +77,7 @@ export function DocumentSearch({
               } else {
                 onNext()
               }
+              event.currentTarget.focus()
             }
           }}
         />

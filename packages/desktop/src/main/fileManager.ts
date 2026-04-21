@@ -735,7 +735,7 @@ export class FileManager {
     const activeFilePath =
       session.activeFilePath && normalizedFilePaths.includes(session.activeFilePath)
         ? session.activeFilePath
-        : normalizedFilePaths[0] ?? null
+        : null
 
     try {
       await fs.promises.mkdir(path.dirname(this.windowSessionPath), { recursive: true })

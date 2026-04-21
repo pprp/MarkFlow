@@ -2029,3 +2029,52 @@ next: MF-051 - Outline panel lists all headings with live scroll-sync and click-
   - Left `harness/feature-ledger.json` unchanged for `MF-076` (`status=ready`, `passes=false`, `lastVerifiedAt=null`) because the required manual matrix is still incomplete.
 - Next recommended feature:
   - Continue `MF-076` in a trusted desktop session that has `Microsoft Word.app` installed, then complete the with-and-without-shortcut comparisons across Word, webpage, and VS Code before promoting the ledger.
+
+### 2026-04-21T12:54:22+08:00 - MF-123 untitled Save now prompts instead of reusing the previous file path
+
+- Author: Codex
+- Focus: implement only `MF-123`, covering Save behavior for an active untitled tab after an existing saved document has been opened.
+- What changed:
+  - Updated renderer Save routing so `File > Save` / `Cmd/Ctrl+S` on an untitled active tab uses the Save As bridge with the active tab content and tab id.
+  - Updated desktop session handling so an active untitled tab preserves `activeFilePath: null` instead of falling back to the first saved tab path; `saveFile` can then fall through to the native save dialog with `untitled.md`.
+  - Added desktop file-manager coverage proving the old file is not overwritten, the save dialog is shown, the selected path is written, `file-saved` is emitted, and the chosen path is recorded.
+  - Added renderer coverage proving Save on an active untitled tab sends the active tab content and tab id through `saveFileAs`.
+  - Made a minimal prerequisite focus fix for the existing document-search regression so full `App.test.tsx` and smoke verification can complete reliably.
+- Changed files:
+  - `packages/desktop/src/main/fileManager.ts`
+  - `packages/desktop/src/main/fileManager.test.ts`
+  - `packages/editor/src/App.tsx`
+  - `packages/editor/src/__tests__/App.test.tsx`
+  - `packages/editor/src/components/DocumentSearch.tsx`
+  - `harness/progress.md`
+- Simplifications made:
+  - Reused the existing Save As IPC path instead of adding a new API or desktop-side tab-path map.
+  - Kept desktop state changes limited to preserving the renderer's `activeFilePath: null` signal for untitled active tabs.
+- Verification:
+  - Session start:
+    - `pnpm harness:start` passed and selected `MF-123`.
+    - Initial `./harness/init.sh --smoke` failed in the existing document-search focus regression; the new focused search test passed by itself, confirming a full-suite isolation/timing issue.
+  - Red tests before implementation:
+    - `pnpm --filter @markflow/desktop exec vitest run src/main/fileManager.test.ts -t "prompts for a target when saving an active untitled"` failed because Save reused `original.md`.
+    - `pnpm --filter @markflow/editor exec vitest run src/__tests__/App.test.tsx -t "routes Save for an active untitled tab"` failed because Save did not call `saveFileAs`.
+  - Feature automated verification after implementation:
+    - `pnpm --filter @markflow/desktop exec vitest run src/main/fileManager.test.ts -t "prompts for a target when saving an active untitled"` passed.
+    - `pnpm --filter @markflow/editor exec vitest run src/__tests__/App.test.tsx -t "routes Save for an active untitled tab"` passed.
+    - `pnpm --filter @markflow/desktop exec vitest run src/main/fileManager.test.ts` passed (`26` tests).
+    - `pnpm --filter @markflow/editor exec vitest run src/__tests__/App.test.tsx` passed (`61` tests).
+  - Additional verification:
+    - `pnpm --filter @markflow/desktop lint` passed.
+    - `pnpm --filter @markflow/editor lint` passed.
+    - `pnpm --filter @markflow/desktop build` passed.
+    - `pnpm --filter @markflow/editor build` passed with the existing Vite chunk-size warning.
+    - Re-run `./harness/init.sh --smoke` passed:
+      - `packages/desktop`: `10` test files, `66` tests passed.
+      - `packages/editor`: `43` test files, `468` tests passed, `3` skipped.
+    - Final `pnpm harness:verify` passed (`features: 123 total | verified=75 | ready=32 | planned=15 | blocked=1 | regression=0`; next: `MF-123`).
+- Manual verification:
+  - Not completed. A MarkFlow GUI session is already running against user state with existing open/dirty tabs, so I did not use it for native save-dialog testing or risk modifying that session.
+- Remaining risks:
+  - The native desktop save-dialog workflow still needs an isolated manual pass: open an existing saved file, create a new untitled file, save it to a different folder/name, confirm the original file is unchanged, and reopen the new file.
+  - Because manual verification is incomplete, `harness/feature-ledger.json` was intentionally left unchanged for `MF-123` (`status=ready`, `passes=false`, `lastVerifiedAt=null`).
+- Next recommended feature:
+  - Continue `MF-123` in an isolated desktop app session and complete the listed manual verification before promoting the ledger to verified.

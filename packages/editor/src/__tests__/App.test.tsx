@@ -598,6 +598,42 @@ describe('App desktop integration', () => {
     expect(savedContent?.endsWith('\nLatest line')).toBe(true)
   })
 
+  it('routes Save for an active untitled tab through save-as with the tab content and tab id', async () => {
+    const api = new MockMarkFlowAPI()
+    api.saveFileAs = vi.fn(async () => ({ success: true, filePath: '/tmp/new-draft.md' }))
+    window.markflow = api
+
+    const { container } = render(<App />)
+
+    await act(async () => {
+      api.emitFileOpened({ filePath: '/tmp/original.md', content: '# Original' })
+    })
+    await act(async () => {
+      api.emitFileOpened({ filePath: null, content: '' })
+    })
+
+    const view = getEditorView(container)
+    act(() => {
+      view.dispatch({ changes: { from: 0, insert: '# Untitled draft' } })
+    })
+
+    await act(async () => {
+      api.emitMenuAction('save-file')
+      await Promise.resolve()
+    })
+
+    await waitFor(() => {
+      expect(api.saveFileAs).toHaveBeenCalledWith('# Untitled draft', expect.any(String))
+    })
+    expect(api.saveFile).not.toHaveBeenCalled()
+    expect(api.saveWindowSession).toHaveBeenCalledWith({
+      filePaths: ['/tmp/original.md'],
+      activeFilePath: null,
+    })
+    expect(expectActiveDocumentName('new-draft.md')).toBeInTheDocument()
+    expect(container.querySelector('.mf-titlebar-dirty-dot')).not.toBeInTheDocument()
+  })
+
   it('opens multiple documents in tabs and preserves selection, outline focus, and undo history while cycling', async () => {
     const api = new MockMarkFlowAPI()
     window.markflow = api
