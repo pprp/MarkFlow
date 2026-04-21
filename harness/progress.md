@@ -3230,3 +3230,63 @@ next: MF-051 - Outline panel lists all headings with live scroll-sync and click-
   - Left `harness/feature-ledger.json` unchanged for `MF-076` (`status=ready`, `passes=false`, `lastVerifiedAt=null`) because manual acceptance remains incomplete.
 - Next recommended feature:
   - Continue `MF-076` in a trusted desktop session with `Microsoft Word.app` installed, then run the full Word/webpage/VS Code with-and-without-shortcut paste matrix before promoting the ledger.
+
+### 2026-04-21T20:55:56+08:00 - MF-076 automation green; smoke stabilized and Word gate still blocks promotion
+
+- Author: Codex
+- Focus: strict one-feature session for `MF-076`; no second unrelated feature was implemented.
+- What changed:
+  - Ran the required session startup protocol:
+    - `pnpm harness:start`
+    - `./harness/init.sh --smoke`
+  - Investigated the startup smoke failure:
+    - Two `./harness/init.sh --smoke` runs failed only on `MarkFlowEditor > syncs split preview incrementally within the 100-keystroke budget`.
+    - The same test passed when filtered directly (`1542ms`) and the whole `MarkFlowEditor.test.tsx` file passed (`56` tests passed, `3` skipped; budget test `1851ms`), pointing to full-suite file parallelism distorting a wall-clock budget assertion.
+  - Applied a minimal test-runner precondition fix in `packages/editor/vitest.config.ts` by disabling editor file-level parallelism.
+  - Re-ran `./harness/init.sh --smoke`; it passed:
+    - `packages/desktop`: `10` test files, `68` tests passed.
+    - `packages/editor`: `43` test files, `471` tests passed, `3` skipped.
+  - Re-ran the required `MF-076` automated verification:
+    - `pnpm --filter @markflow/editor exec vitest run src/editor/__tests__/smartPaste.test.ts`
+    - `pnpm --filter @markflow/editor lint`
+    - `pnpm --filter @markflow/editor build`
+  - Re-ran the desktop menu regression covering the native plain-text paste accelerator:
+    - `pnpm --filter @markflow/desktop exec vitest run src/main/menu.test.ts`
+  - Re-checked the manual verification environment:
+    - `mdfind "kMDItemCFBundleIdentifier == 'com.microsoft.Word'"`
+    - `osascript -e 'id of app "Microsoft Word"'`
+    - `find /Applications /System/Applications /Users/pprp/Applications -maxdepth 4 \( -name 'Microsoft Word.app' -o -name 'Word.app' -o -name 'Microsoft Edge.app' -o -name 'Safari.app' -o -name 'Visual Studio Code.app' \) 2>/dev/null`
+  - Updated `harness/features/MF-076.md` with the refreshed verification and blocker state.
+  - Re-ran `pnpm harness:verify`.
+- Changed files:
+  - `packages/editor/vitest.config.ts`
+  - `harness/features/MF-076.md`
+  - `harness/progress.md`
+- Simplifications made:
+  - Kept `MF-076` product behavior untouched because its regression coverage already passes.
+  - Fixed the smoke blocker at the test-runner concurrency boundary instead of weakening the split-preview incremental patch assertions.
+  - Preserved ledger truth instead of promoting from automation-only evidence.
+- Verification:
+  - `pnpm harness:start` passed and selected `MF-076`.
+  - Initial `./harness/init.sh --smoke` failed on the split-preview wall-clock budget (`4133.548666ms >= 2500ms`).
+  - Re-run `./harness/init.sh --smoke` before the config fix failed on the same budget (`3993.3337500000007ms >= 2500ms`).
+  - `pnpm --filter @markflow/editor exec vitest run src/editor/__tests__/MarkFlowEditor.test.tsx -t 'syncs split preview incrementally within the 100-keystroke budget'` passed (`1` test, `58` skipped).
+  - `pnpm --filter @markflow/editor exec vitest run src/editor/__tests__/MarkFlowEditor.test.tsx` passed (`56` tests passed, `3` skipped).
+  - Final `./harness/init.sh --smoke` passed after disabling editor file-level parallelism.
+  - `pnpm --filter @markflow/editor exec vitest run src/editor/__tests__/smartPaste.test.ts` passed (`1` file, `7` tests).
+  - `pnpm --filter @markflow/editor lint` passed.
+  - `pnpm --filter @markflow/editor build` passed, with the existing Vite large-chunk warning.
+  - `pnpm --filter @markflow/desktop exec vitest run src/main/menu.test.ts` passed (`1` file, `17` tests).
+  - `pnpm harness:verify` passed (`features: 136 total | verified=80 | ready=40 | planned=15 | blocked=1 | regression=0`; next: `MF-076`).
+- Failed or incomplete verification:
+  - The required full manual paste matrix could not be completed because `Microsoft Word.app` is not installed:
+    - `mdfind "kMDItemCFBundleIdentifier == 'com.microsoft.Word'"` returned no results.
+    - `osascript -e 'id of app "Microsoft Word"'` failed with `Can't get application "Microsoft Word". (-1728)`.
+    - The app search found Visual Studio Code, Safari, and Microsoft Edge, but no Word app.
+- Remaining risks:
+  - The full manual acceptance matrix is still incomplete: Word, webpage, and Visual Studio Code with and without `Cmd/Ctrl+Shift+V`.
+  - `harness/feature-ledger.json` still has unrelated pre-existing local changes adding future features; this session did not modify or stage that ledger change.
+- Ledger decision:
+  - Left `harness/feature-ledger.json` unchanged for `MF-076` (`status=ready`, `passes=false`, `lastVerifiedAt=null`) because manual acceptance remains incomplete.
+- Next recommended feature:
+  - Continue `MF-076` in a trusted desktop session with `Microsoft Word.app` installed, then run the full Word/webpage/VS Code with-and-without-shortcut paste matrix before promoting the ledger.
