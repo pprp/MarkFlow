@@ -3085,3 +3085,51 @@ next: MF-051 - Outline panel lists all headings with live scroll-sync and click-
   - Left `harness/feature-ledger.json` unchanged for `MF-076` (`status=ready`, `passes=false`, `lastVerifiedAt=null`) because lint and the manual matrix are still blocked.
 - Next recommended feature:
   - Continue `MF-076` after clearing the unrelated editor lint errors and in a trusted desktop session with `Microsoft Word.app` installed, then complete the Word/webpage/VS Code with-and-without-shortcut paste matrix before promoting the ledger.
+
+### 2026-04-21T17:16:56+08:00 - MF-076 gains native desktop plain-text paste accelerator; promotion still blocked
+
+- Author: Codex
+- Focus: strict one-feature session for `MF-076`; no second unrelated feature was implemented.
+- What changed:
+  - Added an Edit menu item for `Paste as Plain Text` using Electron's native `pasteAndMatchStyle` role and `CmdOrCtrl+Shift+V` accelerator.
+  - Added a desktop menu regression test proving the app-level accelerator exists.
+  - Left `harness/feature-ledger.json` unchanged for `MF-076` because verification is not fully green.
+  - Updated `harness/features/MF-076.md` with the refreshed implementation, verification, and blocker state.
+- Changed files:
+  - `packages/desktop/src/main/menu.ts`
+  - `packages/desktop/src/main/menu.test.ts`
+  - `harness/features/MF-076.md`
+  - `harness/progress.md`
+- Simplifications made:
+  - Used Electron's native `pasteAndMatchStyle` role instead of adding a new renderer clipboard API.
+  - Kept the existing editor `smartPaste` path intact and only added the missing desktop accelerator path.
+- Verification:
+  - `pnpm harness:start` passed and selected `MF-076`.
+  - `./harness/init.sh --smoke` passed:
+    - `packages/desktop`: `10` test files, `67` tests passed.
+    - `packages/editor`: `43` test files, `471` tests passed, `3` skipped.
+  - TDD red: `pnpm --filter @markflow/desktop exec vitest run src/main/menu.test.ts` failed before implementation because `Paste as Plain Text` was missing from the Edit menu.
+  - TDD green: `pnpm --filter @markflow/desktop exec vitest run src/main/menu.test.ts` passed after implementation (`17` tests).
+  - `pnpm --filter @markflow/editor exec vitest run src/editor/__tests__/smartPaste.test.ts` passed (`7` tests).
+  - `pnpm --filter @markflow/editor build` passed, with the existing Vite large-chunk warning.
+  - `pnpm --filter @markflow/desktop test:run` passed (`10` test files, `68` tests).
+  - `pnpm --filter @markflow/desktop lint` passed.
+  - `pnpm --filter @markflow/desktop build` passed.
+  - `pnpm harness:verify` passed (`features: 136 total | verified=80 | ready=40 | planned=15 | blocked=1 | regression=0`; next: `MF-076`).
+- Failed or incomplete verification:
+  - `pnpm --filter @markflow/editor lint` failed on unrelated local zoom/content-width edits:
+    - `packages/editor/src/App.tsx`: unused `WIDTH_MIN`, unused `WIDTH_MAX`, unused `updateZoomLevel`.
+    - `packages/editor/src/contentWidthPreferences.ts`: empty block statement.
+    - `packages/editor/src/zoomPreferences.ts`: empty block statement.
+  - The required manual paste matrix could not be completed because `Microsoft Word.app` is not installed:
+    - `mdfind "kMDItemCFBundleIdentifier == 'com.microsoft.Word'"` returned no results.
+    - `osascript -e 'id of app "Microsoft Word"'` failed with `Can't get application "Microsoft Word". (-1728)`.
+    - The app search found Edge, Safari, and Visual Studio Code, but no Word app.
+- Remaining risks:
+  - The full manual acceptance matrix is still incomplete: Word, webpage, and Visual Studio Code with and without `Cmd/Ctrl+Shift+V`.
+  - The required editor lint gate remains blocked by unrelated local zoom/content-width worktree edits.
+  - `harness/feature-ledger.json` still has unrelated pre-existing local changes adding future features; this session did not modify or stage that ledger change.
+- Ledger decision:
+  - Left `harness/feature-ledger.json` unchanged for `MF-076` (`status=ready`, `passes=false`, `lastVerifiedAt=null`) because lint and manual acceptance remain incomplete.
+- Next recommended feature:
+  - Continue `MF-076` after clearing the unrelated editor lint errors and in a trusted desktop session with `Microsoft Word.app` installed, then run the full Word/webpage/VS Code with-and-without-shortcut paste matrix before promoting the ledger.

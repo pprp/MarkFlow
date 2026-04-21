@@ -263,6 +263,7 @@ export function createApplicationMenuTemplate({
         { label: 'Copy as HTML Code', click: () => sendMenuAction('copy-as-html-code') },
         { type: 'separator' },
         { role: 'paste' },
+        { label: 'Paste as Plain Text', accelerator: 'CmdOrCtrl+Shift+V', role: 'pasteAndMatchStyle' },
         { role: 'selectAll' },
         { type: 'separator' },
         {

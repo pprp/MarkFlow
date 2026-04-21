@@ -130,6 +130,18 @@ describe('createApplicationMenuTemplate', () => {
     ])
   })
 
+  it('exposes a native paste-as-plain-text accelerator', () => {
+    const template = createMenuTemplate()
+    const pastePlainTextItem = getMenuItem(template, 'Edit', 'Paste as Plain Text')
+
+    expect(pastePlainTextItem).toEqual(
+      expect.objectContaining({
+        accelerator: 'CmdOrCtrl+Shift+V',
+        role: 'pasteAndMatchStyle',
+      }),
+    )
+  })
+
   it('exposes close and reopen tab menu actions', () => {
     const sendMenuAction = vi.fn()
     const template = createMenuTemplate({
