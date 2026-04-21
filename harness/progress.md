@@ -2159,3 +2159,45 @@ next: MF-051 - Outline panel lists all headings with live scroll-sync and click-
   - The workspace still has unrelated pre-existing edits in `.claude/launch.json`, `README.md`, `build.sh`, `packages/desktop/electron-builder.yml`, `packages/editor/src/App.tsx`, `packages/editor/src/__tests__/App.test.tsx`, `packages/editor/src/components/DocumentSearch.tsx`, `packages/editor/src/editor/MarkFlowEditor.tsx`, `packages/editor/src/styles/global.css`, `docs/logos/`, `harness/features/MF-122.md`, and `packages/desktop/build/entitlements.mac.plist`; this session did not normalize them.
 - Next recommended feature:
   - `MF-076` - Paste as plain text shortcut strips rich formatting before insertion.
+
+### 2026-04-21T13:47:32+08:00 - MF-076 automation remains green; Word-gated manual matrix still blocks completion
+
+- Author: Codex
+- Focus: continue only `MF-076` from the harness-selected next feature; no second feature was implemented.
+- What changed:
+  - No editor or desktop source changes were made in this session.
+  - Re-ran `pnpm harness:start` and `./harness/init.sh --smoke` at session start.
+  - Re-ran the required `MF-076` automated verification:
+    - `pnpm --filter @markflow/editor exec vitest run src/editor/__tests__/smartPaste.test.ts`
+    - `pnpm --filter @markflow/editor lint`
+    - `pnpm --filter @markflow/editor build`
+    - `pnpm harness:verify`
+  - Re-checked the required manual environment gate:
+    - `mdfind "kMDItemCFBundleIdentifier == 'com.microsoft.Word'"`
+    - `find /Applications ~/Applications -maxdepth 3 \( -name 'Microsoft Word.app' -o -name 'Word.app' -o -name 'Microsoft Edge.app' -o -name 'Safari.app' -o -name 'Visual Studio Code.app' \) 2>/dev/null | sort`
+  - Updated `harness/features/MF-076.md` with the current verification and blocker state; left `harness/feature-ledger.json` unchanged for `MF-076`.
+- Changed files:
+  - `harness/features/MF-076.md`
+  - `harness/progress.md`
+- Simplifications made:
+  - Reused the existing focused `smartPaste` regression suite plus editor lint/build and harness verification instead of touching already-green implementation.
+  - Stopped at the missing-Word gate instead of inferring completion from partial webpage/VS Code evidence.
+- Verification:
+  - `pnpm harness:start` passed and selected `MF-076` as the next recommended feature.
+  - `./harness/init.sh --smoke` passed on the current tree:
+    - `packages/desktop`: `10` test files, `67` tests passed.
+    - `packages/editor`: `43` test files, `468` tests passed, `3` skipped.
+  - `pnpm --filter @markflow/editor exec vitest run src/editor/__tests__/smartPaste.test.ts` passed (`1` test file, `7` tests).
+  - `pnpm --filter @markflow/editor lint` passed.
+  - `pnpm --filter @markflow/editor build` passed, with the existing Vite large-chunk warning.
+  - `pnpm harness:verify` passed (`features: 123 total | verified=76 | ready=31 | planned=15 | blocked=1 | regression=0`; next: `MF-076`).
+  - Environment gate checks:
+    - `mdfind "kMDItemCFBundleIdentifier == 'com.microsoft.Word'"` returned no results.
+    - `find /Applications ~/Applications -maxdepth 3 \( -name 'Microsoft Word.app' -o -name 'Word.app' -o -name 'Microsoft Edge.app' -o -name 'Safari.app' -o -name 'Visual Studio Code.app' \) 2>/dev/null | sort` returned `/Applications/Microsoft Edge.app`, `/Applications/Safari.app`, and `/Applications/Visual Studio Code.app`.
+- Remaining risks:
+  - The required manual acceptance is still incomplete because `MF-076` requires paste comparisons from Microsoft Word, a webpage, and Visual Studio Code with and without `Cmd/Ctrl+Shift+V`, and this machine still lacks `Microsoft Word.app`.
+  - The ledger must not be promoted from partial automation-only evidence; `passes` remains `false` until the full trusted desktop matrix completes.
+- Ledger decision:
+  - Left `harness/feature-ledger.json` unchanged for `MF-076` (`status=ready`, `passes=false`, `lastVerifiedAt=null`) because the manual verification matrix is still blocked.
+- Next recommended feature:
+  - Continue `MF-076` in a trusted desktop session with `Microsoft Word.app` installed, then complete the Word/webpage/VS Code with-and-without-shortcut paste matrix before promoting the ledger.
