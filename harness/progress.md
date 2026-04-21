@@ -46,6 +46,52 @@
 - Next recommended feature:
   - Continue `MF-076` in a trusted desktop session with `Microsoft Word.app` installed, then complete the Word/webpage/VS Code with-and-without-shortcut paste matrix before promoting the ledger.
 
+### 2026-04-21T16:57:26+08:00 - MF-076 remains unpromoted; lint and Word gates still block completion
+
+- Author: Codex
+- Focus: strict one-feature session for `MF-076`; no second product feature was implemented.
+- What changed:
+  - Added a minimal `ResizeObserver` shim in `packages/editor/src/test-setup.ts` after the required smoke run exposed jsdom's missing `ResizeObserver` for the current working tree's `ContentWidthHandle`.
+  - Updated `harness/features/MF-076.md` with refreshed verification evidence and blocker state.
+  - Fixed only the local harness-note syntax for `harness/features/MF-136.md` by changing its `## Steps` list from numbered items to `-` bullets so `pnpm harness:verify` could parse the current working tree. `MF-136` was not implemented.
+  - Did not update `harness/feature-ledger.json` for `MF-076`.
+- Changed files:
+  - `packages/editor/src/test-setup.ts`
+  - `harness/features/MF-076.md`
+  - `harness/features/MF-136.md`
+  - `harness/progress.md`
+- Simplifications made:
+  - Reused existing `MF-076` smart-paste coverage instead of changing already-implemented paste behavior.
+  - Kept the `ResizeObserver` fix in the shared test setup to avoid staging unrelated pre-existing `App.tsx` feature work.
+  - Preserved ledger truth instead of promoting `MF-076` with incomplete lint and manual evidence.
+- Verification:
+  - `pnpm harness:start` passed and selected `MF-076`.
+  - Initial `./harness/init.sh --smoke` failed with `ResizeObserver is not defined` in `packages/editor/src/App.tsx`.
+  - `pnpm --filter @markflow/editor exec vitest run src/__tests__/App.test.tsx -t "hydrates an already-open desktop document on mount"` failed before the shim and passed after it (`1` passed, `60` skipped).
+  - Re-run `./harness/init.sh --smoke` passed:
+    - `packages/desktop`: `10` test files, `67` tests passed.
+    - `packages/editor`: `43` test files, `471` tests passed, `3` skipped.
+  - `pnpm --filter @markflow/editor exec vitest run src/editor/__tests__/smartPaste.test.ts` passed (`1` test file, `7` tests).
+  - `pnpm --filter @markflow/editor build` passed, with the existing Vite large-chunk warning.
+  - First `pnpm harness:verify` failed on local `MF-136` note syntax; re-run after the bullet-list syntax correction passed (`features: 136 total | verified=80 | ready=40 | planned=15 | blocked=1 | regression=0`; next: `MF-076`).
+  - Manual environment gate:
+    - `mdfind "kMDItemCFBundleIdentifier == 'com.microsoft.Word'"` returned no results.
+    - `osascript -e 'id of app "Microsoft Word"'` failed with `Can't get application "Microsoft Word". (-1728)`.
+    - `find /Applications /System/Applications /Users/pprp/Applications -maxdepth 4 ...` found `/Applications/Microsoft Edge.app`, `/Applications/Safari.app`, and `/Applications/Visual Studio Code.app`, but no Word app.
+- Failed or incomplete verification:
+  - `pnpm --filter @markflow/editor lint` failed on pre-existing unrelated local zoom/content-width edits:
+    - `packages/editor/src/App.tsx`: unused `WIDTH_MIN`, unused `WIDTH_MAX`, unused `updateZoomLevel`.
+    - `packages/editor/src/contentWidthPreferences.ts`: empty block statement.
+    - `packages/editor/src/zoomPreferences.ts`: empty block statement.
+  - The required full manual paste matrix could not be completed because `Microsoft Word.app` is not installed on this machine.
+- Remaining risks:
+  - `MF-076` still cannot be marked complete because the required lint command is not green in the current working tree and the Word/webpage/VS Code manual paste matrix remains incomplete.
+  - The working tree contains unrelated pre-existing edits and new future feature metadata (`MF-122` through `MF-136`); this session did not implement or validate those features.
+- Ledger decision:
+  - Left `harness/feature-ledger.json` unchanged for `MF-076` (`status=ready`, `passes=false`, `lastVerifiedAt=null`) because verification is incomplete.
+- Next recommended feature:
+  - Clear the unrelated local lint blockers, then continue `MF-076` in a trusted desktop session with `Microsoft Word.app` installed and complete the full paste matrix before promoting the ledger.
+
 ### 2026-04-21T16:31:46+08:00 - MF-076 automation remains green; Word manual matrix still blocks ledger promotion
 
 - Author: Codex
