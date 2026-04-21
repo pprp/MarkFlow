@@ -1,3 +1,52 @@
+### 2026-04-21T14:12:26+08:00 - MF-076 automation rerun passed; Word manual gate still blocks ledger promotion
+
+- Author: Codex
+- Focus: strict one-feature session for harness-selected `MF-076`; no unrelated feature was implemented.
+- What changed:
+  - No editor or desktop source changes were made because `MF-076` implementation and regression coverage already exist.
+  - Ran the required startup sequence:
+    - `pnpm harness:start`
+    - `./harness/init.sh --smoke`
+  - Re-ran the required `MF-076` automated verification:
+    - `pnpm --filter @markflow/editor exec vitest run src/editor/__tests__/smartPaste.test.ts`
+    - `pnpm --filter @markflow/editor lint`
+    - `pnpm --filter @markflow/editor build`
+    - `pnpm harness:verify`
+  - Re-checked the manual verification environment:
+    - `mdfind "kMDItemCFBundleIdentifier == 'com.microsoft.Word'"`
+    - `find /Applications /System/Applications /Users/pprp/Applications -maxdepth 4 \( -name 'Microsoft Word.app' -o -name 'Word.app' -o -name 'Microsoft Edge.app' -o -name 'Safari.app' -o -name 'Visual Studio Code.app' \)`
+    - `Computer Use` app enumeration.
+  - Updated `harness/features/MF-076.md` with the current verification and blocker state.
+- Changed files:
+  - `harness/features/MF-076.md`
+  - `harness/progress.md`
+- Simplifications made:
+  - Reused the existing focused `smartPaste` regression suite and editor lint/build checks instead of touching already-green code.
+  - Kept `harness/feature-ledger.json` truthful and unchanged for `MF-076` because the required manual matrix is still incomplete.
+- Verification:
+  - `pnpm harness:start` passed and selected `MF-076`.
+  - `./harness/init.sh --smoke` passed:
+    - `packages/desktop`: `10` test files, `67` tests passed.
+    - `packages/editor`: `43` test files, `468` tests passed, `3` skipped.
+  - `pnpm --filter @markflow/editor exec vitest run src/editor/__tests__/smartPaste.test.ts` passed (`1` file / `7` tests).
+  - `pnpm --filter @markflow/editor lint` passed.
+  - `pnpm --filter @markflow/editor build` passed, with the existing Vite large-chunk warning.
+  - `pnpm harness:verify` passed after the handoff edits (`features: 135 total | verified=76 | ready=43 | planned=15 | blocked=1 | regression=0`; next: `MF-124`).
+    - The changed feature count and next pointer come from unrelated unstaged ledger/feature-file additions in the working tree; this session did not implement or stage those features.
+  - Manual environment gate:
+    - `mdfind "kMDItemCFBundleIdentifier == 'com.microsoft.Word'"` returned no results.
+    - The `find` command found `/Applications/Visual Studio Code.app`, `/Applications/Safari.app`, and `/Applications/Microsoft Edge.app`, but no Word app.
+    - `Computer Use` listed Microsoft Edge, Visual Studio Code, Safari, Microsoft Outlook, Microsoft PowerPoint, and MarkFlow, but no Microsoft Word.
+- Failed verification / blocker:
+  - The required manual acceptance remains incomplete because `MF-076` requires paste comparisons from Microsoft Word, a webpage, and Visual Studio Code with and without `Cmd/Ctrl+Shift+V`, and this machine still lacks `Microsoft Word.app`.
+- Remaining risks:
+  - `MF-076` still cannot be promoted to `status=verified`, `passes=true`, or a non-null `lastVerifiedAt` until the full manual matrix completes in a trusted desktop session.
+  - The workspace has unrelated unstaged changes, including `harness/feature-ledger.json` additions for `MF-122` and `MF-124` through `MF-135`; this session did not implement or stage them.
+- Ledger decision:
+  - Left `harness/feature-ledger.json` unchanged for `MF-076` (`status=ready`, `passes=false`, `lastVerifiedAt=null`) because the manual matrix is still blocked.
+- Next recommended feature:
+  - Continue `MF-076` in a trusted desktop session with `Microsoft Word.app` installed, then complete the Word/webpage/VS Code with-and-without-shortcut paste matrix before promoting the ledger.
+
 ### 2026-04-21T13:59:35+08:00 - MF-076 automation rerun passed; Word manual gate still blocks promotion
 
 - Author: Codex
