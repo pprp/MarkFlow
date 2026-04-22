@@ -1352,6 +1352,101 @@ body {
   outline: none;
 }
 
+/* ── Content-width drag handle ─────────────────────────────────────────── */
+.mf-width-handle {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 16px;
+  transform: translateX(-50%);
+  cursor: col-resize;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity var(--mf-transition-fast);
+}
+
+.mf-editor-shell:hover .mf-width-handle {
+  opacity: 1;
+}
+
+.mf-width-handle::after {
+  content: '';
+  display: block;
+  width: 3px;
+  height: 40px;
+  border-radius: 2px;
+  background: var(--mf-accent);
+  opacity: 0.45;
+  transition: opacity var(--mf-transition-fast), height var(--mf-transition-fast);
+}
+
+.mf-width-handle:hover::after,
+.mf-width-handle:active::after {
+  opacity: 0.85;
+  height: 60px;
+}
+
+/* ── Image Lightbox ──────────────────────────────────────────── */
+.mf-lightbox {
+  position: fixed;
+  top: 10vh;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 9999;
+  background: var(--mf-bg-elevated);
+  border: 1px solid var(--mf-border);
+  border-radius: 10px;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.25);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  max-width: 90vw;
+  max-height: 90vh;
+}
+
+.mf-lightbox-titlebar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: var(--mf-bg-secondary);
+  border-bottom: 1px solid var(--mf-border);
+  cursor: grab;
+  user-select: none;
+  font-size: 13px;
+  color: var(--mf-fg-secondary);
+}
+
+.mf-lightbox-titlebar:active {
+  cursor: grabbing;
+}
+
+.mf-lightbox-close {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--mf-fg-secondary);
+  font-size: 14px;
+  line-height: 1;
+  padding: 2px 4px;
+  border-radius: 4px;
+}
+
+.mf-lightbox-close:hover {
+  background: var(--mf-fill);
+  color: var(--mf-fg);
+}
+
+.mf-lightbox-img {
+  display: block;
+  max-width: 100%;
+  max-height: calc(90vh - 40px);
+  object-fit: contain;
+}
+
 .cm-editor .cm-focused {
   outline: none;
 }
@@ -1569,6 +1664,14 @@ body {
 .cm-editor .mf-code-block-first.mf-code-block-last {
   border-radius: var(--mf-radius-lg);
   border: 1px solid var(--mf-border-light);
+}
+
+/* Give the CM line that wraps the badge widget the same code-block background
+   so there is no white strip between the badge and the first content line. */
+.cm-editor .cm-line:has(.mf-code-block-header) {
+  background: var(--mf-bg-code);
+  padding: 0;
+  line-height: normal;
 }
 
 /* Language badge header */

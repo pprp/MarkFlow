@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>MarkFlow — Logo R2</title>
+  <style>
+    :root { color-scheme: light; }
+    body {
+      background: #f4f4f5;
+      font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif;
+      margin: 0; padding: 56px 24px 80px;
+      display: flex; flex-direction: column; align-items: center; gap: 48px;
+    }
+    header { max-width: 640px; text-align: center; }
+    h1 { font-size: 22px; font-weight: 600; letter-spacing: -0.01em; margin: 0 0 8px; color: #111; }
+    header p { font-size: 13px; color: #666; margin: 0; line-height: 1.6; }
+    .row { display: flex; gap: 28px; flex-wrap: wrap; justify-content: center; }
+    .card {
+      width: 280px; background: white; border-radius: 20px;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.04), 0 12px 32px rgba(0,0,0,0.05);
+      overflow: hidden; display: flex; flex-direction: column;
+    }
+    .hero { aspect-ratio: 1/1; display: flex; align-items: center; justify-content: center; background: #fbfbfc; }
+    .hero svg { width: 60%; height: 60%; }
+    .hero.dark { background: #1B1A18; }
+    .meta { padding: 20px 22px 24px; }
+    .meta h2 { font-size: 11px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: #999; margin: 0 0 8px; }
+    .meta h3 { font-size: 17px; font-weight: 600; color: #111; margin: 0 0 10px; letter-spacing: -0.01em; }
+    .meta p { font-size: 13px; line-height: 1.55; color: #555; margin: 0 0 12px; }
+    .tags { display: flex; flex-wrap: wrap; gap: 6px; }
+    .tag { font-size: 11px; color: #666; background: #f0f0f2; padding: 3px 8px; border-radius: 999px; }
+
+    .scale {
+      display: flex; gap: 14px; align-items: center;
+      background: white; padding: 14px 20px; border-radius: 14px;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+    }
+    .scale svg { display: block; }
+    .scale .lbl { font-size: 11px; color: #999; margin-right: 8px; }
+    .scale.dark { background: #1B1A18; }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>MarkFlow — Logo Round 2</h1>
+    <p>Abstract marks, no letterforms. Each one commits to a single concept rooted in the product (language flow, text→render transformation, writer↔model graph) rather than generic AI sparkle.</p>
+  </header>
+
+  <div class="row">
+
+    <!-- ════════════════════ Concept A — Aurora Stroke ════════════════════ -->
+    <div class="card">
+      <div class="hero">
+        <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="a1" x1="10%" y1="10%" x2="90%" y2="90%">
+              <stop offset="0%"   stop-color="#D4903A"/>
+              <stop offset="45%"  stop-color="#C47625"/>
+              <stop offset="100%" stop-color="#6F7843"/>
+            </linearGradient>
+          </defs>
+          <path d="M54 28 C 78 52, 88 78, 104 100 C 120 122, 146 148, 170 172
+                   C 158 170, 138 158, 122 142 C 106 126, 96 110, 96 96
+                   C 96 82, 86 66, 70 50 C 60 40, 54 34, 54 28 Z"
+                fill="url(#a1)"/>
+          <circle cx="46" cy="26" r="6"   fill="#D4903A"/>
+          <circle cx="46" cy="26" r="2.5" fill="#FFF3E8"/>
+        </svg>
+      </div>
+      <div class="meta">
+        <h2>Concept A</h2>
+        <h3>Aurora Stroke</h3>
+        <p>One continuous tapered brushstroke with an S-curve and a detached leading spark. The asymmetry is intentional — it reads as a gesture, not a glyph. Warm amber→copper→olive keeps the mark editorial instead of generic AI.</p>
+        <div class="tags">
+          <span class="tag">Single gesture</span>
+          <span class="tag">Warm gradient</span>
+          <span class="tag">Asymmetric</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ════════════════════ Concept B — Refraction Prism ════════════════════ -->
+    <div class="card">
+      <div class="hero">
+        <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="fN" x1="50%" y1="0%" x2="50%" y2="100%"><stop offset="0%" stop-color="#FFD4A3"/><stop offset="100%" stop-color="#E8825A"/></linearGradient>
+            <linearGradient id="fE" x1="100%" y1="50%" x2="0%" y2="50%"><stop offset="0%" stop-color="#D46A4A"/><stop offset="100%" stop-color="#F2A075"/></linearGradient>
+            <linearGradient id="fS" x1="50%" y1="100%" x2="50%" y2="0%"><stop offset="0%" stop-color="#A84A38"/><stop offset="100%" stop-color="#D46A4A"/></linearGradient>
+            <linearGradient id="fW" x1="0%" y1="50%" x2="100%" y2="50%"><stop offset="0%" stop-color="#E8936E"/><stop offset="100%" stop-color="#C96442"/></linearGradient>
+            <radialGradient id="aur" cx="50%" cy="50%" r="60%"><stop offset="70%" stop-color="#E8825A" stop-opacity="0"/><stop offset="100%" stop-color="#E8825A" stop-opacity="0.18"/></radialGradient>
+          </defs>
+          <circle cx="100" cy="100" r="96" fill="url(#aur)"/>
+          <polygon points="100,22 178,100 100,100" fill="url(#fN)"/>
+          <polygon points="178,100 100,178 100,100" fill="url(#fE)"/>
+          <polygon points="100,178 22,100 100,100" fill="url(#fS)"/>
+          <polygon points="22,100 100,22 100,100" fill="url(#fW)"/>
+          <path d="M100 22 L100 100" stroke="#FFF3E8" stroke-width="1.5" stroke-opacity="0.55"/>
+          <path d="M100 22 L60 60"   stroke="#FFF3E8" stroke-width="1"   stroke-opacity="0.35"/>
+          <polygon points="100,22 178,100 100,178 22,100" fill="none" stroke="#7A2E1A" stroke-width="1" stroke-opacity="0.25"/>
+        </svg>
+      </div>
+      <div class="meta">
+        <h2>Concept B</h2>
+        <h3>Refraction Prism</h3>
+        <p>A rotated square split into four glass facets, each with its own warm gradient and a subtle catch-light. Prism = markdown refracted into rendered output. Glassmorphism is the dominant 2026 tech-logo aesthetic.</p>
+        <div class="tags">
+          <span class="tag">Crystal / facets</span>
+          <span class="tag">Warm palette</span>
+          <span class="tag">Product metaphor</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ════════════════════ Concept C — Flow Constellation ════════════════════ -->
+    <div class="card">
+      <div class="hero dark">
+        <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <radialGradient id="ng" cx="50%" cy="50%" r="50%">
+              <stop offset="0%"   stop-color="#F3C56B"/>
+              <stop offset="50%"  stop-color="#C47625"/>
+              <stop offset="100%" stop-color="#7A3E1D"/>
+            </radialGradient>
+          </defs>
+          <path d="M44 58 C 80 20, 130 20, 162 62 C 180 90, 170 130, 138 148 C 100 170, 60 150, 48 112 C 40 86, 40 70, 44 58 Z"
+                fill="none" stroke="#FFF3E8" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M44 58 C 80 100, 120 118, 162 62"
+                fill="none" stroke="#FFF3E8" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+          <circle cx="44"  cy="58"  r="10" fill="#FFF3E8"/>
+          <circle cx="162" cy="62"  r="10" fill="#FFF3E8"/>
+          <circle cx="138" cy="148" r="14" fill="url(#ng)"/>
+          <circle cx="138" cy="148" r="5"  fill="#FFFFFF"/>
+        </svg>
+      </div>
+      <div class="meta">
+        <h2>Concept C</h2>
+        <h3>Flow Constellation</h3>
+        <p>Three nodes on a continuous arc with one crossing chord. The glowing node is the AI — one of three points in a graph connecting writer, text, and model. Monochrome-first; single accent shines at dark/light toggle.</p>
+        <div class="tags">
+          <span class="tag">Minimal lines</span>
+          <span class="tag">Monochrome-ready</span>
+          <span class="tag">Graph metaphor</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ═══════════════ Scaling check (64 / 32 / 16 px) ═══════════════ -->
+  <div style="display:flex; flex-direction: column; gap: 12px; align-items: center;">
+    <div style="font-size: 11px; color: #999; letter-spacing: 0.1em; text-transform: uppercase;">Scaling — 64 · 32 · 16 px</div>
+
+    <div class="scale">
+      <span class="lbl">A</span>
+      <svg viewBox="0 0 200 200" width="64" height="64"><defs><linearGradient id="a64" x1="10%" y1="10%" x2="90%" y2="90%"><stop offset="0%" stop-color="#D4903A"/><stop offset="45%" stop-color="#C47625"/><stop offset="100%" stop-color="#6F7843"/></linearGradient></defs><path d="M54 28 C 78 52, 88 78, 104 100 C 120 122, 146 148, 170 172 C 158 170, 138 158, 122 142 C 106 126, 96 110, 96 96 C 96 82, 86 66, 70 50 C 60 40, 54 34, 54 28 Z" fill="url(#a64)"/><circle cx="46" cy="26" r="6" fill="#D4903A"/></svg>
+      <svg viewBox="0 0 200 200" width="32" height="32"><defs><linearGradient id="a32" x1="10%" y1="10%" x2="90%" y2="90%"><stop offset="0%" stop-color="#D4903A"/><stop offset="45%" stop-color="#C47625"/><stop offset="100%" stop-color="#6F7843"/></linearGradient></defs><path d="M54 28 C 78 52, 88 78, 104 100 C 120 122, 146 148, 170 172 C 158 170, 138 158, 122 142 C 106 126, 96 110, 96 96 C 96 82, 86 66, 70 50 C 60 40, 54 34, 54 28 Z" fill="url(#a32)"/><circle cx="46" cy="26" r="6" fill="#D4903A"/></svg>
+      <svg viewBox="0 0 200 200" width="16" height="16"><defs><linearGradient id="a16" x1="10%" y1="10%" x2="90%" y2="90%"><stop offset="0%" stop-color="#D4903A"/><stop offset="45%" stop-color="#C47625"/><stop offset="100%" stop-color="#6F7843"/></linearGradient></defs><path d="M54 28 C 78 52, 88 78, 104 100 C 120 122, 146 148, 170 172 C 158 170, 138 158, 122 142 C 106 126, 96 110, 96 96 C 96 82, 86 66, 70 50 C 60 40, 54 34, 54 28 Z" fill="url(#a16)"/></svg>
+    </div>
+
+    <div class="scale">
+      <span class="lbl">B</span>
+      <svg viewBox="0 0 200 200" width="64" height="64"><defs><linearGradient id="bN64" x1="50%" y1="0%" x2="50%" y2="100%"><stop offset="0%" stop-color="#FFD4A3"/><stop offset="100%" stop-color="#E8825A"/></linearGradient><linearGradient id="bE64" x1="100%" y1="50%" x2="0%" y2="50%"><stop offset="0%" stop-color="#D46A4A"/><stop offset="100%" stop-color="#F2A075"/></linearGradient><linearGradient id="bS64" x1="50%" y1="100%" x2="50%" y2="0%"><stop offset="0%" stop-color="#A84A38"/><stop offset="100%" stop-color="#D46A4A"/></linearGradient><linearGradient id="bW64" x1="0%" y1="50%" x2="100%" y2="50%"><stop offset="0%" stop-color="#E8936E"/><stop offset="100%" stop-color="#C96442"/></linearGradient></defs><polygon points="100,22 178,100 100,100" fill="url(#bN64)"/><polygon points="178,100 100,178 100,100" fill="url(#bE64)"/><polygon points="100,178 22,100 100,100" fill="url(#bS64)"/><polygon points="22,100 100,22 100,100" fill="url(#bW64)"/></svg>
+      <svg viewBox="0 0 200 200" width="32" height="32"><defs><linearGradient id="bN32" x1="50%" y1="0%" x2="50%" y2="100%"><stop offset="0%" stop-color="#FFD4A3"/><stop offset="100%" stop-color="#E8825A"/></linearGradient><linearGradient id="bE32" x1="100%" y1="50%" x2="0%" y2="50%"><stop offset="0%" stop-color="#D46A4A"/><stop offset="100%" stop-color="#F2A075"/></linearGradient><linearGradient id="bS32" x1="50%" y1="100%" x2="50%" y2="0%"><stop offset="0%" stop-color="#A84A38"/><stop offset="100%" stop-color="#D46A4A"/></linearGradient><linearGradient id="bW32" x1="0%" y1="50%" x2="100%" y2="50%"><stop offset="0%" stop-color="#E8936E"/><stop offset="100%" stop-color="#C96442"/></linearGradient></defs><polygon points="100,22 178,100 100,100" fill="url(#bN32)"/><polygon points="178,100 100,178 100,100" fill="url(#bE32)"/><polygon points="100,178 22,100 100,100" fill="url(#bS32)"/><polygon points="22,100 100,22 100,100" fill="url(#bW32)"/></svg>
+      <svg viewBox="0 0 200 200" width="16" height="16"><defs><linearGradient id="bN16" x1="50%" y1="0%" x2="50%" y2="100%"><stop offset="0%" stop-color="#FFD4A3"/><stop offset="100%" stop-color="#E8825A"/></linearGradient><linearGradient id="bE16" x1="100%" y1="50%" x2="0%" y2="50%"><stop offset="0%" stop-color="#D46A4A"/><stop offset="100%" stop-color="#F2A075"/></linearGradient><linearGradient id="bS16" x1="50%" y1="100%" x2="50%" y2="0%"><stop offset="0%" stop-color="#A84A38"/><stop offset="100%" stop-color="#D46A4A"/></linearGradient><linearGradient id="bW16" x1="0%" y1="50%" x2="100%" y2="50%"><stop offset="0%" stop-color="#E8936E"/><stop offset="100%" stop-color="#C96442"/></linearGradient></defs><polygon points="100,22 178,100 100,100" fill="url(#bN16)"/><polygon points="178,100 100,178 100,100" fill="url(#bE16)"/><polygon points="100,178 22,100 100,100" fill="url(#bS16)"/><polygon points="22,100 100,22 100,100" fill="url(#bW16)"/></svg>
+    </div>
+
+    <div class="scale dark">
+      <span class="lbl" style="color:#888;">C</span>
+      <svg viewBox="0 0 200 200" width="64" height="64"><defs><radialGradient id="ng64" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#F3C56B"/><stop offset="50%" stop-color="#C47625"/><stop offset="100%" stop-color="#7A3E1D"/></radialGradient></defs><path d="M44 58 C 80 20, 130 20, 162 62 C 180 90, 170 130, 138 148 C 100 170, 60 150, 48 112 C 40 86, 40 70, 44 58 Z" fill="none" stroke="#FFF3E8" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/><path d="M44 58 C 80 100, 120 118, 162 62" fill="none" stroke="#FFF3E8" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/><circle cx="138" cy="148" r="16" fill="url(#ng64)"/></svg>
+      <svg viewBox="0 0 200 200" width="32" height="32"><defs><radialGradient id="ng32" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#F3C56B"/><stop offset="50%" stop-color="#C47625"/><stop offset="100%" stop-color="#7A3E1D"/></radialGradient></defs><path d="M44 58 C 80 20, 130 20, 162 62 C 180 90, 170 130, 138 148 C 100 170, 60 150, 48 112 C 40 86, 40 70, 44 58 Z" fill="none" stroke="#FFF3E8" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/><path d="M44 58 C 80 100, 120 118, 162 62" fill="none" stroke="#FFF3E8" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/><circle cx="138" cy="148" r="18" fill="url(#ng32)"/></svg>
+      <svg viewBox="0 0 200 200" width="16" height="16"><defs><radialGradient id="ng16" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#F3C56B"/><stop offset="50%" stop-color="#C47625"/><stop offset="100%" stop-color="#7A3E1D"/></radialGradient></defs><path d="M44 58 C 80 20, 130 20, 162 62 C 180 90, 170 130, 138 148 C 100 170, 60 150, 48 112 C 40 86, 40 70, 44 58 Z" fill="none" stroke="#FFF3E8" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"/><circle cx="138" cy="148" r="22" fill="url(#ng16)"/></svg>
+    </div>
+
+  </div>
+
+</body>
+</html>

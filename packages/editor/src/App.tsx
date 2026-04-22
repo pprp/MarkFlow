@@ -86,6 +86,19 @@ import {
 } from './markdownMode'
 import { countFuzzySearchMatches } from './editor/documentSearch'
 import { serializeRenderedDocumentForExport } from './export/htmlExport'
+import {
+  clampZoom,
+  loadLocalZoomPreference,
+  persistLocalZoomPreference,
+  zoomIn,
+  zoomOut,
+  zoomReset,
+} from './zoomPreferences'
+import {
+  clampWidth,
+  loadLocalContentWidthPreference,
+  persistLocalContentWidthPreference,
+} from './contentWidthPreferences'
 
 const THEME_STYLE_ELEMENT_ID = 'mf-theme-overrides'
 const EDITOR_ROOT_SELECTOR = '.cm-editor'
@@ -191,6 +204,68 @@ function isEditorCopyContext() {
   return selectionElement?.closest(EDITOR_ROOT_SELECTOR) != null
 }
 
+// ── Content-width drag handle ─────────────────────────────────────────────────
+function ContentWidthHandle({
+  contentWidth,
+  onWidthChange,
+}: {
+  contentWidth: number
+  onWidthChange: (w: number) => void
+}) {
+  const shellRef = useRef<HTMLDivElement | null>(null)
+  const [shellWidth, setShellWidth] = useState(0)
+  const draggingRef = useRef(false)
+  const startXRef = useRef(0)
+  const startWidthRef = useRef(contentWidth)
+
+  // Observe the shell container width
+  useEffect(() => {
+    const shell = document.querySelector<HTMLDivElement>('.mf-editor-shell')
+    if (!shell) return
+    shellRef.current = shell
+    setShellWidth(shell.offsetWidth)
+    const ro = new ResizeObserver(() => setShellWidth(shell.offsetWidth))
+    ro.observe(shell)
+    return () => ro.disconnect()
+  }, [])
+
+  const handlePointerDown = useCallback((e: React.PointerEvent) => {
+    e.preventDefault()
+    draggingRef.current = true
+    startXRef.current = e.clientX
+    startWidthRef.current = contentWidth
+    ;(e.target as HTMLElement).setPointerCapture(e.pointerId)
+  }, [contentWidth])
+
+  const handlePointerMove = useCallback((e: React.PointerEvent) => {
+    if (!draggingRef.current) return
+    // Moving right expands width, left shrinks
+    const delta = (e.clientX - startXRef.current) * 2
+    onWidthChange(startWidthRef.current + delta)
+  }, [onWidthChange])
+
+  const handlePointerUp = useCallback(() => {
+    draggingRef.current = false
+  }, [])
+
+  // Only show handle when content column is narrower than the shell
+  if (shellWidth <= contentWidth + 32) return null
+
+  const handleRight = (shellWidth + contentWidth) / 2
+
+  return (
+    <div
+      className="mf-width-handle"
+      style={{ left: `${handleRight}px` }}
+      title="Drag to adjust content width"
+      aria-label="Adjust content width"
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
+    />
+  )
+}
+
 export function App() {
   const [viewMode, setViewMode] = useState<ViewMode>('wysiwyg')
   const [focusMode, setFocusMode] = useState(false)
@@ -212,6 +287,8 @@ export function App() {
     isAlwaysOnTop: false,
     isFullscreen: false,
   })
+  const [zoomLevel, setZoomLevel] = useState<number>(() => loadLocalZoomPreference())
+  const [contentWidth, setContentWidth] = useState<number>(() => loadLocalContentWidthPreference())
   const [showSidebar, setShowSidebar] = useState(false)
   const [showMinimap, setShowMinimap] = useState(false)
   const [vaultPath, setVaultPath] = useState<string | null>(null)
@@ -247,7 +324,8 @@ export function App() {
   } = useSearchDialogs()
   const [toasts, setToasts] = useState<AppToast[]>([])
   const [documentSearchQuery, setDocumentSearchQuery] = useState('')
-  const [documentSearchMatchCount, setDocumentSearchMatchCount] = useState(0)
+  const [documentSearchMatchCount, setDocumentSearchMatchCount] = useState<number | null>(null)
+  const [documentSearchFocusTrigger, setDocumentSearchFocusTrigger] = useState(0)
   const [outlineCollapsed, setOutlineCollapsed] = useState(false)
   const [isExporting, setIsExporting] = useState(false)
   const [quickOpenItems, setQuickOpenItems] = useState<MarkFlowQuickOpenItem[]>([])
@@ -316,6 +394,12 @@ export function App() {
   const updateMarkdownModePreference = useCallback((mode: MarkFlowMarkdownMode) => {
     setMarkdownMode(mode)
     persistLocalMarkdownModePreference(mode)
+  }, [])
+
+  const updateContentWidth = useCallback((next: number) => {
+    const clamped = clampWidth(next)
+    setContentWidth(clamped)
+    persistLocalContentWidthPreference(clamped)
   }, [])
 
   const activeTab = useMemo(() => {
@@ -742,16 +826,22 @@ export function App() {
     }
 
     openDocumentSearch()
+    setDocumentSearchFocusTrigger((n) => n + 1)
     return true
   }, [activeTab, openDocumentSearch])
 
   const handleCloseDocumentSearch = useCallback(() => {
     closeDocumentSearch()
     setDocumentSearchQuery('')
-    setDocumentSearchMatchCount(0)
+    setDocumentSearchMatchCount(null)
     editorRef.current?.clearDocumentSearch()
     editorRef.current?.focus()
   }, [closeDocumentSearch])
+
+  const handleDocumentSearchQueryChange = useCallback((value: string) => {
+    setDocumentSearchQuery(value)
+    setDocumentSearchMatchCount(null)
+  }, [])
 
   const handleNextDocumentSearchMatch = useCallback(() => {
     if (!documentSearchQuery.trim()) {
@@ -804,13 +894,13 @@ export function App() {
       return
     }
 
-    setDocumentSearchMatchCount(0)
+    setDocumentSearchMatchCount(null)
     editorRef.current?.clearDocumentSearch()
   }, [isDocumentSearchOpen])
 
   useEffect(() => {
     if (!isDocumentSearchOpen || !activeTab || activeTab.largeFile || !documentSearchQuery.trim()) {
-      setDocumentSearchMatchCount(0)
+      setDocumentSearchMatchCount(null)
       return
     }
 
@@ -818,6 +908,7 @@ export function App() {
     documentSearchRequestIdRef.current = requestId
     const content = activeTab.content
     const worker = documentSearchWorkerRef.current
+    setDocumentSearchMatchCount(null)
 
     if (!worker) {
       const timeoutId = window.setTimeout(() => {
@@ -1213,6 +1304,34 @@ export function App() {
       } else if (isGoToLineKey) {
         e.preventDefault()
         handleOpenGoToLine()
+      } else {
+        // Zoom shortcuts: browsers intercept Ctrl+=/-/0 for native zoom,
+        // so we use Ctrl+Shift+=/-/0 (Cmd+Shift on Mac) which are browser-safe.
+        const modKey = isMac ? e.metaKey : e.ctrlKey
+        if (modKey && e.shiftKey && !e.altKey) {
+          if (e.key === '=' || e.key === '+') {
+            e.preventDefault()
+            setZoomLevel((prev) => {
+              const next = zoomIn(prev)
+              persistLocalZoomPreference(next)
+              return next
+            })
+          } else if (e.key === '-' || e.key === '_') {
+            e.preventDefault()
+            setZoomLevel((prev) => {
+              const next = zoomOut(prev)
+              persistLocalZoomPreference(next)
+              return next
+            })
+          } else if (e.key === '0' || e.key === ')') {
+            e.preventDefault()
+            setZoomLevel(() => {
+              const next = zoomReset()
+              persistLocalZoomPreference(next)
+              return next
+            })
+          }
+        }
       }
     }
     document.addEventListener('keydown', handleGlobalKeyDown)
@@ -1228,6 +1347,24 @@ export function App() {
     handleReopenClosedTab,
     handleToggleGlobalSearch,
   ])
+
+  // Pinch-to-zoom: Mac trackpad fires wheel events with ctrlKey=true
+  useEffect(() => {
+    const handleWheel = (e: WheelEvent) => {
+      if (!e.ctrlKey) return
+      e.preventDefault()
+      setZoomLevel((prev) => {
+        // deltaY is typically -3..3 per gesture tick; scale to ~0.01 per tick
+        const delta = -e.deltaY * 0.005
+        const next = clampZoom(prev + delta)
+        persistLocalZoomPreference(next)
+        return next
+      })
+    }
+    // passive:false required to allow preventDefault
+    document.addEventListener('wheel', handleWheel, { passive: false })
+    return () => document.removeEventListener('wheel', handleWheel)
+  }, [])
 
   const handleQuickOpenSelect = async (item: MarkFlowQuickOpenItem) => {
     closeQuickOpen()
@@ -1786,8 +1923,14 @@ export function App() {
   const shouldShowOutlineToggle = !isImmersiveMode && outlineHeadings.length > 0
   const shouldShowStandaloneOutline = shouldShowOutlineToggle && !showSidebar && !outlineCollapsed
 
+  const BASE_FONT_SIZE = 15
+  const appStyle = {
+    '--mf-font-size': `${BASE_FONT_SIZE * zoomLevel}px`,
+    '--mf-content-width': `${contentWidth}px`,
+  } as React.CSSProperties
+
   return (
-    <div className={appClassName} {...{ [HEADING_NUMBERING_ATTRIBUTE]: headingNumberingEnabled ? 'true' : 'false' }}>
+    <div className={appClassName} style={appStyle} {...{ [HEADING_NUMBERING_ATTRIBUTE]: headingNumberingEnabled ? 'true' : 'false' }}>
       <style id={HEADING_NUMBERING_STYLE_ELEMENT_ID}>{HEADING_NUMBERING_CSS}</style>
       {!isImmersiveMode ? (
         <header className="mf-titlebar">
@@ -1989,7 +2132,8 @@ export function App() {
               isOpen={isDocumentSearchOpen}
               query={documentSearchQuery}
               matchCount={documentSearchMatchCount}
-              onChange={setDocumentSearchQuery}
+              focusTrigger={documentSearchFocusTrigger}
+              onChange={handleDocumentSearchQueryChange}
               onClose={handleCloseDocumentSearch}
               onNext={handleNextDocumentSearchMatch}
               onPrevious={handlePreviousDocumentSearchMatch}
@@ -2056,6 +2200,11 @@ export function App() {
                 onCollapsedRangesChange={handleCollapsedRangesChange}
               />
             ) : null}
+            {/* Content-width drag handle */}
+            <ContentWidthHandle
+              contentWidth={contentWidth}
+              onWidthChange={updateContentWidth}
+            />
           </div>
           {showMinimap && !isImmersiveMode && activeTab && !activeTab.largeFile ? (
             <Minimap

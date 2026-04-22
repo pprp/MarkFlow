@@ -1,3 +1,63 @@
+### 2026-04-22T13:37:01+08:00 - MF-128 verified; Typora backlog extended with import/export/sidebar gaps
+
+- Author: Codex Dispatcher with Researcher/Implementer/Reviewer subagents
+- Focus: strict one-feature cycle for `MF-128`; no second product feature was implemented.
+- What changed:
+  - Ran the required startup protocol:
+    - `pnpm harness:start`
+    - `./harness/init.sh --smoke`
+  - Researcher compared Typora public docs against the current ledger and added:
+    - `MF-137` - Pandoc import for DOCX, RTF, EPUB, OPML, and other supported formats.
+    - `MF-138` - export presets, previous-export reuse, and YAML-aware export options.
+    - `MF-139` - file-sidebar refresh, sort, move, duplicate, copy path, and undo operations.
+  - Dispatcher normalized the new research entries into `harness/features/MF-137.md`, `harness/features/MF-138.md`, and `harness/features/MF-139.md` so `harness/feature-ledger.json` stays metadata-only.
+  - Implemented `MF-128`:
+    - `DocumentSearch` now accepts a pending `null` count.
+    - The search counter renders `Searching...` while async counting is pending.
+    - The counter renders `1 match` for singular and `N matches` otherwise.
+    - App search state resets to pending synchronously when the query changes or a new count request starts.
+  - Reviewer accepted the `MF-128` diff with no blocking findings.
+- Changed files for this run:
+  - `harness/feature-ledger.json`
+  - `harness/features/MF-137.md`
+  - `harness/features/MF-138.md`
+  - `harness/features/MF-139.md`
+  - `packages/editor/src/components/DocumentSearch.tsx`
+  - `packages/editor/src/components/DocumentSearch.test.tsx`
+  - `packages/editor/src/App.tsx`
+  - `packages/editor/src/__tests__/App.test.tsx`
+  - `harness/progress.md`
+- Simplifications made:
+  - Deferred the newly discovered desktop/file-management items because they are too broad for a reliable single-run implementation.
+  - Used `null` as the existing App-level pending state rather than introducing a separate loading flag.
+  - Added a focused component test for count rendering instead of expanding broad App assertions unnecessarily.
+- Verification:
+  - Initial `./harness/init.sh --smoke` passed before implementation:
+    - `packages/desktop`: `10` test files / `68` tests passed.
+    - `packages/editor`: `43` test files / `471` tests passed / `3` skipped.
+  - `pnpm harness:verify` passed after research normalization (`features: 139 total | verified=80 | ready=40 | planned=18 | blocked=1 | regression=0`).
+  - Implementer verification passed:
+    - `pnpm --filter @markflow/editor exec vitest run src/components/DocumentSearch.test.tsx`
+    - `pnpm --filter @markflow/editor exec vitest run src/__tests__/App.test.tsx`
+    - `pnpm --filter @markflow/editor build`
+    - `pnpm --filter @markflow/editor lint`
+  - Reviewer reran focused verification:
+    - `pnpm --filter @markflow/editor exec vitest run src/components/DocumentSearch.test.tsx src/__tests__/App.test.tsx` passed (`2` files / `64` tests).
+  - Final `./harness/init.sh --smoke` passed:
+    - `pnpm harness:verify` passed (`features: 139 total | verified=81 | ready=39 | planned=18 | blocked=1 | regression=0`; next: `MF-076`).
+    - `packages/desktop`: `10` test files / `68` tests passed.
+    - `packages/editor`: `44` test files / `474` tests passed / `3` skipped.
+- Ledger decision:
+  - Promoted `MF-128` to `status=verified`, `passes=true`, `lastVerifiedAt=2026-04-22T13:33:08+08:00`.
+  - Left `MF-137`, `MF-138`, and `MF-139` as `planned`, `passes=false`, `lastVerifiedAt=null`.
+- Remaining risks:
+  - The working tree still contains unrelated pre-existing dirty changes outside this run.
+  - `MF-076` remains the harness-selected next feature but still needs a trusted desktop session with `Microsoft Word.app` available for its manual paste matrix.
+  - `MF-139` is useful Typora parity work, but it should be split before implementation because the full sidebar/file-operation scope is broad.
+- Next recommended feature:
+  - If `Microsoft Word.app` is available, finish `MF-076` manual paste verification.
+  - If Word is still unavailable, choose `MF-127` as the next small automatable priority-2 fix.
+
 ### 2026-04-21T16:08:41+08:00 - MF-076 automation rerun passed; Word manual gate still blocks ledger promotion
 
 - Author: Codex

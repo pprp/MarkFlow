@@ -2922,23 +2922,60 @@ describe('App command palette integration', () => {
 
     const view = getEditorView(container)
 
+    // First Enter: navigate to first match
     fireEvent.keyDown(input, { key: 'Enter' })
     await waitFor(() => {
       expect(view.state.selection.main.from).toBe(0)
       expect(view.state.sliceDoc(view.state.selection.main.from, view.state.selection.main.to)).toBe('MarkF')
     })
 
+    // The search input must not lose focus after navigation so subsequent
+    // Enter presses continue to cycle through matches without re-clicking.
+    expect(document.activeElement).toBe(input)
+
+    // Second Enter: navigate to second match
     fireEvent.keyDown(input, { key: 'Enter' })
     await waitFor(() => {
       expect(view.state.selection.main.from).toBe(content.indexOf('meta flow'))
       expect(view.state.sliceDoc(view.state.selection.main.from, view.state.selection.main.to)).toBe('meta f')
     })
 
+    // Shift+Enter: navigate back to first match
     fireEvent.keyDown(input, { key: 'Enter', shiftKey: true })
     await waitFor(() => {
       expect(view.state.selection.main.from).toBe(0)
       expect(view.state.sliceDoc(view.state.selection.main.from, view.state.selection.main.to)).toBe('MarkF')
     })
+
+    // Re-pressing Ctrl+F while the panel is open must re-focus the input
+    fireEvent.keyDown(document, { key: 'f', ctrlKey: true })
+    await waitFor(() => {
+      expect(document.activeElement).toBe(input)
+    })
+  })
+
+  it('does not render a false zero document-search count while async counting is pending', async () => {
+    const api = new MockMarkFlowAPI()
+    const content = ['MarkFlow', 'meta flow', 'microfilm'].join('\n')
+    api.setStartupState({
+      document: {
+        filePath: '/tmp/searchable.md',
+        content,
+      },
+      folderPath: null,
+      windowSession: null,
+    })
+    window.markflow = api
+
+    render(<App />)
+
+    fireEvent.keyDown(document, { key: 'f', ctrlKey: true })
+
+    const input = await screen.findByRole('textbox', { name: 'Search document' })
+    fireEvent.change(input, { target: { value: 'mf' } })
+
+    expect(screen.getByText('Searching...')).toBeInTheDocument()
+    expect(screen.queryByText('0 matches')).not.toBeInTheDocument()
   })
 })
 

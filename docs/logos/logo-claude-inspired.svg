@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <defs>
+    <!-- four glass facets, each with its own refraction gradient -->
+    <linearGradient id="facetN" x1="50%" y1="0%" x2="50%" y2="100%">
+      <stop offset="0%"   stop-color="#FFD4A3"/>
+      <stop offset="100%" stop-color="#E8825A"/>
+    </linearGradient>
+    <linearGradient id="facetE" x1="100%" y1="50%" x2="0%" y2="50%">
+      <stop offset="0%"   stop-color="#D46A4A"/>
+      <stop offset="100%" stop-color="#F2A075"/>
+    </linearGradient>
+    <linearGradient id="facetS" x1="50%" y1="100%" x2="50%" y2="0%">
+      <stop offset="0%"   stop-color="#A84A38"/>
+      <stop offset="100%" stop-color="#D46A4A"/>
+    </linearGradient>
+    <linearGradient id="facetW" x1="0%" y1="50%" x2="100%" y2="50%">
+      <stop offset="0%"   stop-color="#E8936E"/>
+      <stop offset="100%" stop-color="#C96442"/>
+    </linearGradient>
+    <!-- soft outer glow -->
+    <radialGradient id="aura" cx="50%" cy="50%" r="60%">
+      <stop offset="70%" stop-color="#E8825A" stop-opacity="0"/>
+      <stop offset="100%" stop-color="#E8825A" stop-opacity="0.18"/>
+    </radialGradient>
+  </defs>
+
+  <!-- soft refraction halo -->
+  <circle cx="100" cy="100" r="96" fill="url(#aura)"/>
+
+  <!-- Prism — rotated square split into four crystal facets.
+       Evokes markdown → rendered transformation at the heart of the product. -->
+  <g>
+    <!-- North facet (top) -->
+    <polygon points="100,22 178,100 100,100" fill="url(#facetN)"/>
+    <!-- East facet (right) -->
+    <polygon points="178,100 100,178 100,100" fill="url(#facetE)"/>
+    <!-- South facet (bottom) -->
+    <polygon points="100,178 22,100 100,100" fill="url(#facetS)"/>
+    <!-- West facet (left) -->
+    <polygon points="22,100 100,22 100,100" fill="url(#facetW)"/>
+  </g>
+
+  <!-- Asymmetric highlight — glass edge catching light on the upper-left facet -->
+  <path d="M100 22 L100 100" stroke="#FFF3E8" stroke-width="1.5" stroke-opacity="0.55"/>
+  <path d="M100 22 L60 60"   stroke="#FFF3E8" stroke-width="1"   stroke-opacity="0.35"/>
+
+  <!-- subtle outer contour keeps the shape crisp at small sizes -->
+  <polygon points="100,22 178,100 100,178 22,100"
+           fill="none" stroke="#7A2E1A" stroke-width="1" stroke-opacity="0.25"/>
+</svg>

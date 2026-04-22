@@ -1506,7 +1506,6 @@ export const MarkFlowEditor = forwardRef<MarkFlowEditorHandle, MarkFlowEditorPro
           ],
           userEvent: 'select.search',
         })
-        view.focus()
         return true
       },
       replaceTextOccurrence: (searchText, replacementText, occurrenceIndex = 0) => {

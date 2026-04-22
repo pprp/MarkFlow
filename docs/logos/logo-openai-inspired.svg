@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <defs>
+    <radialGradient id="nodeGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%"   stop-color="#F3C56B"/>
+      <stop offset="50%"  stop-color="#D4903A"/>
+      <stop offset="100%" stop-color="#7A3E1D"/>
+    </radialGradient>
+  </defs>
+
+  <!-- Constellation — three nodes connected by smooth arcs forming
+       a single continuous glyph. Minimal, monochrome-friendly,
+       reads at 16px. Evokes the invisible graph between writer,
+       text, and model. -->
+
+  <!-- connecting arcs drawn as a single fluid path -->
+  <path d="M44 58
+           C 80 20, 130 20, 162 62
+           C 180 90, 170 130, 138 148
+           C 100 170, 60 150, 48 112
+           C 40 86, 40 70, 44 58 Z"
+        fill="none"
+        stroke="#2A251F"
+        stroke-width="7"
+        stroke-linecap="round"
+        stroke-linejoin="round"/>
+
+  <!-- internal crossing arc — gives the constellation depth; the
+       intentional asymmetry is what separates this from a plain loop -->
+  <path d="M44 58
+           C 80 100, 120 118, 162 62"
+        fill="none"
+        stroke="#2A251F"
+        stroke-width="7"
+        stroke-linecap="round"
+        stroke-linejoin="round"/>
+
+  <!-- three anchor nodes — one glowing, two solid -->
+  <circle cx="44"  cy="58"  r="10" fill="#2A251F"/>
+  <circle cx="162" cy="62"  r="10" fill="#2A251F"/>
+  <circle cx="138" cy="148" r="14" fill="url(#nodeGlow)"/>
+  <circle cx="138" cy="148" r="5"  fill="#FFF3E8"/>
+</svg>

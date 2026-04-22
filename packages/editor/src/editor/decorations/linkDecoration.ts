@@ -10,6 +10,71 @@ import { syntaxTree } from '@codemirror/language'
 import { RangeSetBuilder, RangeSet, Text } from '@codemirror/state'
 import { getDecorationViewportWindow } from './viewportWindow'
 
+let activeLightbox: HTMLElement | null = null
+
+function openImageLightbox(src: string, alt: string) {
+  if (activeLightbox) {
+    activeLightbox.remove()
+    activeLightbox = null
+  }
+
+  const overlay = document.createElement('div')
+  overlay.className = 'mf-lightbox'
+  overlay.setAttribute('role', 'dialog')
+  overlay.setAttribute('aria-label', alt || 'Image preview')
+
+  const titleBar = document.createElement('div')
+  titleBar.className = 'mf-lightbox-titlebar'
+  titleBar.textContent = alt || 'Image preview'
+
+  const closeBtn = document.createElement('button')
+  closeBtn.className = 'mf-lightbox-close'
+  closeBtn.textContent = '✕'
+  closeBtn.setAttribute('aria-label', 'Close')
+  titleBar.append(closeBtn)
+
+  const img = document.createElement('img')
+  img.src = src
+  img.alt = alt
+  img.className = 'mf-lightbox-img'
+
+  overlay.append(titleBar, img)
+  document.body.append(overlay)
+  activeLightbox = overlay
+
+  // Draggable via titleBar
+  let dragOffsetX = 0
+  let dragOffsetY = 0
+  titleBar.addEventListener('pointerdown', (e) => {
+    if (e.button !== 0) return
+    titleBar.setPointerCapture(e.pointerId)
+    const rect = overlay.getBoundingClientRect()
+    dragOffsetX = e.clientX - rect.left
+    dragOffsetY = e.clientY - rect.top
+    overlay.style.margin = '0'
+  })
+  titleBar.addEventListener('pointermove', (e) => {
+    if (!titleBar.hasPointerCapture(e.pointerId)) return
+    overlay.style.left = `${e.clientX - dragOffsetX}px`
+    overlay.style.top = `${e.clientY - dragOffsetY}px`
+  })
+  titleBar.addEventListener('pointerup', (e) => {
+    titleBar.releasePointerCapture(e.pointerId)
+  })
+
+  const close = () => {
+    overlay.remove()
+    if (activeLightbox === overlay) activeLightbox = null
+    document.removeEventListener('keydown', onKeyDown)
+  }
+
+  const onKeyDown = (e: KeyboardEvent) => {
+    if (e.key === 'Escape') close()
+  }
+  closeBtn.addEventListener('click', close)
+  document.addEventListener('keydown', onKeyDown)
+}
+
 const IMAGE_WIDGET_ROOT_MARGIN = '256px 0px'
 const MIN_IMAGE_RESIZE_PX = 24
 const imageWidgetCleanup = new WeakMap<HTMLElement, () => void>()
@@ -434,6 +499,12 @@ class ImageWidget extends WidgetType {
 
       shell.append(handle)
     }
+
+    img.addEventListener('dblclick', (e) => {
+      e.preventDefault()
+      e.stopPropagation()
+      openImageLightbox(this.src, this.alt)
+    })
 
     return shell
   }

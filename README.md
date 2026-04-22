@@ -1,23 +1,43 @@
 # MarkFlow
 
-> Write in flow, publish anywhere.
+> **Markdown that gets out of your way.**
 
-A Typora-inspired WYSIWYG markdown editor built on CodeMirror 6. Markdown syntax hides as you type — you see rich text, not markup.
+*Write in flow, publish anywhere.*
+
+MarkFlow is a WYSIWYG markdown editor that makes the syntax invisible — not by hiding it in a separate preview pane, but by erasing it **right where you type**. Move your cursor away from a heading and the `##` disappears. Bold text looks bold. Links look like links. You stay in one document, in one mode, always.
+
+No split panes. No preview lag. No mode-switching. Just writing.
 
 ![CI](https://github.com/pprp/MarkFlow/actions/workflows/ci.yml/badge.svg)
 
 ---
 
+## Why MarkFlow?
+
+| Pain point | Other editors | MarkFlow |
+|---|---|---|
+| Markdown clutter | Syntax always visible | Syntax hides on blur |
+| Split-pane distraction | Side-by-side source + preview | Single unified canvas |
+| Context switching | Toggle between two modes | One continuous writing flow |
+| Export lock-in | Proprietary formats | Plain `.md` — works everywhere |
+| Heavy Electron apps | 200 MB+ installers | Lean build, fast startup |
+
+MarkFlow borrows Typora's core idea — the illusion that markdown doesn't exist — and builds it on **CodeMirror 6's inline decoration API**, giving you a hackable, open foundation instead of a black box.
+
+---
+
 ## Features
 
-- **WYSIWYG editing** — markdown syntax hides when your cursor moves away
-- **Inline decorations** — headings, bold, italic, code, links, blockquotes, task lists all render in-place
-- **Source toggle** — switch between rendered and raw markdown at any time (`Ctrl+/`)
-- **Smart input** — auto-pairs for `*`, `_`, `` ` ``, `[`, auto-continues list items on Enter
-- **Code blocks** — syntax-highlighted fenced blocks with language label
-- **Floating toolbar** — bold, italic, strikethrough, code, link actions appear on text selection
+- **Inline WYSIWYG** — syntax hides as your cursor moves away; no separate preview pane
+- **Source toggle** — reveal the raw markdown instantly with `Ctrl+/`
+- **Rich decorations** — headings, bold, italic, code, links, images, blockquotes, task lists all render in-place
+- **Syntax-highlighted code blocks** — fenced blocks with language label
+- **Floating toolbar** — bold, italic, strikethrough, code, link actions on text selection
+- **Smart input** — auto-pairs for `*`, `_`, `` ` ``, `[`; auto-continues list items on Enter
 - **File open / save** — native file dialogs via Electron
-- **Desktop app** — macOS `.dmg` built with Electron, native window chrome
+- **Desktop app** — macOS `.dmg` built with Electron
+
+---
 
 ## Tech Stack
 
@@ -31,6 +51,8 @@ A Typora-inspired WYSIWYG markdown editor built on CodeMirror 6. Markdown syntax
 | Tests | Vitest |
 | Linting | ESLint + Prettier |
 
+---
+
 ## Packages
 
 ```
@@ -39,6 +61,8 @@ packages/
   desktop/   # Electron main + preload wrapper
   shared/    # Shared TypeScript types
 ```
+
+---
 
 ## Getting Started
 
@@ -60,6 +84,8 @@ pnpm test
 # Build everything
 pnpm build
 ```
+
+---
 
 ## Roadmap
 
@@ -84,6 +110,8 @@ pnpm build
 - [ ] Plugin API (`registerMarkdownPostProcessor`)
 - [ ] Block renderers (Excalidraw, code execution)
 - [ ] CRDT collaboration via Yjs (opt-in)
+
+---
 
 ## Contributing
 

@@ -28,6 +28,14 @@ fileAssociations:
 
 mac:
   category: public.app-category.productivity
+  # Sign with Developer ID if CSC_LINK + CSC_KEY_PASSWORD env vars are set.
+  # If not set, electron-builder skips signing (ad-hoc only — users must run
+  # `xattr -cr MarkFlow.app` to bypass Gatekeeper on unsigned builds).
+  identity: null   # set to "Developer ID Application: Your Name (TEAMID)" when signing
+  hardenedRuntime: true
+  gatekeeperAssess: false
+  entitlementsInherit: build/entitlements.mac.plist
+  notarize: false  # set to true and configure APPLE_ID / APPLE_APP_SPECIFIC_PASSWORD when notarizing
   target:
     - target: dmg
       arch: [x64, arm64]

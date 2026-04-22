@@ -4,7 +4,8 @@ import './DocumentSearch.css'
 interface DocumentSearchProps {
   isOpen: boolean
   query: string
-  matchCount: number
+  matchCount: number | null
+  focusTrigger?: number
   onChange: (value: string) => void
   onClose: () => void
   onNext: () => void
@@ -15,6 +16,7 @@ export function DocumentSearch({
   isOpen,
   query,
   matchCount,
+  focusTrigger,
   onChange,
   onClose,
   onNext,
@@ -36,13 +38,19 @@ export function DocumentSearch({
       input.focus()
       input.select()
     })
-  }, [isOpen])
+  }, [isOpen, focusTrigger])
 
   if (!isOpen) {
     return null
   }
 
-  const statusText = query.trim().length === 0 ? 'Type to search' : `${matchCount} matches`
+  const trimmedQuery = query.trim()
+  const statusText =
+    trimmedQuery.length === 0
+      ? 'Type to search'
+      : matchCount === null
+        ? 'Searching...'
+        : `${matchCount} ${matchCount === 1 ? 'match' : 'matches'}`
 
   return (
     <form

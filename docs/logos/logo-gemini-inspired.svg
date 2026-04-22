@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <defs>
+    <linearGradient id="auroraRibbon" x1="10%" y1="10%" x2="90%" y2="90%">
+      <stop offset="0%"  stop-color="#D4903A"/>
+      <stop offset="45%" stop-color="#C47625"/>
+      <stop offset="100%" stop-color="#6F7843"/>
+    </linearGradient>
+  </defs>
+
+  <!-- A single continuous tapered brushstroke — an S-curve that
+       pinches in the middle, evoking flow of language and a cursor
+       gesture. Asymmetric on purpose. -->
+  <path d="M54 28
+           C 78 52, 88 78, 104 100
+           C 120 122, 146 148, 170 172
+           C 158 170, 138 158, 122 142
+           C 106 126, 96 110, 96 96
+           C 96 82, 86 66, 70 50
+           C 60 40, 54 34, 54 28 Z"
+        fill="url(#auroraRibbon)"/>
+
+  <!-- Small asymmetric accent — the "spark" marking the head of the stroke -->
+  <circle cx="46" cy="26" r="6" fill="#D4903A"/>
+  <circle cx="46" cy="26" r="2.5" fill="#FFF3E8"/>
+</svg>

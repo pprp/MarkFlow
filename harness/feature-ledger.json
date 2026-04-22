@@ -1352,9 +1352,9 @@
       "category": "phase-2-functional",
       "area": "@markflow/desktop",
       "priority": 3,
-      "status": "ready",
-      "passes": false,
-      "lastVerifiedAt": null,
+      "status": "verified",
+      "passes": true,
+      "lastVerifiedAt": "2026-04-21",
       "dependsOn": [],
       "notesRef": "features/MF-102.md"
     },
@@ -1619,6 +1619,21 @@
       "notesRef": "features/MF-121.md"
     },
     {
+      "id": "MF-122",
+      "title": "Rendered markdown table cells wrap long and multiline content instead of eliding it",
+      "category": "phase-2-polish",
+      "area": "@markflow/editor",
+      "priority": 2,
+      "status": "ready",
+      "passes": false,
+      "lastVerifiedAt": null,
+      "dependsOn": [
+        "MF-013",
+        "MF-069"
+      ],
+      "notesRef": "features/MF-122.md"
+    },
+    {
       "id": "MF-123",
       "title": "Saving an untitled new file prompts for the target folder and filename",
       "category": "phase-1-functional",
@@ -1642,7 +1657,9 @@
       "status": "verified",
       "passes": true,
       "lastVerifiedAt": "2026-04-21T14:25:31+08:00",
-      "dependsOn": ["MF-035"],
+      "dependsOn": [
+        "MF-035"
+      ],
       "notesRef": "features/MF-124.md"
     },
     {
@@ -1654,7 +1671,9 @@
       "status": "verified",
       "passes": true,
       "lastVerifiedAt": "2026-04-21T14:43:58+08:00",
-      "dependsOn": ["MF-035"],
+      "dependsOn": [
+        "MF-035"
+      ],
       "notesRef": "features/MF-125.md"
     },
     {
@@ -1666,8 +1685,195 @@
       "status": "verified",
       "passes": true,
       "lastVerifiedAt": "2026-04-21T15:05:19+08:00",
-      "dependsOn": ["MF-035"],
+      "dependsOn": [
+        "MF-035"
+      ],
       "notesRef": "features/MF-126.md"
+    },
+    {
+      "id": "MF-127",
+      "title": "toggleViewMode (Mod+/) jumps to WYSIWYG instead of Source when in Reading or Split mode",
+      "category": "bug",
+      "area": "@markflow/editor",
+      "priority": 2,
+      "status": "ready",
+      "passes": false,
+      "lastVerifiedAt": null,
+      "dependsOn": [
+        "MF-004"
+      ],
+      "notesRef": "features/MF-127.md"
+    },
+    {
+      "id": "MF-128",
+      "title": "Document search shows \"1 matches\" (grammar) and flashes \"0 matches\" before worker responds",
+      "category": "bug",
+      "area": "@markflow/editor",
+      "priority": 2,
+      "status": "verified",
+      "passes": true,
+      "lastVerifiedAt": "2026-04-22T13:33:08+08:00",
+      "dependsOn": [
+        "MF-053"
+      ],
+      "notesRef": "features/MF-128.md"
+    },
+    {
+      "id": "MF-129",
+      "title": "Outline panel collapse state is not persisted across sessions",
+      "category": "bug",
+      "area": "@markflow/editor",
+      "priority": 2,
+      "status": "ready",
+      "passes": false,
+      "lastVerifiedAt": null,
+      "dependsOn": [
+        "MF-020"
+      ],
+      "notesRef": "features/MF-129.md"
+    },
+    {
+      "id": "MF-130",
+      "title": "Status bar shows stale cursor line number after tab is loaded from a snapshot",
+      "category": "bug",
+      "area": "@markflow/editor",
+      "priority": 2,
+      "status": "ready",
+      "passes": false,
+      "lastVerifiedAt": null,
+      "dependsOn": [
+        "MF-007"
+      ],
+      "notesRef": "features/MF-130.md"
+    },
+    {
+      "id": "MF-131",
+      "title": "Outline toggle button appears in titlebar when sidebar already shows the outline",
+      "category": "bug",
+      "area": "@markflow/editor",
+      "priority": 2,
+      "status": "ready",
+      "passes": false,
+      "lastVerifiedAt": null,
+      "dependsOn": [
+        "MF-020",
+        "MF-041"
+      ],
+      "notesRef": "features/MF-131.md"
+    },
+    {
+      "id": "MF-132",
+      "title": "Export editor instance is editable and missing onDocumentEdit",
+      "category": "bug",
+      "area": "@markflow/editor",
+      "priority": 3,
+      "status": "ready",
+      "passes": false,
+      "lastVerifiedAt": null,
+      "dependsOn": [
+        "MF-015"
+      ],
+      "notesRef": "features/MF-132.md"
+    },
+    {
+      "id": "MF-133",
+      "title": "Mac detection uses deprecated navigator.platform",
+      "category": "bug",
+      "area": "@markflow/editor",
+      "priority": 3,
+      "status": "ready",
+      "passes": false,
+      "lastVerifiedAt": null,
+      "dependsOn": [],
+      "notesRef": "features/MF-133.md"
+    },
+    {
+      "id": "MF-134",
+      "title": "Closing the last tab briefly sets activeTabId to null",
+      "category": "bug",
+      "area": "@markflow/editor",
+      "priority": 3,
+      "status": "ready",
+      "passes": false,
+      "lastVerifiedAt": null,
+      "dependsOn": [
+        "MF-088"
+      ],
+      "notesRef": "features/MF-134.md"
+    },
+    {
+      "id": "MF-135",
+      "title": "Global search opens with no explanation when no vault folder is open",
+      "category": "bug",
+      "area": "@markflow/editor",
+      "priority": 3,
+      "status": "ready",
+      "passes": false,
+      "lastVerifiedAt": null,
+      "dependsOn": [
+        "MF-045"
+      ],
+      "notesRef": "features/MF-135.md"
+    },
+    {
+      "id": "MF-136",
+      "title": "Double-clicking an image opens a moveable floating lightbox window",
+      "category": "phase-2-functional",
+      "area": "@markflow/editor",
+      "priority": 3,
+      "status": "ready",
+      "passes": false,
+      "lastVerifiedAt": null,
+      "dependsOn": [],
+      "notesRef": "features/MF-136.md"
+    },
+    {
+      "id": "MF-137",
+      "title": "Pandoc import converts DOCX, RTF, EPUB, OPML, and other supported formats into editable markdown",
+      "category": "phase-2-functional",
+      "area": "@markflow/desktop",
+      "priority": 3,
+      "status": "planned",
+      "passes": false,
+      "lastVerifiedAt": null,
+      "dependsOn": [
+        "MF-007",
+        "MF-046"
+      ],
+      "notesRef": "features/MF-137.md"
+    },
+    {
+      "id": "MF-138",
+      "title": "Export presets remember previous targets and can be customized with YAML-aware options",
+      "category": "phase-2-functional",
+      "area": "@markflow/desktop",
+      "priority": 3,
+      "status": "planned",
+      "passes": false,
+      "lastVerifiedAt": null,
+      "dependsOn": [
+        "MF-015",
+        "MF-025",
+        "MF-046",
+        "MF-108"
+      ],
+      "notesRef": "features/MF-138.md"
+    },
+    {
+      "id": "MF-139",
+      "title": "File sidebar supports Typora-style refresh, sort, move, duplicate, copy path, and undo file operations",
+      "category": "phase-2-functional",
+      "area": "@markflow/desktop",
+      "priority": 3,
+      "status": "planned",
+      "passes": false,
+      "lastVerifiedAt": null,
+      "dependsOn": [
+        "MF-041",
+        "MF-083",
+        "MF-090"
+      ],
+      "notesRef": "features/MF-139.md"
     }
   ]
 }

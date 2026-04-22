@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>MarkFlow Logo Concepts</title>
+  <style>
+    body {
+      background: #f0f0f0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 48px 24px;
+      gap: 48px;
+    }
+    h1 { color: #1a1a1a; font-size: 24px; margin: 0; }
+    .logos {
+      display: flex;
+      gap: 48px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    .logo-card {
+      background: white;
+      border-radius: 20px;
+      padding: 32px;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.1);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+      width: 240px;
+    }
+    .logo-card h2 { margin: 0; font-size: 15px; color: #333; }
+    .logo-card p { margin: 0; font-size: 12px; color: #888; text-align: center; line-height: 1.5; }
+    .logo-card img { width: 120px; height: 120px; }
+
+    /* Dark background cards to show light logos */
+    .dark-bg { background: #1B1A18; }
+    .dark-bg h2 { color: #eee; }
+    .dark-bg p { color: #888; }
+
+    .sizes {
+      display: flex;
+      gap: 16px;
+      align-items: center;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    .sizes img { border-radius: 12px; }
+  </style>
+</head>
+<body>
+  <h1>MarkFlow — Logo Concepts</h1>
+
+  <div class="logos">
+    <!-- Gemini-inspired -->
+    <div class="logo-card">
+      <img src="logo-gemini-inspired.svg" alt="Gemini-inspired logo">
+      <h2>Concept 1 — Gemini</h2>
+      <p>Four-pointed stroke in amber, copper, and olive. The crossing axes evoke flow and direction; inner lines hint at text.</p>
+    </div>
+
+    <!-- Claude-inspired -->
+    <div class="logo-card">
+      <img src="logo-claude-inspired.svg" alt="Claude-inspired logo">
+      <h2>Concept 2 — Claude</h2>
+      <p>Warm terracotta petals blooming from center on a rounded square. The M letterform anchors MarkFlow identity.</p>
+    </div>
+
+    <!-- OpenAI-inspired -->
+    <div class="logo-card dark-bg">
+      <img src="logo-openai-inspired.svg" alt="OpenAI-inspired logo">
+      <h2>Concept 3 — OpenAI</h2>
+      <p>Geometric interlocked rings on deep black circle. Clean, minimal, rotational symmetry with M at center.</p>
+    </div>
+  </div>
+
+  <div class="sizes">
+    <img src="logo-gemini-inspired.svg" width="64" height="64" style="background:white; padding:8px; border-radius:8px;">
+    <img src="logo-claude-inspired.svg" width="64" height="64" style="background:white; padding:8px; border-radius:8px;">
+    <img src="logo-openai-inspired.svg" width="64" height="64" style="background:#1B1A18; padding:8px; border-radius:8px;">
+    <img src="logo-gemini-inspired.svg" width="32" height="32" style="background:white; padding:4px; border-radius:6px;">
+    <img src="logo-claude-inspired.svg" width="32" height="32" style="background:white; padding:4px; border-radius:6px;">
+    <img src="logo-openai-inspired.svg" width="32" height="32" style="background:#1B1A18; padding:4px; border-radius:6px;">
+  </div>
+</body>
+</html>
