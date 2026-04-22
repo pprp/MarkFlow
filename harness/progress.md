@@ -5012,3 +5012,63 @@ next: MF-051 - Outline panel lists all headings with live scroll-sync and click-
 - Next recommended feature:
   - If a trusted desktop/manual session is available, finish `MF-087` by opening a Typora diagram sample document with Venn and Ishikawa diagrams and compare it against MarkFlow.
   - If the automation environment remains manual-gated, skip promotion and continue with the next small automatable ready feature; `MF-076` remains harness-next but still depends on Microsoft Word for its full paste matrix.
+
+### 2026-04-22T20:15:13+08:00 - MF-086 fenced math implemented; broader math parity remains open
+
+- Author: Codex
+- Focus: strict one-feature automation cycle with the required Dispatcher -> Researcher -> Implementer -> Reviewer subagent loop.
+- Startup / baseline:
+  - Read `/Users/pprp/.codex/automations/typora-replication/memory.md`.
+  - Ran `pnpm harness:start`.
+  - Ran initial `./harness/init.sh --smoke`; it passed before feature work.
+  - The baseline working tree was clean before Researcher edits, so there was no pre-existing smoke-passing diff to commit.
+- Research updates:
+  - Refined `MF-086` so the existing math backlog item now explicitly includes Typora-style fenced code-block math.
+  - Refined `MF-087` so the existing diagram backlog item now explicitly includes Typora-style block diagrams.
+  - No new feature was appended because both gaps fit existing ledger entries.
+  - Sources used by Researcher: Typora homepage, Markdown Reference, Math docs, Preferences, Diagram Options, Export, Quick Start, Images, Task List, and Typora 1.9/1.13 release notes.
+- Implemented feature work:
+  - Selected `MF-086` because the newly refined fenced-math slice was source-backed, automatable, and contained enough scope for a single run.
+  - Added ` ```math ` fenced block support to the math decoration pipeline so fenced math renders through the existing KaTeX block widget.
+  - Excluded ` ```math ` fences from ordinary code-block language badge/source hiding decorations, preventing duplicate renderers on the same block.
+  - Added focused regressions for fenced math rendering, source preservation, cursor-inside source reveal, non-math fence isolation, and code-block decoration exclusion.
+  - Updated `harness/features/MF-086.md` to record covered fenced-math behavior and the remaining equation numbering/reference, line-break, TeX-package, and live Typora parity gates.
+  - Left `MF-086` as `status=ready`, `passes=false`, and `lastVerifiedAt=null` because the broader math parity item is not complete.
+- Changed files:
+  - `packages/editor/src/editor/decorations/mathDecoration.ts`
+  - `packages/editor/src/editor/decorations/codeBlockDecoration.ts`
+  - `packages/editor/src/editor/__tests__/mathDecoration.test.ts`
+  - `harness/features/MF-086.md`
+  - `harness/feature-ledger.json`
+  - `harness/progress.md`
+- Simplifications made:
+  - Reused the existing block math widget instead of introducing a separate fenced-math renderer.
+  - Reused CodeMirror's parsed fenced-code nodes instead of adding text-only fence scanning.
+  - Kept math fences out of the ordinary code-block decoration path rather than layering two widgets over the same source.
+- Verification:
+  - Initial `./harness/init.sh --smoke` passed before feature work:
+    - `packages/desktop`: `10` test files / `68` tests passed.
+    - `packages/editor`: `44` test files / `484` tests passed / `3` skipped.
+  - Implementer reported red-first evidence: the focused math widget test failed before implementation and the code-block guard failed while math fences still received ordinary code-block decorations.
+  - Implementer verification passed:
+    - `pnpm --filter @markflow/editor test:run src/editor/__tests__/mathDecoration.test.ts` (`25` tests passed).
+    - `pnpm --filter @markflow/editor test:run src/editor/__tests__/codeBlockDecoration.test.ts` (`16` tests passed).
+    - `pnpm --filter @markflow/editor lint`.
+    - `pnpm --filter @markflow/editor build`, with the existing large-chunk warning.
+    - `pnpm harness:verify`.
+    - `git diff --check`.
+  - Reviewer reran/read-only checked `git diff --check`, focused math and code-block tests, `pnpm harness:verify`, and editor lint; all passed.
+  - Dispatcher reran:
+    - `pnpm --filter @markflow/editor test:run src/editor/__tests__/mathDecoration.test.ts` (`25` tests passed).
+    - `pnpm --filter @markflow/editor test:run src/editor/__tests__/codeBlockDecoration.test.ts` (`16` tests passed).
+    - `pnpm harness:verify` (`143 total | verified=88 | ready=33 | planned=21 | blocked=1 | regression=0`; next: `MF-076`).
+    - `git diff --check`.
+    - `pnpm --filter @markflow/editor lint`.
+    - `pnpm --filter @markflow/editor build`, with the existing large-chunk warning.
+    - Final `./harness/init.sh --smoke`, which passed with desktop `68` tests and editor `489` tests (`3` skipped).
+- Review:
+  - Reviewer accepted the MF-086 fenced-math slice as scoped and aligned with the ledger.
+  - Residual risk: equation numbering, `\ref` resolution, line-break behavior, TeX-package parity, and live Typora visual parity remain incomplete/unverified.
+- Next recommended feature:
+  - If staying in automation, continue `MF-086` with equation numbering and `\ref` resolution because it is now the active source-backed math parity path.
+  - If a trusted desktop/manual session with `Microsoft Word.app` is available, finish the still harness-selected `MF-076` paste matrix before promoting it.

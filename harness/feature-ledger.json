@@ -1127,7 +1127,7 @@
     },
     {
       "id": "MF-086",
-      "title": "Math parity covers Typora-style equation numbering, line breaks, and TeX package support",
+      "title": "Math parity covers Typora-style code-block math, equation numbering, line breaks, and TeX package support",
       "category": "phase-2-functional",
       "area": "@markflow/editor",
       "priority": 3,
@@ -1142,7 +1142,7 @@
     },
     {
       "id": "MF-087",
-      "title": "Flowchart, sequence, gantt, Venn, and Ishikawa fences render alongside Mermaid",
+      "title": "Flowchart, sequence, gantt, block, Venn, and Ishikawa diagrams render from Typora-style fences",
       "category": "phase-2-functional",
       "area": "@markflow/editor",
       "priority": 3,

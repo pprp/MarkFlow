@@ -122,6 +122,13 @@ const inlineMathPatterns = [
   /(?<!\\)\\\(([^$\n]+?)\\\)/g,
 ]
 
+const MATH_FENCE_LANGUAGES = ['math'] as const
+
+export function isMathFenceLanguage(info: string) {
+  const lang = info.trim().toLowerCase().split(/\s+/u)[0]
+  return (MATH_FENCE_LANGUAGES as readonly string[]).includes(lang)
+}
+
 export function buildMathDecorations(view: EditorView): DecorationSet {
   const builder = new RangeSetBuilder<Decoration>()
   const doc = view.state.doc
@@ -132,6 +139,53 @@ export function buildMathDecorations(view: EditorView): DecorationSet {
   const entries: DecoEntry[] = []
   // Ranges spanned by multi-line $$...$$ blocks (so inline scan can skip them).
   const blockMathRanges: Array<{ from: number; to: number }> = []
+
+  // ── Fenced block math: ```math ... ``` ───────────────────────────────────
+  syntaxTree(view.state).iterate({
+    from: minFrom,
+    to: maxTo,
+    enter(node) {
+      if (node.name !== 'FencedCode') return
+
+      const infoNode = node.node.getChild('CodeInfo')
+      if (!infoNode) return false
+
+      const info = doc.sliceString(infoNode.from, infoNode.to)
+      if (!isMathFenceLanguage(info)) return false
+
+      const textNode = node.node.getChild('CodeText')
+      if (!textNode) return false
+
+      const source = doc.sliceString(textNode.from, textNode.to)
+      if (!source.trim()) return false
+
+      const blockFrom = node.from
+      const blockTo = node.to
+      blockMathRanges.push({ from: blockFrom, to: blockTo })
+
+      if (cursor >= blockFrom && cursor <= blockTo) return false
+
+      const firstLine = doc.lineAt(blockFrom)
+      const lastLine = doc.lineAt(blockTo)
+
+      entries.push({
+        from: firstLine.from,
+        to: firstLine.to,
+        deco: Decoration.replace({ widget: new BlockMathWidget(source) }),
+      })
+
+      for (let lineNum = firstLine.number + 1; lineNum <= lastLine.number - 1; lineNum += 1) {
+        const line = doc.line(lineNum)
+        entries.push({ from: line.from, to: line.to, deco: Decoration.replace({}) })
+      }
+
+      if (lastLine.from !== firstLine.from) {
+        entries.push({ from: lastLine.from, to: lastLine.to, deco: Decoration.replace({}) })
+      }
+
+      return false
+    },
+  })
 
   // ── Multi-line block math: $$\n…\n$$ ─────────────────────────────────────
   // A line whose trimmed content is exactly "$$" acts as open/close delimiter.

@@ -3,6 +3,7 @@ import { EditorState } from '@codemirror/state'
 import { EditorView } from '@codemirror/view'
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown'
 import { mathDecorations, buildMathDecorations } from '../decorations/mathDecoration'
+import { buildCodeBlockDecorations, codeBlockDecorations } from '../decorations/codeBlockDecoration'
 
 // Mock katex to avoid requiring a real browser rendering environment
 vi.mock('katex', () => ({
@@ -33,6 +34,15 @@ function mathWidgetClasses(view: EditorView): string[] {
     if (className) classes.push(className)
   })
   return classes
+}
+
+function codeBlockDecorationCount(view: EditorView): number {
+  let count = 0
+  const decoSet = buildCodeBlockDecorations(view)
+  decoSet.between(0, view.state.doc.length, () => {
+    count += 1
+  })
+  return count
 }
 
 describe('mathDecorations — inline math $...$', () => {
@@ -114,6 +124,57 @@ describe('mathDecorations — block math $$...$$', () => {
     const doc = 'Formula: $$x^2$$'
     const view = makeView(doc)
     expect(view.state.doc.toString()).toBe(doc)
+    view.destroy()
+  })
+})
+
+describe('mathDecorations — fenced math blocks', () => {
+  it('renders ```math fences through the block math widget', () => {
+    const doc = 'Before\n```math\nE = mc^2\n```\nAfter'
+    const view = makeView(doc)
+    const classes = mathWidgetClasses(view)
+    expect(classes).toContain('mf-math-block')
+    view.destroy()
+  })
+
+  it('preserves source content for ```math fences', () => {
+    const doc = 'Before\n```math\n\\int_0^1 x\\ dx\n```\nAfter'
+    const view = makeView(doc)
+    expect(view.state.doc.toString()).toBe(doc)
+    view.destroy()
+  })
+
+  it('reveals ```math fence source when the cursor is inside', () => {
+    const doc = 'Before\n```math\nE = mc^2\n```\nAfter'
+    const view = makeView(doc, doc.indexOf('E ='))
+    const classes = mathWidgetClasses(view)
+    expect(classes).not.toContain('mf-math-block')
+    view.destroy()
+  })
+
+  it('does not render non-math fenced code as math', () => {
+    const doc = "```typescript\nconst price = '$5'\n```"
+    const view = makeView(doc)
+    const classes = mathWidgetClasses(view)
+    expect(classes).not.toContain('mf-math-block')
+    expect(classes).not.toContain('mf-math-inline')
+    view.destroy()
+  })
+
+  it('does not decorate ```math fences as ordinary code blocks', () => {
+    const doc = 'Before\n```math\nE = mc^2\n```\nAfter'
+    const state = EditorState.create({
+      doc,
+      extensions: [
+        markdown({ base: markdownLanguage }),
+        codeBlockDecorations(),
+        mathDecorations(),
+      ],
+    })
+    const parent = document.createElement('div')
+    document.body.appendChild(parent)
+    const view = new EditorView({ state, parent })
+    expect(codeBlockDecorationCount(view)).toBe(0)
     view.destroy()
   })
 })

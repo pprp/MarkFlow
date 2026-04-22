@@ -3,6 +3,7 @@ import { syntaxTree } from '@codemirror/language'
 import { RangeSetBuilder } from '@codemirror/state'
 import { getDecorationViewportWindow } from './viewportWindow'
 import { isDiagramFenceLanguage } from './mermaidDecoration'
+import { isMathFenceLanguage } from './mathDecoration'
 
 export class LanguageBadgeWidget extends WidgetType {
   constructor(readonly lang: string) {
@@ -40,7 +41,7 @@ export function buildCodeBlockDecorations(view: EditorView): DecorationSet {
       let lang = ''
       if (infoNode) {
         lang = doc.sliceString(infoNode.from, infoNode.to).trim().toLowerCase()
-        if (isDiagramFenceLanguage(lang)) return
+        if (isDiagramFenceLanguage(lang) || isMathFenceLanguage(lang)) return
       }
 
       const { from, to } = node
