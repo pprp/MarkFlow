@@ -55,6 +55,16 @@ const api: MarkFlowDesktopAPI = {
   exportDocx: (markdown: string, defaultPath: string) => ipcRenderer.invoke('export-docx', markdown, defaultPath),
   exportEpub: (markdown: string, defaultPath: string) => ipcRenderer.invoke('export-epub', markdown, defaultPath),
   exportLatex: (markdown: string, defaultPath: string) => ipcRenderer.invoke('export-latex', markdown, defaultPath),
+  exportHtmlToPath: (html: string, targetPath: string) =>
+    ipcRenderer.invoke('export-html-to-path', html, targetPath),
+  exportPdfToPath: (html: string, targetPath: string) =>
+    ipcRenderer.invoke('export-pdf-to-path', html, targetPath),
+  exportDocxToPath: (markdown: string, targetPath: string) =>
+    ipcRenderer.invoke('export-docx-to-path', markdown, targetPath),
+  exportEpubToPath: (markdown: string, targetPath: string) =>
+    ipcRenderer.invoke('export-epub-to-path', markdown, targetPath),
+  exportLatexToPath: (markdown: string, targetPath: string) =>
+    ipcRenderer.invoke('export-latex-to-path', markdown, targetPath),
   newFile: () => ipcRenderer.invoke('new-file'),
   getCurrentPath: () => ipcRenderer.invoke('get-current-path'),
   getQuickOpenList: () => ipcRenderer.invoke('get-quick-open-list'),

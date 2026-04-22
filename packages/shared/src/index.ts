@@ -403,6 +403,11 @@ export interface MarkFlowDesktopAPI {
   exportDocx: (markdown: string, defaultPath: string) => Promise<boolean>
   exportEpub: (markdown: string, defaultPath: string) => Promise<boolean>
   exportLatex: (markdown: string, defaultPath: string) => Promise<boolean>
+  exportHtmlToPath: (html: string, targetPath: string) => Promise<boolean>
+  exportPdfToPath: (html: string, targetPath: string) => Promise<boolean>
+  exportDocxToPath: (markdown: string, targetPath: string) => Promise<boolean>
+  exportEpubToPath: (markdown: string, targetPath: string) => Promise<boolean>
+  exportLatexToPath: (markdown: string, targetPath: string) => Promise<boolean>
   newFile: () => Promise<void>
   getCurrentPath: () => Promise<string | null>
   getQuickOpenList: () => Promise<MarkFlowQuickOpenItem[]>

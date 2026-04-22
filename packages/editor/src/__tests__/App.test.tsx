@@ -246,6 +246,11 @@ class MockMarkFlowAPI implements MarkFlowDesktopAPI {
   exportDocx: MarkFlowDesktopAPI['exportDocx'] = vi.fn(async () => true)
   exportEpub: MarkFlowDesktopAPI['exportEpub'] = vi.fn(async () => true)
   exportLatex: MarkFlowDesktopAPI['exportLatex'] = vi.fn(async () => true)
+  exportHtmlToPath: MarkFlowDesktopAPI['exportHtmlToPath'] = vi.fn(async () => true)
+  exportPdfToPath: MarkFlowDesktopAPI['exportPdfToPath'] = vi.fn(async () => true)
+  exportDocxToPath: MarkFlowDesktopAPI['exportDocxToPath'] = vi.fn(async () => true)
+  exportEpubToPath: MarkFlowDesktopAPI['exportEpubToPath'] = vi.fn(async () => true)
+  exportLatexToPath: MarkFlowDesktopAPI['exportLatexToPath'] = vi.fn(async () => true)
   openFolder: MarkFlowDesktopAPI['openFolder'] = vi.fn(async () => null)
   openFolderPath: MarkFlowDesktopAPI['openFolderPath'] = vi.fn(async () => null)
   getVaultFiles: MarkFlowDesktopAPI['getVaultFiles'] = vi.fn(async () => [])
@@ -3301,6 +3306,7 @@ describe('App export integration', () => {
 
   it('reuses the previous Pandoc export target for overwrite-with-previous', async () => {
     const api = new MockMarkFlowAPI()
+    const directDocxExport = api.exportDocxToPath as ReturnType<typeof vi.fn>
     window.markflow = api
 
     render(<App />)
@@ -3325,10 +3331,47 @@ describe('App export integration', () => {
     })
 
     await waitFor(() => {
-      expect(api.exportDocx).toHaveBeenCalledTimes(2)
+      expect(directDocxExport).toHaveBeenCalledTimes(1)
     })
 
-    expect(api.exportDocx).toHaveBeenLastCalledWith('# Report\n\nBody text.', '/docs/report.docx')
+    expect(api.exportDocx).toHaveBeenCalledTimes(1)
+    expect(directDocxExport).toHaveBeenLastCalledWith('# Report\n\nBody text.', '/docs/report.docx')
+  })
+
+  it('directly overwrites the previous HTML target without reusing the dialog-backed export API', async () => {
+    const api = new MockMarkFlowAPI()
+    const directHtmlExport = api.exportHtmlToPath as ReturnType<typeof vi.fn>
+    window.markflow = api
+
+    render(<App />)
+
+    await act(async () => {
+      api.emitFileOpened({ filePath: '/docs/exportme.md', content: '# Hello\n\nSome text' })
+    })
+
+    await act(async () => {
+      api.emitMenuAction('export-html')
+    })
+
+    await waitFor(() => {
+      expect(api.exportHtml).toHaveBeenCalledTimes(1)
+    }, { timeout: 2000 })
+
+    await act(async () => {
+      api.emitFileSaved({ filePath: '/docs/renamed.md' })
+    })
+    await act(async () => {
+      api.emitMenuAction('export-overwrite-with-previous' as MarkFlowMenuAction)
+    })
+
+    await waitFor(() => {
+      expect(directHtmlExport).toHaveBeenCalledTimes(1)
+    }, { timeout: 2000 })
+
+    expect(api.exportHtml).toHaveBeenCalledTimes(1)
+    const repeatedCallArgs = directHtmlExport.mock.calls[0]
+    expect(repeatedCallArgs[0]).toContain('Hello')
+    expect(repeatedCallArgs[1]).toBe('/docs/exportme.html')
   })
 
   it('generates HTML from a hidden editor and calls exportHtml', async () => {

@@ -5279,3 +5279,58 @@ next: MF-051 - Outline panel lists all headings with live scroll-sync and click-
 - Next recommended feature:
   - Continue `MF-138` by adding a main-process direct previous-target export path so `Export and Overwrite with Previous` can skip the save dialog truthfully.
   - If a trusted desktop/manual session is available, `MF-076` remains harness-next and still needs the Microsoft Word/webpage/VS Code paste matrix.
+
+### 2026-04-23T00:20:15+08:00 - MF-138 overwrite-with-previous now uses direct target exports
+
+- Author: Codex Dispatcher with Researcher/Implementer/Reviewer subagents
+- Focus: strict one-feature automation cycle for Typora export parity.
+- Startup / baseline:
+  - Read `/Users/pprp/.codex/automations/typora-replication/memory.md`.
+  - Ran `pnpm harness:start`; it reported `152` features and selected `MF-076` as harness-next.
+  - Ran initial `./harness/init.sh --smoke`; it passed before feature work with desktop `72` tests and editor `495` tests (`3` skipped).
+  - The baseline worktree was clean, so there was no pre-feature change to commit.
+- Research updates:
+  - Researcher used Typora Markdown Reference, Export, What's New, 1.13 release notes, Outline, and TOC docs.
+  - No ledger edit was made because new Copy as Plain Text / Open in Typora handoff candidates need matching feature note files, while export parity is already represented by `MF-138`.
+  - Recommended continuing `MF-138`.
+- Implemented feature work:
+  - Added explicit-target desktop bridge APIs for HTML, PDF, DOCX, EPUB, and LaTeX exports.
+  - Refactored desktop export internals so ordinary exports still open `dialog.showSaveDialog`, while direct exports write or invoke Pandoc against an explicit remembered path.
+  - Routed `Export and Overwrite with Previous` through direct APIs and kept ordinary `Export with Previous` dialog-backed with the remembered path as the default.
+  - Added IPC lifecycle cleanup for the new direct export channels before re-registration.
+  - Updated `harness/features/MF-138.md` with the direct-overwrite slice and the residual limitation.
+  - Left `MF-138` as `status=planned`, `passes=false`, and `lastVerifiedAt=null`.
+- Changed files:
+  - `harness/features/MF-138.md`
+  - `packages/shared/src/index.ts`
+  - `packages/desktop/src/preload/index.ts`
+  - `packages/desktop/src/main/fileManager.ts`
+  - `packages/desktop/src/main/fileManager.test.ts`
+  - `packages/editor/src/App.tsx`
+  - `packages/editor/src/__tests__/App.test.tsx`
+- Simplifications made:
+  - Kept the work to direct previous-target export instead of starting named export profiles or settings UI.
+  - Reused the existing HTML/PDF/Pandoc export paths behind explicit-target wrappers.
+  - Preserved the existing boolean dialog-backed API contract and documented the remaining path-capture limitation rather than widening the slice.
+- Verification:
+  - Implementer reported red-first coverage for missing direct APIs/overwrite routing, plus a red lifecycle test for missing `removeHandler` coverage.
+  - Reviewer accepted the initial implementation and the follow-up IPC lifecycle fix.
+  - Dispatcher reran:
+    - `pnpm --filter @markflow/desktop exec vitest run src/main/fileManager.test.ts` (`33` tests passed).
+    - `pnpm --filter @markflow/editor exec vitest run src/__tests__/App.test.tsx -t "App export integration"` (`7` tests passed, `65` skipped).
+    - `pnpm --filter @markflow/shared build`.
+    - `pnpm --filter @markflow/desktop lint`.
+    - `pnpm --filter @markflow/editor lint`.
+    - `pnpm --filter @markflow/desktop build`.
+    - `pnpm --filter @markflow/editor build`, which passed with the existing Vite large-chunk warning.
+    - `pnpm harness:verify` (`152 total | verified=89 | ready=32 | planned=30 | blocked=1 | regression=0`; next: `MF-076`).
+    - `python -m json.tool harness/feature-ledger.json`.
+    - `git diff --check`.
+    - Final `./harness/init.sh --smoke`, which passed with desktop `76` tests and editor `496` tests (`3` skipped).
+- Review:
+  - Reviewer accepted the final diff with no blockers.
+  - Residual risk: previous-export memory still records the renderer-computed/default target; capturing an arbitrary user-changed save-dialog destination remains future work because dialog-backed export APIs still return only success/failure.
+  - Full `MF-138` remains incomplete: named export profiles, YAML metadata flow, custom export items, and manual desktop export checks are not done.
+- Next recommended feature:
+  - Continue `MF-138` by changing dialog-backed exports to return the accepted save-dialog path, so previous-export memory tracks user-chosen destinations precisely.
+  - If a trusted desktop/manual session with Microsoft Word is available, `MF-076` remains harness-next for the paste matrix.

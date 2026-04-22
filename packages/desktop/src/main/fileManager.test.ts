@@ -140,6 +140,25 @@ describe('FileManager async saves', () => {
     vi.restoreAllMocks()
   })
 
+  it('clears direct export IPC handlers before registering replacements', () => {
+    const manager = new FileManager(createWindowStub() as never)
+
+    manager.registerIpcHandlers()
+
+    const directExportChannels = [
+      'export-html-to-path',
+      'export-pdf-to-path',
+      'export-docx-to-path',
+      'export-epub-to-path',
+      'export-latex-to-path',
+    ]
+
+    for (const channel of directExportChannels) {
+      expect(removeHandlerMock).toHaveBeenCalledWith(channel)
+      expect(handleMock).toHaveBeenCalledWith(channel, expect.any(Function))
+    }
+  })
+
   it('registers async save handlers that write the current file and emit file-saved', async () => {
     const writeFileMock = vi.spyOn(fs.promises, 'writeFile').mockResolvedValue()
     const window = createWindowStub()
@@ -748,6 +767,19 @@ describe('FileManager Pandoc exports', () => {
     )
   })
 
+  it('exports HTML directly to an explicit path without opening the save dialog', async () => {
+    const writeFileMock = vi.spyOn(fs.promises, 'writeFile').mockResolvedValue()
+    const manager = new FileManager(createWindowStub() as never)
+
+    const result = await (manager as unknown as {
+      exportHtmlToPath: (html: string, targetPath: string) => Promise<boolean>
+    }).exportHtmlToPath('<h1>Export</h1>', '/tmp/previous.html')
+
+    expect(result).toBe(true)
+    expect(showSaveDialogMock).not.toHaveBeenCalled()
+    expect(writeFileMock).toHaveBeenCalledWith('/tmp/previous.html', '<h1>Export</h1>', 'utf-8')
+  })
+
   it('exports PDF from a temporary HTML file with outline-aware print options', async () => {
     const writeFileMock = vi.spyOn(fs.promises, 'writeFile').mockResolvedValue()
     const unlinkMock = vi.spyOn(fs.promises, 'unlink').mockResolvedValue()
@@ -775,6 +807,19 @@ describe('FileManager Pandoc exports', () => {
     expect(writeFileMock.mock.calls.at(-1)).toEqual(['/tmp/export.pdf', Buffer.from('pdf-data')])
     expect(unlinkMock).toHaveBeenCalledWith(expect.stringMatching(/markflow-export-.*\.html$/))
     expect(browserWindowDestroyMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('exports PDF directly to an explicit path without opening the save dialog', async () => {
+    const writeFileMock = vi.spyOn(fs.promises, 'writeFile').mockResolvedValue()
+    const manager = new FileManager(createWindowStub() as never)
+
+    const result = await (manager as unknown as {
+      exportPdfToPath: (html: string, targetPath: string) => Promise<boolean>
+    }).exportPdfToPath('<h1 id="intro">Intro</h1>', '/tmp/previous.pdf')
+
+    expect(result).toBe(true)
+    expect(showSaveDialogMock).not.toHaveBeenCalled()
+    expect(writeFileMock.mock.calls.at(-1)).toEqual(['/tmp/previous.pdf', Buffer.from('pdf-data')])
   })
 
   it('shows a PDF export error dialog when the final path is not writable', async () => {
@@ -820,6 +865,22 @@ describe('FileManager Pandoc exports', () => {
     expect(callArgs[1][1]).toBe('-o')
     expect(callArgs[1][2]).toBe('/tmp/export.docx')
     expect(callArgs[1]).not.toContain('--standalone')
+  })
+
+  it('exports Pandoc formats directly to an explicit path without opening the save dialog', async () => {
+    const window = createWindowStub()
+    const manager = new FileManager(window as never)
+
+    const result = await (manager as unknown as {
+      exportPandocToPath: (markdown: string, targetPath: string, format: string) => Promise<boolean>
+    }).exportPandocToPath('# Heading', '/tmp/previous.docx', 'docx')
+
+    expect(result).toBe(true)
+    expect(showSaveDialogMock).not.toHaveBeenCalled()
+    const callArgs = execFileMock.mock.calls[0]
+    expect(callArgs[0]).toBe('pandoc')
+    expect(callArgs[1][1]).toBe('-o')
+    expect(callArgs[1][2]).toBe('/tmp/previous.docx')
   })
 
   it('exports LaTeX using pandoc with --standalone', async () => {

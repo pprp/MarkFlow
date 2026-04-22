@@ -137,6 +137,11 @@ type AppToast = {
 type HtmlExportFormat = 'html' | 'pdf'
 type PandocExportAction = 'export-docx' | 'export-epub' | 'export-latex'
 type ExportFormat = HtmlExportFormat | 'docx' | 'epub' | 'latex'
+type PreviousExportMode = 'with-previous' | 'overwrite-with-previous'
+type ExportTargetOptions = {
+  targetPathOverride?: string
+  directTargetPath?: string
+}
 
 type PreviousExportState = {
   format: ExportFormat
@@ -370,7 +375,7 @@ export function App() {
     (action: PandocExportAction) => Promise<boolean>
   >(async () => false)
   const handlePreviousExportRef = useRef<
-    (mode: 'with-previous' | 'overwrite-with-previous') => Promise<boolean>
+    (mode: PreviousExportMode) => Promise<boolean>
   >(async () => false)
   const previousExportByTabRef = useRef<Map<string, PreviousExportState>>(new Map())
   const pluginHostRef = useRef<MarkFlowPluginHost | null>(null)
@@ -1423,7 +1428,7 @@ export function App() {
 
   const handlePandocExport = async (
     action: PandocExportAction,
-    targetPathOverride?: string,
+    options: ExportTargetOptions = {},
   ): Promise<boolean> => {
     const api = window.markflow
     if (!api || !activeTab || activeTab.largeFile) return false
@@ -1432,18 +1437,25 @@ export function App() {
     const format = getPandocExportFormat(action)
     const ext = getPandocExportExtension(format)
     const targetPath =
-      targetPathOverride ??
+      options.directTargetPath ??
+      options.targetPathOverride ??
       (activeTab.filePath
         ? activeTab.filePath.replace(/\.(md|markdown|txt)$/i, '') + '.' + ext
         : `Untitled.${ext}`)
 
     let didExport = false
     if (action === 'export-docx') {
-      didExport = await api.exportDocx(exportContent, targetPath)
+      didExport = options.directTargetPath
+        ? await api.exportDocxToPath(exportContent, targetPath)
+        : await api.exportDocx(exportContent, targetPath)
     } else if (action === 'export-epub') {
-      didExport = await api.exportEpub(exportContent, targetPath)
+      didExport = options.directTargetPath
+        ? await api.exportEpubToPath(exportContent, targetPath)
+        : await api.exportEpub(exportContent, targetPath)
     } else {
-      didExport = await api.exportLatex(exportContent, targetPath)
+      didExport = options.directTargetPath
+        ? await api.exportLatexToPath(exportContent, targetPath)
+        : await api.exportLatex(exportContent, targetPath)
     }
 
     if (didExport) {
@@ -1455,7 +1467,7 @@ export function App() {
 
   const handleExport = async (
     format: HtmlExportFormat,
-    targetPathOverride?: string,
+    options: ExportTargetOptions = {},
   ): Promise<boolean> => {
     if (!activeTab || activeTab.largeFile) {
       return false
@@ -1491,16 +1503,21 @@ export function App() {
       }
 
       const targetPath =
-        targetPathOverride ??
+        options.directTargetPath ??
+        options.targetPathOverride ??
         (activeTab.filePath
           ? activeTab.filePath.replace(/\.(md|markdown|txt)$/i, '') + '.' + format
           : 'Untitled.' + format)
 
       let didExport = false
       if (format === 'html') {
-        didExport = await api.exportHtml(html, targetPath)
+        didExport = options.directTargetPath
+          ? await api.exportHtmlToPath(html, targetPath)
+          : await api.exportHtml(html, targetPath)
       } else {
-        didExport = await api.exportPdf(html, targetPath)
+        didExport = options.directTargetPath
+          ? await api.exportPdfToPath(html, targetPath)
+          : await api.exportPdf(html, targetPath)
       }
 
       if (didExport) {
@@ -1513,7 +1530,7 @@ export function App() {
     }
   }
 
-  const handlePreviousExport = async (): Promise<boolean> => {
+  const handlePreviousExport = async (mode: PreviousExportMode): Promise<boolean> => {
     if (!activeTab || activeTab.largeFile) {
       return false
     }
@@ -1523,8 +1540,13 @@ export function App() {
       return false
     }
 
+    const targetOptions =
+      mode === 'overwrite-with-previous'
+        ? { directTargetPath: previousExport.targetPath }
+        : { targetPathOverride: previousExport.targetPath }
+
     if (previousExport.format === 'html' || previousExport.format === 'pdf') {
-      return handleExport(previousExport.format, previousExport.targetPath)
+      return handleExport(previousExport.format, targetOptions)
     }
 
     const action: PandocExportAction =
@@ -1534,7 +1556,7 @@ export function App() {
           ? 'export-epub'
           : 'export-latex'
 
-    return handlePandocExport(action, previousExport.targetPath)
+    return handlePandocExport(action, targetOptions)
   }
 
   const updateHeadingNumberingPreference = useCallback((enabled: boolean) => {

@@ -170,6 +170,11 @@ export class FileManager {
     ipcMain.removeHandler('export-docx')
     ipcMain.removeHandler('export-epub')
     ipcMain.removeHandler('export-latex')
+    ipcMain.removeHandler('export-html-to-path')
+    ipcMain.removeHandler('export-pdf-to-path')
+    ipcMain.removeHandler('export-docx-to-path')
+    ipcMain.removeHandler('export-epub-to-path')
+    ipcMain.removeHandler('export-latex-to-path')
     ipcMain.removeListener('schedule-recovery-checkpoint', this.handleScheduleRecoveryCheckpoint)
 
     ipcMain.handle('open-file', () => this.openFile())
@@ -215,6 +220,11 @@ export class FileManager {
     ipcMain.handle('export-docx', async (_event, markdown: string, defaultPath: string) => this.exportPandoc(markdown, defaultPath, 'docx', 'Word Document', ['docx']))
     ipcMain.handle('export-epub', async (_event, markdown: string, defaultPath: string) => this.exportPandoc(markdown, defaultPath, 'epub', 'EPUB', ['epub']))
     ipcMain.handle('export-latex', async (_event, markdown: string, defaultPath: string) => this.exportPandoc(markdown, defaultPath, 'latex', 'LaTeX', ['tex']))
+    ipcMain.handle('export-html-to-path', async (_event, html: string, targetPath: string) => this.exportHtmlToPath(html, targetPath))
+    ipcMain.handle('export-pdf-to-path', async (_event, html: string, targetPath: string) => this.exportPdfToPath(html, targetPath))
+    ipcMain.handle('export-docx-to-path', async (_event, markdown: string, targetPath: string) => this.exportPandocToPath(markdown, targetPath, 'docx'))
+    ipcMain.handle('export-epub-to-path', async (_event, markdown: string, targetPath: string) => this.exportPandocToPath(markdown, targetPath, 'epub'))
+    ipcMain.handle('export-latex-to-path', async (_event, markdown: string, targetPath: string) => this.exportPandocToPath(markdown, targetPath, 'latex'))
   }
 
   markSessionStarted() {
@@ -238,8 +248,12 @@ export class FileManager {
     })
     if (result.canceled || !result.filePath) return false
 
+    return this.exportHtmlToPath(html, result.filePath)
+  }
+
+  async exportHtmlToPath(html: string, targetPath: string): Promise<boolean> {
     try {
-      await fs.promises.writeFile(result.filePath, html, 'utf-8')
+      await fs.promises.writeFile(targetPath, html, 'utf-8')
       return true
     } catch (error) {
       console.error('Failed to export HTML:', error)
@@ -256,6 +270,10 @@ export class FileManager {
     })
     if (result.canceled || !result.filePath) return false
 
+    return this.exportPdfToPath(html, result.filePath)
+  }
+
+  async exportPdfToPath(html: string, targetPath: string): Promise<boolean> {
     const tempDir = app.getPath('temp')
     const tempHtmlPath = path.join(
       tempDir,
@@ -303,7 +321,7 @@ export class FileManager {
           right: 0.55,
         },
       })
-      await fs.promises.writeFile(result.filePath, pdfData)
+      await fs.promises.writeFile(targetPath, pdfData)
       return true
     } catch (error) {
       console.error('Failed to export PDF:', error)
@@ -328,12 +346,16 @@ export class FileManager {
     })
     if (result.canceled || !result.filePath) return false
 
+    return this.exportPandocToPath(markdown, result.filePath, format)
+  }
+
+  async exportPandocToPath(markdown: string, targetPath: string, format: string): Promise<boolean> {
     const tempDir = app.getPath('temp')
     const tempFile = path.join(tempDir, `markflow-export-${Date.now()}-${Math.random().toString(36).substring(7)}.md`)
 
     try {
       await fs.promises.writeFile(tempFile, markdown, 'utf-8')
-      const args = [tempFile, '-o', result.filePath]
+      const args = [tempFile, '-o', targetPath]
       if (format === 'latex') {
         args.push('--standalone')
       }
