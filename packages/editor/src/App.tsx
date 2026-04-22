@@ -75,6 +75,10 @@ import {
   persistLocalSourceLineNumbersPreference,
 } from './sourceLineNumbers'
 import {
+  loadLocalOutlinePanelCollapsedPreference,
+  persistLocalOutlinePanelCollapsedPreference,
+} from './outlinePanelPreferences'
+import {
   type MarkFlowStatisticsPreferences,
   loadLocalStatisticsPreferences,
   persistLocalStatisticsPreferences,
@@ -326,7 +330,7 @@ export function App() {
   const [documentSearchQuery, setDocumentSearchQuery] = useState('')
   const [documentSearchMatchCount, setDocumentSearchMatchCount] = useState<number | null>(null)
   const [documentSearchFocusTrigger, setDocumentSearchFocusTrigger] = useState(0)
-  const [outlineCollapsed, setOutlineCollapsed] = useState(false)
+  const [outlineCollapsed, setOutlineCollapsed] = useState(loadLocalOutlinePanelCollapsedPreference)
   const [isExporting, setIsExporting] = useState(false)
   const [quickOpenItems, setQuickOpenItems] = useState<MarkFlowQuickOpenItem[]>([])
   const [tabs, setTabs] = useState<DocumentTabState[]>(() => [createDocumentTab(null, INITIAL_CONTENT)])
@@ -358,6 +362,10 @@ export function App() {
   >(async () => {})
   const pluginHostRef = useRef<MarkFlowPluginHost | null>(null)
   const editorRef = useRef<MarkFlowEditorHandle | null>(null)
+
+  useEffect(() => {
+    persistLocalOutlinePanelCollapsedPreference(outlineCollapsed)
+  }, [outlineCollapsed])
   const editorShellRef = useRef<HTMLDivElement | null>(null)
   const documentSearchWorkerRef = useRef<Worker | null>(null)
   const documentSearchRequestIdRef = useRef(0)

@@ -1724,9 +1724,9 @@
       "category": "bug",
       "area": "@markflow/editor",
       "priority": 2,
-      "status": "ready",
-      "passes": false,
-      "lastVerifiedAt": null,
+      "status": "verified",
+      "passes": true,
+      "lastVerifiedAt": "2026-04-22T16:17:31+08:00",
       "dependsOn": [
         "MF-020"
       ],
@@ -1923,6 +1923,21 @@
         "MF-081"
       ],
       "notesRef": "features/MF-142.md"
+    },
+    {
+      "id": "MF-143",
+      "title": "Export pipeline renders the active document to a Typora-style image",
+      "category": "phase-2-functional",
+      "area": "@markflow/desktop",
+      "priority": 3,
+      "status": "planned",
+      "passes": false,
+      "lastVerifiedAt": null,
+      "dependsOn": [
+        "MF-015",
+        "MF-107"
+      ],
+      "notesRef": "features/MF-143.md"
     }
   ]
 }

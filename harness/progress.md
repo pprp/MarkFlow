@@ -1,3 +1,65 @@
+### 2026-04-22T16:24:01+08:00 - MF-129 verified; Typora image export backlog added
+
+- Author: Codex Dispatcher with Researcher/Implementer/Reviewer subagents
+- Focus: strict one-feature cycle for `MF-129`; no second product feature was implemented.
+- What changed:
+  - Ran the required startup protocol:
+    - `pnpm harness:start`
+    - `./harness/init.sh --smoke`
+  - Researcher checked Typora export behavior and found a missing image-export parity item.
+  - Dispatcher added `MF-143` for Typora-style Image export, backed by Typora export documentation, and kept it `planned`, `passes=false`, `lastVerifiedAt=null`.
+  - Implemented `MF-129`:
+    - Added local outline-panel preference load/persist helpers.
+    - Initialised `outlineCollapsed` from persisted state.
+    - Persisted both collapse and expand transitions through the existing outline toggle state.
+    - Added App regressions for collapse persistence, collapsed-state hydration, and reopening from a stored collapsed state.
+  - Reviewer accepted the `MF-129` diff and ledger promotion.
+- Changed files for this run:
+  - `harness/feature-ledger.json`
+  - `harness/features/MF-143.md`
+  - `packages/editor/src/App.tsx`
+  - `packages/editor/src/outlinePanelPreferences.ts`
+  - `packages/editor/src/__tests__/App.test.tsx`
+  - `harness/progress.md`
+- Simplifications made:
+  - Deferred `MF-143` because image export needs broader desktop/export rendering work.
+  - Reused the existing App outline state instead of introducing separate sidebar/titlebar persistence paths.
+  - Matched the existing local preference helper pattern used by source line numbers and heading numbering.
+- Verification:
+  - Initial `./harness/init.sh --smoke` passed before feature work:
+    - `packages/desktop`: `10` test files / `68` tests passed.
+    - `packages/editor`: `44` test files / `477` tests passed / `3` skipped.
+  - Dispatcher verified the research addition with `pnpm harness:verify` (`features: 143 total | verified=84 | ready=36 | planned=22 | blocked=1 | regression=0`).
+  - Implementer verification passed:
+    - `pnpm --filter @markflow/editor exec vitest run src/__tests__/App.test.tsx -t "standalone outline collapse state"`
+    - `pnpm --filter @markflow/editor exec vitest run src/__tests__/App.test.tsx`
+    - `pnpm --filter @markflow/editor lint`
+    - `pnpm --filter @markflow/editor build`
+    - `pnpm harness:verify`
+  - Reviewer reran:
+    - `pnpm --filter @markflow/editor exec vitest run src/__tests__/App.test.tsx -t "standalone outline collapse state"` (`2` tests before Dispatcher added the expand regression)
+    - `pnpm harness:verify`
+  - Dispatcher added the expand regression and reran:
+    - `pnpm --filter @markflow/editor exec vitest run src/__tests__/App.test.tsx -t "standalone outline"` passed (`3` tests).
+    - `pnpm --filter @markflow/editor exec vitest run src/__tests__/App.test.tsx` passed (`68` tests).
+    - `pnpm --filter @markflow/editor lint` passed.
+    - `pnpm --filter @markflow/editor build` passed, with the existing Vite large-chunk warning.
+    - `pnpm harness:verify` passed (`features: 143 total | verified=85 | ready=35 | planned=22 | blocked=1 | regression=0`; next: `MF-076`).
+    - `git diff --check` passed.
+  - Final `./harness/init.sh --smoke` passed:
+    - `pnpm harness:verify` passed (`features: 143 total | verified=85 | ready=35 | planned=22 | blocked=1 | regression=0`; next: `MF-076`).
+    - `packages/desktop`: `10` test files / `68` tests passed.
+    - `packages/editor`: `44` test files / `480` tests passed / `3` skipped.
+- Ledger decision:
+  - Promoted `MF-129` to `status=verified`, `passes=true`, `lastVerifiedAt=2026-04-22T16:17:31+08:00`.
+  - Added `MF-143` as `planned`, `passes=false`, `lastVerifiedAt=null`.
+- Remaining risks:
+  - No live Electron reload check was run for `MF-129`; App remount tests cover the persisted state path.
+  - `MF-076` remains harness-selected but still requires Microsoft Word for the manual paste matrix.
+- Next recommended feature:
+  - If `Microsoft Word.app` is available, finish `MF-076` manual paste verification.
+  - If Word is still unavailable, choose `MF-122` as the next small automatable priority-2 feature.
+
 ### 2026-04-22T13:37:01+08:00 - MF-128 verified; Typora backlog extended with import/export/sidebar gaps
 
 - Author: Codex Dispatcher with Researcher/Implementer/Reviewer subagents

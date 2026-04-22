@@ -26,6 +26,10 @@ import {
   persistLocalSourceLineNumbersPreference,
 } from '../sourceLineNumbers'
 import {
+  OUTLINE_PANEL_STORAGE_KEY,
+  persistLocalOutlinePanelCollapsedPreference,
+} from '../outlinePanelPreferences'
+import {
   loadLocalStatisticsPreferences,
   persistLocalStatisticsPreferences,
 } from '../statisticsPreferences'
@@ -90,6 +94,40 @@ function getOpenTabs() {
 
 function expectActiveDocumentName(name: string | RegExp) {
   return screen.getByText(name, { selector: '.mf-titlebar-document-name' })
+}
+
+let restoreTestLocalStorage: (() => void) | null = null
+
+function installTestLocalStorage(initialEntries: Record<string, string> = {}) {
+  restoreTestLocalStorage?.()
+
+  const originalDescriptor = Object.getOwnPropertyDescriptor(window, 'localStorage')
+  const store = new Map(Object.entries(initialEntries))
+  const storage = {
+    getItem: vi.fn((key: string) => store.get(key) ?? null),
+    setItem: vi.fn((key: string, value: string) => {
+      store.set(key, String(value))
+    }),
+    removeItem: vi.fn((key: string) => {
+      store.delete(key)
+    }),
+  } as unknown as Storage
+
+  restoreTestLocalStorage = () => {
+    if (originalDescriptor) {
+      Object.defineProperty(window, 'localStorage', originalDescriptor)
+    } else {
+      delete (window as unknown as { localStorage?: Storage }).localStorage
+    }
+    restoreTestLocalStorage = null
+  }
+
+  Object.defineProperty(window, 'localStorage', {
+    configurable: true,
+    value: storage,
+  })
+
+  return storage as Storage
 }
 
 function buildWindowedPayload(
@@ -471,10 +509,13 @@ describe('App desktop integration', () => {
     persistLocalMarkdownModePreference('tolerant')
     persistLocalHeadingNumberingPreference(false)
     persistLocalSourceLineNumbersPreference(true)
+    persistLocalOutlinePanelCollapsedPreference(false)
     persistLocalStatisticsPreferences({ excludeFencedCode: true })
     if (typeof window.localStorage?.removeItem === 'function') {
+      window.localStorage.removeItem(OUTLINE_PANEL_STORAGE_KEY)
       window.localStorage.removeItem('markflow.spellcheck-profile.v1')
     }
+    restoreTestLocalStorage?.()
   })
 
   it('hydrates an already-open desktop document on mount', async () => {
@@ -2244,6 +2285,76 @@ describe('App desktop integration', () => {
       expect(screen.getByRole('button', { name: 'Document minimap' })).toBeInTheDocument()
       expect(screen.getByRole('button', { name: 'Expand outline' })).toBeInTheDocument()
       expect(screen.queryByRole('navigation', { name: 'Outline' })).not.toBeInTheDocument()
+    })
+  })
+
+  it('persists the standalone outline collapse state when toggled', async () => {
+    const api = new MockMarkFlowAPI()
+    window.markflow = api
+    const localStorage = installTestLocalStorage()
+
+    render(<App />)
+
+    await act(async () => {
+      api.emitFileOpened({
+        filePath: '/tmp/outline-collapse.md',
+        content: ['# Intro', '', '## Details'].join('\n'),
+      })
+    })
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Collapse outline' }))
+
+    await waitFor(() => {
+      expect(localStorage.getItem(OUTLINE_PANEL_STORAGE_KEY)).toBe(JSON.stringify({ collapsed: true }))
+      expect(screen.getByRole('button', { name: 'Expand outline' })).toBeInTheDocument()
+      expect(screen.queryByRole('navigation', { name: 'Outline' })).not.toBeInTheDocument()
+    })
+  })
+
+  it('initializes the standalone outline collapse state from storage on mount', async () => {
+    const api = new MockMarkFlowAPI()
+    window.markflow = api
+    installTestLocalStorage({
+      [OUTLINE_PANEL_STORAGE_KEY]: JSON.stringify({ collapsed: true }),
+    })
+
+    render(<App />)
+
+    await act(async () => {
+      api.emitFileOpened({
+        filePath: '/tmp/outline-collapse.md',
+        content: ['# Intro', '', '## Details'].join('\n'),
+      })
+    })
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Expand outline' })).toBeInTheDocument()
+      expect(screen.queryByRole('navigation', { name: 'Outline' })).not.toBeInTheDocument()
+    })
+  })
+
+  it('persists reopening the standalone outline from a collapsed stored state', async () => {
+    const api = new MockMarkFlowAPI()
+    window.markflow = api
+    const localStorage = installTestLocalStorage({
+      [OUTLINE_PANEL_STORAGE_KEY]: JSON.stringify({ collapsed: true }),
+    })
+
+    render(<App />)
+
+    await act(async () => {
+      api.emitFileOpened({
+        filePath: '/tmp/outline-collapse.md',
+        content: ['# Intro', '', '## Details'].join('\n'),
+      })
+    })
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Expand outline' }))
+
+    await waitFor(() => {
+      expect(localStorage.getItem(OUTLINE_PANEL_STORAGE_KEY)).toBe(JSON.stringify({ collapsed: false }))
+      expect(screen.getByRole('button', { name: 'Collapse outline' })).toBeInTheDocument()
+      expect(screen.getByRole('navigation', { name: 'Outline' })).toBeInTheDocument()
     })
   })
 
