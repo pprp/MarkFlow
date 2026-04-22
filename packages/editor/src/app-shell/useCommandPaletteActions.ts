@@ -24,6 +24,7 @@ type UseCommandPaletteActionsOptions = {
   handleOpenQuickOpen: () => Promise<boolean>
   handlePandocExport: (action: 'export-docx' | 'export-epub' | 'export-latex') => Promise<boolean>
   handleSaveTab: (tabId: string | null, forceSaveAs?: boolean) => Promise<boolean>
+  handleUploadSelectedImage: () => Promise<boolean>
   isDistractionFreeMode: boolean
   isDocumentStatisticsOpen: boolean
   outlineCollapsed: boolean
@@ -66,6 +67,7 @@ export function useCommandPaletteActions({
   handleOpenQuickOpen,
   handlePandocExport,
   handleSaveTab,
+  handleUploadSelectedImage,
   isDistractionFreeMode,
   isDocumentStatisticsOpen,
   outlineCollapsed,
@@ -310,6 +312,15 @@ export function useCommandPaletteActions({
         run: () => editorRef.current?.executeCommand('insert-math-block') ?? false,
       },
       {
+        id: 'image.upload-selected',
+        label: 'Upload Selected Image',
+        category: 'Insert',
+        description: 'Upload the selected local markdown image and replace it with the remote URL',
+        keywords: ['picgo', 'upload image', 'selected image', 'local image'],
+        focusEditorAfterRun: true,
+        run: handleUploadSelectedImage,
+      },
+      {
         id: 'edit.bold',
         label: 'Bold Selection',
         category: 'Edit',
@@ -467,6 +478,7 @@ export function useCommandPaletteActions({
       handleOpenQuickOpen,
       handlePandocExport,
       handleSaveTab,
+      handleUploadSelectedImage,
       isDistractionFreeMode,
       isDocumentStatisticsOpen,
       outlineCollapsed,

@@ -42,6 +42,7 @@ import { Minimap, type MinimapScrollMetrics } from './components/Minimap'
 import type { RegisteredCommandPaletteAction } from './components/commandPaletteRegistry'
 import { serializeMarkdownSelectionForClipboard } from './editor/clipboard'
 import { areCollapsedRangesEqual } from './editor/foldingState'
+import { fileUrlToPath, resolveImageSource } from './editor/decorations/linkDecoration'
 import { createExternalLinkBadgePlugin } from './plugins/externalLinkBadgePlugin'
 import {
   MarkFlowPluginHost,
@@ -155,6 +156,19 @@ type EditorImageInsertDetail = {
 }
 
 type ActiveOutlineAnchorSource = 'cursor' | 'viewport'
+
+function parseSelectedMarkdownImage(markdownText: string) {
+  const sourceMatch = markdownText
+    .trim()
+    .match(/^!\[[^\]\n]*\]\((<([^>\n]+)>|([^)\s\n]+))(?:\s+["'][^)\n]*["'])?\)(?:\s*(?:\{[^}\n]+\}|=\d+(?:\.\d+)?x\d+(?:\.\d+)?))?$/)
+
+  return sourceMatch?.[3] ?? sourceMatch?.[4] ?? null
+}
+
+function resolveLocalImagePath(markdownSource: string, documentFilePath: string | null) {
+  const resolvedSource = resolveImageSource(markdownSource, documentFilePath ?? undefined)
+  return fileUrlToPath(resolvedSource)
+}
 
 function rewriteImageMarkdownSource(markdownText: string, nextSource: string) {
   const match = markdownText.match(/^(!\[[^\]]*\]\()([^)]*)(\).*)$/)
@@ -1620,6 +1634,40 @@ export function App() {
     [getCurrentTabContent, updateTab],
   )
 
+  const replaceTabRangeIfUnchanged = useCallback(
+    (tabId: string, from: number, to: number, expectedText: string, replacementText: string) => {
+      if (activeTabIdRef.current === tabId) {
+        return editorRef.current?.replaceRangeIfUnchanged(from, to, expectedText, replacementText) ?? false
+      }
+
+      let didReplace = false
+      updateTab(tabId, (tab) => {
+        if (from < 0 || to < from || to > tab.content.length) {
+          return tab
+        }
+
+        if (tab.content.slice(from, to) !== expectedText) {
+          return tab
+        }
+
+        const nextContent = tab.content.slice(0, from) + replacementText + tab.content.slice(to)
+        if (nextContent === tab.content) {
+          return tab
+        }
+
+        didReplace = true
+        return {
+          ...tab,
+          content: nextContent,
+          isDirty: nextContent !== tab.persistedContent,
+        }
+      })
+
+      return didReplace
+    },
+    [updateTab],
+  )
+
   const persistImageUploadSettings = useCallback(
     async (nextSettings: MarkFlowImageUploadSettings) => {
       const api = window.markflow
@@ -1726,6 +1774,61 @@ export function App() {
       shell.removeEventListener('mf-image-drop', handleImageInsert as EventListener)
     }
   }, [imageUploadSettings, replaceTabTextOccurrence, showToast])
+
+  const handleUploadSelectedImage = useCallback(async () => {
+    const api = window.markflow
+    const currentActiveTabId = activeTabIdRef.current
+    const currentTab = currentActiveTabId
+      ? tabsRef.current.find((tab) => tab.id === currentActiveTabId) ?? null
+      : null
+    if (!api || !currentTab || currentTab.largeFile) {
+      return false
+    }
+
+    const selectionSnapshot = editorRef.current?.getSelectionSnapshot()
+    if (!selectionSnapshot) {
+      showToast('Select a local markdown image before uploading.')
+      return true
+    }
+
+    const sourceTabId = currentTab.id
+    const sourceDocumentFilePath = currentTab.filePath
+    const selectedMarkdown = selectionSnapshot.text
+    const markdownSource = parseSelectedMarkdownImage(selectedMarkdown)
+    if (!markdownSource) {
+      showToast('Select a local markdown image before uploading.')
+      return true
+    }
+
+    const localFilePath = resolveLocalImagePath(markdownSource, sourceDocumentFilePath)
+    if (!localFilePath) {
+      showToast('Selected image is not a local file.')
+      return true
+    }
+
+    const uploadResult = await api.uploadImage({
+      filePath: localFilePath,
+      documentFilePath: sourceDocumentFilePath,
+      manual: true,
+    })
+    if (!uploadResult.success || !uploadResult.remoteUrl) {
+      showToast(uploadResult.error ?? 'Image upload failed.')
+      return true
+    }
+
+    const remoteMarkdown = rewriteImageMarkdownSource(selectedMarkdown, uploadResult.remoteUrl)
+    const didReplace = replaceTabRangeIfUnchanged(
+      sourceTabId,
+      selectionSnapshot.from,
+      selectionSnapshot.to,
+      selectedMarkdown,
+      remoteMarkdown,
+    )
+    if (!didReplace) {
+      showToast('Selected image changed before upload completed.')
+    }
+    return true
+  }, [replaceTabRangeIfUnchanged, showToast])
 
   const handleDocumentEdit = useCallback(() => {
     const currentActiveTabId = activeTabIdRef.current
@@ -1894,6 +1997,7 @@ export function App() {
     handleOpenQuickOpen,
     handlePandocExport,
     handleSaveTab,
+    handleUploadSelectedImage,
     isDistractionFreeMode,
     isDocumentStatisticsOpen,
     outlineCollapsed,

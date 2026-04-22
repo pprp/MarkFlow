@@ -116,6 +116,7 @@ export interface MarkFlowImageIngestResult {
 export interface MarkFlowImageUploadRequest {
   filePath: string
   documentFilePath: string | null
+  manual?: boolean
 }
 
 export interface MarkFlowImageUploadResult {

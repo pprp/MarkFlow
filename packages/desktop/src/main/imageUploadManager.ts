@@ -338,7 +338,10 @@ export class ImageUploadManager {
   }
 
   async uploadImage(request: MarkFlowImageUploadRequest): Promise<MarkFlowImageUploadResult> {
-    if (this.settings.uploaderKind === 'disabled' || !this.settings.autoUploadOnInsert) {
+    if (
+      this.settings.uploaderKind === 'disabled' ||
+      (!this.settings.autoUploadOnInsert && !request.manual)
+    ) {
       return {
         success: false,
         error: 'Image uploader is disabled.',

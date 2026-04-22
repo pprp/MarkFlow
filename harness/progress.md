@@ -5436,3 +5436,58 @@ next: MF-051 - Outline panel lists all headings with live scroll-sync and click-
 - Next recommended feature:
   - Continue `MF-138` with a small custom export item, named-profile, or PDF metadata slice if automation remains terminal-only.
   - If a trusted desktop/manual session with Microsoft Word is available, `MF-076` remains harness-next for the paste matrix.
+
+### 2026-04-23T03:26:20+08:00 - MF-081 selected-image upload command added
+
+- Author: Codex Dispatcher with Researcher/Implementer/Reviewer subagents
+- Focus: strict one-feature automation cycle for Typora image-upload parity.
+- Startup / baseline:
+  - Read `/Users/pprp/.codex/automations/typora-replication/memory.md`.
+  - Ran `pnpm harness:start`; it reported `152` features and selected `MF-076` as harness-next.
+  - Ran initial `./harness/init.sh --smoke`; it passed before feature work with desktop `78` tests and editor `498` tests (`3` skipped).
+  - Baseline `git status --short` was clean, so there was no inherited smoke-passing diff to commit.
+- Research updates:
+  - Researcher used Typora official Markdown Reference, Export, File Management, Upload Images, Copy and Paste, and What's New / 1.13 sources.
+  - Refined `MF-081` in `harness/feature-ledger.json` to include pasted/dropped, selected-image, all-local-image, and YAML-triggered Typora upload flows.
+  - Did not append new entries because ledger-only scope cannot create matching `harness/features/MF-xxx.md` note files; Copy as Plain Text, CLI missing-file creation prompt, and VS Code/Cursor Open in Typora remain future candidates.
+- Implemented feature work:
+  - Selected `MF-081` because it was the newly refined, automatable Typora-backed gap while `MF-076` remains Microsoft Word/manual-gated.
+  - Added a command-palette `Upload Selected Image` path for a selected local markdown image reference.
+  - The command resolves relative, absolute, and `file://` image sources against the current markdown file, calls the existing desktop upload pipeline without re-ingesting, and rewrites the selected image markdown to the returned remote URL.
+  - Follow-up hardening after Reviewer feedback captures the original tab id, selection range, and markdown before upload, then rewrites only that stable range if it is unchanged.
+  - Added `manual: true` to selected-image upload requests so configured uploaders can run even when automatic paste/drop upload is disabled; pasted/dropped uploads remain gated by `autoUploadOnInsert`.
+  - Left `MF-081` as `status=ready`, `passes=false`, and `lastVerifiedAt=null`.
+- Changed files:
+  - `harness/feature-ledger.json`
+  - `harness/features/MF-081.md`
+  - `packages/shared/src/index.ts`
+  - `packages/desktop/src/main/imageUploadManager.ts`
+  - `packages/desktop/src/main/imageUploadManager.test.ts`
+  - `packages/editor/src/App.tsx`
+  - `packages/editor/src/__tests__/App.test.tsx`
+  - `packages/editor/src/app-shell/useCommandPaletteActions.ts`
+  - `packages/editor/src/editor/MarkFlowEditor.tsx`
+- Simplifications made:
+  - Kept the slice to selected markdown image references instead of starting all-local-image scanning, YAML-triggered upload rules, or rendered-widget/context-menu flows.
+  - Reused the existing upload bridge and uploader manager instead of adding a second upload pipeline.
+  - Removed unused editor-handle methods left by the first implementation after switching to stable range replacement.
+- Verification:
+  - Researcher ran JSON parse and `pnpm harness:verify`; both passed.
+  - Implementer reported red-first tests for the missing command, async selection drift, and manual upload with auto-upload disabled.
+  - Reviewer initially requested changes for stale async selection replacement and `autoUploadOnInsert` gating, then accepted the follow-up.
+  - Dispatcher reran:
+    - `pnpm --filter @markflow/editor exec vitest run src/__tests__/App.test.tsx -t "uploads the selected local markdown image|rewrites the original selected image|uploads the selected image manually"` (`3` tests passed, `73` skipped).
+    - `pnpm --filter @markflow/desktop exec vitest run src/main/imageUploadManager.test.ts` (`4` tests passed).
+    - `pnpm harness:verify` (`152 total | verified=89 | ready=32 | planned=30 | blocked=1 | regression=0`; next: `MF-076`).
+    - `git diff --check`.
+    - `pnpm --filter @markflow/shared lint` and `pnpm --filter @markflow/shared build`.
+    - `pnpm --filter @markflow/editor lint` and `pnpm --filter @markflow/editor build`, which passed with the existing Vite large-chunk warning.
+    - `pnpm --filter @markflow/desktop lint` and `pnpm --filter @markflow/desktop build`.
+    - Isolated split-preview budget check after one unrelated full-file timing failure; the isolated test passed at `1724ms`.
+    - Final `./harness/init.sh --smoke`, which passed with desktop `79` tests and editor `501` tests (`3` skipped).
+- Review:
+  - Reviewer accepted the final `MF-081` selected-image slice as scoped and truthful.
+  - Residual risk: `MF-081` remains incomplete until all-local-image upload, YAML-triggered upload rules, rendered-widget/context-menu ergonomics, and real PicGo/manual remote-store verification are done.
+- Next recommended feature:
+  - Continue `MF-081` with all-local-image scanning or YAML-triggered upload if automation remains terminal-only.
+  - If a trusted desktop/manual session with Microsoft Word is available, `MF-076` remains harness-next for the paste matrix.

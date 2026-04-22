@@ -162,8 +162,15 @@ export interface MarkFlowEditorHandle {
   clearDocumentSearch: () => void
   navigateDocumentSearch: (direction: 'next' | 'previous') => boolean
   replaceTextOccurrence: (searchText: string, replacementText: string, occurrenceIndex?: number) => boolean
+  replaceRangeIfUnchanged: (
+    from: number,
+    to: number,
+    expectedText: string,
+    replacementText: string,
+  ) => boolean
   setDocumentSearchQuery: (query: string) => void
   focus: () => void
+  getSelectionSnapshot: () => { from: number; to: number; text: string } | null
   getContent: () => string | null
 }
 
@@ -1524,6 +1531,25 @@ export const MarkFlowEditor = forwardRef<MarkFlowEditorHandle, MarkFlowEditorPro
         })
         return true
       },
+      replaceRangeIfUnchanged: (from, to, expectedText, replacementText) => {
+        const view = viewRef.current
+        if (!view || from < 0 || to < from || to > view.state.doc.length) {
+          return false
+        }
+
+        if (view.state.doc.sliceString(from, to) !== expectedText) {
+          return false
+        }
+
+        view.dispatch({
+          changes: {
+            from,
+            to,
+            insert: replacementText,
+          },
+        })
+        return true
+      },
       setDocumentSearchQuery: (query) => {
         const view = viewRef.current
         if (!view) {
@@ -1539,6 +1565,19 @@ export const MarkFlowEditor = forwardRef<MarkFlowEditorHandle, MarkFlowEditorPro
       },
       focus: () => {
         viewRef.current?.focus()
+      },
+      getSelectionSnapshot: () => {
+        const view = viewRef.current
+        const selection = view?.state.selection.main
+        if (!view || !selection || selection.empty) {
+          return null
+        }
+
+        return {
+          from: selection.from,
+          to: selection.to,
+          text: view.state.doc.sliceString(selection.from, selection.to),
+        }
       },
       getContent: () => {
         const view = viewRef.current

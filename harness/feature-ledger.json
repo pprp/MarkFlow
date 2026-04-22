@@ -1053,7 +1053,7 @@
     },
     {
       "id": "MF-081",
-      "title": "Image upload integration sends pasted/dropped images through a PicGo-compatible uploader",
+      "title": "Image upload integration handles pasted/dropped, selected, all-local, and YAML-triggered Typora upload flows",
       "category": "phase-2-functional",
       "area": "@markflow/desktop",
       "priority": 3,

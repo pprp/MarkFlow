@@ -138,6 +138,51 @@ describe('ImageUploadManager', () => {
     )
   })
 
+  it('allows manual uploads when auto upload on insert is disabled', async () => {
+    execFileMock.mockImplementation(
+      (
+        _file: string,
+        _args: string[],
+        _options: object,
+        callback: (error: Error | null, stdout: string, stderr: string) => void,
+      ) => {
+        callback(null, 'https://cdn.example.com/manual.png\n', '')
+      },
+    )
+
+    const manager = new ImageUploadManager(tempDir, {
+      execFileFn: execFileMock,
+    })
+    await manager.initialize()
+    await manager.setImageUploadSettings(
+      createSettings({
+        autoUploadOnInsert: false,
+      }),
+    )
+
+    const documentPath = path.join(tempDir, 'note.md')
+    const imagePath = path.join(tempDir, 'assets', 'manual.png')
+    const uploadResult = await manager.uploadImage({
+      filePath: imagePath,
+      documentFilePath: documentPath,
+      manual: true,
+    })
+
+    expect(uploadResult).toEqual({
+      success: true,
+      remoteUrl: 'https://cdn.example.com/manual.png',
+    })
+    expect(execFileMock).toHaveBeenCalledWith(
+      'picgo',
+      ['upload', '--silent', imagePath],
+      expect.objectContaining({
+        cwd: tempDir,
+        timeout: 5_000,
+      }),
+      expect.any(Function),
+    )
+  })
+
   it('reports timeout failures and removes managed copies when keepLocalCopyAfterUpload is disabled', async () => {
     execFileMock.mockImplementationOnce(
       (
@@ -201,4 +246,3 @@ describe('ImageUploadManager', () => {
     })
   })
 })
-

@@ -88,6 +88,17 @@ function getStatisticsRow(panel: HTMLElement, label: string) {
   return row as HTMLTableRowElement
 }
 
+function createDeferred<T>() {
+  let resolve!: (value: T | PromiseLike<T>) => void
+  let reject!: (reason?: unknown) => void
+  const promise = new Promise<T>((promiseResolve, promiseReject) => {
+    resolve = promiseResolve
+    reject = promiseReject
+  })
+
+  return { promise, resolve, reject }
+}
+
 function getOpenTabs() {
   return screen.getAllByRole('tab')
 }
@@ -1461,6 +1472,167 @@ describe('App desktop integration', () => {
     await waitFor(() => {
       expect(view.state.doc.toString()).toContain('![image](./assets/diagram.png)')
       expect(screen.getByRole('alert')).toHaveTextContent('PicGo authentication failed')
+    })
+  })
+
+  it('uploads the selected local markdown image and rewrites the selection to the remote URL', async () => {
+    const api = new MockMarkFlowAPI()
+    api.setImageUploadSettingsState({
+      autoUploadOnInsert: true,
+      uploaderKind: 'picgo-core',
+      command: 'picgo',
+      arguments: 'upload',
+      timeoutMs: 5_000,
+      assetDirectoryName: 'assets',
+      keepLocalCopyAfterUpload: true,
+    })
+    api.setNextImageUploadResult({
+      success: true,
+      remoteUrl: 'https://cdn.example.com/diagram.png',
+    })
+    window.markflow = api
+
+    const content = 'Intro\n\n![Diagram](./assets/diagram.png)\n\nAfter'
+    const { container } = render(<App />)
+
+    await act(async () => {
+      api.emitFileOpened({
+        filePath: '/Users/pprp/docs/note.md',
+        content,
+      })
+    })
+
+    const view = getEditorView(container)
+    const imageFrom = content.indexOf('![Diagram]')
+    const imageTo = imageFrom + '![Diagram](./assets/diagram.png)'.length
+    act(() => {
+      view.dispatch({ selection: EditorSelection.range(imageFrom, imageTo) })
+    })
+
+    fireEvent.keyDown(document, { key: 'p', ctrlKey: true, shiftKey: true })
+    const input = await screen.findByPlaceholderText('Search commands...')
+    fireEvent.change(input, { target: { value: 'upload selected image' } })
+    fireEvent.click(screen.getByText('Upload Selected Image'))
+
+    await waitFor(() => {
+      expect(view.state.doc.toString()).toBe(
+        'Intro\n\n![Diagram](https://cdn.example.com/diagram.png)\n\nAfter',
+      )
+    })
+
+    expect(api.ingestImage).not.toHaveBeenCalled()
+    expect(api.uploadImage).toHaveBeenCalledWith({
+      filePath: '/Users/pprp/docs/assets/diagram.png',
+      documentFilePath: '/Users/pprp/docs/note.md',
+      manual: true,
+    })
+  })
+
+  it('rewrites the original selected image when selection changes before upload completes', async () => {
+    const api = new MockMarkFlowAPI()
+    const uploadDeferred = createDeferred<MarkFlowImageUploadResult>()
+    api.setImageUploadSettingsState({
+      autoUploadOnInsert: true,
+      uploaderKind: 'picgo-core',
+      command: 'picgo',
+      arguments: 'upload',
+      timeoutMs: 5_000,
+      assetDirectoryName: 'assets',
+      keepLocalCopyAfterUpload: true,
+    })
+    api.uploadImage = vi.fn(async () => uploadDeferred.promise)
+    window.markflow = api
+
+    const content = 'Intro\n\n![One](./assets/one.png)\n\nKeep me'
+    const { container } = render(<App />)
+
+    await act(async () => {
+      api.emitFileOpened({
+        filePath: '/Users/pprp/docs/note.md',
+        content,
+      })
+    })
+
+    const view = getEditorView(container)
+    const imageFrom = content.indexOf('![One]')
+    const imageTo = imageFrom + '![One](./assets/one.png)'.length
+    act(() => {
+      view.dispatch({ selection: EditorSelection.range(imageFrom, imageTo) })
+    })
+
+    fireEvent.keyDown(document, { key: 'p', ctrlKey: true, shiftKey: true })
+    const input = await screen.findByPlaceholderText('Search commands...')
+    fireEvent.change(input, { target: { value: 'upload selected image' } })
+    fireEvent.click(screen.getByText('Upload Selected Image'))
+
+    await waitFor(() => {
+      expect(api.uploadImage).toHaveBeenCalled()
+    })
+
+    const unrelatedFrom = view.state.doc.toString().indexOf('Keep me')
+    act(() => {
+      view.dispatch({ selection: EditorSelection.range(unrelatedFrom, unrelatedFrom + 'Keep'.length) })
+    })
+
+    await act(async () => {
+      uploadDeferred.resolve({
+        success: true,
+        remoteUrl: 'https://cdn.example.com/one.png',
+      })
+      await uploadDeferred.promise
+    })
+
+    await waitFor(() => {
+      expect(view.state.doc.toString()).toBe('Intro\n\n![One](https://cdn.example.com/one.png)\n\nKeep me')
+    })
+  })
+
+  it('uploads the selected image manually when auto-upload-on-insert is disabled', async () => {
+    const api = new MockMarkFlowAPI()
+    api.setImageUploadSettingsState({
+      autoUploadOnInsert: false,
+      uploaderKind: 'picgo-core',
+      command: 'picgo',
+      arguments: 'upload',
+      timeoutMs: 5_000,
+      assetDirectoryName: 'assets',
+      keepLocalCopyAfterUpload: true,
+    })
+    api.setNextImageUploadResult({
+      success: true,
+      remoteUrl: 'https://cdn.example.com/manual.png',
+    })
+    window.markflow = api
+
+    const content = 'Intro\n\n![Manual](./assets/manual.png)'
+    const { container } = render(<App />)
+
+    await act(async () => {
+      api.emitFileOpened({
+        filePath: '/Users/pprp/docs/note.md',
+        content,
+      })
+    })
+
+    const view = getEditorView(container)
+    const imageFrom = content.indexOf('![Manual]')
+    const imageTo = imageFrom + '![Manual](./assets/manual.png)'.length
+    act(() => {
+      view.dispatch({ selection: EditorSelection.range(imageFrom, imageTo) })
+    })
+
+    fireEvent.keyDown(document, { key: 'p', ctrlKey: true, shiftKey: true })
+    const input = await screen.findByPlaceholderText('Search commands...')
+    fireEvent.change(input, { target: { value: 'upload selected image' } })
+    fireEvent.click(screen.getByText('Upload Selected Image'))
+
+    await waitFor(() => {
+      expect(view.state.doc.toString()).toBe('Intro\n\n![Manual](https://cdn.example.com/manual.png)')
+    })
+    expect(api.uploadImage).toHaveBeenCalledWith({
+      filePath: '/Users/pprp/docs/assets/manual.png',
+      documentFilePath: '/Users/pprp/docs/note.md',
+      manual: true,
     })
   })
 
