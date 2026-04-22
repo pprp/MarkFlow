@@ -39,6 +39,18 @@ type UseCommandPaletteActionsOptions = {
   viewMode: 'wysiwyg' | 'source' | 'reading' | 'split'
 }
 
+function describeViewModeToggle(viewMode: UseCommandPaletteActionsOptions['viewMode']) {
+  if (viewMode === 'source') {
+    return 'Switch to WYSIWYG mode'
+  }
+
+  if (viewMode === 'split') {
+    return 'Split view remains active'
+  }
+
+  return 'Switch to source mode'
+}
+
 export function useCommandPaletteActions({
   activeTabIdRef,
   closeCommandPalette,
@@ -74,7 +86,7 @@ export function useCommandPaletteActions({
         id: 'view.toggle-wysiwyg',
         label: 'Toggle WYSIWYG Mode',
         category: 'View',
-        description: viewMode === 'wysiwyg' ? 'Switch to source mode' : 'Switch to WYSIWYG mode',
+        description: describeViewModeToggle(viewMode),
         keywords: ['preview', 'source', 'mode'],
         shortcut: 'Mod+/',
         focusEditorAfterRun: true,

@@ -1198,6 +1198,50 @@ describe('App desktop integration', () => {
     })
   })
 
+  it('maps Mod+/ to source from reading while preserving the preview/source toggle, split mode, and palette copy', async () => {
+    const api = new MockMarkFlowAPI()
+    window.markflow = api
+
+    const { container } = render(<App />)
+
+    await act(async () => {
+      api.emitFileOpened({ filePath: '/tmp/view-mode.md', content: '# View modes' })
+    })
+
+    fireEvent.keyDown(getEditorView(container).contentDOM, { key: '/', ctrlKey: true })
+
+    await waitFor(() => {
+      expect(container.querySelector('.mf-segment-btn.mf-segment-active')).toHaveTextContent('Source')
+    })
+
+    fireEvent.keyDown(getEditorView(container).contentDOM, { key: '/', ctrlKey: true })
+
+    await waitFor(() => {
+      expect(container.querySelector('.mf-segment-btn.mf-segment-active')).toHaveTextContent('Preview')
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Reading mode' }))
+    fireEvent.keyDown(document, { key: 'p', ctrlKey: true, shiftKey: true })
+
+    const commandInput = await screen.findByPlaceholderText('Search commands...')
+    fireEvent.change(commandInput, { target: { value: 'toggle wysiwyg' } })
+    expect(screen.getByText('Switch to source mode')).toBeInTheDocument()
+    fireEvent.keyDown(commandInput, { key: 'Escape' })
+
+    fireEvent.keyDown(getEditorView(container).contentDOM, { key: '/', ctrlKey: true })
+
+    await waitFor(() => {
+      expect(container.querySelector('.mf-segment-btn.mf-segment-active')).toHaveTextContent('Source')
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Split view' }))
+    fireEvent.keyDown(getEditorView(container).contentDOM, { key: '/', ctrlKey: true })
+
+    await waitFor(() => {
+      expect(container.querySelector('.mf-segment-btn.mf-segment-active')).toHaveTextContent('Split')
+    })
+  })
+
   it('rewrites pasted image markdown to the uploaded remote URL when auto-upload is enabled', async () => {
     const api = new MockMarkFlowAPI()
     api.setImageUploadSettingsState({

@@ -1696,9 +1696,9 @@
       "category": "bug",
       "area": "@markflow/editor",
       "priority": 2,
-      "status": "ready",
-      "passes": false,
-      "lastVerifiedAt": null,
+      "status": "verified",
+      "passes": true,
+      "lastVerifiedAt": "2026-04-22T14:29:26+08:00",
       "dependsOn": [
         "MF-004"
       ],
@@ -1874,6 +1874,23 @@
         "MF-090"
       ],
       "notesRef": "features/MF-139.md"
+    },
+    {
+      "id": "MF-140",
+      "title": "Markdown auto-pair wraps selections and completes Typora-style inline delimiters",
+      "category": "phase-1-functional",
+      "area": "@markflow/editor",
+      "priority": 3,
+      "status": "planned",
+      "passes": false,
+      "lastVerifiedAt": null,
+      "dependsOn": [
+        "MF-002",
+        "MF-014",
+        "MF-037",
+        "MF-044"
+      ],
+      "notesRef": "features/MF-140.md"
     }
   ]
 }

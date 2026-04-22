@@ -4601,6 +4601,46 @@ next: MF-051 - Outline panel lists all headings with live scroll-sync and click-
 - Next recommended feature:
   - Continue `MF-076` in a trusted desktop session with `Microsoft Word.app` installed, then run the full Word/webpage/VS Code with-and-without-shortcut paste matrix before promoting the ledger.
 
+### 2026-04-22T14:33:15+08:00 - MF-127 verified; Typora auto-pair gap added
+
+- Author: Codex
+- Focus: strict one-feature session after the required Researcher -> Implementer -> Reviewer loop.
+- Research updates:
+  - Added `MF-140` for Typora-style markdown auto-pair wrapping/completion, backed by Typora Auto Pair and Markdown Reference sources.
+  - Normalized the new backlog item into `harness/features/MF-140.md` and kept `harness/feature-ledger.json` metadata-only so harness verification passes.
+- Implemented feature:
+  - Completed `MF-127` so `Mod+/` toggles Source <-> Preview, sends Reading to Source, and leaves Split unchanged.
+  - Updated command palette copy so the toggle description matches Reading, Source, Preview, and Split states.
+  - Promoted only `MF-127` to `status=verified`, `passes=true`, `lastVerifiedAt=2026-04-22T14:29:26+08:00`.
+- Changed files:
+  - `packages/editor/src/App.tsx`
+  - `packages/editor/src/app-shell/useCommandPaletteActions.ts`
+  - `packages/editor/src/__tests__/App.test.tsx`
+  - `harness/feature-ledger.json`
+  - `harness/features/MF-127.md`
+  - `harness/features/MF-140.md`
+  - `harness/progress.md`
+- Simplifications made:
+  - Kept the mode transition table local to `toggleViewMode` instead of adding a new abstraction.
+  - Used one App integration test to cover shortcut behavior, split no-op behavior, and palette wording together.
+  - Deferred `MF-140` implementation because it depends on blocked superscript/subscript rendering work.
+- Verification:
+  - Initial `./harness/init.sh --smoke` passed before feature work.
+  - Implementer red/green evidence: the focused regression test failed before implementation for Reading -> Preview behavior and stale palette copy, then passed after the fix.
+  - `pnpm --filter @markflow/editor exec vitest run src/__tests__/App.test.tsx` passed (`63` tests).
+  - `pnpm --filter @markflow/editor lint` passed.
+  - `pnpm --filter @markflow/editor build` passed, with the existing Vite large-chunk warning.
+  - `pnpm harness:verify` passed (`features: 140 total | verified=82 | ready=38 | planned=19 | blocked=1 | regression=0`; next: `MF-076`).
+  - Final `./harness/init.sh --smoke` passed:
+    - `packages/desktop`: `10` test files / `68` tests passed.
+    - `packages/editor`: `44` test files / `475` tests passed / `3` skipped.
+- Review:
+  - Reviewer accepted the MF-127 diff as narrow and aligned with the feature note.
+  - Residual risk: no live Electron manual shortcut pass was run; coverage is through editor integration tests.
+- Next recommended feature:
+  - Harness still selects `MF-076`, but it remains gated on a trusted desktop session with `Microsoft Word.app` installed for the paste matrix.
+  - If the automation environment still lacks Word, the next small automatable bug to consider is `MF-130`.
+
 ### 2026-04-22T00:59:52+08:00 - MF-076 automation refreshed; Word manual gate still blocks ledger promotion
 
 - Author: Codex

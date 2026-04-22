@@ -650,7 +650,17 @@ export function App() {
   }, [])
 
   const toggleViewMode = useCallback(() => {
-    setViewMode((m) => (m === 'wysiwyg' ? 'source' : 'wysiwyg'))
+    setViewMode((mode) => {
+      if (mode === 'source') {
+        return 'wysiwyg'
+      }
+
+      if (mode === 'split') {
+        return 'split'
+      }
+
+      return 'source'
+    })
   }, [])
 
   const toggleFocusMode = useCallback(() => {
