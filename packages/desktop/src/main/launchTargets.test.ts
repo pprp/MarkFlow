@@ -2,7 +2,7 @@ import * as fs from 'fs'
 import * as os from 'os'
 import * as path from 'path'
 import { afterEach, describe, expect, it } from 'vitest'
-import { parseLaunchTargetsFromArgv } from './launchTargets'
+import { parseLaunchArgumentsFromArgv, parseLaunchTargetsFromArgv } from './launchTargets'
 
 const tempPaths: string[] = []
 
@@ -60,5 +60,39 @@ describe('parseLaunchTargetsFromArgv', () => {
     } finally {
       process.chdir(previousCwd)
     }
+  })
+
+  it('parses Typora-style startup override flags while preserving file and folder targets', () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'markflow-launch-targets-'))
+    tempPaths.push(tempDir)
+
+    const markdownPath = path.join(tempDir, 'note.md')
+    const vaultPath = path.join(tempDir, 'vault')
+    fs.writeFileSync(markdownPath, '# Note', 'utf8')
+    fs.mkdirSync(vaultPath)
+    const normalizedMarkdownPath = fs.realpathSync(markdownPath)
+    const normalizedVaultPath = fs.realpathSync(vaultPath)
+
+    const launchArguments = parseLaunchArgumentsFromArgv([
+      '--remote-debugging-port=9222',
+      '--new',
+      markdownPath,
+      '--reopen-file',
+      vaultPath,
+    ])
+
+    expect(launchArguments).toEqual({
+      startupBehaviorOverride: 'restore-last-file-and-folder',
+      targets: [
+        { kind: 'file', path: normalizedMarkdownPath },
+        { kind: 'folder', path: normalizedVaultPath },
+      ],
+    })
+  })
+
+  it('uses the last Typora-style startup override when multiple override flags are present', () => {
+    expect(parseLaunchArgumentsFromArgv(['--reopen-file', '--new']).startupBehaviorOverride).toBe(
+      'open-new-file',
+    )
   })
 })

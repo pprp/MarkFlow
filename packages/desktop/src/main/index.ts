@@ -9,7 +9,12 @@ import { ImageUploadManager } from './imageUploadManager'
 import { createApplicationMenuTemplate } from './menu'
 import { WindowStateManager } from './windowStateManager'
 import { installCliTool, isCliToolInstalled } from './cliInstaller'
-import { parseLaunchTargetsFromArgv, type LaunchTarget } from './launchTargets'
+import {
+  parseLaunchArgumentsFromArgv,
+  parseLaunchTargetsFromArgv,
+  type LaunchStartupBehaviorOverride,
+  type LaunchTarget,
+} from './launchTargets'
 
 const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged
 const PRIMARY_WINDOW_STATE_ID = 'primary'
@@ -21,6 +26,7 @@ let spellCheckManager: SpellCheckManager | null = null
 let imageUploadManager: ImageUploadManager | null = null
 let windowStateManager: WindowStateManager | null = null
 let pendingLaunchTargets: LaunchTarget[] = []
+let initialStartupBehaviorOverride: LaunchStartupBehaviorOverride | null = null
 
 function sendMenuAction(action: MarkFlowMenuAction, payload: Omit<MarkFlowMenuActionPayload, 'action'> = {}) {
   mainWindow?.webContents.send('menu-action', { action, ...payload })
@@ -119,6 +125,7 @@ function createWindow() {
   })
 
   fileManager = new FileManager(mainWindow, () => buildMenu())
+  fileManager.setStartupLaunchBehaviorOverride(initialStartupBehaviorOverride)
   fileManager.registerIpcHandlers()
   fileManager.markSessionStarted()
   themeManager = new ThemeManager(mainWindow, app.getPath('userData'))
@@ -233,7 +240,9 @@ function buildMenu() {
 
 ipcMain.handle('get-window-state', () => getWindowState())
 
-for (const target of parseLaunchTargetsFromArgv(isDev ? process.argv.slice(2) : process.argv.slice(1))) {
+const launchArguments = parseLaunchArgumentsFromArgv(isDev ? process.argv.slice(2) : process.argv.slice(1))
+initialStartupBehaviorOverride = launchArguments.startupBehaviorOverride
+for (const target of launchArguments.targets) {
   queueLaunchTarget(target)
 }
 

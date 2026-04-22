@@ -110,6 +110,7 @@ function getFileManagerAppPath(name: 'temp' | 'userData'): string {
 export class FileManager {
   private currentFilePath: string | null = null
   private currentFolderPath: string | null = null
+  private startupLaunchBehaviorOverride: MarkFlowLaunchBehavior | null = null
   private startupOverrideFilePath: string | null = null
   private launchOptions: MarkFlowLaunchOptionsState
   private recentHistory: MarkFlowRecentHistoryState
@@ -436,6 +437,11 @@ export class FileManager {
     this.startupOverrideFilePath = filePath
   }
 
+  setStartupLaunchBehaviorOverride(behavior: MarkFlowLaunchBehavior | null) {
+    this.startupLaunchBehaviorOverride =
+      behavior === 'open-new-file' || behavior === 'restore-last-file-and-folder' ? behavior : null
+  }
+
   async setLaunchBehavior(behavior: MarkFlowLaunchBehavior) {
     if (behavior === 'open-default-folder' && !this.launchOptions.defaultFolderPath) {
       return
@@ -467,6 +473,9 @@ export class FileManager {
   }
 
   async getStartupState(): Promise<MarkFlowStartupState> {
+    const launchBehaviorOverride = this.startupLaunchBehaviorOverride
+    this.startupLaunchBehaviorOverride = null
+
     const explicitDocument = await this.resolveExplicitStartupDocument()
     if (explicitDocument) {
       return {
@@ -476,7 +485,9 @@ export class FileManager {
       }
     }
 
-    if (this.launchOptions.behavior === 'restore-last-file-and-folder') {
+    const launchBehavior = launchBehaviorOverride ?? this.launchOptions.behavior
+
+    if (launchBehavior === 'restore-last-file-and-folder') {
       const windowSession = await this.getStartupWindowSession()
       const folderPath = await this.resolveStartupFolderPath(
         this.launchOptions.lastFolderPath ??
@@ -499,7 +510,7 @@ export class FileManager {
       }
     }
 
-    if (this.launchOptions.behavior === 'restore-last-folder') {
+    if (launchBehavior === 'restore-last-folder') {
       return {
         document: null,
         folderPath: await this.resolveStartupFolderPath(this.launchOptions.lastFolderPath),
@@ -507,7 +518,7 @@ export class FileManager {
       }
     }
 
-    if (this.launchOptions.behavior === 'open-default-folder') {
+    if (launchBehavior === 'open-default-folder') {
       return {
         document: null,
         folderPath: await this.resolveStartupFolderPath(this.launchOptions.defaultFolderPath),

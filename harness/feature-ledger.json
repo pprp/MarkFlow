@@ -1360,7 +1360,7 @@
     },
     {
       "id": "MF-103",
-      "title": "Launch behavior can reopen the last file/folder or open a configured default folder on startup",
+      "title": "Launch behavior honors preferences and Typora-style command-line overrides on startup",
       "category": "phase-2-functional",
       "area": "@markflow/desktop",
       "priority": 3,

@@ -561,6 +561,72 @@ describe('FileManager launch options', () => {
     })
   })
 
+  it('consumes the launch-argument startup override after one startup-state read', async () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'markflow-launch-options-'))
+    appGetPathMock.mockImplementation(() => tempDir)
+
+    const folderPath = path.join(tempDir, 'vault')
+    const filePath = path.join(folderPath, 'alpha.md')
+    fs.mkdirSync(folderPath)
+    fs.writeFileSync(filePath, '# Alpha', 'utf-8')
+
+    const manager = new FileManager(createWindowStub() as never)
+    await manager.openExistingFolderPath(folderPath)
+    await manager.openPath(filePath)
+    await manager.saveWindowSession({
+      filePaths: [filePath],
+      activeFilePath: filePath,
+    })
+    await manager.setLaunchBehavior('restore-last-file-and-folder')
+
+    const nextSessionManager = new FileManager(createWindowStub() as never)
+    nextSessionManager.setStartupLaunchBehaviorOverride('open-new-file')
+
+    await expect(nextSessionManager.getStartupState()).resolves.toEqual({
+      document: null,
+      folderPath: null,
+      windowSession: null,
+    })
+    await expect(nextSessionManager.getStartupState()).resolves.toEqual({
+      document: null,
+      folderPath,
+      windowSession: {
+        documents: [{ filePath, content: '# Alpha' }],
+        activeFilePath: filePath,
+      },
+    })
+  })
+
+  it('reopens the last file and folder when launch arguments request reopening files', async () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'markflow-launch-options-'))
+    appGetPathMock.mockImplementation(() => tempDir)
+
+    const folderPath = path.join(tempDir, 'vault')
+    const filePath = path.join(folderPath, 'alpha.md')
+    fs.mkdirSync(folderPath)
+    fs.writeFileSync(filePath, '# Alpha', 'utf-8')
+
+    const manager = new FileManager(createWindowStub() as never)
+    await manager.openExistingFolderPath(folderPath)
+    await manager.openPath(filePath)
+    await manager.saveWindowSession({
+      filePaths: [filePath],
+      activeFilePath: filePath,
+    })
+
+    const nextSessionManager = new FileManager(createWindowStub() as never)
+    nextSessionManager.setStartupLaunchBehaviorOverride('restore-last-file-and-folder')
+
+    await expect(nextSessionManager.getStartupState()).resolves.toEqual({
+      document: null,
+      folderPath,
+      windowSession: {
+        documents: [{ filePath, content: '# Alpha' }],
+        activeFilePath: filePath,
+      },
+    })
+  })
+
   it('opens the configured default folder on startup and falls back cleanly when it is missing', async () => {
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'markflow-launch-options-'))
     appGetPathMock.mockImplementation(() => tempDir)

@@ -5125,3 +5125,54 @@ next: MF-051 - Outline panel lists all headings with live scroll-sync and click-
   - If a trusted desktop session is available, finish the `MF-104` manual OS appearance-switch matrix and then promote it.
   - If automation remains terminal-only, add the researched Typora CLI launch parity feature with a matching note file and implement the automatable launch-target tests.
   - `MF-076` remains harness-next but still requires `Microsoft Word.app` for its full paste matrix.
+
+### 2026-04-22T21:16:59+08:00 - MF-103 launch overrides implemented; relaunch matrix remains open
+
+- Author: Codex
+- Focus: strict one-feature automation cycle with the required Dispatcher -> Researcher -> Implementer -> Reviewer subagent loop.
+- Startup / baseline:
+  - Read `/Users/pprp/.codex/automations/typora-replication/memory.md`.
+  - Ran `pnpm harness:start`; it reported `152` features and selected `MF-076` as harness-next.
+  - Ran initial `./harness/init.sh --smoke`; it passed before feature work with desktop `68` tests and editor `491` tests (`3` skipped).
+  - The baseline worktree was clean, so there was no pre-existing smoke-passing diff to commit before feature work.
+- Research updates:
+  - Researcher used Typora public launch docs and updated existing `MF-103` instead of appending a duplicate.
+  - `MF-103` now explicitly covers Typora-style command-line launch overrides in addition to persisted launch preferences.
+  - Researcher proposed, but did not append, `MF-153` for CLI missing-file creation because a matching `harness/features/MF-153.md` note file would be required.
+- Implemented feature work:
+  - Selected `MF-103` because it was the newly refined, automatable Typora launch-argument slice.
+  - Added parsing for Typora-style `--new` and `--reopen-file` launch arguments while preserving existing file/folder argv target parsing and Electron flag ignoring.
+  - Applied parsed launch overrides before startup-state IPC registration so `--new` forces an empty startup state and `--reopen-file` forces the existing restore-last-file-and-folder path without mutating saved launch preferences.
+  - Fixed Reviewer-requested one-shot behavior so the startup override is consumed after one `getStartupState()` call and later calls fall back to persisted preferences.
+  - Updated `harness/features/MF-103.md` with command-line override steps, automated coverage, sources, and the remaining manual relaunch gate.
+  - Left `MF-103` as `status=ready`, `passes=false`, and `lastVerifiedAt=null` because the macOS/Windows clean relaunch matrix was not run.
+- Changed files:
+  - `packages/desktop/src/main/launchTargets.ts`
+  - `packages/desktop/src/main/launchTargets.test.ts`
+  - `packages/desktop/src/main/fileManager.ts`
+  - `packages/desktop/src/main/fileManager.test.ts`
+  - `packages/desktop/src/main/index.ts`
+  - `harness/features/MF-103.md`
+  - `harness/feature-ledger.json`
+- Simplifications made:
+  - Kept command-line parsing in `launchTargets.ts` and reused the existing launch-behavior vocabulary instead of adding a parallel command model.
+  - Reused the existing `restore-last-file-and-folder` startup path for `--reopen-file`.
+  - Kept launch overrides one-shot and non-persistent so command-line launches do not rewrite user preferences.
+- Verification:
+  - Researcher ran JSON parse and `pnpm harness:verify`; both passed.
+  - Implementer reported red-first evidence for missing parser/startup override APIs, then added focused desktop coverage.
+  - Reviewer found the startup override was initially sticky across repeated startup-state reads; Implementer added a failing one-shot regression and fixed it.
+  - Reviewer rechecked and accepted the follow-up.
+  - Dispatcher reran:
+    - `pnpm --filter @markflow/desktop exec vitest run src/main/launchTargets.test.ts src/main/fileManager.test.ts` (`33` tests passed).
+    - `pnpm --filter @markflow/desktop lint`.
+    - `pnpm --filter @markflow/desktop build`.
+    - `pnpm harness:verify` (`152 total | verified=88 | ready=33 | planned=30 | blocked=1 | regression=0`; next: `MF-076`).
+    - `git diff --check`.
+    - Final `./harness/init.sh --smoke`, which passed with desktop `72` tests and editor `491` tests (`3` skipped).
+- Review:
+  - Reviewer accepted the `MF-103` slice as scoped and truthful after the one-shot override fix.
+  - Residual risk: command-line relaunch behavior still needs live macOS and Windows verification before `MF-103` can be promoted.
+- Next recommended feature:
+  - If a trusted desktop/manual session is available, run the `MF-103` clean relaunch matrix with persisted launch preferences plus `--new` and `--reopen-file`.
+  - If automation remains terminal-only, add the proposed `MF-153` CLI missing-file creation feature with a matching note file, or continue another small automatable ready feature while leaving `MF-076` Word-gated.
