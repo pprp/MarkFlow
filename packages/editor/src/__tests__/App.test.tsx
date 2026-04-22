@@ -3233,6 +3233,104 @@ describe('App export integration', () => {
     delete window.markflow
   })
 
+  it('remembers a successful HTML export target and reuses it for Export with Previous', async () => {
+    const api = new MockMarkFlowAPI()
+    window.markflow = api
+
+    render(<App />)
+
+    await act(async () => {
+      api.emitFileOpened({ filePath: '/docs/exportme.md', content: '# Hello\n\nSome text' })
+    })
+
+    await act(async () => {
+      api.emitMenuAction('export-html')
+    })
+
+    await waitFor(() => {
+      expect(api.exportHtml).toHaveBeenCalledTimes(1)
+    }, { timeout: 2000 })
+
+    await act(async () => {
+      api.emitFileSaved({ filePath: '/docs/renamed.md' })
+    })
+    await act(async () => {
+      api.emitMenuAction('export-with-previous' as MarkFlowMenuAction)
+    })
+
+    await waitFor(() => {
+      expect(api.exportHtml).toHaveBeenCalledTimes(2)
+    }, { timeout: 2000 })
+
+    const repeatedCallArgs = (api.exportHtml as ReturnType<typeof vi.fn>).mock.calls[1]
+    expect(repeatedCallArgs[0]).toContain('Hello')
+    expect(repeatedCallArgs[1]).toBe('/docs/exportme.html')
+  })
+
+  it('does not remember a failed export as the previous export target', async () => {
+    const api = new MockMarkFlowAPI()
+    api.exportPdf = vi.fn(async () => false)
+    window.markflow = api
+
+    render(<App />)
+
+    await act(async () => {
+      api.emitFileOpened({ filePath: '/docs/failed.md', content: '# Failed export' })
+    })
+
+    await act(async () => {
+      api.emitMenuAction('export-pdf')
+    })
+
+    await waitFor(() => {
+      expect(api.exportPdf).toHaveBeenCalledTimes(1)
+    }, { timeout: 2000 })
+
+    await act(async () => {
+      api.emitMenuAction('export-overwrite-with-previous' as MarkFlowMenuAction)
+    })
+
+    await new Promise((resolve) => setTimeout(resolve, 0))
+
+    expect(api.exportPdf).toHaveBeenCalledTimes(1)
+    expect(api.exportHtml).not.toHaveBeenCalled()
+    expect(api.exportDocx).not.toHaveBeenCalled()
+    expect(api.exportEpub).not.toHaveBeenCalled()
+    expect(api.exportLatex).not.toHaveBeenCalled()
+  })
+
+  it('reuses the previous Pandoc export target for overwrite-with-previous', async () => {
+    const api = new MockMarkFlowAPI()
+    window.markflow = api
+
+    render(<App />)
+
+    await act(async () => {
+      api.emitFileOpened({ filePath: '/docs/report.md', content: '# Report\n\nBody text.' })
+    })
+
+    await act(async () => {
+      api.emitMenuAction('export-docx')
+    })
+
+    await waitFor(() => {
+      expect(api.exportDocx).toHaveBeenCalledWith('# Report\n\nBody text.', '/docs/report.docx')
+    })
+
+    await act(async () => {
+      api.emitFileSaved({ filePath: '/docs/renamed-report.md' })
+    })
+    await act(async () => {
+      api.emitMenuAction('export-overwrite-with-previous' as MarkFlowMenuAction)
+    })
+
+    await waitFor(() => {
+      expect(api.exportDocx).toHaveBeenCalledTimes(2)
+    })
+
+    expect(api.exportDocx).toHaveBeenLastCalledWith('# Report\n\nBody text.', '/docs/report.docx')
+  })
+
   it('generates HTML from a hidden editor and calls exportHtml', async () => {
     const api = new MockMarkFlowAPI()
     window.markflow = api

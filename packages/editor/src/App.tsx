@@ -134,6 +134,15 @@ type AppToast = {
   message: string
 }
 
+type HtmlExportFormat = 'html' | 'pdf'
+type PandocExportAction = 'export-docx' | 'export-epub' | 'export-latex'
+type ExportFormat = HtmlExportFormat | 'docx' | 'epub' | 'latex'
+
+type PreviousExportState = {
+  format: ExportFormat
+  targetPath: string
+}
+
 type EditorImageInsertDetail = {
   file: File & { path?: string }
   markdownText: string
@@ -356,10 +365,14 @@ export function App() {
   const handleCopyActionRef = useRef<
     (action: 'copy' | 'copy-as-markdown' | 'copy-as-html-code') => Promise<void>
   >(async () => {})
-  const handleExportRef = useRef<(format: 'html' | 'pdf') => Promise<void>>(async () => {})
+  const handleExportRef = useRef<(format: HtmlExportFormat) => Promise<boolean>>(async () => false)
   const handlePandocExportRef = useRef<
-    (action: 'export-docx' | 'export-epub' | 'export-latex') => Promise<void>
-  >(async () => {})
+    (action: PandocExportAction) => Promise<boolean>
+  >(async () => false)
+  const handlePreviousExportRef = useRef<
+    (mode: 'with-previous' | 'overwrite-with-previous') => Promise<boolean>
+  >(async () => false)
+  const previousExportByTabRef = useRef<Map<string, PreviousExportState>>(new Map())
   const pluginHostRef = useRef<MarkFlowPluginHost | null>(null)
   const editorRef = useRef<MarkFlowEditorHandle | null>(null)
 
@@ -769,6 +782,7 @@ export function App() {
     handleOpenFolderPathRef,
     handleOpenQuickOpenRef,
     handlePandocExportRef,
+    handlePreviousExportRef,
     handleReopenClosedTabRef,
     handleSaveTabRef,
     loadCollapsedRangesForTab,
@@ -1394,29 +1408,57 @@ export function App() {
     await handleOpenPath(item.filePath)
   }
 
-
-  const handlePandocExport = async (action: 'export-docx' | 'export-epub' | 'export-latex') => {
-    const api = window.markflow
-    if (!api || !activeTab || activeTab.largeFile) return
-    const exportContent = getCurrentTabContent(activeTab)
-
-    const ext = action === 'export-docx' ? 'docx' : action === 'export-epub' ? 'epub' : 'tex'
-    const defaultName = activeTab.filePath
-      ? activeTab.filePath.replace(/\.(md|markdown|txt)$/i, '') + '.' + ext
-      : `Untitled.${ext}`
-
-    if (action === 'export-docx') {
-      await api.exportDocx(exportContent, defaultName)
-    } else if (action === 'export-epub') {
-      await api.exportEpub(exportContent, defaultName)
-    } else {
-      await api.exportLatex(exportContent, defaultName)
-    }
+  const rememberPreviousExport = (tabId: string, format: ExportFormat, targetPath: string) => {
+    previousExportByTabRef.current.set(tabId, { format, targetPath })
   }
 
-  const handleExport = async (format: 'html' | 'pdf') => {
+  const getPandocExportFormat = (action: PandocExportAction): Exclude<ExportFormat, HtmlExportFormat> => {
+    if (action === 'export-docx') return 'docx'
+    if (action === 'export-epub') return 'epub'
+    return 'latex'
+  }
+
+  const getPandocExportExtension = (format: Exclude<ExportFormat, HtmlExportFormat>) =>
+    format === 'latex' ? 'tex' : format
+
+  const handlePandocExport = async (
+    action: PandocExportAction,
+    targetPathOverride?: string,
+  ): Promise<boolean> => {
+    const api = window.markflow
+    if (!api || !activeTab || activeTab.largeFile) return false
+    const exportContent = getCurrentTabContent(activeTab)
+
+    const format = getPandocExportFormat(action)
+    const ext = getPandocExportExtension(format)
+    const targetPath =
+      targetPathOverride ??
+      (activeTab.filePath
+        ? activeTab.filePath.replace(/\.(md|markdown|txt)$/i, '') + '.' + ext
+        : `Untitled.${ext}`)
+
+    let didExport = false
+    if (action === 'export-docx') {
+      didExport = await api.exportDocx(exportContent, targetPath)
+    } else if (action === 'export-epub') {
+      didExport = await api.exportEpub(exportContent, targetPath)
+    } else {
+      didExport = await api.exportLatex(exportContent, targetPath)
+    }
+
+    if (didExport) {
+      rememberPreviousExport(activeTab.id, format, targetPath)
+    }
+
+    return didExport
+  }
+
+  const handleExport = async (
+    format: HtmlExportFormat,
+    targetPathOverride?: string,
+  ): Promise<boolean> => {
     if (!activeTab || activeTab.largeFile) {
-      return
+      return false
     }
 
     const exportContent = getCurrentTabContent(activeTab)
@@ -1431,7 +1473,7 @@ export function App() {
       const exportEl = document.getElementById('mf-export-container')
       const cmContent = exportEl?.querySelector<HTMLElement>('.cm-content')
       if (!cmContent) {
-        return
+        return false
       }
 
       const html = serializeRenderedDocumentForExport({
@@ -1445,21 +1487,54 @@ export function App() {
 
       const api = window.markflow
       if (!api) {
-        return
+        return false
       }
 
-      const defaultName = activeTab.filePath
-        ? activeTab.filePath.replace(/\.(md|markdown|txt)$/i, '') + '.' + format
-        : 'Untitled.' + format
+      const targetPath =
+        targetPathOverride ??
+        (activeTab.filePath
+          ? activeTab.filePath.replace(/\.(md|markdown|txt)$/i, '') + '.' + format
+          : 'Untitled.' + format)
 
+      let didExport = false
       if (format === 'html') {
-        await api.exportHtml(html, defaultName)
+        didExport = await api.exportHtml(html, targetPath)
       } else {
-        await api.exportPdf(html, defaultName)
+        didExport = await api.exportPdf(html, targetPath)
       }
+
+      if (didExport) {
+        rememberPreviousExport(activeTab.id, format, targetPath)
+      }
+
+      return didExport
     } finally {
       setIsExporting(false)
     }
+  }
+
+  const handlePreviousExport = async (): Promise<boolean> => {
+    if (!activeTab || activeTab.largeFile) {
+      return false
+    }
+
+    const previousExport = previousExportByTabRef.current.get(activeTab.id)
+    if (!previousExport) {
+      return false
+    }
+
+    if (previousExport.format === 'html' || previousExport.format === 'pdf') {
+      return handleExport(previousExport.format, previousExport.targetPath)
+    }
+
+    const action: PandocExportAction =
+      previousExport.format === 'docx'
+        ? 'export-docx'
+        : previousExport.format === 'epub'
+          ? 'export-epub'
+          : 'export-latex'
+
+    return handlePandocExport(action, previousExport.targetPath)
   }
 
   const updateHeadingNumberingPreference = useCallback((enabled: boolean) => {
@@ -1757,7 +1832,8 @@ export function App() {
     handleCopyActionRef.current = handleCopyAction
     handleExportRef.current = handleExport
     handlePandocExportRef.current = handlePandocExport
-  }, [handleCopyAction, handleExport, handlePandocExport])
+    handlePreviousExportRef.current = handlePreviousExport
+  }, [handleCopyAction, handleExport, handlePandocExport, handlePreviousExport])
 
   const { commandPaletteActions, handleCommandPaletteSelect } = useCommandPaletteActions({
     activeTabIdRef,

@@ -230,12 +230,23 @@ describe('createApplicationMenuTemplate', () => {
     })
     const exportHtmlItem = getNestedMenuItem(template, 'File', 'Export', 'HTML…')
     const exportPdfItem = getNestedMenuItem(template, 'File', 'Export', 'PDF…')
+    const exportWithPreviousItem = getNestedMenuItem(template, 'File', 'Export', 'Export with Previous')
+    const exportOverwriteWithPreviousItem = getNestedMenuItem(
+      template,
+      'File',
+      'Export',
+      'Export and Overwrite with Previous',
+    )
 
     exportHtmlItem?.click?.({} as never, {} as never, {} as never)
     exportPdfItem?.click?.({} as never, {} as never, {} as never)
+    exportWithPreviousItem?.click?.({} as never, {} as never, {} as never)
+    exportOverwriteWithPreviousItem?.click?.({} as never, {} as never, {} as never)
 
     expect(sendMenuAction.mock.calls).toContainEqual(['export-html'])
     expect(sendMenuAction.mock.calls).toContainEqual(['export-pdf'])
+    expect(sendMenuAction.mock.calls).toContainEqual(['export-with-previous'])
+    expect(sendMenuAction.mock.calls).toContainEqual(['export-overwrite-with-previous'])
   })
 
   it('routes distraction-free mode through the renderer menu bridge', () => {

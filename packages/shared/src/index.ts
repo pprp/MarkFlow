@@ -151,6 +151,8 @@ export type MarkFlowMenuAction =
   | 'export-docx'
   | 'export-epub'
   | 'export-latex'
+  | 'export-with-previous'
+  | 'export-overwrite-with-previous'
   | 'go-to-line'
   | 'navigate-back'
   | 'navigate-forward'

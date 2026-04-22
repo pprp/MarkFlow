@@ -240,6 +240,12 @@ export function createApplicationMenuTemplate({
         {
           label: 'Export',
           submenu: [
+            { label: 'Export with Previous', click: () => sendMenuAction('export-with-previous') },
+            {
+              label: 'Export and Overwrite with Previous',
+              click: () => sendMenuAction('export-overwrite-with-previous'),
+            },
+            { type: 'separator' },
             { label: 'HTML…', click: () => sendMenuAction('export-html') },
             { label: 'PDF…', click: () => sendMenuAction('export-pdf') },
             { label: 'Word (DOCX)…', click: () => sendMenuAction('export-docx') },

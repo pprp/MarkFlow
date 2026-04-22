@@ -29,13 +29,16 @@ type UseDesktopBridgeOptions = {
     (action: 'copy' | 'copy-as-markdown' | 'copy-as-html-code') => Promise<void>
   >
   handleCycleTabsRef: MutableRefObject<(direction: 1 | -1) => void>
-  handleExportRef: MutableRefObject<(format: 'html' | 'pdf') => Promise<void>>
+  handleExportRef: MutableRefObject<(format: 'html' | 'pdf') => Promise<boolean>>
   handleNavigateBackRef: MutableRefObject<() => Promise<boolean>>
   handleNavigateForwardRef: MutableRefObject<() => Promise<boolean>>
   handleOpenFolderPathRef: MutableRefObject<(folderPath: string) => Promise<boolean>>
   handleOpenQuickOpenRef: MutableRefObject<() => Promise<boolean>>
   handlePandocExportRef: MutableRefObject<
-    (action: 'export-docx' | 'export-epub' | 'export-latex') => Promise<void>
+    (action: 'export-docx' | 'export-epub' | 'export-latex') => Promise<boolean>
+  >
+  handlePreviousExportRef: MutableRefObject<
+    (mode: 'with-previous' | 'overwrite-with-previous') => Promise<boolean>
   >
   handleReopenClosedTabRef: MutableRefObject<() => Promise<boolean>>
   handleSaveTabRef: MutableRefObject<(tabId: string | null, forceSaveAs?: boolean) => Promise<boolean>>
@@ -80,6 +83,7 @@ export function useDesktopBridge({
   handleOpenFolderPathRef,
   handleOpenQuickOpenRef,
   handlePandocExportRef,
+  handlePreviousExportRef,
   handleReopenClosedTabRef,
   handleSaveTabRef,
   loadCollapsedRangesForTab,
@@ -307,6 +311,12 @@ export function useDesktopBridge({
         case 'export-latex':
           await handlePandocExportRef.current(action)
           break
+        case 'export-with-previous':
+          await handlePreviousExportRef.current('with-previous')
+          break
+        case 'export-overwrite-with-previous':
+          await handlePreviousExportRef.current('overwrite-with-previous')
+          break
         case 'go-to-line':
           openGoToLine()
           break
@@ -490,6 +500,7 @@ export function useDesktopBridge({
     handleOpenFolderPathRef,
     handleOpenQuickOpenRef,
     handlePandocExportRef,
+    handlePreviousExportRef,
     handleReopenClosedTabRef,
     handleSaveTabRef,
     loadCollapsedRangesForTab,

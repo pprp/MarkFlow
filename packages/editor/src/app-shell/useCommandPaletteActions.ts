@@ -15,14 +15,14 @@ type UseCommandPaletteActionsOptions = {
   editorRef: RefObject<MarkFlowEditorHandle | null>
   focusMode: boolean
   handleCopyAction: (action: 'copy' | 'copy-as-markdown' | 'copy-as-html-code') => Promise<void>
-  handleExport: (format: 'html' | 'pdf') => Promise<void>
+  handleExport: (format: 'html' | 'pdf') => Promise<boolean>
   handleNavigateBack: () => Promise<boolean>
   handleNavigateForward: () => Promise<boolean>
   handleOpenFolder: () => Promise<void>
   handleOpenGlobalSearch: () => boolean
   handleOpenGoToLine: () => boolean
   handleOpenQuickOpen: () => Promise<boolean>
-  handlePandocExport: (action: 'export-docx' | 'export-epub' | 'export-latex') => Promise<void>
+  handlePandocExport: (action: 'export-docx' | 'export-epub' | 'export-latex') => Promise<boolean>
   handleSaveTab: (tabId: string | null, forceSaveAs?: boolean) => Promise<boolean>
   isDistractionFreeMode: boolean
   isDocumentStatisticsOpen: boolean

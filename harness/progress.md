@@ -5221,3 +5221,61 @@ next: MF-051 - Outline panel lists all headings with live scroll-sync and click-
 - Next recommended feature:
   - `MF-076` remains harness-next but still requires `Microsoft Word.app` for the full paste matrix.
   - If automation stays terminal-only, choose another small automatable ready feature or add one researched Typora backlog item only with its matching `harness/features/MF-xxx.md` note.
+
+### 2026-04-22T23:21:44+08:00 - MF-138 previous-export slice implemented; full export profiles remain planned
+
+- Author: Codex Dispatcher with Researcher/Implementer/Reviewer subagents
+- Focus: strict one-feature automation cycle with the required Dispatcher -> Researcher -> Implementer -> Reviewer loop.
+- Startup / baseline:
+  - Read `/Users/pprp/.codex/automations/typora-replication/memory.md`.
+  - Ran `pnpm harness:start`; it reported `152` features and selected `MF-076` as harness-next.
+  - Ran initial `./harness/init.sh --smoke`; it passed before feature work with desktop `72` tests and editor `492` tests (`3` skipped).
+  - The baseline worktree was clean, so there was no pre-existing smoke-passing diff to commit before feature work.
+- Research updates:
+  - Researcher used Typora official Export, File Management, Markdown Reference, Images, Draw Diagrams With Markdown, and Typora 1.13 docs.
+  - Updated existing `MF-138` instead of adding a duplicate feature, changing its title to explicitly include previous targets and custom export items.
+  - Recommended a narrow `Export with Previous` / `Export and Overwrite with Previous` slice; new candidate gaps still require matching feature note files before they can be appended.
+- Implemented feature work:
+  - Selected `MF-138` because the research update exposed a source-backed slice that was smaller than the full export-profile scope and not blocked by `MF-076`'s Microsoft Word manual gate.
+  - Added File > Export menu entries for `Export with Previous` and `Export and Overwrite with Previous`.
+  - Added shared menu actions and renderer bridge routing for previous-export commands.
+  - Added renderer-side previous-export state keyed by active tab; successful HTML/PDF/Pandoc exports remember format and target path, while failed exports do not update the remembered state.
+  - Replays previous HTML/PDF/Pandoc exports with the remembered target path.
+  - Updated `harness/features/MF-138.md` with an implementation note and residual risk.
+  - Left `MF-138` as `status=planned`, `passes=false`, and `lastVerifiedAt=null` because named profiles, YAML metadata, custom export items, themes, and true no-dialog overwrite semantics remain incomplete.
+- Changed files:
+  - `harness/feature-ledger.json`
+  - `harness/features/MF-138.md`
+  - `packages/shared/src/index.ts`
+  - `packages/desktop/src/main/menu.ts`
+  - `packages/desktop/src/main/menu.test.ts`
+  - `packages/editor/src/App.tsx`
+  - `packages/editor/src/app-shell/useDesktopBridge.ts`
+  - `packages/editor/src/app-shell/useCommandPaletteActions.ts`
+  - `packages/editor/src/__tests__/App.test.tsx`
+- Simplifications made:
+  - Kept this run to previous-export replay rather than starting the broader export-profile/settings surface.
+  - Stored previous-export state in renderer memory per active tab instead of adding a new persisted preferences layer.
+  - Reused existing export APIs and existing HTML/PDF/Pandoc export generation paths.
+- Verification:
+  - Researcher ran JSON parse and `pnpm harness:verify`; both passed.
+  - Implementer followed red-first TDD for the new menu/replay behavior, then verified focused App export tests, desktop menu tests, lint/build, `pnpm harness:verify`, and `git diff --check`.
+  - Reviewer accepted the diff as scoped and truthful, with no blocking findings.
+  - Dispatcher reran:
+    - `pnpm --filter @markflow/editor exec vitest run src/__tests__/App.test.tsx -t "App export integration"` (`6` tests passed, `65` skipped).
+    - `pnpm --filter @markflow/desktop exec vitest run src/main/menu.test.ts` (`17` tests passed).
+    - `pnpm harness:verify` (`152 total | verified=89 | ready=32 | planned=30 | blocked=1 | regression=0`; next: `MF-076`).
+    - `git diff --check`.
+    - `pnpm --filter @markflow/editor lint`.
+    - `pnpm --filter @markflow/desktop lint`.
+    - `pnpm --filter @markflow/shared build`.
+    - `pnpm --filter @markflow/editor build`, which passed with the existing Vite large-chunk warning.
+    - `pnpm --filter @markflow/desktop build`.
+    - Final `./harness/init.sh --smoke`, which passed with desktop `72` tests and editor `495` tests (`3` skipped).
+- Review:
+  - Reviewer accepted the `MF-138` previous-export slice with no blockers.
+  - Residual risk: `Export and Overwrite with Previous` currently reuses the prior target path through the existing desktop export API, so the main-process save dialog path is still unchanged and true no-prompt overwrite remains future work.
+  - Successful reuse coverage is direct for HTML and DOCX/Pandoc, with failed-export coverage through PDF; successful PDF/EPUB/LaTeX replay is covered structurally but not individually asserted.
+- Next recommended feature:
+  - Continue `MF-138` by adding a main-process direct previous-target export path so `Export and Overwrite with Previous` can skip the save dialog truthfully.
+  - If a trusted desktop/manual session is available, `MF-076` remains harness-next and still needs the Microsoft Word/webpage/VS Code paste matrix.
