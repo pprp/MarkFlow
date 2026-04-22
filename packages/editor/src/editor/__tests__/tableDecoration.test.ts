@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { readFileSync } from 'node:fs'
 import { EditorState } from '@codemirror/state'
 import { EditorView } from '@codemirror/view'
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown'
@@ -32,6 +33,13 @@ function getRow(view: EditorView, className: string) {
 
 function getHeaderCells(view: EditorView) {
   return Array.from(view.dom.querySelectorAll('.mf-table-header-row .mf-table-cell')) as HTMLElement[]
+}
+
+function getTableCellRule() {
+  const globalCss = readFileSync('src/styles/global.css', 'utf8')
+  const ruleMatch = globalCss.match(/\.cm-editor\s+\.mf-table-cell\s*\{(?<body>[^}]+)\}/)
+  expect(ruleMatch?.groups?.body).toBeTruthy()
+  return ruleMatch?.groups?.body ?? ''
 }
 
 function ensurePointerEventSupport() {
@@ -106,6 +114,37 @@ describe('tableDecorations', () => {
     expect(headerCells[0].style.textAlign).toBe('left')
     expect(headerCells[1].style.textAlign).toBe('right')
     expect(bodyCells[1].style.textAlign).toBe('right')
+
+    destroyView(view)
+  })
+
+  it('allows rendered long table cell content to wrap instead of truncating it', () => {
+    const tableCellRule = getTableCellRule()
+
+    expect(tableCellRule).not.toMatch(/white-space\s*:\s*nowrap\b/)
+    expect(tableCellRule).not.toMatch(/overflow\s*:\s*hidden\b/)
+    expect(tableCellRule).not.toMatch(/text-overflow\s*:\s*ellipsis\b/)
+    expect(tableCellRule).toMatch(/white-space\s*:\s*normal\b/)
+    expect(tableCellRule).toMatch(/overflow-wrap\s*:\s*anywhere\b/)
+    expect(tableCellRule).toMatch(/overflow\s*:\s*visible\b/)
+  })
+
+  it('keeps long table content visible and editable across rendered/source table transitions', () => {
+    const longCell =
+      'This rendered markdown table cell contains a deliberately long sentence that must remain readable instead of disappearing behind an ellipsis.'
+    const doc = `Intro\n\n| Notes | Owner |\n| --- | --- |\n| ${longCell} | Ada |\n\nAfter`
+    const view = makeView(doc, 0)
+    const renderedCellSelector = '.cm-line.mf-table-row:not(.mf-table-header-row):not(.mf-table-separator-row) .mf-table-cell'
+
+    expect((view.dom.querySelector(renderedCellSelector) as HTMLElement | null)?.textContent).toContain(longCell)
+
+    view.dispatch({ selection: { anchor: doc.indexOf(longCell) + 8 } })
+    expect(view.state.doc.toString()).toBe(doc)
+    expect(lineText(view, 4)).toContain(longCell)
+
+    view.dispatch({ selection: { anchor: 0 } })
+    expect(view.state.doc.toString()).toBe(doc)
+    expect((view.dom.querySelector(renderedCellSelector) as HTMLElement | null)?.textContent).toContain(longCell)
 
     destroyView(view)
   })

@@ -1,3 +1,56 @@
+### 2026-04-22T17:24:30+08:00 - MF-122 verified; table cells now wrap
+
+- Author: Codex Dispatcher with Researcher/Implementer/Reviewer subagents
+- Focus: strict one-feature cycle for `MF-122`; no second product feature was implemented.
+- Research updates:
+  - Researcher compared Typora File Management and Shortcut Keys docs against the ledger.
+  - Updated existing `MF-139` title to explicitly cover Typora-style Articles/File List sidebar mode.
+  - No new feature was added because the capability belongs under the existing planned file-sidebar parity bucket.
+- Implemented feature:
+  - Completed `MF-122` so rendered markdown table cells wrap long content instead of hiding it behind ellipsis.
+  - Replaced `.mf-table-cell` truncation CSS (`nowrap`/hidden/ellipsis) with normal wrapping, visible overflow, and `overflow-wrap: anywhere`.
+  - Added regressions for the table-cell CSS contract and for long table content surviving rendered/source table transitions without document mutation.
+  - Promoted only `MF-122` to `status=verified`, `passes=true`, `lastVerifiedAt=2026-04-22T17:11:47+08:00`.
+- Changed files:
+  - `harness/feature-ledger.json`
+  - `packages/editor/src/editor/__tests__/tableDecoration.test.ts`
+  - `packages/editor/src/styles/global.css`
+- Simplifications made:
+  - Left table parsing and column-resize logic unchanged.
+  - Kept the product fix to the existing table-cell CSS rule instead of introducing new table layout state.
+  - Deferred broad `MF-139` sidebar/file-operation work to a later cycle.
+- Verification:
+  - Initial `./harness/init.sh --smoke` passed before feature work:
+    - `packages/desktop`: `10` test files / `68` tests passed.
+    - `packages/editor`: `44` test files / `480` tests passed / `3` skipped.
+  - Researcher ran `python -m json.tool harness/feature-ledger.json` and `pnpm harness:verify` (`features: 143 total | verified=85 | ready=35 | planned=22 | blocked=1 | regression=0`).
+  - Implementer reported a red check where the new table decoration regression failed on the existing `white-space: nowrap`.
+  - Implementer verification passed:
+    - `pnpm --filter @markflow/editor test:run src/editor/__tests__/tableDecoration.test.ts`
+    - `pnpm --filter @markflow/editor test:run src/editor/__tests__/tableCommands.test.ts`
+    - `pnpm --filter @markflow/editor lint`
+    - `pnpm --filter @markflow/editor build`
+    - `git diff --check`
+  - Reviewer accepted the diff with no findings.
+  - Dispatcher reran:
+    - `pnpm --filter @markflow/editor test:run src/editor/__tests__/tableDecoration.test.ts` passed (`7` tests).
+    - `pnpm --filter @markflow/editor test:run src/editor/__tests__/tableCommands.test.ts` passed (`10` tests).
+    - `pnpm harness:verify` passed (`features: 143 total | verified=86 | ready=34 | planned=22 | blocked=1 | regression=0`; next: `MF-076`).
+    - `git diff --check` passed.
+    - `pnpm --filter @markflow/editor lint` passed.
+    - `pnpm --filter @markflow/editor build` passed, with the existing Vite large-chunk warning.
+  - Final `./harness/init.sh --smoke` passed:
+    - `pnpm harness:verify` passed (`features: 143 total | verified=86 | ready=34 | planned=22 | blocked=1 | regression=0`; next: `MF-076`).
+    - `packages/desktop`: `10` test files / `68` tests passed.
+    - `packages/editor`: `44` test files / `482` tests passed / `3` skipped.
+- Remaining risks:
+  - No live narrow-window/manual table resize check was run.
+  - No explicit multiline table-cell fixture was added; automated coverage protects the truncation contract and rendered/source transition behavior.
+  - `MF-076` remains harness-selected but still requires Microsoft Word for the manual paste matrix.
+- Next recommended feature:
+  - If `Microsoft Word.app` is available, finish `MF-076` manual paste verification.
+  - If Word is still unavailable, choose the next automatable priority-2 feature rather than retrying a manual-gated item.
+
 ### 2026-04-22T16:24:01+08:00 - MF-129 verified; Typora image export backlog added
 
 - Author: Codex Dispatcher with Researcher/Implementer/Reviewer subagents

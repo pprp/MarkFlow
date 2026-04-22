@@ -2002,7 +2002,7 @@ body {
   }
 }
 
-/* ── Tables (MF-013, MF-069) ───────────────────────────────── */
+/* ── Tables (MF-013, MF-069, MF-122) ────────────────────────── */
 .cm-editor .mf-table-row {
   display: flex;
   align-items: stretch;
@@ -2027,9 +2027,9 @@ body {
 .cm-editor .mf-table-cell {
   min-width: 0;
   padding: 0.3em 0.75em;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: normal;
+  overflow: visible;
+  overflow-wrap: anywhere;
   box-sizing: border-box;
 }
 

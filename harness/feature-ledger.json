@@ -1624,9 +1624,9 @@
       "category": "phase-2-polish",
       "area": "@markflow/editor",
       "priority": 2,
-      "status": "ready",
-      "passes": false,
-      "lastVerifiedAt": null,
+      "status": "verified",
+      "passes": true,
+      "lastVerifiedAt": "2026-04-22T17:11:47+08:00",
       "dependsOn": [
         "MF-013",
         "MF-069"
@@ -1861,7 +1861,7 @@
     },
     {
       "id": "MF-139",
-      "title": "File sidebar supports Typora-style refresh, sort, move, duplicate, copy path, and undo file operations",
+      "title": "File sidebar supports Typora-style Articles/File List mode, refresh, sort, move, duplicate, copy path, and undo file operations",
       "category": "phase-2-functional",
       "area": "@markflow/desktop",
       "priority": 3,
