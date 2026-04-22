@@ -22,13 +22,7 @@ import {
 } from '@codemirror/commands'
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown'
 import { languages } from '@codemirror/language-data'
-import {
-  syntaxHighlighting,
-  defaultHighlightStyle,
-  bracketMatching,
-  indentOnInput,
-  foldState,
-} from '@codemirror/language'
+import { bracketMatching, indentOnInput, foldState } from '@codemirror/language'
 import { RangeSetBuilder } from '@codemirror/state'
 import { Decoration, ViewPlugin, type ViewUpdate } from '@codemirror/view'
 import { SearchQuery, searchKeymap, highlightSelectionMatches, openSearchPanel } from '@codemirror/search'
@@ -100,6 +94,7 @@ import {
   LARGE_DOCUMENT_SYMBOL_TABLE_SYNC_DELAY_MS,
   isLargeInteractiveDocument,
 } from '../largeDocument'
+import { markFlowSyntaxHighlighting } from './syntaxHighlighting'
 
 const DEFAULT_SPLIT_RATIO = 0.58
 const MIN_SPLIT_RATIO = 0.1
@@ -577,7 +572,7 @@ function getEditorExtensions(
     closeBrackets(),
     indentOnInput(),
     highlightSelectionMatches(),
-    syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
+    markFlowSyntaxHighlighting(),
     markdownCompartment.of(getMarkdownSyntaxExtensions(markdownMode)),
     documentSearchStateField,
     documentSearchHighlighter,
@@ -1202,7 +1197,7 @@ export const MarkFlowEditor = forwardRef<MarkFlowEditorHandle, MarkFlowEditorPro
       doc: content,
       extensions: [
         baseTheme,
-        syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
+        markFlowSyntaxHighlighting(),
         markdown({
           base: markdownLanguage,
           codeLanguages: languages,

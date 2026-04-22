@@ -39,6 +39,20 @@
   /* ── Semantic colors ────────────────────────────────────────── */
   --mf-link-color:      #9C6030;
   --mf-code-fg:         #B25068;                      /* warm code highlight */
+  --mf-syntax-meta:     #6E6A5F;
+  --mf-syntax-keyword:  #8D3F6E;
+  --mf-syntax-constant: #5047A3;
+  --mf-syntax-literal:  #2F6F52;
+  --mf-syntax-string:   #9F3F35;
+  --mf-syntax-special:  #B85827;
+  --mf-syntax-definition: #2F5CAD;
+  --mf-syntax-variable: #6D4DA6;
+  --mf-syntax-type:     #2B6C62;
+  --mf-syntax-class:    #246F80;
+  --mf-syntax-special-variable: #3D6C7A;
+  --mf-syntax-property: #315AA3;
+  --mf-syntax-comment:  #82642A;
+  --mf-syntax-invalid:  #C43333;
   --mf-blockquote-border: rgba(26, 26, 26, 0.12);
   --mf-blockquote-fg:   rgba(26, 26, 26, 0.48);
   --mf-selection:       rgba(196, 118, 37, 0.14);
@@ -127,6 +141,20 @@
 
     --mf-link-color:      #D4903A;
     --mf-code-fg:         #E08B8B;
+    --mf-syntax-meta:     #BAB2A4;
+    --mf-syntax-keyword:  #FF9FC8;
+    --mf-syntax-constant: #B8ABFF;
+    --mf-syntax-literal:  #94D8AE;
+    --mf-syntax-string:   #F1A58D;
+    --mf-syntax-special:  #F5B274;
+    --mf-syntax-definition: #9FC1FF;
+    --mf-syntax-variable: #CBB7FF;
+    --mf-syntax-type:     #8DDBC5;
+    --mf-syntax-class:    #8CCFE0;
+    --mf-syntax-special-variable: #99D3E0;
+    --mf-syntax-property: #9DBDFF;
+    --mf-syntax-comment:  #D4B277;
+    --mf-syntax-invalid:  #FF8585;
     --mf-blockquote-border: rgba(232, 228, 220, 0.14);
     --mf-blockquote-fg:   rgba(232, 228, 220, 0.42);
     --mf-selection:       rgba(212, 144, 58, 0.20);

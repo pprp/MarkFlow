@@ -5072,3 +5072,56 @@ next: MF-051 - Outline panel lists all headings with live scroll-sync and click-
 - Next recommended feature:
   - If staying in automation, continue `MF-086` with equation numbering and `\ref` resolution because it is now the active source-backed math parity path.
   - If a trusted desktop/manual session with `Microsoft Word.app` is available, finish the still harness-selected `MF-076` paste matrix before promoting it.
+
+### 2026-04-22T20:50:52+08:00 - MF-104 dark syntax contrast fixed; OS theme matrix remains open
+
+- Author: Codex
+- Focus: strict one-feature automation cycle with the required Dispatcher -> Researcher -> Implementer -> Reviewer subagent loop.
+- Startup / baseline:
+  - Read `/Users/pprp/.codex/automations/typora-replication/memory.md`.
+  - Ran `pnpm harness:start`; it reported `152` features and selected `MF-076` as harness-next.
+  - Ran initial `./harness/init.sh --smoke`; it passed before feature work with desktop `68` tests and editor `489` tests (`3` skipped).
+  - Found inherited smoke-passing backlog edits already present for `MF-138` and new `MF-144` through `MF-152`; committed them first as `c95cd63` to keep this run's implementation diff separate.
+- Research updates:
+  - Researcher used Typora public docs for Markdown, Export, Copy/Paste, File Management, shell usage, and launch arguments/options.
+  - Researcher made no ledger edit this run.
+  - Best new gap found: Typora-style CLI launch parity (`typora file.md`, `typora .`, missing-file creation prompt, `--new`, `--reopen-file`). It was not appended because adding `MF-153` would require a matching feature note outside Researcher's write scope.
+- Implemented feature work:
+  - Selected `MF-104` after skipping manual-gated `MF-076` and larger p2 items.
+  - Replaced CodeMirror's default light-only syntax highlight palette with a MarkFlow `HighlightStyle` that emits theme CSS variables.
+  - Added light and dark syntax token variables in `global.css`, including dark colors with WCAG AA contrast against the dark code surface.
+  - Added focused syntax highlighting tests for generated CSS variable usage and dark-token contrast.
+  - Updated `harness/features/MF-104.md` with the completed syntax contrast slice and corrected focused verification command.
+  - Left `MF-104` as `status=ready`, `passes=false`, and `lastVerifiedAt=null` because live desktop OS appearance-switch verification remains required.
+- Changed files:
+  - `packages/editor/src/editor/syntaxHighlighting.ts`
+  - `packages/editor/src/editor/MarkFlowEditor.tsx`
+  - `packages/editor/src/editor/__tests__/syntaxHighlighting.test.tsx`
+  - `packages/editor/src/styles/global.css`
+  - `harness/features/MF-104.md`
+  - `harness/progress.md`
+- Simplifications made:
+  - Reused CodeMirror's `HighlightStyle` API instead of overriding generated token classes in CSS.
+  - Kept syntax colors centralized in existing MarkFlow theme variables rather than adding appearance-specific editor extensions.
+  - Avoided promoting `MF-104` from automated contrast coverage alone.
+- Verification:
+  - Researcher ran `python -m json.tool harness/feature-ledger.json` and `pnpm harness:verify`; both passed.
+  - Implementer reported red-first evidence for the new syntax variable regression, then passed the focused syntax test, editor lint/build, `pnpm harness:verify`, and `git diff --check`.
+  - Reviewer accepted the implementation and found one stale `MF-104` App-test command in the feature note; Implementer corrected it and reran the matching focused test.
+  - Reviewer final recheck accepted the follow-up.
+  - Dispatcher reran:
+    - `pnpm --filter @markflow/desktop exec vitest run src/main/themeManager.test.ts` (`3` tests passed).
+    - `pnpm --filter @markflow/editor exec vitest run src/__tests__/App.test.tsx -t "keeps theme controls out of the titlebar while still applying desktop theme updates"` (`1` test passed, `67` skipped).
+    - `pnpm --filter @markflow/editor exec vitest run src/editor/__tests__/syntaxHighlighting.test.tsx` (`2` tests passed).
+    - `pnpm --filter @markflow/editor lint`.
+    - `pnpm --filter @markflow/editor build`, which passed with the existing Vite large-chunk warning.
+    - `pnpm harness:verify` (`152 total | verified=88 | ready=33 | planned=30 | blocked=1 | regression=0`; next: `MF-076`).
+    - `git diff --check`.
+    - Final `./harness/init.sh --smoke`, which passed with desktop `68` tests and editor `491` tests (`3` skipped).
+- Review:
+  - Reviewer accepted the `MF-104` slice as scoped and aligned with the feature note.
+  - Residual risk: live desktop OS appearance switching still needs manual verification before `MF-104` can be promoted.
+- Next recommended feature:
+  - If a trusted desktop session is available, finish the `MF-104` manual OS appearance-switch matrix and then promote it.
+  - If automation remains terminal-only, add the researched Typora CLI launch parity feature with a matching note file and implement the automatable launch-target tests.
+  - `MF-076` remains harness-next but still requires `Microsoft Word.app` for its full paste matrix.
