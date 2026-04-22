@@ -755,7 +755,7 @@ describe('FileManager Pandoc exports', () => {
 
     const result = await manager.exportHtml('<h1>Export</h1>', 'Untitled.html')
 
-    expect(result).toBe(false)
+    expect(result).toBeNull()
     expect(writeFileMock).toHaveBeenCalledWith('/tmp/export.html', '<h1>Export</h1>', 'utf-8')
     expect(showMessageBoxMock).toHaveBeenCalledWith(
       expect.anything(),
@@ -765,6 +765,36 @@ describe('FileManager Pandoc exports', () => {
         detail: 'EACCES: permission denied',
       }),
     )
+  })
+
+  it('returns the accepted HTML save-dialog path after a successful export', async () => {
+    const writeFileMock = vi.spyOn(fs.promises, 'writeFile').mockResolvedValue()
+    const manager = new FileManager(createWindowStub() as never)
+
+    showSaveDialogMock.mockResolvedValue({
+      canceled: false,
+      filePath: '/tmp/changed-name.html',
+    })
+
+    const result = await manager.exportHtml('<h1>Export</h1>', 'Untitled.html')
+
+    expect(result).toBe('/tmp/changed-name.html')
+    expect(writeFileMock).toHaveBeenCalledWith('/tmp/changed-name.html', '<h1>Export</h1>', 'utf-8')
+  })
+
+  it('does not return a target path when an HTML export is canceled', async () => {
+    const writeFileMock = vi.spyOn(fs.promises, 'writeFile').mockResolvedValue()
+    const manager = new FileManager(createWindowStub() as never)
+
+    showSaveDialogMock.mockResolvedValue({
+      canceled: true,
+      filePath: '/tmp/canceled.html',
+    })
+
+    const result = await manager.exportHtml('<h1>Export</h1>', 'Untitled.html')
+
+    expect(result).toBeNull()
+    expect(writeFileMock).not.toHaveBeenCalled()
   })
 
   it('exports HTML directly to an explicit path without opening the save dialog', async () => {
@@ -792,7 +822,7 @@ describe('FileManager Pandoc exports', () => {
 
     const result = await manager.exportPdf('<h1 id="intro">Intro</h1>', 'Untitled.pdf')
 
-    expect(result).toBe(true)
+    expect(result).toBe('/tmp/export.pdf')
     expect(browserWindowLoadFileMock).toHaveBeenCalledWith(expect.stringMatching(/markflow-export-.*\.html$/))
     expect(browserWindowExecuteJavaScriptMock).toHaveBeenCalledTimes(1)
     expect(browserWindowPrintToPdfMock).toHaveBeenCalledWith(
@@ -835,7 +865,7 @@ describe('FileManager Pandoc exports', () => {
 
     const result = await manager.exportPdf('<h1 id="intro">Intro</h1>', 'Untitled.pdf')
 
-    expect(result).toBe(false)
+    expect(result).toBeNull()
     expect(writeFileMock).toHaveBeenCalledTimes(2)
     expect(showMessageBoxMock).toHaveBeenCalledWith(
       expect.anything(),
@@ -857,7 +887,7 @@ describe('FileManager Pandoc exports', () => {
     })
 
     const result = await manager.exportPandoc('# Heading', 'Untitled', 'docx', 'Word Document', ['docx'])
-    expect(result).toBe(true)
+    expect(result).toBe('/tmp/export.docx')
 
     // verify pandoc args
     const callArgs = execFileMock.mock.calls[0]
@@ -893,7 +923,7 @@ describe('FileManager Pandoc exports', () => {
     })
 
     const result = await manager.exportPandoc('# Heading', 'Untitled', 'latex', 'LaTeX', ['tex'])
-    expect(result).toBe(true)
+    expect(result).toBe('/tmp/export.tex')
 
     // verify pandoc args
     const callArgs = execFileMock.mock.calls[0]

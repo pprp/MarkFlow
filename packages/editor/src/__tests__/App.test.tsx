@@ -241,11 +241,11 @@ class MockMarkFlowAPI implements MarkFlowDesktopAPI {
   })
   confirmTabClose: MarkFlowDesktopAPI['confirmTabClose'] = vi.fn(async () => this.confirmTabCloseAction)
 
-  exportHtml: MarkFlowDesktopAPI['exportHtml'] = vi.fn(async () => true)
-  exportPdf: MarkFlowDesktopAPI['exportPdf'] = vi.fn(async () => true)
-  exportDocx: MarkFlowDesktopAPI['exportDocx'] = vi.fn(async () => true)
-  exportEpub: MarkFlowDesktopAPI['exportEpub'] = vi.fn(async () => true)
-  exportLatex: MarkFlowDesktopAPI['exportLatex'] = vi.fn(async () => true)
+  exportHtml: MarkFlowDesktopAPI['exportHtml'] = vi.fn(async (_html, defaultPath) => defaultPath)
+  exportPdf: MarkFlowDesktopAPI['exportPdf'] = vi.fn(async (_html, defaultPath) => defaultPath)
+  exportDocx: MarkFlowDesktopAPI['exportDocx'] = vi.fn(async (_markdown, defaultPath) => defaultPath)
+  exportEpub: MarkFlowDesktopAPI['exportEpub'] = vi.fn(async (_markdown, defaultPath) => defaultPath)
+  exportLatex: MarkFlowDesktopAPI['exportLatex'] = vi.fn(async (_markdown, defaultPath) => defaultPath)
   exportHtmlToPath: MarkFlowDesktopAPI['exportHtmlToPath'] = vi.fn(async () => true)
   exportPdfToPath: MarkFlowDesktopAPI['exportPdfToPath'] = vi.fn(async () => true)
   exportDocxToPath: MarkFlowDesktopAPI['exportDocxToPath'] = vi.fn(async () => true)
@@ -3272,9 +3272,43 @@ describe('App export integration', () => {
     expect(repeatedCallArgs[1]).toBe('/docs/exportme.html')
   })
 
+  it('remembers the accepted save-dialog path when a normal export target is changed', async () => {
+    const api = new MockMarkFlowAPI()
+    api.exportHtml = vi.fn(async () => '/exports/changed-target.html')
+    const directHtmlExport = api.exportHtmlToPath as ReturnType<typeof vi.fn>
+    window.markflow = api
+
+    render(<App />)
+
+    await act(async () => {
+      api.emitFileOpened({ filePath: '/docs/exportme.md', content: '# Hello\n\nSome text' })
+    })
+
+    await act(async () => {
+      api.emitMenuAction('export-html')
+    })
+
+    await waitFor(() => {
+      expect(api.exportHtml).toHaveBeenCalledTimes(1)
+    }, { timeout: 2000 })
+
+    await act(async () => {
+      api.emitFileSaved({ filePath: '/docs/renamed.md' })
+    })
+    await act(async () => {
+      api.emitMenuAction('export-overwrite-with-previous' as MarkFlowMenuAction)
+    })
+
+    await waitFor(() => {
+      expect(directHtmlExport).toHaveBeenCalledTimes(1)
+    }, { timeout: 2000 })
+
+    expect(directHtmlExport.mock.calls[0][1]).toBe('/exports/changed-target.html')
+  })
+
   it('does not remember a failed export as the previous export target', async () => {
     const api = new MockMarkFlowAPI()
-    api.exportPdf = vi.fn(async () => false)
+    api.exportPdf = vi.fn(async () => null)
     window.markflow = api
 
     render(<App />)

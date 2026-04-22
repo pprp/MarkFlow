@@ -5334,3 +5334,59 @@ next: MF-051 - Outline panel lists all headings with live scroll-sync and click-
 - Next recommended feature:
   - Continue `MF-138` by changing dialog-backed exports to return the accepted save-dialog path, so previous-export memory tracks user-chosen destinations precisely.
   - If a trusted desktop/manual session with Microsoft Word is available, `MF-076` remains harness-next for the paste matrix.
+
+### 2026-04-23T01:21:43+08:00 - MF-138 normal exports now remember accepted dialog paths
+
+- Author: Codex Dispatcher with Researcher/Implementer/Reviewer subagents
+- Focus: strict one-feature automation cycle for Typora export-profile parity.
+- Startup / baseline:
+  - Read `/Users/pprp/.codex/automations/typora-replication/memory.md`.
+  - Ran `pnpm harness:start`; it reported `152` features and selected `MF-076` as harness-next.
+  - Ran initial `./harness/init.sh --smoke`; it passed before feature work with desktop `76` tests and editor `496` tests (`3` skipped).
+  - The baseline worktree was clean, so there was no pre-feature change to commit.
+- Research updates:
+  - Researcher used Typora Export, Markdown Reference, Images, and Draw Diagrams With Markdown docs.
+  - Refined `MF-138` to explicitly include custom Pandoc or command export items.
+  - Did not append new features because new entries require matching `harness/features/MF-xxx.md` files outside the Researcher write scope.
+- Implemented feature work:
+  - Changed dialog-backed HTML, PDF, DOCX, EPUB, and LaTeX export APIs to return the accepted save-dialog path after the underlying export succeeds, or `null` on cancel/failure.
+  - Updated renderer previous-export memory to store that accepted path for normal exports.
+  - Preserved direct overwrite APIs as no-dialog boolean exports against an explicit remembered target.
+  - Added regressions for accepted dialog path capture, canceled/failed dialog exports, and direct overwrite reuse.
+  - Updated `harness/features/MF-138.md` with this slice and remaining full-profile scope.
+  - Left `MF-138` as `status=planned`, `passes=false`, and `lastVerifiedAt=null`.
+- Changed files:
+  - `harness/feature-ledger.json`
+  - `harness/features/MF-138.md`
+  - `packages/shared/src/index.ts`
+  - `packages/desktop/src/preload/index.ts`
+  - `packages/desktop/src/main/fileManager.ts`
+  - `packages/desktop/src/main/fileManager.test.ts`
+  - `packages/editor/src/App.tsx`
+  - `packages/editor/src/__tests__/App.test.tsx`
+- Simplifications made:
+  - Kept the slice to path capture instead of starting named export profiles or settings UI.
+  - Reused existing export internals and direct path APIs rather than adding a second export pipeline.
+  - Used `string | null` for dialog-backed export results so canceled and failed exports stay explicit.
+- Verification:
+  - Researcher ran JSON parse and `pnpm harness:verify`; both passed.
+  - Implementer ran package tests/lint/build, `pnpm harness:verify`, and `git diff --check`; all passed.
+  - Reviewer accepted the diff with no blockers and noted the Implementer-reported filtered test commands were broader than their labels.
+  - Dispatcher reran:
+    - `pnpm --filter @markflow/desktop exec vitest run src/main/fileManager.test.ts` (`35` tests passed).
+    - `pnpm --filter @markflow/editor exec vitest run src/__tests__/App.test.tsx -t "App export integration"` (`8` tests passed, `65` skipped).
+    - `pnpm --filter @markflow/shared build`.
+    - `pnpm --filter @markflow/desktop lint`.
+    - `pnpm --filter @markflow/editor lint`.
+    - `pnpm --filter @markflow/desktop build`.
+    - `pnpm --filter @markflow/editor build`, which passed with the existing Vite large-chunk warning.
+    - `pnpm harness:verify` (`152 total | verified=89 | ready=32 | planned=30 | blocked=1 | regression=0`; next: `MF-076`).
+    - `python -m json.tool harness/feature-ledger.json`.
+    - `git diff --check`.
+    - Final `./harness/init.sh --smoke`, which passed with desktop `78` tests and editor `497` tests (`3` skipped).
+- Review:
+  - Reviewer accepted the path-memory slice as scoped and truthful.
+  - Residual risk: full `MF-138` remains incomplete: named export profiles, custom Pandoc/custom command items, export themes/options, YAML metadata-aware publishing, profile CRUD, and manual desktop export checks remain open.
+- Next recommended feature:
+  - Continue `MF-138` with a small profile/custom export item slice if automation remains terminal-only.
+  - If a trusted desktop/manual session with Microsoft Word is available, `MF-076` remains harness-next for the paste matrix.

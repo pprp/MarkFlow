@@ -240,15 +240,15 @@ export class FileManager {
   }
 
   
-  async exportHtml(html: string, defaultPath: string): Promise<boolean> {
+  async exportHtml(html: string, defaultPath: string): Promise<string | null> {
     const result = await dialog.showSaveDialog(this.window, {
       title: 'Export as HTML',
       defaultPath,
       filters: [{ name: 'HTML', extensions: ['html'] }],
     })
-    if (result.canceled || !result.filePath) return false
+    if (result.canceled || !result.filePath) return null
 
-    return this.exportHtmlToPath(html, result.filePath)
+    return (await this.exportHtmlToPath(html, result.filePath)) ? result.filePath : null
   }
 
   async exportHtmlToPath(html: string, targetPath: string): Promise<boolean> {
@@ -262,15 +262,15 @@ export class FileManager {
     }
   }
 
-  async exportPdf(html: string, defaultPath: string): Promise<boolean> {
+  async exportPdf(html: string, defaultPath: string): Promise<string | null> {
     const result = await dialog.showSaveDialog(this.window, {
       title: 'Export as PDF',
       defaultPath,
       filters: [{ name: 'PDF', extensions: ['pdf'] }],
     })
-    if (result.canceled || !result.filePath) return false
+    if (result.canceled || !result.filePath) return null
 
-    return this.exportPdfToPath(html, result.filePath)
+    return (await this.exportPdfToPath(html, result.filePath)) ? result.filePath : null
   }
 
   async exportPdfToPath(html: string, targetPath: string): Promise<boolean> {
@@ -338,15 +338,15 @@ export class FileManager {
   }
 
 
-  async exportPandoc(markdown: string, defaultPath: string, format: string, filterName: string, extensions: string[]): Promise<boolean> {
+  async exportPandoc(markdown: string, defaultPath: string, format: string, filterName: string, extensions: string[]): Promise<string | null> {
     const result = await dialog.showSaveDialog(this.window, {
       title: `Export as ${filterName}`,
       defaultPath,
       filters: [{ name: filterName, extensions }],
     })
-    if (result.canceled || !result.filePath) return false
+    if (result.canceled || !result.filePath) return null
 
-    return this.exportPandocToPath(markdown, result.filePath, format)
+    return (await this.exportPandocToPath(markdown, result.filePath, format)) ? result.filePath : null
   }
 
   async exportPandocToPath(markdown: string, targetPath: string, format: string): Promise<boolean> {

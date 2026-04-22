@@ -50,11 +50,16 @@ const api: MarkFlowDesktopAPI = {
   getRecoveryCheckpoint: () =>
     ipcRenderer.invoke('get-recovery-checkpoint') as Promise<MarkFlowRecoveryCheckpoint | null>,
   discardRecoveryCheckpoint: () => ipcRenderer.invoke('discard-recovery-checkpoint') as Promise<void>,
-  exportHtml: (html: string, defaultPath: string) => ipcRenderer.invoke('export-html', html, defaultPath),
-  exportPdf: (html: string, defaultPath: string) => ipcRenderer.invoke('export-pdf', html, defaultPath),
-  exportDocx: (markdown: string, defaultPath: string) => ipcRenderer.invoke('export-docx', markdown, defaultPath),
-  exportEpub: (markdown: string, defaultPath: string) => ipcRenderer.invoke('export-epub', markdown, defaultPath),
-  exportLatex: (markdown: string, defaultPath: string) => ipcRenderer.invoke('export-latex', markdown, defaultPath),
+  exportHtml: (html: string, defaultPath: string) =>
+    ipcRenderer.invoke('export-html', html, defaultPath) as Promise<string | null>,
+  exportPdf: (html: string, defaultPath: string) =>
+    ipcRenderer.invoke('export-pdf', html, defaultPath) as Promise<string | null>,
+  exportDocx: (markdown: string, defaultPath: string) =>
+    ipcRenderer.invoke('export-docx', markdown, defaultPath) as Promise<string | null>,
+  exportEpub: (markdown: string, defaultPath: string) =>
+    ipcRenderer.invoke('export-epub', markdown, defaultPath) as Promise<string | null>,
+  exportLatex: (markdown: string, defaultPath: string) =>
+    ipcRenderer.invoke('export-latex', markdown, defaultPath) as Promise<string | null>,
   exportHtmlToPath: (html: string, targetPath: string) =>
     ipcRenderer.invoke('export-html-to-path', html, targetPath),
   exportPdfToPath: (html: string, targetPath: string) =>

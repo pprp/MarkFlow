@@ -1426,6 +1426,9 @@ export function App() {
   const getPandocExportExtension = (format: Exclude<ExportFormat, HtmlExportFormat>) =>
     format === 'latex' ? 'tex' : format
 
+  const didAcceptDialogExport = (acceptedPath: string | null): acceptedPath is string =>
+    typeof acceptedPath === 'string' && acceptedPath.length > 0
+
   const handlePandocExport = async (
     action: PandocExportAction,
     options: ExportTargetOptions = {},
@@ -1443,23 +1446,34 @@ export function App() {
         ? activeTab.filePath.replace(/\.(md|markdown|txt)$/i, '') + '.' + ext
         : `Untitled.${ext}`)
 
+    let acceptedPath: string | null = null
     let didExport = false
     if (action === 'export-docx') {
-      didExport = options.directTargetPath
-        ? await api.exportDocxToPath(exportContent, targetPath)
-        : await api.exportDocx(exportContent, targetPath)
+      if (options.directTargetPath) {
+        didExport = await api.exportDocxToPath(exportContent, targetPath)
+      } else {
+        acceptedPath = await api.exportDocx(exportContent, targetPath)
+        didExport = didAcceptDialogExport(acceptedPath)
+      }
     } else if (action === 'export-epub') {
-      didExport = options.directTargetPath
-        ? await api.exportEpubToPath(exportContent, targetPath)
-        : await api.exportEpub(exportContent, targetPath)
+      if (options.directTargetPath) {
+        didExport = await api.exportEpubToPath(exportContent, targetPath)
+      } else {
+        acceptedPath = await api.exportEpub(exportContent, targetPath)
+        didExport = didAcceptDialogExport(acceptedPath)
+      }
     } else {
-      didExport = options.directTargetPath
-        ? await api.exportLatexToPath(exportContent, targetPath)
-        : await api.exportLatex(exportContent, targetPath)
+      if (options.directTargetPath) {
+        didExport = await api.exportLatexToPath(exportContent, targetPath)
+      } else {
+        acceptedPath = await api.exportLatex(exportContent, targetPath)
+        didExport = didAcceptDialogExport(acceptedPath)
+      }
     }
 
-    if (didExport) {
-      rememberPreviousExport(activeTab.id, format, targetPath)
+    const exportedTargetPath = options.directTargetPath ? targetPath : acceptedPath
+    if (didExport && exportedTargetPath) {
+      rememberPreviousExport(activeTab.id, format, exportedTargetPath)
     }
 
     return didExport
@@ -1509,19 +1523,27 @@ export function App() {
           ? activeTab.filePath.replace(/\.(md|markdown|txt)$/i, '') + '.' + format
           : 'Untitled.' + format)
 
+      let acceptedPath: string | null = null
       let didExport = false
       if (format === 'html') {
-        didExport = options.directTargetPath
-          ? await api.exportHtmlToPath(html, targetPath)
-          : await api.exportHtml(html, targetPath)
+        if (options.directTargetPath) {
+          didExport = await api.exportHtmlToPath(html, targetPath)
+        } else {
+          acceptedPath = await api.exportHtml(html, targetPath)
+          didExport = didAcceptDialogExport(acceptedPath)
+        }
       } else {
-        didExport = options.directTargetPath
-          ? await api.exportPdfToPath(html, targetPath)
-          : await api.exportPdf(html, targetPath)
+        if (options.directTargetPath) {
+          didExport = await api.exportPdfToPath(html, targetPath)
+        } else {
+          acceptedPath = await api.exportPdf(html, targetPath)
+          didExport = didAcceptDialogExport(acceptedPath)
+        }
       }
 
-      if (didExport) {
-        rememberPreviousExport(activeTab.id, format, targetPath)
+      const exportedTargetPath = options.directTargetPath ? targetPath : acceptedPath
+      if (didExport && exportedTargetPath) {
+        rememberPreviousExport(activeTab.id, format, exportedTargetPath)
       }
 
       return didExport

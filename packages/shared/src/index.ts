@@ -398,11 +398,11 @@ export interface MarkFlowDesktopAPI {
   scheduleRecoveryCheckpoint: (draft: MarkFlowRecoveryDraft) => void
   getRecoveryCheckpoint: () => Promise<MarkFlowRecoveryCheckpoint | null>
   discardRecoveryCheckpoint: () => Promise<void>
-  exportHtml: (html: string, defaultPath: string) => Promise<boolean>
-  exportPdf: (html: string, defaultPath: string) => Promise<boolean>
-  exportDocx: (markdown: string, defaultPath: string) => Promise<boolean>
-  exportEpub: (markdown: string, defaultPath: string) => Promise<boolean>
-  exportLatex: (markdown: string, defaultPath: string) => Promise<boolean>
+  exportHtml: (html: string, defaultPath: string) => Promise<string | null>
+  exportPdf: (html: string, defaultPath: string) => Promise<string | null>
+  exportDocx: (markdown: string, defaultPath: string) => Promise<string | null>
+  exportEpub: (markdown: string, defaultPath: string) => Promise<string | null>
+  exportLatex: (markdown: string, defaultPath: string) => Promise<string | null>
   exportHtmlToPath: (html: string, targetPath: string) => Promise<boolean>
   exportPdfToPath: (html: string, targetPath: string) => Promise<boolean>
   exportDocxToPath: (markdown: string, targetPath: string) => Promise<boolean>
