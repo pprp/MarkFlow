@@ -1021,9 +1021,9 @@
       "category": "phase-1-functional",
       "area": "@markflow/editor",
       "priority": 2,
-      "status": "ready",
-      "passes": false,
-      "lastVerifiedAt": null,
+      "status": "verified",
+      "passes": true,
+      "lastVerifiedAt": "2026-04-22T18:08:42+0800",
       "dependsOn": [],
       "notesRef": "features/MF-078.md"
     },
@@ -1127,7 +1127,7 @@
     },
     {
       "id": "MF-086",
-      "title": "Math block equation auto-numbering labels display and resolve `\\ref` references",
+      "title": "Math parity covers Typora-style equation numbering, line breaks, and TeX package support",
       "category": "phase-2-functional",
       "area": "@markflow/editor",
       "priority": 3,
@@ -1171,7 +1171,7 @@
     },
     {
       "id": "MF-089",
-      "title": "UI localization supports switching interface language at runtime",
+      "title": "UI localization and RTL document direction support Typora-style language workflows",
       "category": "phase-2-functional",
       "area": "@markflow/desktop",
       "priority": 3,

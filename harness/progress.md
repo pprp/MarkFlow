@@ -4886,3 +4886,47 @@ next: MF-051 - Outline panel lists all headings with live scroll-sync and click-
 - Next recommended feature:
   - Harness still selects `MF-076`, but it remains gated on a trusted desktop session with `Microsoft Word.app` installed for the paste matrix.
   - If Word remains unavailable, choose the next small automatable ready feature rather than re-running the manual-gated paste item.
+
+### 2026-04-22T18:10:45+08:00 - MF-078 verified; Typora math and RTL ledger gaps refined
+
+- Author: Codex
+- Focus: strict one-feature automation cycle with the required Dispatcher -> Researcher -> Implementer -> Reviewer subagent loop.
+- Research updates:
+  - Refined `MF-086` so the existing math backlog item now captures Typora-style equation numbering, line breaks, and TeX package support instead of only `\ref` label display.
+  - Refined `MF-089` so the existing localization backlog item now captures Typora-style RTL document direction workflows.
+  - No new feature was appended because the Researcher stayed within the ledger-only scope and the gaps fit existing entries.
+  - Sources used by Researcher: Typora 1.13 release notes, Typora RTL support, and Typora language support docs.
+- Implemented feature:
+  - Completed `MF-078` by adding a focused numbered-list move regression for the existing CodeMirror `Alt+Arrow` move-line path.
+  - The test verifies document order, parsed `ListItem` structure, moved selection, undo, and redo for a real numbered markdown list item block.
+  - No product code changes were needed.
+  - Promoted only `MF-078` to `status=verified`, `passes=true`, `lastVerifiedAt=2026-04-22T18:08:42+0800`.
+- Changed files:
+  - `packages/editor/src/editor/__tests__/MarkFlowEditor.test.tsx`
+  - `harness/features/MF-078.md`
+  - `harness/feature-ledger.json`
+  - `harness/progress.md`
+- Simplifications made:
+  - Closed the previously manual-gated acceptance with parser-backed automated coverage instead of adding a desktop-only workaround.
+  - Kept the implementation on the existing CodeMirror command path.
+  - Preserved the Researcher ledger title refinements and avoided a second feature.
+- Verification:
+  - Initial `./harness/init.sh --smoke` passed before feature work:
+    - `packages/desktop`: `10` test files / `68` tests passed.
+    - `packages/editor`: `44` test files / `482` tests passed / `3` skipped.
+  - Implementer verification passed:
+    - `pnpm --filter @markflow/editor exec vitest run src/editor/__tests__/MarkFlowEditor.test.tsx -t "moves a numbered list item block"`
+    - `pnpm --filter @markflow/editor exec vitest run src/editor/__tests__/MarkFlowEditor.test.tsx`
+    - `pnpm --filter @markflow/editor lint -- src/editor/MarkFlowEditor.tsx src/editor/__tests__/MarkFlowEditor.test.tsx`
+    - `pnpm --filter @markflow/editor build`
+    - `python -m json.tool harness/feature-ledger.json`
+    - `pnpm harness:verify`
+    - `git diff --check`
+  - Dispatcher reran the focused numbered-list regression, `pnpm harness:verify`, and `git diff --check`; all passed.
+  - Reviewer reran the focused numbered-list regression, `pnpm harness:verify`, `python -m json.tool harness/feature-ledger.json`, and `git diff --check -- ...`; all passed.
+- Review:
+  - Reviewer accepted the MF-078 diff as narrow and aligned with the feature note.
+  - Residual risk: no live desktop spot-check was run, but the missing numbered-list acceptance is now covered through source, parser, selection, and undo/redo assertions.
+- Next recommended feature:
+  - Harness still selects `MF-076`, but it remains gated on `Microsoft Word.app` for the full paste matrix.
+  - If Word remains unavailable, continue with the next small automatable ready feature rather than re-running the manual-gated paste item.

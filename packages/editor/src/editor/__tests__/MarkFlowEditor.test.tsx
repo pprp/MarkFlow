@@ -697,6 +697,54 @@ describe('MarkFlowEditor', () => {
     expect(view.state.doc.lineAt(view.state.selection.main.head).text).toBe('middle')
   })
 
+  it('moves a numbered list item block with Alt+Arrow while preserving list structure and undo', () => {
+    const content = ['1. Alpha', '   alpha note', '2. Beta', '   beta note', '3. Gamma'].join('\n')
+    const movedContent = ['1. Alpha', '   alpha note', '3. Gamma', '2. Beta', '   beta note'].join('\n')
+    const { container } = render(
+      <MarkFlowEditor content={content} viewMode="wysiwyg" onChange={vi.fn()} />,
+    )
+
+    const view = getEditorView(container)
+    view.dispatch({
+      selection: EditorSelection.range(view.state.doc.line(3).from, view.state.doc.line(4).to),
+    })
+
+    dispatchEditorShortcut(view, {
+      key: 'ArrowDown',
+      code: 'ArrowDown',
+      keyCode: 40,
+      altKey: true,
+    })
+
+    expect(view.state.doc.toString()).toBe(movedContent)
+    expect(listItemRanges(view).map(([from, to]) => view.state.sliceDoc(from, to))).toEqual([
+      ['1. Alpha', '   alpha note'].join('\n'),
+      '3. Gamma',
+      ['2. Beta', '   beta note'].join('\n'),
+    ])
+
+    const movedSelection = view.state.selection.main
+    expect(view.state.sliceDoc(movedSelection.from, movedSelection.to)).toBe(
+      ['2. Beta', '   beta note'].join('\n'),
+    )
+
+    expect(undo(view)).toBe(true)
+    expect(view.state.doc.toString()).toBe(content)
+    expect(listItemRanges(view).map(([from, to]) => view.state.sliceDoc(from, to))).toEqual([
+      ['1. Alpha', '   alpha note'].join('\n'),
+      ['2. Beta', '   beta note'].join('\n'),
+      '3. Gamma',
+    ])
+
+    expect(redo(view)).toBe(true)
+    expect(view.state.doc.toString()).toBe(movedContent)
+    expect(listItemRanges(view).map(([from, to]) => view.state.sliceDoc(from, to))).toEqual([
+      ['1. Alpha', '   alpha note'].join('\n'),
+      '3. Gamma',
+      ['2. Beta', '   beta note'].join('\n'),
+    ])
+  })
+
   it('converts the current line between paragraph and heading with Cmd/Ctrl+1 and Cmd/Ctrl+0', () => {
     const { container } = render(
       <MarkFlowEditor content="Plain paragraph" viewMode="wysiwyg" onChange={vi.fn()} />,
