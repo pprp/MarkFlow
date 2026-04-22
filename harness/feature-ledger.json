@@ -1752,9 +1752,9 @@
       "category": "bug",
       "area": "@markflow/editor",
       "priority": 2,
-      "status": "ready",
-      "passes": false,
-      "lastVerifiedAt": null,
+      "status": "verified",
+      "passes": true,
+      "lastVerifiedAt": "2026-04-22T15:12:07+08:00",
       "dependsOn": [
         "MF-020",
         "MF-041"
@@ -1906,6 +1906,23 @@
         "MF-107"
       ],
       "notesRef": "features/MF-141.md"
+    },
+    {
+      "id": "MF-142",
+      "title": "Image context actions delete, move, copy, and relink document image assets",
+      "category": "phase-2-functional",
+      "area": "@markflow/desktop",
+      "priority": 3,
+      "status": "planned",
+      "passes": false,
+      "lastVerifiedAt": null,
+      "dependsOn": [
+        "MF-029",
+        "MF-070",
+        "MF-072",
+        "MF-081"
+      ],
+      "notesRef": "features/MF-142.md"
     }
   ]
 }

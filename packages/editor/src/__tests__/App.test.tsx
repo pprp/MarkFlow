@@ -952,6 +952,44 @@ describe('App desktop integration', () => {
     })
   })
 
+  it('hides the titlebar outline toggle when the sidebar already shows the outline', async () => {
+    const api = new MockMarkFlowAPI()
+    window.markflow = api
+
+    const { container } = render(<App />)
+
+    await act(async () => {
+      api.emitFileOpened({
+        filePath: '/tmp/sidebar-outline-toggle.md',
+        content: '# Intro\n\n## Details\n\nBody',
+      })
+    })
+
+    const titlebar = await waitFor(() => {
+      const element = container.querySelector('.mf-titlebar')
+      expect(element).not.toBeNull()
+      return element as HTMLElement
+    })
+    const titlebarRight = titlebar.querySelector('.mf-titlebar-right')
+    expect(titlebarRight).not.toBeNull()
+
+    fireEvent.click(within(titlebar).getByRole('button', { name: 'Toggle file sidebar' }))
+
+    const sidebar = await waitFor(() => {
+      const element = container.querySelector('.mf-sidebar')
+      expect(element).not.toBeNull()
+      return element as HTMLElement
+    })
+
+    await waitFor(() => {
+      expect(
+        within(sidebar).getByText('Outline', { selector: '.mf-vault-section-header span' }),
+      ).toBeInTheDocument()
+      expect(within(sidebar).getByRole('button', { name: 'Intro' })).toBeInTheDocument()
+      expect(within(titlebarRight as HTMLElement).queryByRole('button', { name: 'Collapse outline' })).not.toBeInTheDocument()
+    })
+  })
+
   it('restores saved folding state on reopen and persists folding after a save', async () => {
     const api = new MockMarkFlowAPI()
     const content = ['# Heading', 'Body line', '# Next', 'Rest'].join('\n')

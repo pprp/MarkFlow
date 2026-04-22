@@ -1930,7 +1930,7 @@ export function App() {
   const handleToggleOutline = useCallback(() => {
     setOutlineCollapsed((current) => !current)
   }, [])
-  const shouldShowOutlineToggle = !isImmersiveMode && outlineHeadings.length > 0
+  const shouldShowOutlineToggle = !isImmersiveMode && !showSidebar && outlineHeadings.length > 0
   const shouldShowStandaloneOutline = shouldShowOutlineToggle && !showSidebar && !outlineCollapsed
 
   const BASE_FONT_SIZE = 15

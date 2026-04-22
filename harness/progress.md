@@ -4729,3 +4729,45 @@ next: MF-051 - Outline panel lists all headings with live scroll-sync and click-
   - Left `harness/feature-ledger.json` unchanged for `MF-076` (`status=ready`, `passes=false`, `lastVerifiedAt=null`) because manual acceptance remains incomplete.
 - Next recommended feature:
   - Continue `MF-076` in a trusted desktop session with `Microsoft Word.app` installed, then run the full Word/webpage/VS Code with-and-without-shortcut paste matrix before promoting the ledger.
+
+### 2026-04-22T15:19:55+08:00 - MF-131 verified; Typora image asset actions added
+
+- Author: Codex
+- Focus: strict one-feature session after the required Dispatcher -> Researcher -> Implementer -> Reviewer loop.
+- Research updates:
+  - Added `MF-142` for Typora-style image context actions that delete, move, copy, move-all/copy-all, and relink document image assets.
+  - Sources recorded in `harness/features/MF-142.md`: Typora Images and Upload Image support docs.
+  - Dispatcher normalized the Researcher ledger addition into metadata-only JSON plus `harness/features/MF-142.md` so harness verification stays valid.
+- Implemented feature:
+  - Completed `MF-131` so the titlebar outline toggle is hidden while the file sidebar is open and already showing the outline.
+  - Preserved the existing sidebar-closed standalone outline toggle behavior.
+  - Promoted only `MF-131` to `status=verified`, `passes=true`, `lastVerifiedAt=2026-04-22T15:12:07+08:00`.
+- Changed files:
+  - `packages/editor/src/App.tsx`
+  - `packages/editor/src/__tests__/App.test.tsx`
+  - `harness/feature-ledger.json`
+  - `harness/features/MF-142.md`
+  - `harness/progress.md`
+- Simplifications made:
+  - Kept the product fix to the existing `shouldShowOutlineToggle` predicate.
+  - Added one App integration regression instead of introducing a new outline state abstraction.
+  - Deferred `MF-142` because image asset file operations are broader desktop/file-management work.
+- Verification:
+  - Initial `./harness/init.sh --smoke` passed before feature work:
+    - `packages/desktop`: `10` test files / `68` tests passed.
+    - `packages/editor`: `44` test files / `476` tests passed / `3` skipped.
+  - Implementer red/green evidence: the new App regression failed before the predicate fix because `Collapse outline` remained present in the titlebar while the sidebar outline was visible, then passed after the fix.
+  - `pnpm harness:verify` passed (`features: 142 total | verified=84 | ready=36 | planned=21 | blocked=1 | regression=0`; next: `MF-076`).
+  - `pnpm --filter @markflow/editor exec vitest run src/__tests__/App.test.tsx` passed (`65` tests).
+  - `pnpm --filter @markflow/editor lint` passed.
+  - `pnpm --filter @markflow/editor build` passed, with the existing Vite large-chunk warning.
+  - `git diff --check` passed.
+  - Final `./harness/init.sh --smoke` passed:
+    - `packages/desktop`: `10` test files / `68` tests passed.
+    - `packages/editor`: `44` test files / `477` tests passed / `3` skipped.
+- Review:
+  - Reviewer accepted the MF-131 diff as narrow and aligned with the feature note.
+  - Residual risk: no live Electron manual titlebar check was run; coverage is through App-level DOM integration.
+- Next recommended feature:
+  - Harness still selects `MF-076`, but it remains gated on a trusted desktop session with `Microsoft Word.app` installed for the paste matrix.
+  - If Word remains unavailable, choose the next small automatable ready feature rather than re-running the manual-gated paste item.
