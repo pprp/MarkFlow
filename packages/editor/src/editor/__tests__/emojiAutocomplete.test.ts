@@ -26,10 +26,10 @@ function getEditorView(container: HTMLElement) {
   return view as EditorView
 }
 
-function makeStandaloneView(doc: string) {
+function makeStandaloneView(doc: string, selectionAnchor = doc.length) {
   const state = EditorState.create({
     doc,
-    selection: { anchor: doc.length },
+    selection: { anchor: selectionAnchor },
     extensions: [emojiAutocompleteExtension()],
   })
   const parent = document.createElement('div')
@@ -91,6 +91,25 @@ describe('emoji autocomplete', () => {
     destroyView(view)
   })
 
+  it('keeps the caret after the inserted emoji when accepting before trailing prose', async () => {
+    const doc = 'Hello :rocket world'
+    const shortcodeEnd = 'Hello :rocket'.length
+    const view = makeStandaloneView(doc, shortcodeEnd)
+
+    expect(startCompletion(view)).toBe(true)
+
+    await waitFor(() => {
+      expect(currentCompletions(view.state).map((completion) => completion.label)).toContain(':rocket:')
+    })
+
+    expect(acceptCompletion(view)).toBe(true)
+    const expectedTextBeforeCaret = 'Hello \u{1F680}'
+    expect(view.state.doc.toString()).toBe(`${expectedTextBeforeCaret} world`)
+    expect(view.state.selection.main.head).toBe(expectedTextBeforeCaret.length)
+
+    destroyView(view)
+  })
+
   it('dismisses unknown shortcodes without mutating the document', async () => {
     const doc = 'Hello :zzzz'
     const view = makeStandaloneView(doc)
@@ -107,17 +126,19 @@ describe('emoji autocomplete', () => {
     destroyView(view)
   })
 
-  it('wires emoji completions into MarkFlowEditor', async () => {
+  it('keeps the caret after accepting emoji completions inside MarkFlowEditor prose', async () => {
+    const doc = 'Hello :tad world'
+    const shortcodeEnd = 'Hello :tad'.length
     const { container } = render(
       createElement(MarkFlowEditor, {
-        content: 'Hello :tad',
+        content: doc,
         viewMode: 'source',
         onChange: vi.fn(),
       }),
     )
 
     const view = getEditorView(container)
-    view.dispatch({ selection: { anchor: view.state.doc.length } })
+    view.dispatch({ selection: { anchor: shortcodeEnd } })
     expect(startCompletion(view)).toBe(true)
 
     await waitFor(() => {
@@ -132,6 +153,8 @@ describe('emoji autocomplete', () => {
     })
 
     expect(acceptCompletion(view)).toBe(true)
-    expect(view.state.doc.toString()).toBe('Hello \u{1F389}')
+    const expectedTextBeforeCaret = 'Hello \u{1F389}'
+    expect(view.state.doc.toString()).toBe(`${expectedTextBeforeCaret} world`)
+    expect(view.state.selection.main.head).toBe(expectedTextBeforeCaret.length)
   })
 })

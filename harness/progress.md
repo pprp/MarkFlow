@@ -5176,3 +5176,48 @@ next: MF-051 - Outline panel lists all headings with live scroll-sync and click-
 - Next recommended feature:
   - If a trusted desktop/manual session is available, run the `MF-103` clean relaunch matrix with persisted launch preferences plus `--new` and `--reopen-file`.
   - If automation remains terminal-only, add the proposed `MF-153` CLI missing-file creation feature with a matching note file, or continue another small automatable ready feature while leaving `MF-076` Word-gated.
+
+### 2026-04-22T22:43:48+08:00 - MF-073 verified; emoji caret gate now automated
+
+- Author: Codex
+- Focus: strict one-feature automation cycle with the required Dispatcher -> Researcher -> Implementer -> Reviewer subagent loop.
+- Startup / baseline:
+  - Read `/Users/pprp/.codex/automations/typora-replication/memory.md`.
+  - Ran `pnpm harness:start`; it reported `152` features and selected `MF-076` as harness-next.
+  - Ran initial `./harness/init.sh --smoke`; it passed before feature work with desktop `72` tests and editor `491` tests (`3` skipped).
+  - The baseline worktree was clean, so there was no pre-existing smoke-passing diff to commit before feature work.
+- Research updates:
+  - Researcher used Typora public docs and release notes, including Markdown Reference, Copy and Paste, Launch Arguments, Images, Upload Image, Text Snippets, and What's New pages.
+  - No ledger edit was warranted because currently safe deltas were already represented in existing entries.
+  - Researcher recommended `MF-073` as the best small automatable candidate; `MF-076` remains blocked on a Microsoft Word manual paste matrix.
+- Implemented feature work:
+  - Selected `MF-073` because its only remaining gate was caret behavior after emoji autocomplete acceptance in prose.
+  - Added focused coverage for accepting `:rocket:` in the middle of prose and asserting the caret lands immediately after the inserted emoji before trailing prose.
+  - Updated the `MarkFlowEditor` wiring test to accept `:tad` before trailing prose and assert the same caret invariant through the real editor component.
+  - No product code change was needed; the existing implementation already satisfied the new coverage.
+  - Promoted `MF-073` to `status=verified`, `passes=true`, and `lastVerifiedAt=2026-04-22T22:38:28+08:00`.
+- Changed files:
+  - `packages/editor/src/editor/__tests__/emojiAutocomplete.test.ts`
+  - `harness/features/MF-073.md`
+  - `harness/feature-ledger.json`
+- Simplifications made:
+  - Closed the prior manual caret-position gate with targeted CodeMirror/MarkFlowEditor automation instead of adding new UI or editor state.
+  - Kept the emoji source and completion implementation unchanged.
+  - Did not broaden the run into `MF-076` or newly researched backlog items.
+- Verification:
+  - Researcher ran `python -m json.tool harness/feature-ledger.json` and `pnpm harness:verify`; both passed.
+  - Implementer ran `pnpm --filter @markflow/editor exec vitest run src/editor/__tests__/emojiAutocomplete.test.ts`, `pnpm --filter @markflow/editor lint`, `pnpm --filter @markflow/editor build`, `pnpm harness:verify`, `python -m json.tool harness/feature-ledger.json`, and `git diff --check`; all passed.
+  - Reviewer accepted the diff as scoped and truthful, rerunning the focused emoji test, editor lint, `pnpm harness:verify`, and `git diff --check`.
+  - Dispatcher reran:
+    - `pnpm --filter @markflow/editor exec vitest run src/editor/__tests__/emojiAutocomplete.test.ts` (`5` tests passed).
+    - `pnpm harness:verify` (`152 total | verified=89 | ready=32 | planned=30 | blocked=1 | regression=0`; next: `MF-076`).
+    - `git diff --check`.
+    - `pnpm --filter @markflow/editor lint`.
+    - `pnpm --filter @markflow/editor build`, which passed with the existing Vite large-chunk warning.
+    - Final `./harness/init.sh --smoke`, which passed with desktop `72` tests and editor `492` tests (`3` skipped).
+- Review:
+  - Reviewer accepted `MF-073` promotion with no blockers.
+  - Residual risk: coverage is jsdom/CodeMirror automation rather than a live desktop manual pass, but it directly exercises the middle-of-prose accept/caret invariant that previously blocked the feature.
+- Next recommended feature:
+  - `MF-076` remains harness-next but still requires `Microsoft Word.app` for the full paste matrix.
+  - If automation stays terminal-only, choose another small automatable ready feature or add one researched Typora backlog item only with its matching `harness/features/MF-xxx.md` note.
