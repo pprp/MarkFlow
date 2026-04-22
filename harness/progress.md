@@ -1,3 +1,43 @@
+### 2026-04-23T07:11:10+08:00 - MF-010 live desktop verification blocked
+
+- Author: Codex Dispatcher with Researcher/Implementer/Reviewer subagents
+- Focus: strict one-feature automation cycle after a passing smoke gate; no product feature was promoted.
+- Startup / baseline:
+  - `/Users/pprp/.codex/automations/typora-replication/memory.md` was absent at startup.
+  - Ran `pnpm harness:start`; it reported `152` features and selected `MF-010` as harness-next.
+  - Ran initial `./harness/init.sh --smoke`; it passed with desktop `84` tests and editor `503` passed / `3` skipped.
+  - Baseline `git status --short` was clean, so there was no inherited smoke-passing diff to commit before this run.
+- Research updates:
+  - Researcher used Typora Export, Convert & Reformat Markdown, Markdown Reference, Images, Upload Images, Copy and Paste, Shortcut Keys, and Text Snippets docs.
+  - Refined existing `MF-138` in `harness/feature-ledger.json` so the title explicitly includes Typora's Markdown convert/reformat export-item workflow.
+  - Did not append new feature entries.
+- Implemented feature work:
+  - Selected `MF-010` because it remains the highest-priority ready feature and the Researcher recommended it.
+  - No product code was changed. `MF-010` was already code-complete but still requires live desktop acceptance before promotion.
+  - Implementer attempted live desktop verification, but the local environment blocked it: Vite could not bind localhost (`listen EPERM`) and Electron aborted with `SIGABRT` even for `electron --version`.
+  - Left `MF-010` as `status=ready`, `passes=false`, and `lastVerifiedAt=null`.
+- Changed files:
+  - `harness/feature-ledger.json`
+  - `harness/progress.md`
+- Simplifications made:
+  - Kept the run to ledger refinement plus one MF-010 verification attempt instead of starting a second feature after the live desktop blocker.
+  - Preserved the existing MF-010 implementation and did not broaden link behavior.
+- Verification:
+  - Researcher ran `jq empty harness/feature-ledger.json` and `pnpm harness:verify`; both passed.
+  - Implementer ran:
+    - `pnpm --filter @markflow/desktop exec vitest run src/main/fileManager.test.ts src/main/externalLinks.test.ts` (`40` tests passed).
+    - `pnpm --filter @markflow/editor exec vitest run src/__tests__/App.test.tsx src/editor/__tests__/linkDecoration.test.tsx` (`87` tests passed).
+    - `pnpm --filter @markflow/desktop run build` (passed).
+    - `pnpm --filter @markflow/editor run build` (passed with the existing Vite large-chunk warning).
+    - `pnpm harness:verify` (passed; next remained `MF-010`).
+  - Reviewer accepted the outcome after confirming the repo diff was limited to the MF-138 title refinement, `MF-010` remained unpromoted, `pnpm harness:verify` passed, and `git diff --check` passed.
+- Review:
+  - Reviewer found no overreach or incorrect ledger marking.
+  - Residual risk: `MF-010` still needs live Electron verification for external URLs, internal heading anchors, existing local markdown links, and the missing local link "Create and Open" prompt/open flow.
+- Next recommended feature:
+  - Retry `MF-010` in an environment where Vite can bind localhost and Electron can launch.
+  - If live desktop verification remains unavailable, choose a small terminal-verifiable ready feature for the next automation run rather than marking manual-gated items as passed.
+
 ### 2026-04-23T06:41:29+08:00 - MF-010 missing local link creation path added
 
 - Author: Codex Dispatcher with Researcher/Implementer/Reviewer subagents

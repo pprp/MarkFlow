@@ -1844,7 +1844,7 @@
     },
     {
       "id": "MF-138",
-      "title": "Export profiles remember previous targets, custom Pandoc or command items, themes, and YAML-aware publishing options",
+      "title": "Export profiles support previous targets, Markdown convert/reformat items, custom commands, themes, and YAML-aware publishing options",
       "category": "phase-2-functional",
       "area": "@markflow/desktop",
       "priority": 3,
