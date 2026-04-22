@@ -4930,3 +4930,40 @@ next: MF-051 - Outline panel lists all headings with live scroll-sync and click-
 - Next recommended feature:
   - Harness still selects `MF-076`, but it remains gated on `Microsoft Word.app` for the full paste matrix.
   - If Word remains unavailable, continue with the next small automatable ready feature rather than re-running the manual-gated paste item.
+
+### 2026-04-22T18:21:48+08:00 - MF-119 verified; root script clutter removed
+
+- Author: Codex
+- Focus: direct repo hygiene cleanup requested by the user.
+- Implemented feature:
+  - Completed `MF-119` by deleting unused root-level one-shot repair scripts and stray legacy shell helpers.
+  - Removed `Bn`, `build.sh`, `fix_code_ranges.py`, `fix_footnote.py`, `fix_syntax_tree.py`, `fix_virtual.py`, and `run_codex.sh`.
+  - Kept the canonical project-maintained script surfaces: `package.json` scripts, `scripts/build/`, `scripts/ci/`, `scripts/harness/`, and `harness/init.sh`.
+  - Promoted `MF-119` to `status=verified`, `passes=true`, `lastVerifiedAt=2026-04-22T18:21:48+0800`.
+- Changed files:
+  - `Bn`
+  - `build.sh`
+  - `fix_code_ranges.py`
+  - `fix_footnote.py`
+  - `fix_syntax_tree.py`
+  - `fix_virtual.py`
+  - `run_codex.sh`
+  - `harness/features/MF-119.md`
+  - `harness/feature-ledger.json`
+  - `harness/progress.md`
+- Simplifications made:
+  - Removed root scripts that were not referenced by README, package scripts, CI, or harness entry points.
+  - Preserved all referenced build, CI smoke, and harness scripts.
+  - Left historical progress mentions untouched because they are audit history, not active references.
+- Verification:
+  - Baseline `pnpm harness:verify` passed before deletion.
+  - `pnpm harness:start` passed after deletion and still selected `MF-076`.
+  - `pnpm lint` passed.
+  - `pnpm test` passed:
+    - `packages/desktop`: `10` test files / `68` tests passed.
+    - `packages/editor`: `44` test files / `483` tests passed / `3` skipped.
+  - `pnpm build` passed, with the existing Vite large-chunk warning.
+  - `pnpm harness:verify` passed (`features: 143 total | verified=88 | ready=33 | planned=21 | blocked=1 | regression=0`; next: `MF-076`).
+  - `git diff --check` passed.
+- Residual risk:
+  - None for project-supported commands; anyone manually invoking deleted root helpers should use `pnpm build`, `pnpm desktop:pack`, or the harness package scripts instead.

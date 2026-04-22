@@ -1585,9 +1585,9 @@
       "category": "code-health",
       "area": "repo",
       "priority": 4,
-      "status": "planned",
-      "passes": false,
-      "lastVerifiedAt": null,
+      "status": "verified",
+      "passes": true,
+      "lastVerifiedAt": "2026-04-22T18:21:48+0800",
       "dependsOn": [],
       "notesRef": "features/MF-119.md"
     },
