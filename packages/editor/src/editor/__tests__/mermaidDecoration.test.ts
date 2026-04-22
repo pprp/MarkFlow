@@ -82,7 +82,7 @@ describe('diagramDecorations', () => {
     expect(count).toBeGreaterThan(0)
   })
 
-  it('renders flow, sequence, and mermaid sequence/gantt fences through the diagram pipeline', async () => {
+  it('renders flow, sequence, and mermaid sequence/gantt/Venn/Ishikawa fences through the diagram pipeline', async () => {
     const doc = [
       '```flow',
       'st=>start: Start',
@@ -105,12 +105,29 @@ describe('diagramDecorations', () => {
       '  title Release',
       '  dateFormat YYYY-MM-DD',
       '```',
+      '',
+      '```mermaid',
+      'venn-beta',
+      '  title Site overlap',
+      '  set A ["Backend"]:12',
+      '  set B ["Frontend"]:8',
+      '  union A,B ["Full-stack"]:3',
+      '```',
+      '',
+      '```mermaid',
+      'ishikawa',
+      'Defects escape review',
+      '  People',
+      '    Reviewer load',
+      '  Process',
+      '    Missing checklist',
+      '```',
     ].join('\n')
 
     makeView(doc)
 
     await waitFor(() => {
-      expect(renderMock).toHaveBeenCalledTimes(4)
+      expect(renderMock).toHaveBeenCalledTimes(6)
     })
 
     const renderedSources = renderMock.mock.calls.map(([, source]) => source as string)
@@ -122,6 +139,25 @@ describe('diagramDecorations', () => {
     expect(renderedSources.some((source) => source.startsWith('sequenceDiagram\nAlice->Bob: Ping'))).toBe(true)
     expect(renderedSources).toContain(['sequenceDiagram', '  Alice->>Bob: Hi'].join('\n'))
     expect(renderedSources).toContain(['gantt', '  title Release', '  dateFormat YYYY-MM-DD'].join('\n'))
+    expect(renderedSources).toContain(
+      [
+        'venn-beta',
+        '  title Site overlap',
+        '  set A ["Backend"]:12',
+        '  set B ["Frontend"]:8',
+        '  union A,B ["Full-stack"]:3',
+      ].join('\n'),
+    )
+    expect(renderedSources).toContain(
+      [
+        'ishikawa',
+        'Defects escape review',
+        '  People',
+        '    Reviewer load',
+        '  Process',
+        '    Missing checklist',
+      ].join('\n'),
+    )
   })
 
   it('shows a block-local render error without breaking sibling diagrams', async () => {
@@ -224,6 +260,26 @@ describe('buildDiagramDecorations', () => {
 })
 
 describe('normalizeDiagramSource', () => {
+  it('passes Mermaid Venn and Ishikawa-compatible sources through unchanged', () => {
+    const vennSource = [
+      'venn-beta',
+      '  set A ["Backend"]:12',
+      '  set B ["Frontend"]:8',
+      '  union A,B ["Full-stack"]:3',
+    ].join('\n')
+    const ishikawaSource = [
+      'ishikawa',
+      'Defects escape review',
+      '  People',
+      '    Reviewer load',
+      '  Process',
+      '    Missing checklist',
+    ].join('\n')
+
+    expect(normalizeDiagramSource('mermaid', vennSource)).toBe(vennSource)
+    expect(normalizeDiagramSource('mermaid', ishikawaSource)).toBe(ishikawaSource)
+  })
+
   it('prefixes raw sequence fences with Mermaid sequenceDiagram', () => {
     expect(normalizeDiagramSource('sequence', 'Alice->Bob: Hi')).toBe('sequenceDiagram\nAlice->Bob: Hi')
   })

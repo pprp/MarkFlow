@@ -4967,3 +4967,48 @@ next: MF-051 - Outline panel lists all headings with live scroll-sync and click-
   - `git diff --check` passed.
 - Residual risk:
   - None for project-supported commands; anyone manually invoking deleted root helpers should use `pnpm build`, `pnpm desktop:pack`, or the harness package scripts instead.
+
+### 2026-04-22T19:09:20+08:00 - MF-087 coverage expanded; manual diagram parity gate remains
+
+- Author: Codex
+- Focus: strict one-feature automation cycle with the required Dispatcher -> Researcher -> Implementer -> Reviewer subagent loop.
+- Startup / baseline:
+  - Read `/Users/pprp/.codex/automations/typora-replication/memory.md`.
+  - Ran `pnpm harness:start`.
+  - Ran `./harness/init.sh --smoke`; it passed before feature work.
+  - Committed the pre-existing `MF-119` repo-cleanup diff as `cc6cb85` after the smoke gate passed.
+- Research updates:
+  - Refined `MF-087` so the existing diagram backlog item now explicitly includes Typora 1.13 / Mermaid Venn and Ishikawa diagram support.
+  - Sources used by Researcher: Typora Markdown Reference and Typora 1.13 release notes.
+  - No new feature was appended because the gap fit the existing `MF-087` entry and the ledger schema expects matching feature notes.
+- Implemented feature work:
+  - Added focused `mermaidDecoration.test.ts` coverage proving `venn-beta` and `ishikawa` sources inside `mermaid` fences pass unchanged through MarkFlow's diagram render pipeline.
+  - Updated `harness/features/MF-087.md` so the feature note and automated verification describe Venn/Ishikawa coverage.
+  - No product code change was needed because MarkFlow already passes Mermaid fence bodies through unchanged, and the current Mermaid dependency is `^11.14.0`.
+  - Left `MF-087` as `status=ready`, `passes=false`, and `lastVerifiedAt=null` because the listed manual Typora diagram sample parity check was not run.
+- Changed files:
+  - `packages/editor/src/editor/__tests__/mermaidDecoration.test.ts`
+  - `harness/features/MF-087.md`
+  - `harness/feature-ledger.json`
+  - `harness/progress.md`
+- Simplifications made:
+  - Reused the existing Mermaid render pipeline instead of adding separate Venn/Ishikawa language handlers.
+  - Kept the new acceptance focused on pass-through behavior, which is the only MarkFlow-owned responsibility for these Mermaid diagram types.
+  - Avoided promoting the ledger from mocked renderer coverage alone.
+- Verification:
+  - Researcher ran `python -m json.tool harness/feature-ledger.json` and `pnpm harness:verify`; both passed.
+  - Implementer ran `pnpm --filter @markflow/editor exec vitest run src/editor/__tests__/mermaidDecoration.test.ts`, `pnpm --filter @markflow/editor lint`, `pnpm --filter @markflow/editor build`, `pnpm harness:verify`, and `git diff --check`; all passed. Build emitted the existing large-chunk warning.
+  - Reviewer reran/read-only checked `mermaidDecoration.test.ts`, `pnpm harness:verify`, `git diff --check`, and editor lint; all passed.
+  - Dispatcher reran:
+    - `pnpm --filter @markflow/editor exec vitest run src/editor/__tests__/mermaidDecoration.test.ts` (`13` tests passed).
+    - `pnpm harness:verify` (`143 total | verified=88 | ready=33 | planned=21 | blocked=1 | regression=0`; next: `MF-076`).
+    - `git diff --check`.
+    - `pnpm --filter @markflow/editor lint`.
+    - `pnpm --filter @markflow/editor build`, which passed with the existing large-chunk warning and emitted `vennDiagram` and `ishikawaDiagram` Mermaid chunks.
+    - Final `./harness/init.sh --smoke`, which passed with desktop `68` tests and editor `484` tests (`3` skipped).
+- Review:
+  - Reviewer accepted the MF-087 patch as narrow and aligned with the researched gap.
+  - Residual risk: real Typora sample parity for Venn/Ishikawa remains unverified outside the mocked Mermaid pipeline.
+- Next recommended feature:
+  - If a trusted desktop/manual session is available, finish `MF-087` by opening a Typora diagram sample document with Venn and Ishikawa diagrams and compare it against MarkFlow.
+  - If the automation environment remains manual-gated, skip promotion and continue with the next small automatable ready feature; `MF-076` remains harness-next but still depends on Microsoft Word for its full paste matrix.
