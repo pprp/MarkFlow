@@ -1643,6 +1643,7 @@ describe('App desktop integration', () => {
 
   it('routes local markdown link clicks through the desktop bridge', async () => {
     const api = new MockMarkFlowAPI()
+    api.setDocument({ filePath: '/Users/pprp/docs/other.md', content: '# Other' })
     window.markflow = api
 
     const { container } = render(<App />)
@@ -1663,6 +1664,40 @@ describe('App desktop integration', () => {
     await waitFor(() => {
       expect(api.openPath).toHaveBeenCalledWith('/Users/pprp/docs/other.md')
     })
+  })
+
+  it('routes missing local markdown links through the create guidance path', async () => {
+    const api = new MockMarkFlowAPI()
+    window.markflow = api
+
+    const { container } = render(<App />)
+
+    await act(async () => {
+      api.emitFileOpened({
+        filePath: '/Users/pprp/docs/note.md',
+        content: 'Intro [Draft](./drafts/new-note.md)',
+      })
+    })
+
+    await waitFor(() => {
+      expect(container.querySelector('a.mf-link')).toHaveAttribute(
+        'href',
+        'file:///Users/pprp/docs/drafts/new-note.md',
+      )
+    })
+
+    fireEvent.click(container.querySelector('a.mf-link') as Element, { ctrlKey: true })
+
+    await waitFor(() => {
+      expect(api.openPath).toHaveBeenNthCalledWith(1, '/Users/pprp/docs/drafts/new-note.md')
+      expect(api.openPath).toHaveBeenNthCalledWith(2, '/Users/pprp/docs/drafts/new-note.md', {
+        createIfMissing: true,
+      })
+    })
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'Linked file was not created: /Users/pprp/docs/drafts/new-note.md',
+    )
+    expect(screen.queryByText('That recent file is no longer available.')).not.toBeInTheDocument()
   })
 
   it('loads the sample markdown post-processor without breaking editing', async () => {

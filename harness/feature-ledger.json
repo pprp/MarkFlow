@@ -124,13 +124,13 @@
     },
     {
       "id": "MF-010",
-      "title": "Rendered links are clickable and open externally from the desktop shell",
+      "title": "Rendered links open external/local targets and guide creation for missing local files",
       "category": "phase-1-functional",
       "area": "@markflow/editor",
       "priority": 2,
-      "status": "verified",
-      "passes": true,
-      "lastVerifiedAt": "2026-04-10",
+      "status": "ready",
+      "passes": false,
+      "lastVerifiedAt": null,
       "dependsOn": [],
       "notesRef": "features/MF-010.md"
     },

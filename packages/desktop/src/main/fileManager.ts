@@ -10,6 +10,7 @@ import type {
   MarkFlowTabCloseAction,
   MarkFlowFileLoadProgressPayload,
   MarkFlowFilePayload,
+  MarkFlowOpenPathOptions,
   MarkFlowQuickOpenItem,
   MarkFlowRecoveryCheckpoint,
   MarkFlowRecoveryDocument,
@@ -200,7 +201,9 @@ export class FileManager {
     ipcMain.removeListener('schedule-recovery-checkpoint', this.handleScheduleRecoveryCheckpoint)
 
     ipcMain.handle('open-file', () => this.openFile())
-    ipcMain.handle('open-path', (_event, filePath: string) => this.openExistingPath(filePath))
+    ipcMain.handle('open-path', (_event, filePath: string, options?: MarkFlowOpenPathOptions) =>
+      this.openExistingPath(filePath, options),
+    )
     ipcMain.handle('read-large-file-window', (_event, filePath: string, lineNumber: number) =>
       this.readLargeFileWindow(filePath, lineNumber),
     )
@@ -600,8 +603,14 @@ export class FileManager {
     return this.openPath(result.filePaths[0])
   }
 
-  async openExistingPath(filePath: string): Promise<MarkFlowFilePayload | null> {
+  async openExistingPath(
+    filePath: string,
+    options: MarkFlowOpenPathOptions = {},
+  ): Promise<MarkFlowFilePayload | null> {
     if (!fs.existsSync(filePath)) {
+      if (options.createIfMissing === true) {
+        return this.createMissingLinkedFile(filePath)
+      }
       return null
     }
 
@@ -609,6 +618,43 @@ export class FileManager {
       return await this.openPath(filePath)
     } catch (error) {
       console.error('Failed to open file path:', error)
+      return null
+    }
+  }
+
+  private async createMissingLinkedFile(filePath: string): Promise<MarkFlowFilePayload | null> {
+    const result = await dialog.showMessageBox(this.window, {
+      type: 'question',
+      buttons: ['Create and Open', 'Cancel'],
+      defaultId: 0,
+      cancelId: 1,
+      noLink: true,
+      message: 'Cannot open linked file',
+      detail: `MarkFlow could not find this linked file:\n${filePath}\n\nCreate it and continue?`,
+    })
+
+    if (result.response !== 0) {
+      return null
+    }
+
+    try {
+      await fs.promises.mkdir(path.dirname(filePath), { recursive: true })
+      await fs.promises.writeFile(filePath, '', { encoding: 'utf-8', flag: 'wx' })
+      return await this.openPath(filePath)
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'EEXIST') {
+        return this.openPath(filePath)
+      }
+
+      console.error('Failed to create linked file:', error)
+      await dialog.showMessageBox(this.window, {
+        type: 'error',
+        buttons: ['OK'],
+        defaultId: 0,
+        noLink: true,
+        message: 'Unable to create linked file',
+        detail: error instanceof Error ? error.message : String(error),
+      })
       return null
     }
   }

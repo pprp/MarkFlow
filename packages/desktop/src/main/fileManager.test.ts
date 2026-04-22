@@ -180,7 +180,7 @@ describe('FileManager async saves', () => {
     expect(window.setTitle).toHaveBeenCalledWith('notes.md — MarkFlow')
   })
 
-  it('registers open-path and returns null for missing linked files', async () => {
+  it('registers open-path and returns null for missing paths unless creation is requested', async () => {
     const window = createWindowStub()
     const manager = new FileManager(window as never)
     const handlers = new Map<string, (...args: unknown[]) => unknown>()
@@ -195,6 +195,41 @@ describe('FileManager async saves', () => {
 
     expect(result).toBeNull()
     expect(window.webContents.send).not.toHaveBeenCalledWith('file-opened', expect.anything())
+  })
+
+  it('guides creation for missing linked markdown files and opens the created target', async () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'markflow-missing-link-'))
+    const linkedFilePath = path.join(tempDir, 'drafts', 'new-note.md')
+    const window = createWindowStub()
+    const manager = new FileManager(window as never)
+    const handlers = new Map<string, (...args: unknown[]) => unknown>()
+
+    handleMock.mockImplementation((channel: string, handler: (...args: unknown[]) => unknown) => {
+      handlers.set(channel, handler)
+    })
+    showMessageBoxMock.mockResolvedValueOnce({ response: 0 })
+
+    manager.registerIpcHandlers()
+
+    const result = await handlers.get('open-path')?.({}, linkedFilePath, { createIfMissing: true })
+
+    expect(showMessageBoxMock).toHaveBeenCalledWith(
+      window,
+      expect.objectContaining({
+        type: 'question',
+        buttons: ['Create and Open', 'Cancel'],
+        defaultId: 0,
+        cancelId: 1,
+        message: 'Cannot open linked file',
+        detail: expect.stringContaining(linkedFilePath),
+      }),
+    )
+    expect(fs.readFileSync(linkedFilePath, 'utf-8')).toBe('')
+    expect(result).toEqual({ filePath: linkedFilePath, content: '' })
+    expect(window.webContents.send).toHaveBeenCalledWith('file-opened', {
+      filePath: linkedFilePath,
+      content: '',
+    })
   })
 
   it('saves through save-as asynchronously and returns the selected file path', async () => {

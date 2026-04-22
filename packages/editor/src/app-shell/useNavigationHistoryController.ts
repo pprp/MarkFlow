@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type MutableRefObject } from 'react'
-import type { SearchResult } from '@markflow/shared'
+import type { MarkFlowOpenPathOptions, SearchResult } from '@markflow/shared'
 import { createEmptySymbolTable } from '../editor/indexer'
 import type { MarkFlowEditorSnapshot } from '../editor/MarkFlowEditor'
 import {
@@ -172,6 +172,7 @@ export function useNavigationHistoryController({
     async (
       filePath: string,
       options: {
+        createIfMissing?: boolean
         destination?: PendingNavigationTarget | null
         missingMessage?: string
         pushHistory?: boolean
@@ -207,9 +208,17 @@ export function useNavigationHistoryController({
         return destination
       }
 
-      const result = await window.markflow?.openPath(resolvedFilePath)
+      let result = await window.markflow?.openPath(resolvedFilePath)
+      if (!result && options.createIfMissing) {
+        result = await window.markflow?.openPath(resolvedFilePath, { createIfMissing: true })
+      }
       if (!result) {
-        showToast(options.missingMessage ?? 'That recent file is no longer available.')
+        showToast(
+          options.missingMessage ??
+            (options.createIfMissing
+              ? `Linked file was not created: ${resolvedFilePath}`
+              : 'That recent file is no longer available.'),
+        )
         setPendingNavigationTarget(null)
         return null
       }
@@ -355,9 +364,12 @@ export function useNavigationHistoryController({
   }, [captureActiveNavigationLocation, restoreNavigationTarget])
 
   const handleOpenPath = useCallback(
-    async (filePath: string, options: { pushHistory?: boolean } = {}) =>
+    async (filePath: string, options: MarkFlowOpenPathOptions & { pushHistory?: boolean } = {}) =>
       openPathWithOptionalHistory(filePath, {
-        missingMessage: 'That recent file is no longer available.',
+        createIfMissing: options.createIfMissing ?? false,
+        missingMessage: options.createIfMissing
+          ? undefined
+          : 'That recent file is no longer available.',
         pushHistory: options.pushHistory ?? false,
       }),
     [openPathWithOptionalHistory],

@@ -2443,7 +2443,12 @@ export function App() {
                 onScrollMetricsChange={handleScrollMetricsChange}
                 onSymbolTableChange={handleSymbolTableChange}
                 onNavigationHandled={clearEditorNavigationRequest}
-                onOpenPath={(filePath) => handleOpenPath(filePath, { pushHistory: true })}
+                onOpenPath={(filePath, options) =>
+                  handleOpenPath(filePath, {
+                    createIfMissing: options?.createIfMissing ?? false,
+                    pushHistory: true,
+                  })
+                }
                 onOpenDocumentSearch={handleOpenDocumentSearch}
                 onToggleMode={toggleViewMode}
                 onSelectionChange={handleSelectionChange}

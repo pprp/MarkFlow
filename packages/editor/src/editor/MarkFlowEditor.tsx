@@ -28,6 +28,7 @@ import { Decoration, ViewPlugin, type ViewUpdate } from '@codemirror/view'
 import { SearchQuery, searchKeymap, highlightSelectionMatches, openSearchPanel } from '@codemirror/search'
 import { closeBrackets, closeBracketsKeymap } from '@codemirror/autocomplete'
 import {
+  type MarkFlowOpenPathOptions,
   type MarkFlowPluginHost,
   type MarkFlowRenderedViewMode,
   type ViewMode,
@@ -115,7 +116,7 @@ export interface MarkFlowEditorProps {
   onScrollMetricsChange?: (metrics: MinimapScrollMetrics) => void
   onSymbolTableChange?: (table: SymbolTable) => void
   onNavigationHandled?: () => void
-  onOpenPath?: (filePath: string) => void | Promise<unknown>
+  onOpenPath?: (filePath: string, options?: MarkFlowOpenPathOptions) => void | Promise<unknown>
   onToggleMode?: () => void
   onOpenDocumentSearch?: () => void
   onSelectionChange?: (selectedText: string) => void
@@ -956,7 +957,7 @@ export const MarkFlowEditor = forwardRef<MarkFlowEditorHandle, MarkFlowEditorPro
         if (wikilinkFile && onOpenPathRef.current) {
           event.preventDefault()
           event.stopPropagation()
-          void onOpenPathRef.current(wikilinkFile)
+          void onOpenPathRef.current(wikilinkFile, { createIfMissing: true })
           return
         }
       }
@@ -988,7 +989,7 @@ export const MarkFlowEditor = forwardRef<MarkFlowEditorHandle, MarkFlowEditorPro
 
       const localPath = fileUrlToPath(href)
       if (localPath && isMarkdownFilePath(localPath) && onOpenPathRef.current) {
-        void onOpenPathRef.current(localPath)
+        void onOpenPathRef.current(localPath, { createIfMissing: true })
         return
       }
 

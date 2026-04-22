@@ -12,6 +12,10 @@ export interface MarkFlowFilePayload {
   largeFile?: MarkFlowLargeFileWindow | null
 }
 
+export interface MarkFlowOpenPathOptions {
+  createIfMissing?: boolean
+}
+
 export interface MarkFlowLargeFileWindow {
   totalBytes: number
   totalLines: number
@@ -398,7 +402,10 @@ export class MarkFlowPluginHost {
 
 export interface MarkFlowDesktopAPI {
   openFile: () => Promise<MarkFlowFilePayload | null>
-  openPath: (filePath: string) => Promise<MarkFlowFilePayload | null>
+  openPath: (
+    filePath: string,
+    options?: MarkFlowOpenPathOptions,
+  ) => Promise<MarkFlowFilePayload | null>
   openFolderPath: (folderPath: string) => Promise<{ folderPath: string } | null>
   getStartupState: () => Promise<MarkFlowStartupState>
   readLargeFileWindow: (filePath: string, lineNumber: number) => Promise<MarkFlowFilePayload | null>

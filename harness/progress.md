@@ -1,3 +1,56 @@
+### 2026-04-23T06:41:29+08:00 - MF-010 missing local link creation path added
+
+- Author: Codex Dispatcher with Researcher/Implementer/Reviewer subagents
+- Focus: strict one-feature automation cycle for Typora link behavior parity; no second product feature was implemented.
+- Startup / baseline:
+  - Read `/Users/pprp/.codex/automations/typora-replication/memory.md`.
+  - Ran `pnpm harness:start`; it reported `152` features and selected `MF-076` as harness-next.
+  - Ran initial `./harness/init.sh --smoke`; it passed before feature work with desktop `83` tests and editor `502` tests (`3` skipped).
+  - Baseline `git status --short` was clean, so there was no inherited smoke-passing diff to commit.
+- Research updates:
+  - Researcher used Typora Links and File Management docs.
+  - Reopened existing `MF-010` instead of appending a duplicate, broadening it to include Typora-style guidance for missing local file links.
+  - Changed only `MF-010` in `harness/feature-ledger.json`, moving it from `verified`/`passes=true` to `ready`/`passes=false` with `lastVerifiedAt=null`.
+- Implemented feature work:
+  - Selected `MF-010` because it was the newly reopened, automatable Typora-backed gap while `MF-076` remains Microsoft Word/manual-gated.
+  - Added a typed optional `openPath(..., { createIfMissing: true })` path through shared types, preload, desktop file manager, editor link routing, and App navigation.
+  - Existing local markdown links still try the original one-argument `openPath(path)` call first.
+  - Missing rendered local markdown links and wikilinks retry through the create path; desktop shows a native "Create and Open" confirmation, creates parent folders plus an empty target file, and opens it through the existing file-open flow.
+  - Cancelled or failed creation now shows linked-file-specific toast copy instead of the generic recent-file message.
+  - Left `MF-010` as `status=ready`, `passes=false`, and `lastVerifiedAt=null` because live desktop verification is still required.
+- Changed files:
+  - `harness/feature-ledger.json`
+  - `harness/features/MF-010.md`
+  - `packages/shared/src/index.ts`
+  - `packages/desktop/src/main/fileManager.ts`
+  - `packages/desktop/src/main/fileManager.test.ts`
+  - `packages/desktop/src/preload/index.ts`
+  - `packages/editor/src/App.tsx`
+  - `packages/editor/src/__tests__/App.test.tsx`
+  - `packages/editor/src/app-shell/useNavigationHistoryController.ts`
+  - `packages/editor/src/editor/MarkFlowEditor.tsx`
+- Simplifications made:
+  - Reused the existing open-file pipeline after file creation instead of adding a second document-loading path.
+  - Kept creation opt-in from link navigation; Quick Open, recent files, and ordinary programmatic opens still use the old missing-file behavior.
+  - Preserved external-link handling through the existing `window.open` route.
+- Verification:
+  - Researcher ran `jq empty harness/feature-ledger.json`, `pnpm harness:verify`, and `git diff --check`; all passed after reopening `MF-010`.
+  - Implementer reported red-first desktop and App tests for the missing creation-guidance behavior, then green verification.
+  - Reviewer accepted the diff with no blockers after read-only verification.
+  - Dispatcher reran:
+    - `pnpm harness:verify` passed (`152 total | verified=88 | ready=33 | planned=30 | blocked=1 | regression=0`; next: `MF-010`).
+    - `git diff --check` and `jq empty harness/feature-ledger.json` passed.
+    - `pnpm --filter @markflow/desktop exec vitest run src/main/fileManager.test.ts src/main/externalLinks.test.ts` passed (`40` tests).
+    - `pnpm --filter @markflow/editor exec vitest run src/__tests__/App.test.tsx src/editor/__tests__/linkDecoration.test.tsx` passed (`87` tests, with the existing localstorage warning).
+    - Shared, desktop, and editor lint/build passed; editor build still emits the existing Vite large-chunk warning.
+    - Final `./harness/init.sh --smoke` passed with desktop `84` tests and editor `503` passed / `3` skipped.
+- Review:
+  - Reviewer found the diff scoped to `MF-010`, with no unrelated feature work.
+  - Residual risk: live desktop verification is still needed for external URLs, internal anchors, existing local markdown links, and the missing local link "Create and Open" prompt/open flow before `MF-010` can return to `passes=true`.
+- Next recommended feature:
+  - Run the live desktop `MF-010` link matrix and promote it if the manual check passes.
+  - If terminal-only automation continues, choose another small ready feature that does not require external-app manual proof; `MF-076` remains Word-gated.
+
 ### 2026-04-23T05:24:52+08:00 - MF-075 Copy as Plain Text action verified
 
 - Author: Codex Dispatcher with Researcher/Implementer/Reviewer subagents
