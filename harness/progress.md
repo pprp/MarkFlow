@@ -5390,3 +5390,49 @@ next: MF-051 - Outline panel lists all headings with live scroll-sync and click-
 - Next recommended feature:
   - Continue `MF-138` with a small profile/custom export item slice if automation remains terminal-only.
   - If a trusted desktop/manual session with Microsoft Word is available, `MF-076` remains harness-next for the paste matrix.
+
+### 2026-04-23T02:14:52+08:00 - MF-138 HTML exports now use YAML metadata
+
+- Author: Codex Dispatcher with Researcher/Implementer/Reviewer subagents
+- Focus: strict one-feature automation cycle for Typora YAML-aware export parity.
+- Startup / baseline:
+  - Read `/Users/pprp/.codex/automations/typora-replication/memory.md`.
+  - Ran `pnpm harness:start`; it reported `152` features and selected `MF-076` as harness-next.
+  - Ran initial `./harness/init.sh --smoke`; it passed before feature work with desktop `78` tests and editor `497` tests (`3` skipped).
+  - Baseline `git status --short` was clean, so there was no pre-feature smoke-passing diff to commit.
+- Research updates:
+  - Researcher used Typora official site, Export docs, YAML docs, What’s New pages, and stable release notes.
+  - Made no ledger edit: `MF-138` already covers the active export-profile/YAML publishing gap, while newer release-note candidates still require matching feature note files before safe append.
+  - Recommended continuing `MF-138`; `MF-076` remains Microsoft Word/manual-gated.
+- Implemented feature work:
+  - Selected the `MF-138` YAML-aware HTML publishing slice because it is official Typora parity, already listed in MF-138 verification, and automatable.
+  - Added top-of-file YAML metadata extraction for `title`, `author`, and `keywords` during HTML export serialization.
+  - Exported HTML now uses YAML `title` in `<title>`, emits escaped `author` and `keywords` meta tags, supports simple inline keyword arrays, and strips YAML front matter before deriving exported heading anchors.
+  - Updated `harness/features/MF-138.md` with the slice note, verification note, and remaining residual scope.
+  - Left `MF-138` as `status=planned`, `passes=false`, and `lastVerifiedAt=null`.
+- Changed files:
+  - `harness/features/MF-138.md`
+  - `packages/editor/src/export/htmlExport.ts`
+  - `packages/editor/src/export/htmlExport.test.ts`
+- Simplifications made:
+  - Kept the slice to HTML title/meta and anchor derivation instead of starting named profiles, custom commands, or export settings UI.
+  - Used a small front-matter parser for the supported metadata keys rather than adding a YAML dependency.
+  - Documented richer YAML structures and PDF document-level metadata as residual work.
+- Verification:
+  - Implementer reported red-first coverage: the focused serializer test initially failed because exported HTML used the fallback filename title and emitted no YAML metadata.
+  - Reviewer accepted the diff with no blocking findings after checking implementation, feature note truth, and ledger state.
+  - Dispatcher reran:
+    - `pnpm --filter @markflow/editor exec vitest run src/export/htmlExport.test.ts` (`4` tests passed).
+    - `pnpm --filter @markflow/editor exec vitest run src/__tests__/App.test.tsx -t "App export integration"` (`8` tests passed, `65` skipped).
+    - `pnpm --filter @markflow/editor lint`.
+    - `pnpm --filter @markflow/editor build`, which passed with the existing Vite large-chunk warning.
+    - `pnpm harness:verify` (`152 total | verified=89 | ready=32 | planned=30 | blocked=1 | regression=0`; next: `MF-076`).
+    - `python -m json.tool harness/feature-ledger.json`.
+    - `git diff --check`.
+    - Final `./harness/init.sh --smoke`, which passed with desktop `78` tests and editor `498` tests (`3` skipped).
+- Review:
+  - Reviewer accepted the YAML HTML metadata slice as scoped and truthful.
+  - Residual risk: simple scalar/inline-list YAML only; PDF document-level metadata, richer YAML structures, named export profiles, custom Pandoc/custom command items, export themes/options, profile CRUD, and manual desktop export checks remain open.
+- Next recommended feature:
+  - Continue `MF-138` with a small custom export item, named-profile, or PDF metadata slice if automation remains terminal-only.
+  - If a trusted desktop/manual session with Microsoft Word is available, `MF-076` remains harness-next for the paste matrix.

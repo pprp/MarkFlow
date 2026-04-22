@@ -94,12 +94,115 @@ type SerializeRenderedDocumentOptions = PrepareRenderedDocumentOptions & {
   title: string
 }
 
+type ExportMetadata = {
+  title?: string
+  author?: string
+  keywords?: string
+}
+
 function escapeHtml(value: string) {
   return value
     .replaceAll('&', '&amp;')
     .replaceAll('<', '&lt;')
     .replaceAll('>', '&gt;')
     .replaceAll('"', '&quot;')
+}
+
+function unquoteYamlScalar(value: string) {
+  const trimmed = value.trim()
+  if (trimmed.length < 2) {
+    return trimmed
+  }
+
+  const quote = trimmed[0]
+  if ((quote === '"' || quote === "'") && trimmed.at(-1) === quote) {
+    return trimmed.slice(1, -1).trim()
+  }
+
+  return trimmed
+}
+
+function parseInlineYamlList(value: string) {
+  const trimmed = value.trim()
+  if (!trimmed.startsWith('[') || !trimmed.endsWith(']')) {
+    return null
+  }
+
+  return trimmed
+    .slice(1, -1)
+    .split(',')
+    .map((item) => unquoteYamlScalar(item))
+    .filter(Boolean)
+}
+
+function normalizeYamlMetadataValue(value: string) {
+  const inlineList = parseInlineYamlList(value)
+  if (inlineList) {
+    return inlineList.join(', ')
+  }
+
+  return unquoteYamlScalar(value)
+}
+
+function parseYamlExportMetadata(content: string): ExportMetadata {
+  const lines = content.split(/\r?\n/)
+  if (lines[0]?.trim() !== '---') {
+    return {}
+  }
+
+  const closingFenceIndex = lines.findIndex((line, index) => {
+    if (index === 0) {
+      return false
+    }
+
+    const trimmed = line.trim()
+    return trimmed === '---' || trimmed === '...'
+  })
+  if (closingFenceIndex < 0) {
+    return {}
+  }
+
+  const metadata: ExportMetadata = {}
+  for (const line of lines.slice(1, closingFenceIndex)) {
+    const match = /^([A-Za-z0-9_-]+):\s*(.*)$/.exec(line)
+    if (!match) {
+      continue
+    }
+
+    const key = match[1].toLowerCase()
+    const value = normalizeYamlMetadataValue(match[2])
+    if (!value) {
+      continue
+    }
+
+    if (key === 'title') {
+      metadata.title = value
+    } else if (key === 'author') {
+      metadata.author = value
+    } else if (key === 'keywords') {
+      metadata.keywords = value
+    }
+  }
+
+  return metadata
+}
+
+function stripYamlFrontMatter(content: string) {
+  const lines = content.split(/\r?\n/)
+  if (lines[0]?.trim() !== '---') {
+    return content
+  }
+
+  const closingFenceIndex = lines.findIndex((line, index) => {
+    if (index === 0) {
+      return false
+    }
+
+    const trimmed = line.trim()
+    return trimmed === '---' || trimmed === '...'
+  })
+
+  return closingFenceIndex < 0 ? content : lines.slice(closingFenceIndex + 1).join('\n')
 }
 
 function stripEditorOnlyAttributes(root: HTMLElement) {
@@ -123,7 +226,7 @@ function addHeadingAnchors(
   content: string,
   markdownMode: MarkFlowMarkdownMode,
 ) {
-  const headings = extractOutlineHeadings(content, markdownMode)
+  const headings = extractOutlineHeadings(stripYamlFrontMatter(content), markdownMode)
   const renderedHeadingNodes = Array.from(root.querySelectorAll<HTMLElement>(HEADING_SELECTOR))
 
   for (const [index, heading] of headings.entries()) {
@@ -236,19 +339,25 @@ export function serializeRenderedDocumentForExport({
   renderedRoot,
   title,
 }: SerializeRenderedDocumentOptions) {
+  const metadata = parseYamlExportMetadata(content)
   const preparedRoot = prepareRenderedDocumentForExport({
     content,
     markdownMode,
     renderedRoot,
   })
   const styles = collectDocumentStyleText(document)
+  const metadataTags = [
+    metadata.author ? `  <meta name="author" content="${escapeHtml(metadata.author)}">` : null,
+    metadata.keywords ? `  <meta name="keywords" content="${escapeHtml(metadata.keywords)}">` : null,
+  ].filter((tag): tag is string => tag !== null)
+  const exportTitle = metadata.title ?? title
 
   return `<!DOCTYPE html>
 <html>
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>${escapeHtml(title)}</title>
+${metadataTags.length > 0 ? `${metadataTags.join('\n')}\n` : ''}  <title>${escapeHtml(exportTitle)}</title>
   <style>${styles}</style>
 </head>
 <body class="mf-export-body" ${HEADING_NUMBERING_ATTRIBUTE}="${headingNumberingEnabled ? 'true' : 'false'}">

@@ -92,4 +92,27 @@ describe('html export serializer', () => {
     expect(html).toContain('--mf-link-color: rgb(99, 66, 33);')
     expect(html).toContain('@page {')
   })
+
+  it('uses YAML front matter title, author, and keywords as HTML export metadata', () => {
+    const html = serializeRenderedDocumentForExport({
+      content: [
+        '---',
+        'title: Export & Metadata',
+        'author: Ada Lovelace',
+        'keywords: [markflow, typora parity]',
+        '---',
+        '# Intro',
+      ].join('\n'),
+      document,
+      headingNumberingEnabled: false,
+      renderedRoot: makeRenderedRoot(),
+      title: 'Fallback.md',
+    })
+
+    expect(html).toContain('<title>Export &amp; Metadata</title>')
+    expect(html).toContain('<meta name="author" content="Ada Lovelace">')
+    expect(html).toContain('<meta name="keywords" content="markflow, typora parity">')
+    expect(html).toContain('id="intro"')
+    expect(html).not.toContain('title-export-metadata')
+  })
 })
