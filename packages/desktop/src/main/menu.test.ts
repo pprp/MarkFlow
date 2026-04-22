@@ -116,15 +116,18 @@ describe('createApplicationMenuTemplate', () => {
       sendMenuAction,
     })
     const copyItem = getMenuItem(template, 'Edit', 'Copy')
+    const copyAsPlainTextItem = getMenuItem(template, 'Edit', 'Copy as Plain Text')
     const copyAsMarkdownItem = getMenuItem(template, 'Edit', 'Copy as Markdown')
     const copyAsHtmlCodeItem = getMenuItem(template, 'Edit', 'Copy as HTML Code')
 
     copyItem?.click?.({} as never, {} as never, {} as never)
+    copyAsPlainTextItem?.click?.({} as never, {} as never, {} as never)
     copyAsMarkdownItem?.click?.({} as never, {} as never, {} as never)
     copyAsHtmlCodeItem?.click?.({} as never, {} as never, {} as never)
 
     expect(sendMenuAction.mock.calls).toEqual([
       ['copy'],
+      ['copy-as-plain-text'],
       ['copy-as-markdown'],
       ['copy-as-html-code'],
     ])

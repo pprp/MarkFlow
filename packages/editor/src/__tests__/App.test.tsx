@@ -1148,6 +1148,7 @@ describe('App desktop integration', () => {
 
     await act(async () => {
       api.emitMenuAction('copy-as-markdown')
+      api.emitMenuAction('copy-as-plain-text')
       api.emitMenuAction('copy-as-html-code')
     })
 
@@ -1156,6 +1157,9 @@ describe('App desktop integration', () => {
         text: content,
       })
       expect(api.writeClipboard).toHaveBeenNthCalledWith(3, {
+        text: 'Before bold link and code',
+      })
+      expect(api.writeClipboard).toHaveBeenNthCalledWith(4, {
         text: '<p>Before <strong>bold</strong> <a href="https://example.com">link</a> and <code>code</code></p>',
       })
     })
@@ -1248,6 +1252,7 @@ describe('App desktop integration', () => {
 
       await act(async () => {
         api.emitMenuAction('copy-as-markdown')
+        api.emitMenuAction('copy-as-plain-text')
         api.emitMenuAction('copy-as-html-code')
       })
 
@@ -3176,6 +3181,42 @@ describe('App command palette integration', () => {
       expect(screen.getByPlaceholderText('Search files or folders...')).toBeInTheDocument()
     })
 
+    expect(screen.queryByPlaceholderText('Search commands...')).not.toBeInTheDocument()
+  })
+
+  it('copies the selected markdown as rendered plain text from the command palette', async () => {
+    const api = new MockMarkFlowAPI()
+    window.markflow = api
+
+    const content = 'Before **bold** [link](https://example.com) and `code`'
+    const { container } = render(<App />)
+
+    await act(async () => {
+      api.emitFileOpened({ filePath: '/docs/palette-copy.md', content })
+    })
+
+    const view = getEditorView(container)
+    act(() => {
+      view.dispatch({ selection: EditorSelection.range(0, content.length) })
+    })
+    view.contentDOM.focus()
+
+    fireEvent.keyDown(document, { key: 'p', ctrlKey: true, shiftKey: true })
+
+    const input = await screen.findByPlaceholderText('Search commands...')
+    fireEvent.change(input, { target: { value: 'copy as plain text' } })
+    fireEvent.click(screen.getByText('Copy as Plain Text'))
+
+    await waitFor(() => {
+      expect(api.writeClipboard).toHaveBeenCalledWith({
+        text: 'Before bold link and code',
+      })
+    })
+    expect(api.writeClipboard).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        html: expect.any(String),
+      }),
+    )
     expect(screen.queryByPlaceholderText('Search commands...')).not.toBeInTheDocument()
   })
 

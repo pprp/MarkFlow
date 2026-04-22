@@ -46,6 +46,7 @@ import { fileUrlToPath, resolveImageSource } from './editor/decorations/linkDeco
 import { createExternalLinkBadgePlugin } from './plugins/externalLinkBadgePlugin'
 import {
   MarkFlowPluginHost,
+  type MarkFlowCopyAction,
   type MarkFlowDesktopAPI,
   type MarkFlowQuickOpenItem,
   type MarkFlowFileLoadProgressPayload,
@@ -236,6 +237,10 @@ function isEditorCopyContext() {
   return selectionElement?.closest(EDITOR_ROOT_SELECTOR) != null
 }
 
+interface CopyActionOptions {
+  markdownSelection?: string
+}
+
 // ── Content-width drag handle ─────────────────────────────────────────────────
 function ContentWidthHandle({
   contentWidth,
@@ -382,7 +387,7 @@ export function App() {
   const handleOpenFolderPathRef = useRef<(folderPath: string) => Promise<boolean>>(async () => false)
   const handleOpenQuickOpenRef = useRef<() => Promise<boolean>>(async () => false)
   const handleCopyActionRef = useRef<
-    (action: 'copy' | 'copy-as-markdown' | 'copy-as-html-code') => Promise<void>
+    (action: MarkFlowCopyAction) => Promise<void>
   >(async () => {})
   const handleExportRef = useRef<(format: HtmlExportFormat) => Promise<boolean>>(async () => false)
   const handlePandocExportRef = useRef<
@@ -394,6 +399,7 @@ export function App() {
   const previousExportByTabRef = useRef<Map<string, PreviousExportState>>(new Map())
   const pluginHostRef = useRef<MarkFlowPluginHost | null>(null)
   const editorRef = useRef<MarkFlowEditorHandle | null>(null)
+  const commandPaletteOpenedFromEditorRef = useRef(false)
 
   useEffect(() => {
     persistLocalOutlinePanelCollapsedPreference(outlineCollapsed)
@@ -748,6 +754,7 @@ export function App() {
   }, [activeTab?.filePath, refreshQuickOpenItems, showSidebar])
 
   const handleOpenCommandPalette = useCallback(() => {
+    commandPaletteOpenedFromEditorRef.current = isEditorCopyContext()
     openCommandPalette()
   }, [openCommandPalette])
 
@@ -805,7 +812,7 @@ export function App() {
     handleReopenClosedTabRef,
     handleSaveTabRef,
     loadCollapsedRangesForTab,
-    openCommandPalette,
+    openCommandPalette: handleOpenCommandPalette,
     openGlobalSearch,
     openGoToLine,
     replaceActiveTabId,
@@ -1889,18 +1896,21 @@ export function App() {
     )
   }
 
-  async function handleCopyAction(action: 'copy' | 'copy-as-markdown' | 'copy-as-html-code') {
+  async function handleCopyAction(action: MarkFlowCopyAction, options: CopyActionOptions = {}) {
     const api = window.markflow
     if (!api) return
 
-    if (!isEditorCopyContext()) {
+    let markdownSelection = options.markdownSelection
+
+    if (typeof markdownSelection !== 'string' && !isEditorCopyContext()) {
       if (action === 'copy' && typeof document.execCommand === 'function') {
         document.execCommand('copy')
       }
       return
     }
 
-    const markdownSelection = activeTab?.selectionText ?? ''
+    markdownSelection =
+      markdownSelection ?? editorRef.current?.getSelectionSnapshot()?.text ?? activeTab?.selectionText ?? ''
     if (markdownSelection.length === 0) {
       return
     }
@@ -1911,6 +1921,11 @@ export function App() {
     }
 
     const serializedSelection = serializeMarkdownSelectionForClipboard(markdownSelection)
+
+    if (action === 'copy-as-plain-text') {
+      await api.writeClipboard({ text: serializedSelection.text })
+      return
+    }
 
     if (action === 'copy') {
       await api.writeClipboard({
@@ -1985,6 +2000,7 @@ export function App() {
   const { commandPaletteActions, handleCommandPaletteSelect } = useCommandPaletteActions({
     activeTabIdRef,
     closeCommandPalette,
+    commandPaletteOpenedFromEditorRef,
     editorRef,
     focusMode,
     handleCopyAction,

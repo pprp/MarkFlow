@@ -977,13 +977,13 @@
     },
     {
       "id": "MF-075",
-      "title": "Copy writes rich clipboard formats, while Copy as Markdown and Copy as HTML Code expose source formats",
+      "title": "Copy writes rich clipboard formats and exposes plain text, Markdown, and HTML Code copy actions",
       "category": "phase-2-functional",
       "area": "@markflow/editor",
       "priority": 2,
       "status": "verified",
       "passes": true,
-      "lastVerifiedAt": "2026-04-19T12:51:23Z",
+      "lastVerifiedAt": "2026-04-23T05:16:08+08:00",
       "dependsOn": [],
       "notesRef": "features/MF-075.md"
     },

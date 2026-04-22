@@ -1,3 +1,48 @@
+### 2026-04-23T05:24:52+08:00 - MF-075 Copy as Plain Text action verified
+
+- Author: Codex Dispatcher with Researcher/Implementer/Reviewer subagents
+- Focus: strict one-feature automation cycle for Typora copy/export parity; no second product feature was implemented.
+- Startup / baseline:
+  - Read `/Users/pprp/.codex/automations/typora-replication/memory.md`.
+  - Ran `pnpm harness:start`; it reported `152` features and selected `MF-076` as harness-next.
+  - Ran initial `./harness/init.sh --smoke`; it passed before feature work with desktop `83` tests and editor `501` tests (`3` skipped).
+  - Baseline `git status --short` was clean, so there was no inherited smoke-passing diff to commit.
+- Research updates:
+  - Researcher used Typora 1.13 release notes and Typora Copy and Paste docs.
+  - Reopened existing `MF-075` rather than adding a duplicate feature: expanded the title to include plain-text copy actions and changed it from `verified`/`passes=true` to `ready`/`passes=false` with `lastVerifiedAt=null`.
+  - Researcher verification passed with `jq empty harness/feature-ledger.json` and `pnpm harness:verify` (`152 total | verified=88 | ready=33 | planned=30 | blocked=1 | regression=0`).
+- Implemented feature work:
+  - Selected `MF-075` because it was the newly reopened, small, automatable Typora parity gap; `MF-076` remains Microsoft Word/manual-gated.
+  - Added `copy-as-plain-text` to the shared menu action type, desktop Edit menu, renderer desktop bridge, App copy handling, and command palette.
+  - The new action writes only rendered plaintext (`{ text }`) from the current editor selection, with no HTML clipboard flavor and no raw Markdown markers.
+  - Tightened command-palette copy actions so selection copy only runs when the palette was opened from the editor context, preventing stale editor selections from non-editor focus.
+  - Updated `harness/features/MF-075.md` and promoted only `MF-075` to `status=verified`, `passes=true`, `lastVerifiedAt=2026-04-23T05:16:08+08:00`.
+- Changed files:
+  - `harness/feature-ledger.json`
+  - `harness/features/MF-075.md`
+  - `packages/shared/src/index.ts`
+  - `packages/desktop/src/main/menu.ts`
+  - `packages/desktop/src/main/menu.test.ts`
+  - `packages/editor/src/App.tsx`
+  - `packages/editor/src/__tests__/App.test.tsx`
+  - `packages/editor/src/app-shell/useCommandPaletteActions.ts`
+  - `packages/editor/src/app-shell/useDesktopBridge.ts`
+- Simplifications made:
+  - Reused the existing clipboard bridge and markdown-selection serializer instead of adding a second clipboard pipeline.
+  - Kept the slice to explicit plain-text copy and did not broaden into paste behavior, OS manual automation, or export work.
+  - Treated the previous 2026-04-19 live TextEdit verification as proof for the bridge path and added focused automated coverage for the new text-only payload.
+- Verification:
+  - Implementer reported red-first focused menu/App tests for the missing plain-text action before implementation.
+  - Implementer final checks passed: full `App.test.tsx` (`77`), desktop `menu.test.ts` (`17`), shared/editor/desktop lint and build, `pnpm harness:verify`, `git diff --check`, and `jq empty harness/feature-ledger.json`.
+  - Reviewer accepted the diff with no blockers after read-only checks, rerunning `git diff --check`, `jq empty harness/feature-ledger.json`, `pnpm harness:verify`, desktop `test:run` (`83` tests), and editor `test:run` (`502` passed, `3` skipped).
+  - Dispatcher reran `pnpm harness:verify` (`152 total | verified=89 | ready=32 | planned=30 | blocked=1 | regression=0`) and `git diff --check`.
+- Review:
+  - Reviewer found no unrelated feature work or scope creep.
+  - Residual risk: no fresh live OS clipboard/TextEdit session was run specifically for `Copy as Plain Text`; this was accepted because the action writes a text-only payload through the clipboard bridge previously verified in a live desktop session.
+- Next recommended feature:
+  - `MF-076` remains harness-next but still requires a trusted desktop session with Microsoft Word for the full paste matrix.
+  - If automation remains terminal-only, continue with another small `ready` Typora parity feature that does not require manual external-app verification.
+
 ### 2026-04-23T04:31:40+08:00 - MF-045 verified; global search filters and match selection added
 
 - Author: Codex Dispatcher with Researcher/Implementer/Reviewer subagents

@@ -6,15 +6,20 @@ import {
   useCallback,
   useMemo,
 } from 'react'
+import type { MarkFlowCopyAction } from '@markflow/shared'
 import type { CommandPaletteAction } from '../components/commandPaletteRegistry'
 import type { MarkFlowEditorHandle } from '../editor/MarkFlowEditor'
 
 type UseCommandPaletteActionsOptions = {
   activeTabIdRef: MutableRefObject<string | null>
   closeCommandPalette: () => void
+  commandPaletteOpenedFromEditorRef: MutableRefObject<boolean>
   editorRef: RefObject<MarkFlowEditorHandle | null>
   focusMode: boolean
-  handleCopyAction: (action: 'copy' | 'copy-as-markdown' | 'copy-as-html-code') => Promise<void>
+  handleCopyAction: (
+    action: MarkFlowCopyAction,
+    options?: { markdownSelection?: string },
+  ) => Promise<void>
   handleExport: (format: 'html' | 'pdf') => Promise<boolean>
   handleNavigateBack: () => Promise<boolean>
   handleNavigateForward: () => Promise<boolean>
@@ -55,6 +60,7 @@ function describeViewModeToggle(viewMode: UseCommandPaletteActionsOptions['viewM
 export function useCommandPaletteActions({
   activeTabIdRef,
   closeCommandPalette,
+  commandPaletteOpenedFromEditorRef,
   editorRef,
   focusMode,
   handleCopyAction,
@@ -82,6 +88,23 @@ export function useCommandPaletteActions({
   typewriterMode,
   viewMode,
 }: UseCommandPaletteActionsOptions) {
+  const runSelectionCopyAction = useCallback(
+    async (action: MarkFlowCopyAction) => {
+      if (!commandPaletteOpenedFromEditorRef.current) {
+        return false
+      }
+
+      const selection = editorRef.current?.getSelectionSnapshot()
+      if (!selection) {
+        return false
+      }
+
+      await handleCopyAction(action, { markdownSelection: selection.text })
+      return true
+    },
+    [commandPaletteOpenedFromEditorRef, editorRef, handleCopyAction],
+  )
+
   const commandPaletteActions = useMemo<CommandPaletteAction[]>(
     () => [
       {
@@ -420,15 +443,20 @@ export function useCommandPaletteActions({
         run: () => editorRef.current?.executeCommand('edit-redo') ?? false,
       },
       {
+        id: 'edit.copy-as-plain-text',
+        label: 'Copy as Plain Text',
+        category: 'Edit',
+        description: 'Write the rendered selection as plain clipboard text',
+        keywords: ['clipboard', 'plain text', 'typora'],
+        run: () => runSelectionCopyAction('copy-as-plain-text'),
+      },
+      {
         id: 'edit.copy-as-markdown',
         label: 'Copy as Markdown',
         category: 'Edit',
         description: 'Write the current markdown selection to the clipboard',
         keywords: ['clipboard', 'source'],
-        run: async () => {
-          await handleCopyAction('copy-as-markdown')
-          return true
-        },
+        run: () => runSelectionCopyAction('copy-as-markdown'),
       },
       {
         id: 'export.html',
@@ -466,6 +494,7 @@ export function useCommandPaletteActions({
     ],
     [
       activeTabIdRef,
+      commandPaletteOpenedFromEditorRef,
       editorRef,
       focusMode,
       handleCopyAction,
@@ -492,6 +521,7 @@ export function useCommandPaletteActions({
       toggleViewMode,
       typewriterMode,
       viewMode,
+      runSelectionCopyAction,
     ],
   )
 

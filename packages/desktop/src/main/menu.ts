@@ -265,6 +265,7 @@ export function createApplicationMenuTemplate({
         { type: 'separator' },
         { role: 'cut' },
         { label: 'Copy', accelerator: 'CmdOrCtrl+C', click: () => sendMenuAction('copy') },
+        { label: 'Copy as Plain Text', click: () => sendMenuAction('copy-as-plain-text') },
         { label: 'Copy as Markdown', click: () => sendMenuAction('copy-as-markdown') },
         { label: 'Copy as HTML Code', click: () => sendMenuAction('copy-as-html-code') },
         { type: 'separator' },

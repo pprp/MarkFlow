@@ -1,5 +1,6 @@
 import { type Dispatch, type MutableRefObject, type RefObject, type SetStateAction, useEffect } from 'react'
 import type {
+  MarkFlowCopyAction,
   MarkFlowDesktopAPI,
   MarkFlowFileLoadProgressPayload,
   MarkFlowFilePayload,
@@ -26,7 +27,7 @@ type UseDesktopBridgeOptions = {
   editorRef: RefObject<MarkFlowEditorHandle | null>
   handleCloseTabRef: MutableRefObject<(tabId: string | null) => Promise<boolean>>
   handleCopyActionRef: MutableRefObject<
-    (action: 'copy' | 'copy-as-markdown' | 'copy-as-html-code') => Promise<void>
+    (action: MarkFlowCopyAction) => Promise<void>
   >
   handleCycleTabsRef: MutableRefObject<(direction: 1 | -1) => void>
   handleExportRef: MutableRefObject<(format: 'html' | 'pdf') => Promise<boolean>>
@@ -296,6 +297,7 @@ export function useDesktopBridge({
           editorRef.current?.executeCommand('edit-clear-formatting')
           break
         case 'copy':
+        case 'copy-as-plain-text':
         case 'copy-as-markdown':
         case 'copy-as-html-code':
           await handleCopyActionRef.current(action)

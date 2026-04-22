@@ -126,6 +126,12 @@ export interface MarkFlowImageUploadResult {
   timedOut?: boolean
 }
 
+export type MarkFlowCopyAction =
+  | 'copy'
+  | 'copy-as-plain-text'
+  | 'copy-as-markdown'
+  | 'copy-as-html-code'
+
 export type MarkFlowMenuAction =
   | 'new-file'
   | 'open-file'
@@ -144,9 +150,7 @@ export type MarkFlowMenuAction =
   | 'toggle-focus-mode'
   | 'toggle-typewriter-mode'
   | 'clear-formatting'
-  | 'copy'
-  | 'copy-as-markdown'
-  | 'copy-as-html-code'
+  | MarkFlowCopyAction
   | 'export-html'
   | 'export-pdf'
   | 'export-docx'
