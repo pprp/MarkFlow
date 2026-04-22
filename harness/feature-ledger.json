@@ -1738,9 +1738,9 @@
       "category": "bug",
       "area": "@markflow/editor",
       "priority": 2,
-      "status": "ready",
-      "passes": false,
-      "lastVerifiedAt": null,
+      "status": "verified",
+      "passes": true,
+      "lastVerifiedAt": "2026-04-22T14:51:05+08:00",
       "dependsOn": [
         "MF-007"
       ],
@@ -1891,6 +1891,21 @@
         "MF-044"
       ],
       "notesRef": "features/MF-140.md"
+    },
+    {
+      "id": "MF-141",
+      "title": "Export and print honor Typora-style manual and heading-based page breaks",
+      "category": "phase-2-functional",
+      "area": "@markflow/editor",
+      "priority": 3,
+      "status": "planned",
+      "passes": false,
+      "lastVerifiedAt": null,
+      "dependsOn": [
+        "MF-015",
+        "MF-107"
+      ],
+      "notesRef": "features/MF-141.md"
     }
   ]
 }

@@ -456,7 +456,7 @@ export function App() {
     startTransition(() => {
       setActiveCursorLineNumber(getLineNumberAtPosition(activeTab.content, activeTab.cursorPosition))
     })
-  }, [activeTab?.filePath, activeTab?.id])
+  }, [activeTab?.content, activeTab?.cursorPosition, activeTab?.filePath, activeTab?.id])
 
   const updateTab = useCallback((tabId: string, updater: (tab: DocumentTabState) => DocumentTabState) => {
     updateTabs((currentTabs) => {

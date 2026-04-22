@@ -4601,6 +4601,45 @@ next: MF-051 - Outline panel lists all headings with live scroll-sync and click-
 - Next recommended feature:
   - Continue `MF-076` in a trusted desktop session with `Microsoft Word.app` installed, then run the full Word/webpage/VS Code with-and-without-shortcut paste matrix before promoting the ledger.
 
+### 2026-04-22T14:54:04+08:00 - MF-130 verified; page-break parity added
+
+- Author: Codex
+- Focus: strict one-feature session after the required Researcher -> Implementer -> Reviewer loop.
+- Research updates:
+  - Added `MF-141` for Typora-style manual and heading-based page breaks in export/print.
+  - Sources recorded in `harness/features/MF-141.md`: Typora Page Breaks and Export support docs.
+- Implemented feature:
+  - Completed `MF-130` so the status bar recalculates the active cursor line when restored tab content or cursor position changes before editor cursor callbacks fire.
+  - Promoted only `MF-130` to `status=verified`, `passes=true`, `lastVerifiedAt=2026-04-22T14:51:05+08:00`.
+- Changed files:
+  - `packages/editor/src/App.tsx`
+  - `packages/editor/src/__tests__/App.test.tsx`
+  - `harness/feature-ledger.json`
+  - `harness/features/MF-130.md`
+  - `harness/features/MF-141.md`
+  - `harness/progress.md`
+- Simplifications made:
+  - Kept the fix to the existing cursor-line effect dependency list.
+  - Used a mocked editor regression so the test proves App state updates before any editor cursor callback can mask the bug.
+  - Deferred `MF-141` implementation because page-break parity belongs with export/print work, not this status-bar bug.
+- Verification:
+  - Initial `./harness/init.sh --smoke` passed before feature work:
+    - `packages/desktop`: `10` test files / `68` tests passed.
+    - `packages/editor`: `44` test files / `475` tests passed / `3` skipped.
+  - Implementer red/green evidence: the focused regression failed before the dependency fix because `line 1,000,000 / 1,500,000` was missing, then passed after the fix.
+  - `pnpm --filter @markflow/editor exec vitest run src/__tests__/App.test.tsx -t "refreshes the large-file status bar"` passed.
+  - `pnpm --filter @markflow/editor exec vitest run src/__tests__/App.test.tsx` passed (`64` tests).
+  - `pnpm --filter @markflow/editor lint` passed.
+  - `pnpm --filter @markflow/editor build` passed, with the existing Vite large-chunk warning.
+  - `pnpm harness:verify` passed (`features: 141 total | verified=83 | ready=37 | planned=20 | blocked=1 | regression=0`; next: `MF-076`).
+  - Reviewer reran full `App.test.tsx`, `pnpm harness:verify`, and `git diff --check`; all passed.
+- Review:
+  - Reviewer accepted `MF-130` as narrow and confirmed `MF-141` remains planned-only with a valid note file.
+  - Residual risk: no live Electron manual restore check was run.
+- Next recommended feature:
+  - Harness still selects `MF-076`, but `Microsoft Word.app` remains unavailable in this environment.
+  - If Word remains unavailable, the next small automatable candidate is `MF-131`.
+
 ### 2026-04-22T14:33:15+08:00 - MF-127 verified; Typora auto-pair gap added
 
 - Author: Codex

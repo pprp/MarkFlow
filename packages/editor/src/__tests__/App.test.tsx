@@ -4,6 +4,7 @@ import { markdown, markdownLanguage } from '@codemirror/lang-markdown'
 import { foldEffect, foldedRanges } from '@codemirror/language'
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { EditorView } from '@codemirror/view'
+import * as React from 'react'
 import { act } from 'react'
 import * as path from 'path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -1982,6 +1983,59 @@ describe('App desktop integration', () => {
     })
 
     expect(screen.getByText('line 124 / 1,500,000')).toBeInTheDocument()
+  })
+
+  it('refreshes the large-file status bar when restored tab state changes before editor cursor events', async () => {
+    vi.resetModules()
+    vi.doMock('react', () => React)
+    vi.doMock('../editor/MarkFlowEditor', () => ({
+      MarkFlowEditor: React.forwardRef(
+        ({ content }: { content: string }, ref: React.ForwardedRef<Record<string, unknown>>) => {
+          React.useImperativeHandle(ref, () => ({
+            captureSnapshot: () => null,
+            clearDocumentSearch: () => {},
+            executeCommand: () => false,
+            focus: () => {},
+            getContent: () => content,
+            navigateDocumentSearch: () => false,
+            replaceTextOccurrence: () => false,
+            setDocumentSearchQuery: () => {},
+          }))
+          return <div data-testid="mock-markflow-editor">{content}</div>
+        },
+      ),
+    }))
+
+    try {
+      const { App: AppWithMockedEditor } = await import('../App')
+      const api = new MockMarkFlowAPI()
+      const initialPayload = buildWindowedPayload('/tmp/restored-windowed.md', 1, 400, 1)
+      const restoredPayload = buildWindowedPayload('/tmp/restored-windowed.md', 999_960, 1_000_359, 1_000_000)
+      api.readLargeFileWindow = vi.fn(async () => restoredPayload)
+      window.markflow = api
+
+      render(<AppWithMockedEditor />)
+
+      await act(async () => {
+        api.emitFileOpened(initialPayload)
+      })
+
+      expect(screen.getByText('line 1 / 1,500,000')).toBeInTheDocument()
+
+      fireEvent.keyDown(document, { key: 'l', ctrlKey: true })
+      const lineInput = await screen.findByRole('textbox', { name: 'Line number' })
+      fireEvent.change(lineInput, { target: { value: '1000000' } })
+
+      await act(async () => {
+        fireEvent.submit(lineInput.closest('form') as HTMLFormElement)
+      })
+
+      expect(screen.getByText('line 1,000,000 / 1,500,000')).toBeInTheDocument()
+    } finally {
+      vi.doUnmock('../editor/MarkFlowEditor')
+      vi.doUnmock('react')
+      vi.resetModules()
+    }
   })
 
   it('toggles the minimap from the View menu bridge and clicks through to proportional navigation', async () => {
