@@ -568,13 +568,13 @@
     },
     {
       "id": "MF-045",
-      "title": "Global search queries content across files in the opened folder and jumps to exact matches",
+      "title": "Global search supports case, whole-word, regex, and tag search across files",
       "category": "phase-2-functional",
       "area": "@markflow/desktop",
       "priority": 3,
       "status": "verified",
       "passes": true,
-      "lastVerifiedAt": "2026-04-11T05:57:16.887Z",
+      "lastVerifiedAt": "2026-04-23T04:16:37+0800",
       "dependsOn": [
         "MF-041"
       ],

@@ -2,6 +2,7 @@ export interface NavigationLocation {
   tabId: string | null
   filePath: string | null
   cursorPosition: number
+  selectionEnd?: number | null
   scrollTop: number | null
 }
 
@@ -13,11 +14,19 @@ export interface NavigationHistoryState {
 export const MAX_NAVIGATION_HISTORY_ENTRIES = 64
 
 function normalizeLocation(location: NavigationLocation): NavigationLocation {
-  return {
+  const normalized: NavigationLocation = {
     ...location,
     cursorPosition: Math.max(0, location.cursorPosition),
     scrollTop: typeof location.scrollTop === 'number' ? Math.max(0, location.scrollTop) : null,
   }
+
+  if (typeof location.selectionEnd === 'number') {
+    normalized.selectionEnd = Math.max(0, location.selectionEnd)
+  } else {
+    delete normalized.selectionEnd
+  }
+
+  return normalized
 }
 
 function cloneLocation(location: NavigationLocation): NavigationLocation {
@@ -63,6 +72,7 @@ export function locationsEqual(left: NavigationLocation, right: NavigationLocati
     left.tabId === right.tabId &&
     left.filePath === right.filePath &&
     left.cursorPosition === right.cursorPosition &&
+    (left.selectionEnd ?? null) === (right.selectionEnd ?? null) &&
     left.scrollTop === right.scrollTop
   )
 }

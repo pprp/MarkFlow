@@ -3261,10 +3261,17 @@ describe('App command palette integration', () => {
     fireEvent.keyDown(document, { key: 'f', ctrlKey: true, shiftKey: true })
 
     const searchInput = await screen.findByRole('textbox', { name: 'Search query' })
+    fireEvent.click(screen.getByRole('button', { name: 'Match case' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Whole word' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Regular expression' }))
     fireEvent.change(searchInput, { target: { value: 'search' } })
 
     await waitFor(() => {
-      expect(api.searchFiles).toHaveBeenCalledWith('/docs', 'search')
+      expect(api.searchFiles).toHaveBeenCalledWith('/docs', 'search', {
+        caseSensitive: true,
+        wholeWord: true,
+        regexp: true,
+      })
     })
 
     const alphaSearchResult = await waitFor(() => {
@@ -3284,8 +3291,12 @@ describe('App command palette integration', () => {
 
     await waitFor(() => {
       const alphaView = getEditorView(container)
+      const selection = alphaView.state.selection.main
+      const selectedText = alphaView.state.sliceDoc(selection.from, selection.to)
       expect(alphaView.state.doc.toString()).toBe(alphaContent)
-      expect(alphaView.state.selection.main.head).toBe(alphaContent.indexOf('search token'))
+      expect(selection.from).toBe(alphaContent.indexOf('search token'))
+      expect(selection.to).toBe(alphaContent.indexOf('search token') + 'search'.length)
+      expect(selectedText).toBe('search')
     })
 
     act(() => {

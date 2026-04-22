@@ -15,6 +15,7 @@ import type {
   MarkFlowSavePayload,
   MarkFlowSaveResult,
   MarkFlowSpellCheckState,
+  SearchOptions,
   SearchResult,
   MarkFlowWindowSession,
   MarkFlowWindowSessionState,
@@ -108,7 +109,8 @@ const api: MarkFlowDesktopAPI = {
   getVaultFiles: (folderPath: string) => ipcRenderer.invoke('get-vault-files', folderPath) as Promise<string[]>,
   renameFile: (oldPath: string, newPath: string) => ipcRenderer.invoke('rename-file', oldPath, newPath),
   deleteFile: (filePath: string) => ipcRenderer.invoke('delete-file', filePath),
-  searchFiles: (folderPath: string, query: string) => ipcRenderer.invoke('search-files', folderPath, query) as Promise<SearchResult[]>,
+  searchFiles: (folderPath: string, query: string, options?: SearchOptions) =>
+    ipcRenderer.invoke('search-files', folderPath, query, options) as Promise<SearchResult[]>,
   writeClipboard: (payload) => {
     if (typeof payload.html === 'string' && payload.html.length > 0) {
       clipboard.write({

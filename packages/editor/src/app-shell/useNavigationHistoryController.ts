@@ -69,6 +69,7 @@ export function useNavigationHistoryController({
   const [editorNavigationRequest, setEditorNavigationRequest] = useState<{
     key: number
     position: number
+    selectionEnd?: number | null
     scrollTop?: number | null
   } | null>(null)
   const [pendingNavigationTarget, setPendingNavigationTarget] = useState<PendingNavigationTarget | null>(null)
@@ -79,19 +80,27 @@ export function useNavigationHistoryController({
     (
       tab: DocumentTabState,
       overrides: Partial<PendingNavigationTarget> = {},
-    ): PendingNavigationTarget => ({
-      tabId: overrides.tabId ?? tab.id,
-      filePath: overrides.filePath ?? tab.filePath,
-      cursorPosition:
-        overrides.cursorPosition ??
-        tab.snapshot?.cursorPosition ??
-        tab.cursorPosition,
-      scrollTop:
-        overrides.scrollTop ??
-        tab.snapshot?.scrollTop ??
-        null,
-      preserveScroll: overrides.preserveScroll ?? false,
-    }),
+    ): PendingNavigationTarget => {
+      const target: PendingNavigationTarget = {
+        tabId: overrides.tabId ?? tab.id,
+        filePath: overrides.filePath ?? tab.filePath,
+        cursorPosition:
+          overrides.cursorPosition ??
+          tab.snapshot?.cursorPosition ??
+          tab.cursorPosition,
+        scrollTop:
+          overrides.scrollTop ??
+          tab.snapshot?.scrollTop ??
+          null,
+        preserveScroll: overrides.preserveScroll ?? false,
+      }
+
+      if (typeof overrides.selectionEnd === 'number') {
+        target.selectionEnd = overrides.selectionEnd
+      }
+
+      return target
+    },
     [],
   )
 
@@ -132,6 +141,7 @@ export function useNavigationHistoryController({
       setEditorNavigationRequest({
         key: editorNavigationKeyRef.current,
         position: target.cursorPosition,
+        selectionEnd: target.selectionEnd,
         scrollTop: target.preserveScroll ? target.scrollTop : null,
       })
     },
@@ -359,8 +369,13 @@ export function useNavigationHistoryController({
 
       const existingTab = tabsRef.current.find((tab) => tab.filePath === result.filePath) ?? null
       if (existingTab) {
+        const cursorPosition = getLineColumnPosition(existingTab.content, result.lineNumber, result.matchStart)
         const destination = createNavigationLocationForTab(existingTab, {
-          cursorPosition: getLineColumnPosition(existingTab.content, result.lineNumber, result.matchStart),
+          cursorPosition,
+          selectionEnd: Math.max(
+            cursorPosition,
+            getLineColumnPosition(existingTab.content, result.lineNumber, result.matchEnd),
+          ),
           scrollTop: null,
           preserveScroll: false,
         })
@@ -379,10 +394,15 @@ export function useNavigationHistoryController({
         return
       }
 
+      const cursorPosition = getLineColumnPosition(payload.content, result.lineNumber, result.matchStart)
       const destination: PendingNavigationTarget = {
         tabId: null,
         filePath: result.filePath,
-        cursorPosition: getLineColumnPosition(payload.content, result.lineNumber, result.matchStart),
+        cursorPosition,
+        selectionEnd: Math.max(
+          cursorPosition,
+          getLineColumnPosition(payload.content, result.lineNumber, result.matchEnd),
+        ),
         scrollTop: null,
         preserveScroll: false,
       }

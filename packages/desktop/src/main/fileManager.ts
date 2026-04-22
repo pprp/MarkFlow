@@ -18,6 +18,7 @@ import type {
   MarkFlowWindowSession,
   MarkFlowWindowSessionState,
   MarkFlowRecentPathKind,
+  SearchOptions,
   SearchResult,
   MarkFlowStartupState,
 } from '@markflow/shared'
@@ -47,6 +48,7 @@ const MAX_RECENT_HISTORY_ITEMS = 20
 const DEFAULT_LAUNCH_BEHAVIOR: MarkFlowLaunchBehavior = 'open-new-file'
 const HARNESS_TEMP_DIR_ENV = 'MARKFLOW_HARNESS_TEMP_DIR'
 const HARNESS_USER_DATA_DIR_ENV = 'MARKFLOW_HARNESS_USER_DATA_DIR'
+const SEARCH_WORD_CHAR_CLASS = 'A-Za-z0-9_'
 
 interface MarkFlowSessionState {
   cleanExit: boolean
@@ -105,6 +107,26 @@ function getFileManagerAppPath(name: 'temp' | 'userData'): string {
   const override =
     name === 'temp' ? process.env[HARNESS_TEMP_DIR_ENV] : process.env[HARNESS_USER_DATA_DIR_ENV]
   return override && override.trim().length > 0 ? override : app.getPath(name)
+}
+
+function escapeSearchLiteral(query: string): string {
+  return query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+function buildSearchPattern(query: string, options: SearchOptions): RegExp | null {
+  if (!query.trim()) return null
+
+  const source = options.regexp ? query : escapeSearchLiteral(query)
+  const boundedSource = options.wholeWord
+    ? `(?<![${SEARCH_WORD_CHAR_CLASS}])(?:${source})(?![${SEARCH_WORD_CHAR_CLASS}])`
+    : source
+  const flags = options.caseSensitive ? 'g' : 'gi'
+
+  try {
+    return new RegExp(boundedSource, flags)
+  } catch {
+    return null
+  }
 }
 
 export class FileManager {
@@ -214,7 +236,9 @@ export class FileManager {
     ipcMain.handle('get-vault-files', (_event, folderPath: string) => this.getVaultFiles(folderPath))
     ipcMain.handle('rename-file', (_event, oldPath: string, newPath: string) => this.renameFile(oldPath, newPath))
     ipcMain.handle('delete-file', (_event, filePath: string) => this.deleteFile(filePath))
-    ipcMain.handle('search-files', (_event, folderPath: string, query: string) => this.searchFiles(folderPath, query))
+    ipcMain.handle('search-files', (_event, folderPath: string, query: string, options?: SearchOptions) =>
+      this.searchFiles(folderPath, query, options),
+    )
     ipcMain.handle('export-html', async (_event, html: string, defaultPath: string) => this.exportHtml(html, defaultPath))
     ipcMain.handle('export-pdf', async (_event, html: string, defaultPath: string) => this.exportPdf(html, defaultPath))
     ipcMain.handle('export-docx', async (_event, markdown: string, defaultPath: string) => this.exportPandoc(markdown, defaultPath, 'docx', 'Word Document', ['docx']))
@@ -1033,11 +1057,12 @@ export class FileManager {
     fs.unlinkSync(filePath)
   }
 
-  searchFiles(folderPath: string, query: string): SearchResult[] {
-    if (!query.trim()) return []
+  searchFiles(folderPath: string, query: string, options: SearchOptions = {}): SearchResult[] {
+    const searchPattern = buildSearchPattern(query, options)
+    if (!searchPattern) return []
+
     const files = this.getVaultFiles(folderPath)
     const results: SearchResult[] = []
-    const lowerQuery = query.toLowerCase()
 
     for (const filePath of files) {
       let content: string
@@ -1048,18 +1073,21 @@ export class FileManager {
       }
       const lines = content.split('\n')
       lines.forEach((lineText, idx) => {
-        const lowerLine = lineText.toLowerCase()
-        let searchFrom = 0
-        let matchIdx: number
-        while ((matchIdx = lowerLine.indexOf(lowerQuery, searchFrom)) !== -1) {
+        searchPattern.lastIndex = 0
+        let match: RegExpExecArray | null
+        while ((match = searchPattern.exec(lineText)) !== null) {
+          if (match[0].length === 0) {
+            searchPattern.lastIndex += 1
+            continue
+          }
+
           results.push({
             filePath,
             lineNumber: idx + 1,
             lineText,
-            matchStart: matchIdx,
-            matchEnd: matchIdx + query.length,
+            matchStart: match.index,
+            matchEnd: match.index + match[0].length,
           })
-          searchFrom = matchIdx + 1
         }
       })
     }

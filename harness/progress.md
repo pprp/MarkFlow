@@ -1,3 +1,65 @@
+### 2026-04-23T04:31:40+08:00 - MF-045 verified; global search filters and match selection added
+
+- Author: Codex Dispatcher with Researcher/Implementer/Reviewer subagents
+- Focus: strict one-feature automation cycle for `MF-045`; no second product feature was implemented.
+- Startup / baseline:
+  - Read `/Users/pprp/.codex/automations/typora-replication/memory.md`.
+  - Ran `pnpm harness:start`; it reported `152` features and selected `MF-076` as harness-next.
+  - Ran initial `./harness/init.sh --smoke`; it passed before feature work with desktop `79` tests and editor `501` tests (`3` skipped).
+  - Baseline `git status --short` was clean, so there was no inherited smoke-passing diff to commit before feature work.
+- Research updates:
+  - Researcher used Typora Search and File Management docs.
+  - Reopened existing `MF-045` by changing it from previously verified folder-wide literal search to the fuller Typora parity target: case-sensitive, whole-word, regex, and literal `#tag` global search across files.
+  - Did not append new feature entries.
+- Implemented feature:
+  - Completed `MF-045` by adding `SearchOptions` to the shared desktop search API.
+  - Desktop search now supports the default literal case-insensitive path, optional case-sensitive matching, whole-word matching, regex matching, multiple matches per line, invalid-regex empty results, and literal `#tag` search.
+  - Global search UI now exposes compact accessible `Aa`, `W`, and `.*` toggles and sends active options through the desktop bridge.
+  - Reviewer found that result navigation placed only a caret at the match start while the feature step required highlighting the selected occurrence.
+  - Implementer fixed that blocker by carrying `matchEnd` through navigation history requests and selecting the matched range in `MarkFlowEditor`.
+  - Promoted only `MF-045` to `status=verified`, `passes=true`, `lastVerifiedAt=2026-04-23T04:16:37+0800`.
+- Changed files:
+  - `harness/feature-ledger.json`
+  - `harness/features/MF-045.md`
+  - `packages/shared/src/index.ts`
+  - `packages/desktop/src/main/fileManager.ts`
+  - `packages/desktop/src/main/search.test.ts`
+  - `packages/desktop/src/preload/index.ts`
+  - `packages/editor/src/components/GlobalSearch.tsx`
+  - `packages/editor/src/components/GlobalSearch.css`
+  - `packages/editor/src/__tests__/App.test.tsx`
+  - `packages/editor/src/app-shell/useNavigationHistoryController.ts`
+  - `packages/editor/src/editor/MarkFlowEditor.tsx`
+  - `packages/editor/src/editor/navigationHistory.ts`
+- Simplifications made:
+  - Kept tag search on the existing literal token path instead of adding a separate tag index.
+  - Preserved the old two-argument `searchFiles(folderPath, query)` call shape by making options optional and only sending them from the renderer when a toggle is active.
+  - Used editor range selection for selected search results instead of adding a second transient highlight decoration system.
+- Verification:
+  - Researcher ran JSON parse and `pnpm harness:verify`; the ledger demotion passed with `verified=88`, `ready=33`.
+  - Implementer reported `pnpm --filter @markflow/desktop exec vitest run src/main/search.test.ts` passed (`6` tests), `pnpm --filter @markflow/editor exec vitest run src/__tests__/App.test.tsx` passed (`76` tests), `pnpm harness:verify` passed, and `git diff --check` passed.
+  - Reviewer requested the result-selection fix, then accepted the follow-up.
+  - Dispatcher reran:
+    - `pnpm --filter @markflow/desktop exec vitest run src/main/search.test.ts` passed (`6` tests).
+    - `pnpm --filter @markflow/editor exec vitest run src/__tests__/App.test.tsx` passed (`76` tests).
+    - `pnpm --filter @markflow/editor exec vitest run src/editor/__tests__/navigationHistory.test.ts` passed (`4` tests).
+    - `pnpm harness:verify` passed (`152 total | verified=89 | ready=32 | planned=30 | blocked=1 | regression=0`; next: `MF-076`).
+    - `git diff --check` passed.
+    - `pnpm --filter @markflow/shared lint` and `pnpm --filter @markflow/shared build` passed.
+    - `pnpm --filter @markflow/desktop lint` and `pnpm --filter @markflow/desktop build` passed.
+    - `pnpm --filter @markflow/editor lint` and `pnpm --filter @markflow/editor build` passed; editor build still emits the existing Vite large-chunk warning.
+  - Final `./harness/init.sh --smoke` passed:
+    - `pnpm harness:verify` passed (`152 total | verified=89 | ready=32 | planned=30 | blocked=1 | regression=0`; next: `MF-076`).
+    - `packages/desktop`: `10` test files / `83` tests passed.
+    - `packages/editor`: `45` test files / `501` tests passed / `3` skipped.
+- Remaining risks:
+  - Whole-word matching is ASCII-boundary based (`A-Za-z0-9_`), not locale-aware.
+  - Search results are non-overlapping because the implementation uses global regular expressions.
+  - Back/forward history captures cursor head for ordinary manual selections; this change only preserves the selected range for explicit global-search result navigation.
+- Next recommended feature:
+  - `MF-076` remains harness-next but still needs a trusted desktop session with `Microsoft Word.app` for the manual paste matrix.
+  - If Word is still unavailable, choose the next automatable priority-3 feature, with `MF-081` all-local-image upload or YAML-triggered upload still open.
+
 ### 2026-04-22T17:24:30+08:00 - MF-122 verified; table cells now wrap
 
 - Author: Codex Dispatcher with Researcher/Implementer/Reviewer subagents

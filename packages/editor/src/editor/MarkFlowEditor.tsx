@@ -125,7 +125,12 @@ export interface MarkFlowEditorProps {
   typewriterMode?: boolean
   pluginHost?: MarkFlowPluginHost
   filePath?: string
-  navigationRequest?: { key: number; position: number; scrollTop?: number | null } | null
+  navigationRequest?: {
+    key: number
+    position: number
+    selectionEnd?: number | null
+    scrollTop?: number | null
+  } | null
   collapsedRanges?: number[]
   onCollapsedRangesChange?: (ranges: number[]) => void
 }
@@ -1371,9 +1376,18 @@ export const MarkFlowEditor = forwardRef<MarkFlowEditorHandle, MarkFlowEditorPro
       onNavigationHandledRef.current?.()
     }
 
+    const selectionFrom = Math.max(0, Math.min(navigationRequest.position, view.state.doc.length))
+    const selectionTo =
+      typeof navigationRequest.selectionEnd === 'number'
+        ? Math.max(selectionFrom, Math.min(navigationRequest.selectionEnd, view.state.doc.length))
+        : selectionFrom
+
     view.dispatch({
-      selection: EditorSelection.cursor(navigationRequest.position),
-      effects: EditorView.scrollIntoView(navigationRequest.position, { y: 'start' }),
+      selection:
+        selectionTo > selectionFrom
+          ? EditorSelection.range(selectionFrom, selectionTo)
+          : EditorSelection.cursor(selectionFrom),
+      effects: EditorView.scrollIntoView(selectionFrom, { y: 'start' }),
     })
 
     if (typeof navigationRequest.scrollTop === 'number') {

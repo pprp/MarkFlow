@@ -228,6 +228,12 @@ export interface SearchResult {
   matchEnd: number
 }
 
+export interface SearchOptions {
+  caseSensitive?: boolean
+  wholeWord?: boolean
+  regexp?: boolean
+}
+
 export type MarkFlowRenderedViewMode = 'wysiwyg' | 'reading' | 'split-preview'
 
 export interface MarkFlowMarkdownPostProcessorContext {
@@ -440,7 +446,7 @@ export interface MarkFlowDesktopAPI {
   getVaultFiles: (folderPath: string) => Promise<string[]>
   renameFile: (oldPath: string, newPath: string) => Promise<void>
   deleteFile: (filePath: string) => Promise<void>
-  searchFiles: (folderPath: string, query: string) => Promise<SearchResult[]>
+  searchFiles: (folderPath: string, query: string, options?: SearchOptions) => Promise<SearchResult[]>
   writeClipboard: (payload: MarkFlowClipboardPayload) => Promise<void> | void
   onFileOpened: (cb: (data: MarkFlowFilePayload) => void) => () => void
   onFileLoadingProgress: (cb: (data: MarkFlowFileLoadProgressPayload) => void) => () => void

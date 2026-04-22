@@ -10,6 +10,30 @@ interface GlobalSearchProps {
   onSelectResult: (result: SearchResult) => void
 }
 
+type SearchOptionKey = 'caseSensitive' | 'wholeWord' | 'regexp'
+type SearchOptionState = Record<SearchOptionKey, boolean>
+type SearchFilesWithOptions = (
+  folderPath: string,
+  query: string,
+  options?: SearchOptionState,
+) => Promise<SearchResult[]>
+
+const DEFAULT_SEARCH_OPTIONS: SearchOptionState = {
+  caseSensitive: false,
+  wholeWord: false,
+  regexp: false,
+}
+
+const SEARCH_OPTION_TOGGLES: Array<{
+  key: SearchOptionKey
+  label: string
+  glyph: string
+}> = [
+  { key: 'caseSensitive', label: 'Match case', glyph: 'Aa' },
+  { key: 'wholeWord', label: 'Whole word', glyph: 'W' },
+  { key: 'regexp', label: 'Regular expression', glyph: '.*' },
+]
+
 function basename(filePath: string): string {
   return filePath.split(/[\\/]/).at(-1) ?? filePath
 }
@@ -61,6 +85,7 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({
   const [results, setResults] = useState<SearchResult[]>([])
   const [isSearching, setIsSearching] = useState(false)
   const [selectedIndex, setSelectedIndex] = useState(0)
+  const [searchOptions, setSearchOptions] = useState<SearchOptionState>(DEFAULT_SEARCH_OPTIONS)
   const inputRef = useRef<HTMLInputElement>(null)
   const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -69,6 +94,7 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({
       setQuery('')
       setResults([])
       setSelectedIndex(0)
+      setSearchOptions(DEFAULT_SEARCH_OPTIONS)
       setTimeout(() => inputRef.current?.focus(), 10)
     }
   }, [isOpen])
@@ -81,14 +107,18 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({
       }
       setIsSearching(true)
       try {
-        const found = await window.markflow.searchFiles(folderPath, q)
+        const hasActiveOptions = searchOptions.caseSensitive || searchOptions.wholeWord || searchOptions.regexp
+        const searchFiles = window.markflow.searchFiles as SearchFilesWithOptions
+        const found = hasActiveOptions
+          ? await searchFiles(folderPath, q, searchOptions)
+          : await searchFiles(folderPath, q)
         setResults(found)
         setSelectedIndex(0)
       } finally {
         setIsSearching(false)
       }
     },
-    [folderPath],
+    [folderPath, searchOptions],
   )
 
   useEffect(() => {
@@ -121,6 +151,13 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({
         onSelectResult(flatResults[selectedIndex])
       }
     }
+  }
+
+  const toggleSearchOption = (key: SearchOptionKey) => {
+    setSearchOptions((current) => ({
+      ...current,
+      [key]: !current[key],
+    }))
   }
 
   let resultIndex = 0
@@ -172,6 +209,22 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({
           disabled={!folderPath}
           aria-label="Search query"
         />
+        <div className="mf-global-search-option-group" role="group" aria-label="Search options">
+          {SEARCH_OPTION_TOGGLES.map((option) => (
+            <button
+              key={option.key}
+              type="button"
+              className={`mf-global-search-option${searchOptions[option.key] ? ' is-active' : ''}`}
+              aria-label={option.label}
+              aria-pressed={searchOptions[option.key]}
+              title={option.label}
+              disabled={!folderPath}
+              onClick={() => toggleSearchOption(option.key)}
+            >
+              {option.glyph}
+            </button>
+          ))}
+        </div>
       </div>
 
       <div className="mf-global-search-results">
