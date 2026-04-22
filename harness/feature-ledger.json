@@ -1844,7 +1844,7 @@
     },
     {
       "id": "MF-138",
-      "title": "Export presets remember previous targets and can be customized with YAML-aware options",
+      "title": "Export profiles remember targets, themes, and YAML-aware publishing options",
       "category": "phase-2-functional",
       "area": "@markflow/desktop",
       "priority": 3,
@@ -1938,6 +1938,146 @@
         "MF-107"
       ],
       "notesRef": "features/MF-143.md"
+    },
+    {
+      "id": "MF-144",
+      "title": "Math and diagram renderers load only when visible content requires them",
+      "category": "phase-2-performance",
+      "area": "@markflow/editor",
+      "priority": 2,
+      "status": "planned",
+      "passes": false,
+      "lastVerifiedAt": null,
+      "dependsOn": [
+        "MF-014",
+        "MF-023",
+        "MF-048",
+        "MF-112"
+      ],
+      "notesRef": "features/MF-144.md"
+    },
+    {
+      "id": "MF-145",
+      "title": "Code block highlighting starts with a slim language pack and loads uncommon languages on demand",
+      "category": "phase-2-performance",
+      "area": "@markflow/editor",
+      "priority": 2,
+      "status": "planned",
+      "passes": false,
+      "lastVerifiedAt": null,
+      "dependsOn": [
+        "MF-030",
+        "MF-112"
+      ],
+      "notesRef": "features/MF-145.md"
+    },
+    {
+      "id": "MF-146",
+      "title": "KaTeX assets ship as a minimal WOFF2 font set loaded only for math documents",
+      "category": "phase-2-performance",
+      "area": "@markflow/editor",
+      "priority": 3,
+      "status": "planned",
+      "passes": false,
+      "lastVerifiedAt": null,
+      "dependsOn": [
+        "MF-014",
+        "MF-112"
+      ],
+      "notesRef": "features/MF-146.md"
+    },
+    {
+      "id": "MF-147",
+      "title": "Adaptive large-document mode reduces decoration work during typing and fast scrolling",
+      "category": "phase-2-performance",
+      "area": "@markflow/editor",
+      "priority": 2,
+      "status": "planned",
+      "passes": false,
+      "lastVerifiedAt": null,
+      "dependsOn": [
+        "MF-048",
+        "MF-112"
+      ],
+      "notesRef": "features/MF-147.md"
+    },
+    {
+      "id": "MF-148",
+      "title": "Symbol table indexing runs in a real Web Worker for large documents",
+      "category": "phase-2-performance",
+      "area": "@markflow/editor",
+      "priority": 2,
+      "status": "planned",
+      "passes": false,
+      "lastVerifiedAt": null,
+      "dependsOn": [
+        "MF-050",
+        "MF-112"
+      ],
+      "notesRef": "features/MF-148.md"
+    },
+    {
+      "id": "MF-149",
+      "title": "Writer mode starts with core editing modules and enables heavy capabilities on demand",
+      "category": "phase-2-performance",
+      "area": "@markflow/editor",
+      "priority": 3,
+      "status": "planned",
+      "passes": false,
+      "lastVerifiedAt": null,
+      "dependsOn": [
+        "MF-014",
+        "MF-016",
+        "MF-023",
+        "MF-108"
+      ],
+      "notesRef": "features/MF-149.md"
+    },
+    {
+      "id": "MF-150",
+      "title": "Citation manager inserts BibTeX and CSL-backed references without breaking markdown source",
+      "category": "phase-3-functional",
+      "area": "@markflow/editor",
+      "priority": 3,
+      "status": "planned",
+      "passes": false,
+      "lastVerifiedAt": null,
+      "dependsOn": [
+        "MF-016",
+        "MF-025",
+        "MF-046"
+      ],
+      "notesRef": "features/MF-150.md"
+    },
+    {
+      "id": "MF-151",
+      "title": "Backlinks panel surfaces inbound wikilinks and missing note references across the active vault",
+      "category": "phase-3-functional",
+      "area": "@markflow/editor",
+      "priority": 3,
+      "status": "planned",
+      "passes": false,
+      "lastVerifiedAt": null,
+      "dependsOn": [
+        "MF-040",
+        "MF-045",
+        "MF-050"
+      ],
+      "notesRef": "features/MF-151.md"
+    },
+    {
+      "id": "MF-152",
+      "title": "Snippet and block template library inserts reusable writing structures from the command palette",
+      "category": "phase-2-functional",
+      "area": "@markflow/editor",
+      "priority": 3,
+      "status": "planned",
+      "passes": false,
+      "lastVerifiedAt": null,
+      "dependsOn": [
+        "MF-074"
+      ],
+      "notesRef": "features/MF-152.md"
     }
   ]
 }
