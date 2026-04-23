@@ -92,4 +92,21 @@ describe('clearFormatting', () => {
 
     view.destroy()
   })
+
+  it('splits every nested wrapper around a live middle selection', () => {
+    const doc = 'Before [***alpha beta gamma***](url) after'
+    const view = makeView(doc)
+
+    selectFirst(view, 'beta')
+
+    expect(clearFormatting(view)).toBe(true)
+    expect(view.state.doc.toString()).toBe(
+      'Before [***alpha ***](url)beta[*** gamma***](url) after',
+    )
+    expect(view.state.sliceDoc(view.state.selection.main.from, view.state.selection.main.to)).toBe(
+      'beta',
+    )
+
+    view.destroy()
+  })
 })

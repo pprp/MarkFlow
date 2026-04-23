@@ -1,3 +1,45 @@
+### 2026-04-23T21:14:39+08:00 - MF-077 clear-formatting verification closed
+
+- Author: Codex Dispatcher with Researcher/Implementer/Reviewer subagents
+- Focus: strict one-feature automation cycle for Typora clear-formatting parity.
+- Startup / baseline:
+  - Read `/Users/pprp/.codex/automations/typora-replication/memory.md`.
+  - Ran `pnpm harness:start`; it reported `159` features and selected `MF-076` as harness-next.
+  - Ran initial `./harness/init.sh --smoke`; it passed with desktop `84` tests and editor `515` passed / `3` skipped.
+  - Baseline `git status --short` still contained inherited list-marker edits in `packages/editor/src/editor/decorations/listDecoration.ts`, `packages/editor/src/editor/__tests__/listAndBlockquoteDecoration.test.tsx`, and `packages/editor/src/styles/global.css`; those were preserved and not included in this feature.
+- Research updates:
+  - Researcher used Typora 1.13 release notes and Typora Math and Academic Functions docs.
+  - Refined existing `MF-086` in `harness/feature-ledger.json` so its title explicitly tracks Typora MathJax 4 line breaks, TeX packages, code-block math, numbering, and references.
+  - No new feature entries were added.
+- Implemented / verified feature work:
+  - Selected `MF-077` because `MF-076` remains Microsoft Word/manual-matrix gated and the higher-priority open features were manual-gated or too broad for one automation run.
+  - Added a focused `clearFormatting.test.ts` regression that clears `beta` inside `[***alpha beta gamma***](url)` using a live CodeMirror `EditorView` selection.
+  - The regression verifies the selected text becomes plain `beta` while adjacent text remains split into bold+italic+link wrappers.
+  - Promoted `MF-077` to `status=verified`, `passes=true`, and `lastVerifiedAt=2026-04-23T21:11:14+0800`.
+- Changed files for this cycle:
+  - `harness/feature-ledger.json`
+  - `harness/features/MF-077.md`
+  - `harness/progress.md`
+  - `packages/editor/src/editor/__tests__/clearFormatting.test.ts`
+- Simplifications made:
+  - Replaced the remaining manual nested-formatting blocker with a direct automated regression instead of changing clear-formatting product code.
+  - Did not rerun or alter command routing because the active change is coverage and truthful ledger promotion only.
+- Verification:
+  - Researcher ran `jq empty harness/feature-ledger.json`, `pnpm harness:verify`, and `git diff --check -- harness/feature-ledger.json`.
+  - Implementer ran `pnpm --filter @markflow/editor test:run src/editor/__tests__/clearFormatting.test.ts` (`8` tests passed), `pnpm harness:verify`, and scoped `git diff --check`.
+  - Reviewer accepted the MF-077 promotion after rerunning the focused clear-formatting test, `pnpm harness:verify`, and scoped `git diff --check`.
+  - Dispatcher reran:
+    - `pnpm --filter @markflow/editor test:run src/editor/__tests__/clearFormatting.test.ts` (`8` tests passed).
+    - `pnpm harness:verify` (`159 total | verified=94 | ready=29 | planned=35 | blocked=1`).
+    - `git diff --check -- harness/feature-ledger.json harness/features/MF-077.md packages/editor/src/editor/__tests__/clearFormatting.test.ts`.
+    - Final `./harness/init.sh --smoke`, which passed with desktop `84` tests and editor `516` passed / `3` skipped.
+- Review:
+  - Reviewer found no blocking MF-077 regression or overreach.
+  - Residual risk: no live desktop/manual menu exercise was run, but the former nested-formatting acceptance gap is now covered through the editor command behavior directly.
+- Next recommended feature:
+  - `MF-076` remains harness-next but still requires Microsoft Word/manual paste-matrix verification.
+  - If Word remains unavailable, prefer a terminal-verifiable slice from `MF-086` only after deciding the MathJax-vs-KaTeX strategy, or continue with another already-implemented ready feature that can be closed by automated evidence.
+
 ### 2026-04-23T20:20:58+08:00 - MF-097 media path automation added
 
 - Author: Codex Dispatcher with Researcher/Implementer/Reviewer subagents

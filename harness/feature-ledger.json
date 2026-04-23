@@ -1007,9 +1007,9 @@
       "category": "phase-2-functional",
       "area": "@markflow/editor",
       "priority": 3,
-      "status": "ready",
-      "passes": false,
-      "lastVerifiedAt": null,
+      "status": "verified",
+      "passes": true,
+      "lastVerifiedAt": "2026-04-23T21:11:14+0800",
       "dependsOn": [
         "MF-066"
       ],
@@ -1127,7 +1127,7 @@
     },
     {
       "id": "MF-086",
-      "title": "Math parity covers Typora-style code-block math, equation numbering, line breaks, and TeX package support",
+      "title": "Math parity covers Typora MathJax 4 line breaks, TeX packages, code-block math, numbering, and references",
       "category": "phase-2-functional",
       "area": "@markflow/editor",
       "priority": 3,
