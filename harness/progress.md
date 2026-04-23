@@ -5828,3 +5828,55 @@ next: MF-051 - Outline panel lists all headings with live scroll-sync and click-
 - Next recommended feature:
   - `MF-076` remains harness-next but is still Microsoft Word/manual-matrix gated.
   - If Word remains unavailable, choose a terminal-verifiable slice from `MF-081`, `MF-138`, or the newly added `MF-154`/`MF-155`/`MF-156` backlog.
+
+### 2026-04-23T18:14:02+08:00 - MF-058 column selection verified
+
+- Author: Codex Dispatcher with Researcher/Implementer/Reviewer subagents
+- Focus: strict one-feature automation cycle for Typora block/column selection parity.
+- Startup / baseline:
+  - Read `/Users/pprp/.codex/automations/typora-replication/memory.md`.
+  - Ran `pnpm harness:start`; it reported `157` features and selected `MF-076` as harness-next.
+  - Ran initial `./harness/init.sh --smoke`; it passed before finalization with desktop `84` tests and editor `507` tests (`3` skipped).
+  - Baseline `git status --short` already contained accepted MF-058/MF-157 changes from the prior pass, so this run closed that cycle instead of starting a second implemented feature.
+- Research updates:
+  - Earlier Researcher work appended `MF-157` for code fence tools/preferences: line numbers, wrapping, default language, and code actions.
+  - The current working tree also retained `MF-158` for whitespace and soft line break editing/export preferences, with a matching feature note file.
+  - Dispatcher added the matching `harness/features/MF-158.md` note file so `pnpm harness:verify` stayed schema-complete.
+  - Dispatcher removed a transient invalid `MF-159` task-list duplicate because `MF-005` already covers direct task-checkbox toggling and the duplicate broke the harness schema.
+  - Already-covered candidates were not duplicated; `MF-157` and `MF-158` both remain planned backlog items.
+- Implemented feature work:
+  - Selected `MF-058` because `MF-076` remains Microsoft Word/manual-gated and the new `MF-157` depends on planned preferences work.
+  - Added CodeMirror `rectangularSelection` in `packages/editor/src/editor/MarkFlowEditor.tsx`.
+  - Gated rectangular selection to Alt/Option+Shift+left-drag so the existing Alt-click multi-cursor behavior remains available.
+  - Added a regression test covering Alt-only rejection, Alt+Shift rectangular selection across five lines, replacement of the selected column, and one undo restoring the original document.
+  - Promoted `MF-058` to `status=verified`, `passes=true`, and `lastVerifiedAt=2026-04-23T18:20:31+0800`; `MF-157` and `MF-158` remain `planned` / `passes=false`.
+- Changed files:
+  - `harness/feature-ledger.json`
+  - `harness/features/MF-058.md`
+  - `harness/features/MF-157.md`
+  - `harness/features/MF-158.md`
+  - `packages/editor/src/editor/MarkFlowEditor.tsx`
+  - `packages/editor/src/editor/__tests__/MarkFlowEditor.test.tsx`
+- Simplifications made:
+  - Reused CodeMirror's native rectangular-selection extension instead of custom pointer tracking.
+  - Kept the gesture narrow to avoid changing existing multi-cursor behavior.
+  - Deferred MF-157 code-fence preferences/actions and MF-158 whitespace preferences to later cycles because both need preference/export surface work.
+- Verification:
+  - Researcher ran JSON parse, tail metadata/duplicate assertions, and `git diff --check -- harness/feature-ledger.json`.
+  - Dispatcher normalized `MF-158` and `pnpm harness:verify` passed with `158` features.
+  - Dispatcher removed the invalid duplicate `MF-159` entry and re-ran `pnpm harness:verify`, which passed with `158` features.
+  - Current Implementer rechecked the inherited MF-058 diff, made no further edits, and reran the focused test, broad editor test command, lint, build, harness verification, and whitespace checks successfully.
+  - Dispatcher reran:
+    - `pnpm --filter @markflow/editor exec vitest run src/editor/__tests__/MarkFlowEditor.test.tsx -t "block-selection"` (`1` focused test passed).
+    - `pnpm --filter @markflow/editor test:run -- --grep block-selection` (`45` files passed; `507` tests passed / `3` skipped).
+    - `pnpm --filter @markflow/editor lint`.
+    - `pnpm --filter @markflow/editor build`, which passed with the existing Vite large-chunk warning.
+    - `pnpm harness:verify` (`158 total | verified=92 | ready=30 | planned=35 | blocked=1 | regression=0`; next: `MF-076`).
+    - `git diff --check`.
+    - Final `./harness/init.sh --smoke`, which passed with desktop `84` tests and editor `507` tests (`3` skipped).
+- Review:
+  - Reviewer accepted `MF-058` as scoped and truthfully marked verified.
+  - Residual risk: no separate live desktop/table-block drag smoke was run; automated coverage exercises CodeMirror's mouse-selection style path directly.
+- Next recommended feature:
+  - `MF-076` remains harness-next but is still Microsoft Word/manual-matrix gated.
+  - If Word remains unavailable, choose a terminal-verifiable slice from `MF-081`, `MF-138`, `MF-154`, `MF-157`, or the new `MF-158` backlog.

@@ -747,9 +747,9 @@
       "category": "phase-2-functional",
       "area": "@markflow/editor",
       "priority": 3,
-      "status": "ready",
-      "passes": false,
-      "lastVerifiedAt": null,
+      "status": "verified",
+      "passes": true,
+      "lastVerifiedAt": "2026-04-23T18:20:31+0800",
       "dependsOn": [
         "MF-057"
       ],
@@ -2137,6 +2137,39 @@
         "MF-108"
       ],
       "notesRef": "features/MF-156.md"
+    },
+    {
+      "id": "MF-157",
+      "title": "Code fence tools expose line numbers, wrapping, default language, and code actions",
+      "category": "phase-2-functional",
+      "area": "@markflow/editor",
+      "priority": 3,
+      "status": "planned",
+      "passes": false,
+      "lastVerifiedAt": null,
+      "dependsOn": [
+        "MF-003",
+        "MF-030",
+        "MF-075",
+        "MF-108"
+      ],
+      "notesRef": "features/MF-157.md"
+    },
+    {
+      "id": "MF-158",
+      "title": "Whitespace and soft line break preferences control editing and export rendering",
+      "category": "phase-2-functional",
+      "area": "@markflow/editor",
+      "priority": 3,
+      "status": "planned",
+      "passes": false,
+      "lastVerifiedAt": null,
+      "dependsOn": [
+        "MF-105",
+        "MF-108",
+        "MF-138"
+      ],
+      "notesRef": "features/MF-158.md"
     }
   ]
 }

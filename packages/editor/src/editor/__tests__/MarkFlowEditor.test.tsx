@@ -904,6 +904,54 @@ describe('MarkFlowEditor', () => {
     expect(view.state.selection.ranges).toHaveLength(3)
   })
 
+  it('block-selection creates rectangular ranges with Alt+Shift drag and undoes replacement atomically', () => {
+    const content = ['a-123-z', 'b-234-y', 'c-345-x', 'd-456-w', 'e-567-v'].join('\n')
+    const { container } = render(
+      <MarkFlowEditor content={content} viewMode="wysiwyg" onChange={vi.fn()} />,
+    )
+
+    const view = getEditorView(container)
+    const [makeSelectionStyle] = view.state.facet(EditorView.mouseSelectionStyle)
+    expect(makeSelectionStyle).toBeDefined()
+    expect(
+      makeSelectionStyle(view, new MouseEvent('mousedown', { button: 0, altKey: true })),
+    ).toBeNull()
+
+    const posAtCoords = vi.spyOn(view, 'posAtCoords').mockImplementation((coords) => {
+      return coords.y < 50 ? view.state.doc.line(1).from + 2 : view.state.doc.line(5).from + 5
+    })
+    const selectionStyle = makeSelectionStyle(
+      view,
+      new MouseEvent('mousedown', { button: 0, altKey: true, shiftKey: true, clientY: 10 }),
+    )
+
+    expect(selectionStyle).not.toBeNull()
+    expect(posAtCoords).toHaveBeenCalledTimes(1)
+
+    const blockSelection = selectionStyle!.get(
+      new MouseEvent('mousemove', { button: 0, altKey: true, shiftKey: true, clientY: 90 }),
+      false,
+      false,
+    )
+    expect(blockSelection.ranges).toHaveLength(5)
+    expect(blockSelection.ranges.map((range) => [range.from, range.to])).toEqual(
+      [1, 2, 3, 4, 5].map((lineNumber) => {
+        const line = view.state.doc.line(lineNumber)
+        return [line.from + 2, line.from + 5]
+      }),
+    )
+
+    view.dispatch({ selection: blockSelection })
+    view.dispatch(view.state.replaceSelection('###'))
+
+    expect(view.state.doc.toString()).toBe(
+      ['a-###-z', 'b-###-y', 'c-###-x', 'd-###-w', 'e-###-v'].join('\n'),
+    )
+
+    expect(undo(view)).toBe(true)
+    expect(view.state.doc.toString()).toBe(content)
+  })
+
   it('selects the next occurrence with Cmd/Ctrl+D when multiple selections are enabled', () => {
     const { container } = render(
       <MarkFlowEditor content="foo foo foo" viewMode="wysiwyg" onChange={vi.fn()} />,

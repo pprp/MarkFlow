@@ -8,7 +8,14 @@ import {
   Transaction,
   type ChangeSpec,
 } from '@codemirror/state'
-import { EditorView, keymap, drawSelection, highlightActiveLine, lineNumbers } from '@codemirror/view'
+import {
+  EditorView,
+  keymap,
+  drawSelection,
+  highlightActiveLine,
+  lineNumbers,
+  rectangularSelection,
+} from '@codemirror/view'
 import {
   defaultKeymap,
   history,
@@ -100,6 +107,9 @@ import { markFlowSyntaxHighlighting } from './syntaxHighlighting'
 const DEFAULT_SPLIT_RATIO = 0.58
 const MIN_SPLIT_RATIO = 0.1
 const MAX_SPLIT_RATIO = 0.9
+
+const isRectangularBlockSelectionGesture = (event: MouseEvent) =>
+  event.button === 0 && event.altKey && event.shiftKey
 
 export interface MarkFlowEditorProps {
   content: string
@@ -580,6 +590,7 @@ function getEditorExtensions(
     editableCompartment.of([EditorView.editable.of(editable), EditorState.readOnly.of(!editable)]),
     history({ minDepth: MAX_UNDO_HISTORY_EVENTS, newGroupDelay: 500 }),
     drawSelection(),
+    rectangularSelection({ eventFilter: isRectangularBlockSelectionGesture }),
     highlightActiveLine(),
     bracketMatching(),
     closeBrackets(),
