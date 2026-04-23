@@ -62,9 +62,49 @@ const SAFE_IFRAME_ALLOW_TOKENS = new Set([
   'web-share',
 ])
 
+const SAFE_STYLE_PROPERTIES = new Set([
+  'background-color',
+  'color',
+  'display',
+  'font-size',
+  'font-style',
+  'font-weight',
+  'height',
+  'line-height',
+  'margin',
+  'margin-bottom',
+  'margin-left',
+  'margin-right',
+  'margin-top',
+  'max-height',
+  'max-width',
+  'min-height',
+  'min-width',
+  'padding',
+  'padding-bottom',
+  'padding-left',
+  'padding-right',
+  'padding-top',
+  'text-align',
+  'text-decoration',
+  'vertical-align',
+  'width',
+])
+
+const STYLE_DANGEROUS_VALUE_PATTERN = /\b(?:expression|url)\s*\(|@import\b|(?:java|vb)script:|data:|-moz-binding\b|behavior\s*:|[<>{}\\]/
+const LENGTH_VALUE_PATTERN = /^(?:0|-?(?:\d+|\d*\.\d+)(?:px|em|rem|%|vh|vw|vmin|vmax|ch|ex)?)$/i
+const COLOR_VALUE_PATTERN = /^(?:#[0-9a-f]{3,8}|[a-z]+|(?:rgb|rgba|hsl|hsla)\([\d\s.,%+-]+\)|currentcolor|transparent)$/i
+
+function hasControlCharacters(value: string) {
+  return Array.from(value).some((character) => {
+    const code = character.charCodeAt(0)
+    return code <= 0x1f || code === 0x7f
+  })
+}
+
 function sanitizeUrl(value: string, allowedProtocols: ReadonlySet<string>) {
   const trimmed = value.trim()
-  if (!trimmed) {
+  if (!trimmed || hasControlCharacters(trimmed)) {
     return null
   }
 
@@ -78,7 +118,7 @@ function sanitizeUrl(value: string, allowedProtocols: ReadonlySet<string>) {
 
 function sanitizeDimension(value: string) {
   const trimmed = value.trim()
-  return /^\d+(?:px|%)?$/.test(trimmed) ? trimmed : null
+  return !hasControlCharacters(trimmed) && /^\d+(?:px|%)?$/.test(trimmed) ? trimmed : null
 }
 
 function sanitizePreload(value: string) {
@@ -125,9 +165,137 @@ function sanitizeIframeSandbox(value: string | null) {
   return tokens.length > 0 ? Array.from(new Set(tokens)).join(' ') : DEFAULT_IFRAME_SANDBOX
 }
 
+function isSafeStyleValue(value: string) {
+  const normalized = value.toLowerCase()
+  return (
+    value.length <= 160 &&
+    !hasControlCharacters(value) &&
+    !STYLE_DANGEROUS_VALUE_PATTERN.test(normalized) &&
+    !normalized.includes('/*') &&
+    !normalized.includes('*/')
+  )
+}
+
+function isLengthValue(value: string, allowAuto = false) {
+  const trimmed = value.trim().toLowerCase()
+  return (allowAuto && trimmed === 'auto') || LENGTH_VALUE_PATTERN.test(trimmed)
+}
+
+function isLengthListValue(value: string, allowAuto = false) {
+  const parts = value.trim().split(/\s+/)
+  return parts.length >= 1 && parts.length <= 4 && parts.every((part) => isLengthValue(part, allowAuto))
+}
+
+function sanitizeStyleValue(property: string, value: string) {
+  const trimmed = value.trim().replace(/\s+/g, ' ')
+  const normalized = trimmed.toLowerCase()
+  if (!trimmed || !isSafeStyleValue(trimmed)) {
+    return null
+  }
+
+  if (property === 'color' || property === 'background-color') {
+    return COLOR_VALUE_PATTERN.test(trimmed) ? trimmed : null
+  }
+
+  if (
+    property === 'width' ||
+    property === 'height' ||
+    property === 'min-width' ||
+    property === 'min-height' ||
+    property === 'max-width' ||
+    property === 'max-height'
+  ) {
+    return isLengthValue(trimmed, property === 'width' || property === 'height') ? trimmed : null
+  }
+
+  if (property.startsWith('margin')) {
+    return isLengthListValue(trimmed, true) ? trimmed : null
+  }
+
+  if (property.startsWith('padding')) {
+    return isLengthListValue(trimmed) ? trimmed : null
+  }
+
+  if (property === 'font-size') {
+    return isLengthValue(trimmed) ? trimmed : null
+  }
+
+  if (property === 'font-weight') {
+    return /^(?:normal|bold|bolder|lighter|[1-9]00)$/.test(normalized) ? trimmed : null
+  }
+
+  if (property === 'font-style') {
+    return /^(?:normal|italic|oblique)$/.test(normalized) ? trimmed : null
+  }
+
+  if (property === 'line-height') {
+    return normalized === 'normal' || /^(?:\d+|\d*\.\d+)$/.test(normalized) || isLengthValue(trimmed)
+      ? trimmed
+      : null
+  }
+
+  if (property === 'text-align') {
+    return /^(?:left|right|center|justify|start|end)$/.test(normalized) ? trimmed : null
+  }
+
+  if (property === 'text-decoration') {
+    return /^(?:none|underline|overline|line-through)(?:\s+(?:solid|double|dotted|dashed|wavy))?$/.test(normalized)
+      ? trimmed
+      : null
+  }
+
+  if (property === 'display') {
+    return /^(?:inline|inline-block|block|none)$/.test(normalized) ? trimmed : null
+  }
+
+  if (property === 'vertical-align') {
+    return /^(?:baseline|sub|super|text-top|text-bottom|middle|top|bottom)$/.test(normalized) ||
+      isLengthValue(trimmed)
+      ? trimmed
+      : null
+  }
+
+  return null
+}
+
+function sanitizeInlineStyle(value: string) {
+  if (hasControlCharacters(value)) {
+    return null
+  }
+
+  const declarations = value
+    .split(';')
+    .map((declaration) => declaration.trim())
+    .filter(Boolean)
+
+  const sanitized = declarations
+    .map((declaration) => {
+      const separator = declaration.indexOf(':')
+      if (separator <= 0) {
+        return null
+      }
+
+      const property = declaration.slice(0, separator).trim().toLowerCase()
+      if (!SAFE_STYLE_PROPERTIES.has(property)) {
+        return null
+      }
+
+      const sanitizedValue = sanitizeStyleValue(property, declaration.slice(separator + 1))
+      return sanitizedValue ? `${property}: ${sanitizedValue}` : null
+    })
+    .filter((declaration): declaration is string => declaration !== null)
+
+  return sanitized.length > 0 ? sanitized.join('; ') : null
+}
+
 function sanitizeAttribute(tagName: string, attrName: string, attrValue: string) {
   if (attrName.startsWith('on')) {
     return null
+  }
+
+  if (attrName === 'style') {
+    const sanitized = sanitizeInlineStyle(attrValue)
+    return sanitized ? { name: attrName, value: sanitized } : null
   }
 
   const allowedAttributes = TAG_ALLOWED_ATTRIBUTES[tagName]

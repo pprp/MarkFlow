@@ -5776,3 +5776,55 @@ next: MF-051 - Outline panel lists all headings with live scroll-sync and click-
 - Next recommended feature:
   - Continue `MF-081` with all-local-image scanning or YAML-triggered upload if automation remains terminal-only.
   - If a trusted desktop/manual session with Microsoft Word is available, `MF-076` remains harness-next for the paste matrix.
+
+### 2026-04-23T10:23:02+08:00 - MF-153 safe raw HTML styling verified
+
+- Author: Codex Dispatcher with Researcher/Implementer/Reviewer subagents
+- Focus: strict one-feature automation cycle for Typora raw HTML style parity.
+- Startup / baseline:
+  - Read `/Users/pprp/.codex/automations/typora-replication/memory.md`.
+  - Ran `pnpm harness:start`; it reported `152` features and selected `MF-076` as harness-next.
+  - Ran initial `./harness/init.sh --smoke`; it passed before feature work with desktop `84` tests and editor `504` tests (`3` skipped).
+  - Baseline `git status --short` was clean, so there was no inherited smoke-passing diff to commit.
+- Research updates:
+  - Researcher used Typora official HTML, Resize Image, Table Editing, Add Search Service, Auto Save, Version Control, Markdown Reference, and release-note sources.
+  - Appended four new Typora-backed ledger entries with matching note files:
+    - `MF-153` safe raw HTML style and sizing attributes.
+    - `MF-154` rendered table row/column drag reorder.
+    - `MF-155` context-menu search services.
+    - `MF-156` unsaved draft/version recovery panel.
+- Implemented feature work:
+  - Selected `MF-153` because it was newly discovered, dependency-light, and terminal-verifiable.
+  - Added constrained inline `style` sanitization for allowed raw HTML tags in `packages/editor/src/editor/decorations/inlineHtmlDecoration.ts`.
+  - Preserved safe style properties for common text and sizing cases while stripping unsupported properties, event handlers, script/style content, URL-bearing CSS, `expression(...)`, CSS comments, control characters, and dangerous CSS tokens.
+  - Added focused safe/unsafe DOM coverage in `packages/editor/src/editor/__tests__/inlineHtmlDecoration.test.ts`.
+  - Promoted `MF-153` to `status=verified`, `passes=true`, and `lastVerifiedAt=2026-04-23T10:17:37+0800`; `MF-154` through `MF-156` remain `planned` / `passes=false`.
+- Changed files:
+  - `harness/feature-ledger.json`
+  - `harness/features/MF-153.md`
+  - `harness/features/MF-154.md`
+  - `harness/features/MF-155.md`
+  - `harness/features/MF-156.md`
+  - `packages/editor/src/editor/decorations/inlineHtmlDecoration.ts`
+  - `packages/editor/src/editor/__tests__/inlineHtmlDecoration.test.ts`
+- Simplifications made:
+  - Kept raw HTML support to a sanitizer allowlist rather than arbitrary CSS or attribute pass-through.
+  - Deferred table drag-reorder, search services, and recovery panel implementation to later cycles.
+  - Reused the existing inline HTML decoration path instead of adding a second raw-HTML renderer.
+- Verification:
+  - Researcher validated JSON shape and tail entry order before note normalization.
+  - Implementer fixed the initial ESLint `no-control-regex` failure by replacing the control-character regex with an equivalent `charCodeAt` range check.
+  - Reviewer accepted the final diff with no findings.
+  - Dispatcher reran:
+    - `pnpm --filter @markflow/editor exec vitest run src/editor/__tests__/inlineHtmlDecoration.test.ts` (`8` tests passed).
+    - `pnpm --filter @markflow/editor lint`.
+    - `pnpm --filter @markflow/editor build`, which passed with the existing Vite large-chunk warning.
+    - `pnpm harness:verify` (`156 total | verified=91 | ready=31 | planned=33 | blocked=1 | regression=0`; next: `MF-076`).
+    - `git diff --check`.
+    - Final `./harness/init.sh --smoke`, which passed with desktop `84` tests and editor `506` tests (`3` skipped).
+- Review:
+  - Reviewer accepted `MF-153` as scoped and truthfully marked verified.
+  - Residual risk: no live/manual editor inspection was performed; coverage is DOM-level sanitizer behavior.
+- Next recommended feature:
+  - `MF-076` remains harness-next but is still Microsoft Word/manual-matrix gated.
+  - If Word remains unavailable, choose a terminal-verifiable slice from `MF-081`, `MF-138`, or the newly added `MF-154`/`MF-155`/`MF-156` backlog.

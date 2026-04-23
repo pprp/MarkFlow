@@ -2078,6 +2078,65 @@
         "MF-074"
       ],
       "notesRef": "features/MF-152.md"
+    },
+    {
+      "id": "MF-153",
+      "title": "Safe raw HTML style and sizing attributes survive WYSIWYG rendering",
+      "category": "phase-2-functional",
+      "area": "@markflow/editor",
+      "priority": 3,
+      "status": "verified",
+      "passes": true,
+      "lastVerifiedAt": "2026-04-23T10:17:37+0800",
+      "dependsOn": [
+        "MF-038",
+        "MF-097"
+      ],
+      "notesRef": "features/MF-153.md"
+    },
+    {
+      "id": "MF-154",
+      "title": "Rendered tables support drag-and-drop row and column reordering",
+      "category": "phase-2-functional",
+      "area": "@markflow/editor",
+      "priority": 3,
+      "status": "planned",
+      "passes": false,
+      "lastVerifiedAt": null,
+      "dependsOn": [
+        "MF-068",
+        "MF-069"
+      ],
+      "notesRef": "features/MF-154.md"
+    },
+    {
+      "id": "MF-155",
+      "title": "Context menu search services open selected text in configured web targets",
+      "category": "phase-2-functional",
+      "area": "@markflow/desktop",
+      "priority": 4,
+      "status": "planned",
+      "passes": false,
+      "lastVerifiedAt": null,
+      "dependsOn": [
+        "MF-082"
+      ],
+      "notesRef": "features/MF-155.md"
+    },
+    {
+      "id": "MF-156",
+      "title": "Recovery panel lists unsaved draft snapshots and version restore options",
+      "category": "phase-2-functional",
+      "area": "@markflow/desktop",
+      "priority": 3,
+      "status": "planned",
+      "passes": false,
+      "lastVerifiedAt": null,
+      "dependsOn": [
+        "MF-060",
+        "MF-108"
+      ],
+      "notesRef": "features/MF-156.md"
     }
   ]
 }
