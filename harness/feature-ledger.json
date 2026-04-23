@@ -2078,37 +2078,6 @@
         "MF-074"
       ],
       "notesRef": "features/MF-152.md"
-    },
-    {
-      "id": "MF-153",
-      "title": "Raw HTML styling attributes render safely without stripping supported inline styles",
-      "category": "phase-2-functional",
-      "area": "@markflow/editor",
-      "priority": 3,
-      "status": "verified",
-      "passes": true,
-      "lastVerifiedAt": "2026-04-23T09:14:55+08:00",
-      "dependsOn": [
-        "MF-038",
-        "MF-097"
-      ],
-      "notesRef": "features/MF-153.md"
-    },
-    {
-      "id": "MF-154",
-      "title": "Table row and column drag handles reorder markdown tables visually",
-      "category": "phase-2-functional",
-      "area": "@markflow/editor",
-      "priority": 3,
-      "status": "planned",
-      "passes": false,
-      "lastVerifiedAt": null,
-      "dependsOn": [
-        "MF-013",
-        "MF-068",
-        "MF-069"
-      ],
-      "notesRef": "features/MF-154.md"
     }
   ]
 }
