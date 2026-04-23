@@ -15,6 +15,7 @@ type IdleHandle = ReturnType<typeof globalThis.setTimeout> | number
 
 const DIAGRAM_FENCE_LANGUAGES = ['mermaid', 'sequence', 'flow'] as const
 const FLOW_DIRECTION_HINTS = new Set(['left', 'right', 'up', 'down'])
+const SVG_MIME_TYPE = 'image/svg+xml'
 
 let mermaidReady: Promise<typeof import('mermaid').default> | null = null
 
@@ -205,6 +206,83 @@ function formatDiagramError(lang: DiagramLanguage, error: unknown) {
   return `Unable to render ${label}. Switch to Source mode to edit this block.`
 }
 
+function getDiagramSourceHash(lang: DiagramLanguage, source: string) {
+  const input = `${lang}\u0000${source}`
+  let hash = 0
+
+  for (let index = 0; index < input.length; index += 1) {
+    hash = (hash * 31 + input.charCodeAt(index)) >>> 0
+  }
+
+  return hash.toString(36)
+}
+
+function getDiagramSvgFilename(lang: DiagramLanguage, source: string) {
+  return `markflow-${lang}-diagram-${getDiagramSourceHash(lang, source)}.svg`
+}
+
+function stopDiagramActionPropagation(event: Event) {
+  event.stopPropagation()
+}
+
+function preventDiagramActionDefault(event: Event) {
+  event.preventDefault()
+  event.stopPropagation()
+}
+
+function createDiagramActionButton(action: 'copy-svg' | 'save-svg', label: string) {
+  const button = document.createElement('button')
+  button.type = 'button'
+  button.className = 'mf-diagram-action'
+  button.dataset.diagramAction = action
+  button.textContent = label
+  button.setAttribute('aria-label', label)
+  button.addEventListener('pointerdown', stopDiagramActionPropagation)
+  button.addEventListener('mousedown', stopDiagramActionPropagation)
+  button.addEventListener('keydown', stopDiagramActionPropagation)
+  return button
+}
+
+function saveDiagramSvg(svg: string, filename: string) {
+  if (typeof URL.createObjectURL !== 'function') {
+    return
+  }
+
+  const url = URL.createObjectURL(new Blob([svg], { type: SVG_MIME_TYPE }))
+  const link = document.createElement('a')
+  link.href = url
+  link.download = filename
+  link.rel = 'noopener'
+  link.click()
+  URL.revokeObjectURL(url)
+}
+
+function renderDiagramOutput(container: HTMLElement, lang: DiagramLanguage, source: string, svg: string) {
+  const actions = document.createElement('div')
+  actions.className = 'mf-diagram-actions'
+  actions.setAttribute('aria-label', 'Diagram actions')
+
+  const copyButton = createDiagramActionButton('copy-svg', 'Copy SVG')
+  copyButton.addEventListener('click', (event) => {
+    preventDiagramActionDefault(event)
+    void navigator.clipboard?.writeText(svg)
+  })
+
+  const saveButton = createDiagramActionButton('save-svg', 'Save SVG')
+  saveButton.addEventListener('click', (event) => {
+    preventDiagramActionDefault(event)
+    saveDiagramSvg(svg, getDiagramSvgFilename(lang, source))
+  })
+
+  const output = document.createElement('div')
+  output.className = 'mf-diagram-output'
+  output.innerHTML = svg
+
+  actions.append(copyButton, saveButton)
+  container.dataset.diagramReady = 'true'
+  container.replaceChildren(actions, output)
+}
+
 export function resetDiagramRenderState() {
   mermaidReady = null
   svgCache.clear()
@@ -239,10 +317,11 @@ export class DiagramWidget extends WidgetType {
     const cacheKey = `${this.lang}\u0000${this.source}`
     const cached = svgCache.get(cacheKey)
     if (cached) {
-      container.innerHTML = cached
+      renderDiagramOutput(container, this.lang, this.source, cached)
       return container
     }
 
+    delete container.dataset.diagramReady
     container.innerHTML = '<div class="mf-diagram-loading mf-mermaid-loading">⟳ Rendering diagram…</div>'
 
     const renderVersion = ++this.renderVersion
@@ -261,7 +340,7 @@ export class DiagramWidget extends WidgetType {
           }
 
           svgCache.set(cacheKey, svg)
-          container.innerHTML = svg
+          renderDiagramOutput(container, this.lang, this.source, svg)
           view.requestMeasure()
         })
         .catch((error) => {
@@ -272,6 +351,7 @@ export class DiagramWidget extends WidgetType {
           const errorBox = document.createElement('div')
           errorBox.className = 'mf-diagram-error mf-mermaid-error'
           errorBox.textContent = formatDiagramError(this.lang, error)
+          delete container.dataset.diagramReady
           container.replaceChildren(errorBox)
           view.requestMeasure()
         })
@@ -288,8 +368,8 @@ export class DiagramWidget extends WidgetType {
     }
   }
 
-  ignoreEvent() {
-    return false
+  ignoreEvent(event: Event) {
+    return event.target instanceof Element && event.target.closest('.mf-diagram-actions') !== null
   }
 }
 

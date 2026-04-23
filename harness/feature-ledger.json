@@ -1068,7 +1068,7 @@
     },
     {
       "id": "MF-082",
-      "title": "Preferences dialog exposes editor, theme, export, and shortcut settings",
+      "title": "Preferences dialog exposes editor, Markdown, theme, export, and shortcut settings",
       "category": "phase-2-functional",
       "area": "@markflow/desktop",
       "priority": 2,
@@ -1142,7 +1142,7 @@
     },
     {
       "id": "MF-087",
-      "title": "Flowchart, sequence, gantt, block, Venn, and Ishikawa diagrams render from Typora-style fences",
+      "title": "Typora-supported flowchart, sequence, and Mermaid diagram fences render live previews",
       "category": "phase-2-functional",
       "area": "@markflow/editor",
       "priority": 3,
@@ -1434,7 +1434,7 @@
     },
     {
       "id": "MF-108",
-      "title": "Unified preferences dialog consolidates editor, theme, export, spellcheck, and launch settings",
+      "title": "Unified preferences dialog consolidates editor, Markdown, theme, export, spellcheck, and launch settings",
       "category": "phase-2-polish",
       "area": "@markflow/editor",
       "priority": 2,
@@ -2170,6 +2170,20 @@
         "MF-138"
       ],
       "notesRef": "features/MF-158.md"
+    },
+    {
+      "id": "MF-159",
+      "title": "Rendered diagram context actions copy and save generated SVG output",
+      "category": "phase-2-functional",
+      "area": "@markflow/editor",
+      "priority": 3,
+      "status": "verified",
+      "passes": true,
+      "lastVerifiedAt": "2026-04-23T19:21:12+0800",
+      "dependsOn": [
+        "MF-087"
+      ],
+      "notesRef": "features/MF-159.md"
     }
   ]
 }

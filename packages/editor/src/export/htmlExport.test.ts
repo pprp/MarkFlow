@@ -54,6 +54,37 @@ describe('html export serializer', () => {
     expect(normalizeHtml(prepared.outerHTML)).toBe(normalizeHtml(expected))
   })
 
+  it('removes editor-only diagram actions while preserving generated SVG output', () => {
+    const root = document.createElement('div')
+    root.className = 'cm-content'
+    root.innerHTML = [
+      '<div class="cm-line">',
+      '<div class="mf-diagram mf-diagram-mermaid mf-mermaid" data-diagram-lang="mermaid" data-diagram-ready="true">',
+      '<div class="mf-diagram-actions" aria-label="Diagram actions">',
+      '<button type="button" class="mf-diagram-action" data-diagram-action="copy-svg">Copy SVG</button>',
+      '<button type="button" class="mf-diagram-action" data-diagram-action="save-svg">Save SVG</button>',
+      '</div>',
+      '<div class="mf-diagram-output">',
+      '<svg data-render-id="mf-diagram-0" viewBox="0 0 10 10"><path d="M0 0h10v10H0z"></path></svg>',
+      '</div>',
+      '</div>',
+      '</div>',
+    ].join('')
+
+    const prepared = prepareRenderedDocumentForExport({
+      content: '```mermaid\nflowchart LR\n  A --> B\n```',
+      renderedRoot: root,
+    })
+
+    expect(prepared.querySelector('.mf-diagram-actions')).toBeNull()
+    expect(prepared.querySelector('[data-diagram-action="copy-svg"]')).toBeNull()
+    expect(prepared.querySelector('[data-diagram-action="save-svg"]')).toBeNull()
+    expect(prepared.textContent).not.toContain('Copy SVG')
+    expect(prepared.textContent).not.toContain('Save SVG')
+    expect(prepared.querySelector('.mf-diagram svg')?.getAttribute('data-render-id')).toBe('mf-diagram-0')
+    expect(prepared.querySelector('.mf-diagram path')?.getAttribute('d')).toBe('M0 0h10v10H0z')
+  })
+
   it('collects stylesheet text plus resolved MarkFlow CSS variables', () => {
     const style = document.createElement('style')
     style.textContent = '.cm-editor { color: var(--mf-fg); }'

@@ -31,6 +31,32 @@ vi.mock('mermaid', () => ({
 
 const mountedViews = new Set<EditorView>()
 
+function getDiagramAction(parent: ParentNode, action: 'copy-svg' | 'save-svg') {
+  return parent.querySelector<HTMLButtonElement>(`button[data-diagram-action="${action}"]`)
+}
+
+async function waitForRenderedDiagramActions(parent: ParentNode) {
+  await waitFor(() => {
+    expect(parent.querySelector('.mf-diagram svg')).toBeTruthy()
+    expect(getDiagramAction(parent, 'copy-svg')).toBeTruthy()
+    expect(getDiagramAction(parent, 'save-svg')).toBeTruthy()
+  })
+}
+
+function getGeneratedSvgFromFirstRender() {
+  const [renderId, source] = renderMock.mock.calls[0] as [string, string]
+  return `<svg data-render-id="${renderId}" data-source-length="${source.length}"></svg>`
+}
+
+function readBlobText(blob: Blob) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader()
+    reader.addEventListener('load', () => resolve(String(reader.result)))
+    reader.addEventListener('error', () => reject(reader.error))
+    reader.readAsText(blob)
+  })
+}
+
 function makeView(doc: string, cursor?: number) {
   const anchor = cursor ?? doc.length
   const state = EditorState.create({
@@ -181,6 +207,93 @@ describe('diagramDecorations', () => {
     })
 
     expect(parent.textContent).toContain('Unable to render sequence diagram')
+  })
+
+  it('exposes copy and save actions only after generated SVG output is available', async () => {
+    const doc = '```mermaid\nflowchart LR\n  A --> B\n```'
+    const { parent } = makeView(doc)
+
+    expect(parent.querySelector('.mf-diagram-loading')).toBeTruthy()
+    expect(getDiagramAction(parent, 'copy-svg')).toBeNull()
+    expect(getDiagramAction(parent, 'save-svg')).toBeNull()
+
+    await waitForRenderedDiagramActions(parent)
+  })
+
+  it('copies the generated SVG without changing markdown source', async () => {
+    const doc = '```mermaid\nflowchart LR\n  A --> B\n```'
+    const clipboardWriteText = vi.fn().mockResolvedValue(undefined)
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: { writeText: clipboardWriteText },
+    })
+    const { view, parent } = makeView(doc)
+
+    await waitForRenderedDiagramActions(parent)
+    getDiagramAction(parent, 'copy-svg')?.click()
+
+    await waitFor(() => {
+      expect(clipboardWriteText).toHaveBeenCalledWith(getGeneratedSvgFromFirstRender())
+    })
+    expect(view.state.doc.toString()).toBe(doc)
+  })
+
+  it('downloads the generated SVG without changing markdown source', async () => {
+    const doc = '```sequence\nAlice->Bob: Ping\n```'
+    const clickedLinks: HTMLAnchorElement[] = []
+    const createObjectURL = vi.fn((_blob: Blob) => 'blob:markflow-diagram')
+    const revokeObjectURL = vi.fn()
+    Object.defineProperty(URL, 'createObjectURL', {
+      configurable: true,
+      value: createObjectURL,
+    })
+    Object.defineProperty(URL, 'revokeObjectURL', {
+      configurable: true,
+      value: revokeObjectURL,
+    })
+    const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function click(
+      this: HTMLAnchorElement,
+    ) {
+      clickedLinks.push(this)
+    })
+    const { view, parent } = makeView(doc)
+
+    await waitForRenderedDiagramActions(parent)
+    getDiagramAction(parent, 'save-svg')?.click()
+
+    expect(createObjectURL).toHaveBeenCalledTimes(1)
+    const [blob] = createObjectURL.mock.calls[0]
+    await expect(readBlobText(blob)).resolves.toBe(getGeneratedSvgFromFirstRender())
+    expect(blob.type).toBe('image/svg+xml')
+    expect(clickedLinks).toHaveLength(1)
+    expect(clickedLinks[0].download).toMatch(/^markflow-sequence-diagram-[a-z0-9]+\.svg$/u)
+    expect(clickedLinks[0].href).toBe('blob:markflow-diagram')
+    expect(revokeObjectURL).toHaveBeenCalledWith('blob:markflow-diagram')
+    expect(view.state.doc.toString()).toBe(doc)
+    clickSpy.mockRestore()
+  })
+
+  it('does not expose stale copy or save actions while diagrams are loading or failed', async () => {
+    const doc = '```mermaid\nflowchart LR\n  A --> B\n```'
+    const brokenDoc = '```sequence\nBROKEN_SEQUENCE\n```'
+    const { view, parent } = makeView(doc)
+
+    await waitForRenderedDiagramActions(parent)
+
+    view.dispatch({
+      changes: { from: 0, to: view.state.doc.length, insert: brokenDoc },
+    })
+
+    expect(parent.querySelector('.mf-diagram-loading')).toBeTruthy()
+    expect(getDiagramAction(parent, 'copy-svg')).toBeNull()
+    expect(getDiagramAction(parent, 'save-svg')).toBeNull()
+
+    await waitFor(() => {
+      expect(parent.querySelector('.mf-diagram-error')).toBeTruthy()
+    })
+    expect(getDiagramAction(parent, 'copy-svg')).toBeNull()
+    expect(getDiagramAction(parent, 'save-svg')).toBeNull()
+    expect(view.state.doc.toString()).toBe(brokenDoc)
   })
 
   it('re-renders edited diagrams on the next idle pass without duplicate DOM nodes', async () => {

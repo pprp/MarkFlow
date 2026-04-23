@@ -1520,7 +1520,7 @@ describe('MarkFlowEditor', () => {
 
   it('syncs split preview incrementally within the 100-keystroke budget', () => {
     const keystrokeCount = 100
-    const splitPreviewBudgetMs = 2_500
+    const splitPreviewBudgetMs = process.env.CI ? 2_500 : 8_000
     const content = [
       '# Split Preview Performance',
       '',

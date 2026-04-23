@@ -1994,10 +1994,49 @@ body {
 .cm-editor .mf-diagram,
 .cm-editor .mf-mermaid {
   display: block;
+  position: relative;
   text-align: center;
   padding: 1em 0;
   cursor: text;
   overflow-x: auto;
+}
+
+.cm-editor .mf-diagram-actions {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  margin-bottom: 8px;
+  user-select: none;
+}
+
+.cm-editor .mf-diagram-action {
+  min-height: 28px;
+  padding: 0 10px;
+  border: 1px solid var(--mf-border);
+  border-radius: 4px;
+  background: var(--mf-bg-elevated);
+  color: var(--mf-fg);
+  font: inherit;
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+  transition:
+    background 150ms cubic-bezier(0.4, 0, 0.2, 1),
+    border-color 150ms cubic-bezier(0.4, 0, 0.2, 1),
+    box-shadow 150ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.cm-editor .mf-diagram-action:hover,
+.cm-editor .mf-diagram-action:focus-visible {
+  border-color: var(--mf-accent);
+  background: var(--mf-accent-subtle);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--mf-accent) 20%, transparent);
+  outline: none;
+}
+
+.cm-editor .mf-diagram-output {
+  display: inline-block;
+  max-width: 100%;
 }
 
 .cm-editor .mf-diagram svg,

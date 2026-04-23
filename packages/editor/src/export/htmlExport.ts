@@ -214,6 +214,12 @@ function stripEditorOnlyAttributes(root: HTMLElement) {
   }
 }
 
+function stripEditorOnlyElements(root: HTMLElement) {
+  for (const element of root.querySelectorAll('.mf-diagram-actions')) {
+    element.remove()
+  }
+}
+
 function normalizeInternalLinks(root: HTMLElement) {
   for (const link of root.querySelectorAll<HTMLAnchorElement>('a[href^="#"]')) {
     link.removeAttribute('target')
@@ -325,6 +331,7 @@ export function prepareRenderedDocumentForExport({
 }: PrepareRenderedDocumentOptions) {
   const clone = renderedRoot.cloneNode(true) as HTMLElement
   stripEditorOnlyAttributes(clone)
+  stripEditorOnlyElements(clone)
   normalizeInternalLinks(clone)
   addHeadingAnchors(clone, content, markdownMode)
   eagerLoadImages(clone)
