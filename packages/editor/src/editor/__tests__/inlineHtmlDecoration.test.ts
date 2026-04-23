@@ -141,6 +141,34 @@ describe('inlineHtmlDecorations', () => {
     destroyView(view)
   })
 
+  it('renders safe inline HTML styles and strips unsafe style content', () => {
+    const doc = [
+      '<span style="color: red; background-color: #fff; font-weight: 700" data-x="no" onclick="alert(1)">red text</span>',
+      '<span style="background-image: url(javascript:alert(1)); position: fixed; color: expression(alert(1))">unsafe text</span>',
+      '<script>alert(1)</script>',
+      'After',
+    ].join('\n')
+    const view = makeView(doc)
+
+    const spans = view.dom.querySelectorAll('span.mf-html-inline span')
+    expect(spans).toHaveLength(2)
+
+    const safeSpan = spans.item(0)
+    expect(safeSpan.getAttribute('style')).toBe('color: red; background-color: #fff; font-weight: 700;')
+    expect(safeSpan.hasAttribute('data-x')).toBe(false)
+    expect(safeSpan.hasAttribute('onclick')).toBe(false)
+
+    const unsafeSpan = spans.item(1)
+    expect(unsafeSpan.hasAttribute('style')).toBe(false)
+    expect(unsafeSpan.getAttribute('style') ?? '').not.toContain('url(')
+    expect(unsafeSpan.getAttribute('style') ?? '').not.toContain('expression')
+    expect(unsafeSpan.getAttribute('style') ?? '').not.toContain('position')
+    expect(view.dom.querySelector('script')).toBeNull()
+    expect(view.dom.textContent).not.toContain('alert(1)')
+
+    destroyView(view)
+  })
+
   it('renders iframe embeds in a sandboxed container and keeps script and event-handler filtering', () => {
     const doc = [
       'Before',

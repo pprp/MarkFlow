@@ -42,6 +42,8 @@ const TAG_ALLOWED_ATTRIBUTES: Record<string, Set<string>> = {
   iframe: new Set(['src', 'title', 'width', 'height', 'allow', 'allowfullscreen', 'loading', 'sandbox']),
 }
 
+const GLOBAL_ALLOWED_ATTRIBUTES = new Set(['style'])
+
 const BOOLEAN_ATTRIBUTES = new Set([
   'controls',
   'loop',
@@ -61,6 +63,23 @@ const SAFE_IFRAME_ALLOW_TOKENS = new Set([
   'picture-in-picture',
   'web-share',
 ])
+
+const ALLOWED_STYLE_PROPERTIES = new Set([
+  'background-color',
+  'color',
+  'font-size',
+  'font-style',
+  'font-weight',
+  'line-height',
+  'text-align',
+  'text-decoration',
+  'vertical-align',
+])
+
+const DISALLOWED_STYLE_VALUE = /(?:url\s*\(|expression\s*\(|javascript\s*:|@import|behavior\s*:|[<>{}\\])/i
+const CSS_COLOR_VALUE = /^(?:#[\da-f]{3,8}|[a-z]+|(?:rgb|hsl)a?\(\s*[\d.]+%?(?:\s*,\s*|\s+)[\d.]+%?(?:\s*,\s*|\s+)[\d.]+%?(?:\s*(?:,|\/)\s*(?:0|1|0?\.\d+|\d+%))?\s*\))$/i
+const CSS_LENGTH_VALUE = /^(?:0|(?:\d+(?:\.\d+)?|\.\d+)(?:px|em|rem|pt|pc|in|cm|mm|q|ex|ch|%))$/i
+const CSS_LINE_HEIGHT_VALUE = /^(?:normal|0|(?:\d+(?:\.\d+)?|\.\d+)(?:px|em|rem|pt|pc|in|cm|mm|q|ex|ch|%)?)$/i
 
 function sanitizeUrl(value: string, allowedProtocols: ReadonlySet<string>) {
   const trimmed = value.trim()
@@ -125,14 +144,104 @@ function sanitizeIframeSandbox(value: string | null) {
   return tokens.length > 0 ? Array.from(new Set(tokens)).join(' ') : DEFAULT_IFRAME_SANDBOX
 }
 
+function hasAsciiControlCharacter(value: string) {
+  return Array.from(value).some((character) => {
+    const code = character.charCodeAt(0)
+    return code <= 31 || code === 127
+  })
+}
+
+function sanitizeStyleValue(property: string, value: string) {
+  const sanitizedValue = value.trim().replace(/\s+/g, ' ')
+  if (
+    !sanitizedValue
+    || DISALLOWED_STYLE_VALUE.test(sanitizedValue)
+    || hasAsciiControlCharacter(sanitizedValue)
+  ) {
+    return null
+  }
+
+  switch (property) {
+    case 'color':
+    case 'background-color':
+      return CSS_COLOR_VALUE.test(sanitizedValue) ? sanitizedValue : null
+    case 'font-size':
+      return CSS_LENGTH_VALUE.test(sanitizedValue)
+        || ['xx-small', 'x-small', 'small', 'medium', 'large', 'x-large', 'xx-large', 'smaller', 'larger'].includes(sanitizedValue.toLowerCase())
+        ? sanitizedValue
+        : null
+    case 'font-style':
+      return ['normal', 'italic', 'oblique'].includes(sanitizedValue.toLowerCase())
+        ? sanitizedValue.toLowerCase()
+        : null
+    case 'font-weight':
+      return /^(?:normal|bold|bolder|lighter|[1-9]00)$/i.test(sanitizedValue)
+        ? sanitizedValue.toLowerCase()
+        : null
+    case 'line-height':
+      return CSS_LINE_HEIGHT_VALUE.test(sanitizedValue) ? sanitizedValue : null
+    case 'text-align':
+      return ['left', 'right', 'center', 'justify', 'start', 'end'].includes(sanitizedValue.toLowerCase())
+        ? sanitizedValue.toLowerCase()
+        : null
+    case 'text-decoration': {
+      const tokens = sanitizedValue.toLowerCase().split(/\s+/)
+      return tokens.length > 0
+        && tokens.every((token) => ['none', 'underline', 'overline', 'line-through'].includes(token))
+        ? Array.from(new Set(tokens)).join(' ')
+        : null
+    }
+    case 'vertical-align':
+      return ['baseline', 'sub', 'super', 'text-top', 'text-bottom', 'middle', 'top', 'bottom'].includes(sanitizedValue.toLowerCase())
+        || CSS_LENGTH_VALUE.test(sanitizedValue)
+        ? sanitizedValue.toLowerCase()
+        : null
+    default:
+      return null
+  }
+}
+
+function sanitizeStyleAttribute(value: string) {
+  const declarations = value
+    .split(';')
+    .map((declaration) => declaration.trim())
+    .filter(Boolean)
+  const sanitizedDeclarations: string[] = []
+
+  for (const declaration of declarations) {
+    const separatorIndex = declaration.indexOf(':')
+    if (separatorIndex <= 0) {
+      continue
+    }
+
+    const property = declaration.slice(0, separatorIndex).trim().toLowerCase()
+    const rawValue = declaration.slice(separatorIndex + 1)
+    if (!ALLOWED_STYLE_PROPERTIES.has(property)) {
+      continue
+    }
+
+    const sanitizedValue = sanitizeStyleValue(property, rawValue)
+    if (sanitizedValue) {
+      sanitizedDeclarations.push(`${property}: ${sanitizedValue};`)
+    }
+  }
+
+  return sanitizedDeclarations.length > 0 ? sanitizedDeclarations.join(' ') : null
+}
+
 function sanitizeAttribute(tagName: string, attrName: string, attrValue: string) {
   if (attrName.startsWith('on')) {
     return null
   }
 
   const allowedAttributes = TAG_ALLOWED_ATTRIBUTES[tagName]
-  if (!allowedAttributes?.has(attrName)) {
+  if (!allowedAttributes?.has(attrName) && !GLOBAL_ALLOWED_ATTRIBUTES.has(attrName)) {
     return null
+  }
+
+  if (attrName === 'style') {
+    const sanitized = sanitizeStyleAttribute(attrValue)
+    return sanitized ? { name: attrName, value: sanitized } : null
   }
 
   if (BOOLEAN_ATTRIBUTES.has(attrName)) {
