@@ -6030,3 +6030,55 @@ next: MF-051 - Outline panel lists all headings with live scroll-sync and click-
 - Next recommended feature:
   - `MF-076` remains harness-next but is still Microsoft Word/manual-matrix gated.
   - If Word remains unavailable, choose a terminal-verifiable slice from `MF-081`, `MF-138`, `MF-154`, `MF-157`, or the new `MF-158` backlog.
+
+### 2026-04-23T22:17:30+08:00 - MF-005 nested list marker depth refreshed
+
+- Author: Codex Dispatcher with Researcher/Implementer/Reviewer subagents.
+- Focus: strict one-feature automation cycle for Typora nested list marker readability while preserving the existing MF-005 source-hiding behavior.
+- Startup / baseline:
+  - Read `/Users/pprp/.codex/automations/typora-replication/memory.md`.
+  - Ran `pnpm harness:start`; it reported `159` features and selected `MF-076` as harness-next.
+  - Ran initial `./harness/init.sh --smoke`; it passed with desktop `84` tests and editor `516` tests (`3` skipped).
+  - Baseline `git status --short` already contained the inherited list-marker slice in `packages/editor/src/editor/decorations/listDecoration.ts`, `packages/editor/src/editor/__tests__/listAndBlockquoteDecoration.test.tsx`, and `packages/editor/src/styles/global.css`; this run adopted that slice as the single implemented feature instead of starting unrelated product work.
+- Research updates:
+  - Researcher checked Typora official 1.13, Copy/Paste, Markdown Reference, File Management, Export, 1.12, Table, Math, Shortcut, and HTML sources, plus Typora's published VS Marketplace extension as supplemental evidence.
+  - Refined `MF-075` so the ledger title explicitly includes `Copy as Plain Text`.
+  - Dispatcher added two planned backlog entries with matching notes:
+    - `MF-160` for VS Code/Cursor "Open in MarkFlow" handoff parity.
+    - `MF-161` for native Share actions for files, selected text, and images.
+- Implemented feature work:
+  - Finalized `MF-005` nested list marker visual-depth behavior.
+  - Rendered unordered list widgets now vary glyphs by depth, ordered markers and task checkboxes receive depth classes/data attributes, and list lines carry depth metadata for styling.
+  - Nested task checkbox replacements now leave leading indentation outside the replacement range so source indentation remains visible/preserved.
+  - When the caret is inside a list item, list markers remain editable source text with depth-aware mark styling rather than being replaced by widgets.
+  - `MF-005` remains `status=verified`, `passes=true`, and now has `lastVerifiedAt=2026-04-23T22:10:15+08:00`.
+- Changed files:
+  - `harness/feature-ledger.json`
+  - `harness/features/MF-005.md`
+  - `harness/features/MF-160.md`
+  - `harness/features/MF-161.md`
+  - `packages/editor/src/editor/decorations/listDecoration.ts`
+  - `packages/editor/src/editor/__tests__/listAndBlockquoteDecoration.test.tsx`
+  - `packages/editor/src/styles/global.css`
+- Simplifications made:
+  - Reused the existing list decoration pipeline and CodeMirror widgets instead of adding a second rendered-list layer.
+  - Kept backlog additions planned-only; no extra implementation started for MF-160 or MF-161.
+  - Scoped verification metadata to MF-005 without changing unrelated feature statuses.
+- Verification:
+  - Researcher ran `jq empty harness/feature-ledger.json`, `pnpm harness:verify`, and scoped `git diff --check` for the ledger.
+  - Implementer ran the focused list/block quote test, editor build, scoped ESLint, `pnpm harness:verify`, `jq empty`, and scoped `git diff --check`.
+  - Reviewer accepted the diff after read-only inspection and reran the targeted list test, harness verification, scoped whitespace check, and full editor test run.
+  - Dispatcher reran:
+    - `pnpm --filter @markflow/editor exec vitest run src/editor/__tests__/listAndBlockquoteDecoration.test.tsx` (`16` tests passed).
+    - `pnpm --filter @markflow/editor exec eslint src/editor/decorations/listDecoration.ts src/editor/__tests__/listAndBlockquoteDecoration.test.tsx`.
+    - `pnpm harness:verify` (`161 total | verified=94 | ready=29 | planned=37 | blocked=1 | regression=0`; next: `MF-076`).
+    - `jq empty harness/feature-ledger.json`.
+    - Scoped `git diff --check`.
+    - Final `./harness/init.sh --smoke`, which passed with desktop `84` tests and editor `516` tests (`3` skipped).
+  - Package-wide `pnpm --filter @markflow/editor lint` still fails on an unrelated inherited unused `_blob` in `packages/editor/src/editor/__tests__/mermaidDecoration.test.ts`.
+- Review:
+  - Reviewer accepted `MF-005` as scoped and truthful.
+  - Residual risk: no live desktop visual smoke was run for nested marker colors/guide alignment; pixel-level styling remains manually unverified.
+- Next recommended feature:
+  - `MF-076` remains harness-next but Microsoft Word/manual-matrix gated.
+  - If Word is still unavailable, prefer a terminal-verifiable slice from `MF-081`, `MF-138`, `MF-154`, `MF-157`, `MF-158`, or the new `MF-160`/`MF-161` backlog.

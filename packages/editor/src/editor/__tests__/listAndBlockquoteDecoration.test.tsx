@@ -48,6 +48,10 @@ function widgetText(entry: DecorationEntry, view: EditorView) {
   return entry.spec.widget?.toDOM(view).textContent ?? null
 }
 
+function widgetClassName(entry: DecorationEntry, view: EditorView) {
+  return entry.spec.widget?.toDOM(view).className ?? ''
+}
+
 describe('listDecorations', () => {
   it('renders unordered list markers as widgets when the caret is outside the item', () => {
     const plugin = listDecorations() as DecorationPlugin
@@ -138,6 +142,39 @@ describe('listDecorations', () => {
     expect(entries.filter((entry) => entry.spec.widget?.constructor.name === 'BulletWidget')).toHaveLength(2)
     expect(entries.filter((entry) => entry.spec.widget?.constructor.name === 'OrderedListWidget')).toHaveLength(1)
     expect(entries.filter((entry) => entry.spec.widget?.constructor.name === 'CheckboxWidget')).toHaveLength(1)
+
+    view.destroy()
+  })
+
+  it('gives nested rendered list markers distinct visual levels', () => {
+    const plugin = listDecorations() as DecorationPlugin
+    const doc = '- parent\n  - child\n    - grandchild\n      1. ordered\n\nplain text'
+    const view = makeView(doc, doc.length, [plugin])
+    const entries = decorationEntries(view, plugin)
+    const bulletEntries = entries.filter((entry) => entry.spec.widget?.constructor.name === 'BulletWidget')
+    const orderedEntry = entries.find((entry) => entry.spec.widget?.constructor.name === 'OrderedListWidget')
+
+    expect(bulletEntries.map((entry) => widgetText(entry, view))).toEqual(['•', '◦', '▪'])
+    expect(widgetClassName(bulletEntries[0], view)).toContain('mf-list-depth-1')
+    expect(widgetClassName(bulletEntries[1], view)).toContain('mf-list-depth-2')
+    expect(widgetClassName(bulletEntries[2], view)).toContain('mf-list-depth-3')
+    expect(orderedEntry).toBeDefined()
+    expect(widgetClassName(orderedEntry!, view)).toContain('mf-list-depth-4')
+
+    view.destroy()
+  })
+
+  it('preserves indentation when nested task list markers become checkboxes', () => {
+    const plugin = listDecorations() as DecorationPlugin
+    const doc = '- parent\n  - [ ] child task\n\nplain text'
+    const view = makeView(doc, doc.length, [plugin])
+    const entries = decorationEntries(view, plugin)
+    const checkboxEntry = entries.find((entry) => entry.spec.widget?.constructor.name === 'CheckboxWidget')
+    const childLine = view.state.doc.line(2)
+
+    expect(checkboxEntry).toBeDefined()
+    expect(checkboxEntry?.from).toBe(childLine.from + 2)
+    expect(widgetClassName(checkboxEntry!, view)).toContain('mf-list-depth-2')
 
     view.destroy()
   })

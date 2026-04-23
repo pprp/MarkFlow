@@ -1726,26 +1726,115 @@ body {
 /* ── Task list ──────────────────────────────────────────────── */
 .cm-editor .mf-task-checkbox {
   cursor: pointer;
-  margin-right: 6px;
-  accent-color: var(--mf-accent);
+  margin-right: 0.42em;
+  accent-color: var(--mf-list-marker-color, var(--mf-accent));
   width: 14px;
   height: 14px;
   vertical-align: middle;
   position: relative;
   top: -1px;
+  border-radius: 3px;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--mf-list-marker-color, var(--mf-accent)) 36%, transparent);
+  filter: drop-shadow(0 1px 2px color-mix(in srgb, var(--mf-list-marker-color, var(--mf-accent)) 18%, transparent));
 }
 
 /* ── List markers ───────────────────────────────────────────── */
+.cm-editor .mf-list-depth-1 {
+  --mf-list-marker-color: var(--mf-accent);
+  --mf-list-marker-bg: color-mix(in srgb, var(--mf-accent) 12%, transparent);
+  --mf-list-marker-weight: 700;
+  --mf-list-bullet-size: 0.98em;
+  --mf-list-guide-color: transparent;
+  --mf-list-guide-offset: 0;
+}
+
+.cm-editor .mf-list-depth-2 {
+  --mf-list-marker-color: var(--mf-syntax-literal);
+  --mf-list-marker-bg: color-mix(in srgb, var(--mf-syntax-literal) 11%, transparent);
+  --mf-list-marker-weight: 650;
+  --mf-list-bullet-size: 0.95em;
+  --mf-list-guide-color: color-mix(in srgb, var(--mf-syntax-literal) 24%, transparent);
+  --mf-list-guide-offset: 1.15ch;
+}
+
+.cm-editor .mf-list-depth-3 {
+  --mf-list-marker-color: var(--mf-code-fg);
+  --mf-list-marker-bg: color-mix(in srgb, var(--mf-code-fg) 10%, transparent);
+  --mf-list-marker-weight: 700;
+  --mf-list-bullet-size: 0.76em;
+  --mf-list-guide-color: color-mix(in srgb, var(--mf-code-fg) 22%, transparent);
+  --mf-list-guide-offset: 3.15ch;
+}
+
+.cm-editor .mf-list-depth-4 {
+  --mf-list-marker-color: color-mix(in srgb, var(--mf-accent) 72%, var(--mf-fg-muted));
+  --mf-list-marker-bg: color-mix(in srgb, var(--mf-accent) 8%, transparent);
+  --mf-list-marker-weight: 600;
+  --mf-list-bullet-size: 0.82em;
+  --mf-list-guide-color: color-mix(in srgb, var(--mf-accent) 18%, transparent);
+  --mf-list-guide-offset: 5.15ch;
+}
+
+.cm-editor .mf-list-depth-5 {
+  --mf-list-marker-color: color-mix(in srgb, var(--mf-syntax-literal) 68%, var(--mf-fg-muted));
+  --mf-list-marker-bg: color-mix(in srgb, var(--mf-syntax-literal) 8%, transparent);
+  --mf-list-marker-weight: 600;
+  --mf-list-bullet-size: 0.82em;
+  --mf-list-guide-color: color-mix(in srgb, var(--mf-syntax-literal) 16%, transparent);
+  --mf-list-guide-offset: 7.15ch;
+}
+
+.cm-editor .mf-list-depth-6 {
+  --mf-list-marker-color: color-mix(in srgb, var(--mf-code-fg) 64%, var(--mf-fg-muted));
+  --mf-list-marker-bg: color-mix(in srgb, var(--mf-code-fg) 7%, transparent);
+  --mf-list-marker-weight: 600;
+  --mf-list-bullet-size: 0.82em;
+  --mf-list-guide-color: color-mix(in srgb, var(--mf-code-fg) 15%, transparent);
+  --mf-list-guide-offset: 9.15ch;
+}
+
+.cm-editor .mf-list-line {
+  background-image: linear-gradient(var(--mf-list-guide-color, transparent), var(--mf-list-guide-color, transparent));
+  background-position: var(--mf-list-guide-offset, 0) 0.28em;
+  background-repeat: no-repeat;
+  background-size: 2px calc(100% - 0.56em);
+}
+
+.cm-editor .mf-list-marker {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--mf-list-marker-color, var(--mf-fg-muted));
+  font-weight: var(--mf-list-marker-weight, 500);
+  line-height: 1;
+  vertical-align: baseline;
+  user-select: none;
+}
+
 .cm-editor .mf-list-bullet {
-  color: var(--mf-fg-muted);
-  font-weight: 400;
-  margin-right: 4px;
+  min-width: 1ch;
+  margin-right: 0.45ch;
+  font-size: var(--mf-list-bullet-size, 0.95em);
+  transform: translateY(-0.03em);
 }
 
 .cm-editor .mf-list-order-marker {
-  color: var(--mf-fg-muted);
-  font-weight: 400;
-  margin-right: 4px;
+  min-width: 2ch;
+  margin-right: 0.5ch;
+  padding: 0 0.18em;
+  border-radius: var(--mf-radius-xs);
+  background: var(--mf-list-marker-bg, transparent);
+  font-family: var(--mf-font-mono);
+  font-size: 0.82em;
+  font-variant-numeric: tabular-nums;
+}
+
+.cm-editor .mf-list-source-marker {
+  color: var(--mf-list-marker-color, var(--mf-fg-muted));
+  font-weight: var(--mf-list-marker-weight, 600);
+  border-radius: var(--mf-radius-xs);
+  background: var(--mf-list-marker-bg, transparent);
+  padding: 0 0.08em;
 }
 
 /* ── Images ─────────────────────────────────────────────────── */

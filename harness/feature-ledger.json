@@ -65,7 +65,7 @@
       "priority": 1,
       "status": "verified",
       "passes": true,
-      "lastVerifiedAt": "2026-04-10",
+      "lastVerifiedAt": "2026-04-23T22:10:15+08:00",
       "dependsOn": [],
       "notesRef": "features/MF-005.md"
     },
@@ -977,7 +977,7 @@
     },
     {
       "id": "MF-075",
-      "title": "Copy writes rich clipboard formats and exposes plain text, Markdown, and HTML Code copy actions",
+      "title": "Copy writes rich clipboard formats and exposes Copy as Plain Text, Markdown, and HTML Code actions",
       "category": "phase-2-functional",
       "area": "@markflow/editor",
       "priority": 2,
@@ -2184,6 +2184,35 @@
         "MF-087"
       ],
       "notesRef": "features/MF-159.md"
+    },
+    {
+      "id": "MF-160",
+      "title": "VS Code and Cursor can open markdown files directly in MarkFlow",
+      "category": "phase-2-functional",
+      "area": "@markflow/desktop",
+      "priority": 4,
+      "status": "planned",
+      "passes": false,
+      "lastVerifiedAt": null,
+      "dependsOn": [
+        "MF-103"
+      ],
+      "notesRef": "features/MF-160.md"
+    },
+    {
+      "id": "MF-161",
+      "title": "Native Share actions expose selected text, images, and files",
+      "category": "phase-2-functional",
+      "area": "@markflow/desktop",
+      "priority": 4,
+      "status": "planned",
+      "passes": false,
+      "lastVerifiedAt": null,
+      "dependsOn": [
+        "MF-041",
+        "MF-075"
+      ],
+      "notesRef": "features/MF-161.md"
     }
   ]
 }
