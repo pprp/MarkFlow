@@ -1,3 +1,45 @@
+### 2026-04-23T09:22:49+08:00 - MF-010 live link acceptance verified
+
+- Author: Codex Dispatcher with Researcher/Implementer/Reviewer subagents
+- Focus: strict one-feature automation cycle for Typora rendered-link behavior; completed the live desktop gate for `MF-010`.
+- Startup / baseline:
+  - Read `/Users/pprp/.codex/automations/typora-replication/memory.md`.
+  - Ran `pnpm harness:start`; it reported `152` features and selected `MF-010` as harness-next.
+  - Ran initial `./harness/init.sh --smoke`; it passed with desktop `84` tests and editor `504` passed / `3` skipped.
+  - Baseline `git status --short` was clean.
+- Research updates:
+  - Researcher used Typora 1.13, Shortcut Keys, File Management, Zoom, Copy and Paste, Text Snippets, Search, Code Fences, and Markdown Reference docs.
+  - No ledger entries were added or edited by Researcher. A possible future code-fence tooling item was deferred because it needs a normal feature-note addition path.
+- Implemented / verified feature work:
+  - Selected `MF-010` because Electron and Vite now launch in this environment (`electron v33.4.11`; Vite served `http://localhost:5173/`).
+  - Re-ran focused automated coverage:
+    - `pnpm --filter @markflow/desktop exec vitest run src/main/fileManager.test.ts src/main/externalLinks.test.ts` (`40` tests passed).
+    - `pnpm --filter @markflow/editor exec vitest run src/__tests__/App.test.tsx src/editor/__tests__/linkDecoration.test.tsx` (`87` tests passed).
+  - Ran live Electron/CDP acceptance against `/var/folders/dl/qdq_vh116gl1yjbd8pxk_bd00000gn/T/markflow-mf010-live.JJPRD5/main.md` with external, internal, existing local, and missing local markdown links.
+  - Verified the external link left the Electron renderer at `http://localhost:5173/` with `main.md` still active; desktop unit coverage verifies delegation through `shell.openExternal`.
+  - Verified the internal `#target-section` link moved the active CodeMirror line to `## Target Section`.
+  - Verified the existing local markdown link opened `existing.md` through the desktop bridge with the expected `EXISTING_MF010_LIVE_CONTENT` body.
+  - Verified the missing local markdown link showed the native `Create and Open` sheet; AppleScript accepted it, `nested/missing.md` was created with empty content, and `window.markflow.getCurrentDocument()` reported the created file path.
+  - Promoted only `MF-010` to `status=verified`, `passes=true`, `lastVerifiedAt=2026-04-23T09:19:17+0800`.
+- Containment / cleanup:
+  - Implementer introduced and committed an out-of-scope raw HTML style sanitizer / `MF-153` change during the cycle.
+  - Dispatcher reverted that overreach in commit `20cba5d` before accepting the `MF-010` diff, restoring the feature count to `152`.
+- Changed files for the accepted `MF-010` diff:
+  - `harness/feature-ledger.json`
+  - `harness/features/MF-010.md`
+- Verification:
+  - Reviewer first rejected the contaminated worktree, then accepted the cleaned `MF-010` diff after the overreach was reverted.
+  - Cleaned-state checks passed:
+    - `pnpm harness:verify` (`152 total | verified=90 | ready=31 | planned=30 | blocked=1`; next: `MF-076`).
+    - `git diff --check`.
+    - Reviewer reran focused desktop/editor tests and accepted the promotion.
+- Review:
+  - Reviewer found no blockers in the cleaned state.
+  - Residual risk: the live external-link check proves the Electron renderer did not navigate; actual browser delegation remains covered by desktop unit tests rather than direct browser observation.
+- Next recommended feature:
+  - `MF-076` is harness-next but still needs the Microsoft Word/manual paste matrix.
+  - If Word remains unavailable, continue with another small terminal-verifiable ready feature and keep manual-gated features unpromoted.
+
 ### 2026-04-23T08:13:07+08:00 - MF-079 fenced-code duplication verified
 
 - Author: Codex Dispatcher with Researcher/Implementer/Reviewer subagents
