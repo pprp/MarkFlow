@@ -1284,7 +1284,7 @@
     },
     {
       "id": "MF-097",
-      "title": "Embedded HTML media tags render preserved `<video>`, `<audio>`, and `<iframe>` content in WYSIWYG mode",
+      "title": "Embedded HTML media tags render preserved `<video>`, `<audio>`, `<track>`, and `<iframe>` content with Typora-style media paths",
       "category": "phase-2-functional",
       "area": "@markflow/editor",
       "priority": 3,

@@ -1,3 +1,53 @@
+### 2026-04-23T20:20:58+08:00 - MF-097 media path automation added
+
+- Author: Codex Dispatcher with Researcher/Implementer/Reviewer subagents
+- Focus: strict one-feature automation cycle for Typora raw HTML media embed parity.
+- Startup / baseline:
+  - Read `/Users/pprp/.codex/automations/typora-replication/memory.md`.
+  - Ran `pnpm harness:start`; it reported `159` features and selected `MF-076` as harness-next.
+  - Ran initial `./harness/init.sh --smoke`; it passed with desktop `84` tests and editor `514` passed / `3` skipped.
+  - Baseline `git status --short` still contained inherited list-marker edits in `packages/editor/src/editor/decorations/listDecoration.ts`, `packages/editor/src/editor/__tests__/listAndBlockquoteDecoration.test.tsx`, and the list-marker section of `packages/editor/src/styles/global.css`; those were preserved and not included in this feature.
+- Research updates:
+  - Researcher used Typora Markdown Reference, HTML Support, Media, Typora 1.13 release notes, and related file/media docs.
+  - Refined existing `MF-097` in `harness/feature-ledger.json` so the title explicitly includes `<track>` and Typora-style media path handling.
+  - No new feature entries were added and no new feature note file was needed.
+- Implemented feature work:
+  - Selected `MF-097` because `MF-076` remains Microsoft Word/manual-matrix gated and MF-097 had a narrow terminal-verifiable automation slice.
+  - The first Implementer subagent stalled without producing a patch, so Dispatcher completed the bounded implementation locally instead of widening scope.
+  - Added `filePath` threading from `MarkFlowEditor.tsx` into `inlineHtmlDecorations(...)`.
+  - Reused the existing `resolveLinkHref(...)` path logic so safe raw HTML media `src` / `poster` values resolve relative to the active markdown file for `<video>`, `<audio>`, nested `<source>`, and nested `<track>`.
+  - Preserved security behavior: iframe `src` remains `http/https` only, iframe sandboxing remains, event-handler attributes remain stripped, and unsafe media URLs such as `javascript:` remain removed.
+  - Left `MF-097` as `status=ready`, `passes=false`, and `lastVerifiedAt=null` because live local media playback and remote iframe containment remain manual-gated.
+- Changed files for this cycle:
+  - `harness/feature-ledger.json`
+  - `harness/features/MF-097.md`
+  - `packages/editor/src/editor/MarkFlowEditor.tsx`
+  - `packages/editor/src/editor/decorations/inlineHtmlDecoration.ts`
+  - `packages/editor/src/editor/__tests__/inlineHtmlDecoration.test.ts`
+- Simplifications made:
+  - Reused MarkFlow's existing link/file URL resolver instead of introducing a second path-normalization helper.
+  - Kept relative path resolution limited to raw HTML media attributes and did not broaden iframe policy.
+  - Avoided global CSS changes because the inherited list-marker CSS was unrelated.
+- Verification:
+  - Researcher ran `jq empty harness/feature-ledger.json`, `pnpm harness:verify`, and `git diff --check -- harness/feature-ledger.json`.
+  - Dispatcher TDD red check: `pnpm --filter @markflow/editor exec vitest run src/editor/__tests__/inlineHtmlDecoration.test.ts -t "resolves Typora-style relative media paths"` failed because `./media/clip.mp4` stayed literal.
+  - Dispatcher green checks passed:
+    - `pnpm --filter @markflow/editor exec vitest run src/editor/__tests__/inlineHtmlDecoration.test.ts -t "resolves Typora-style relative media paths"`
+    - `pnpm --filter @markflow/editor exec vitest run src/editor/__tests__/inlineHtmlDecoration.test.ts` (`9` tests passed).
+    - `pnpm --filter @markflow/editor exec eslint src/editor/decorations/inlineHtmlDecoration.ts src/editor/__tests__/inlineHtmlDecoration.test.ts src/editor/MarkFlowEditor.tsx`.
+    - `pnpm --filter @markflow/editor build`, with the existing Vite large-chunk warning.
+    - `pnpm harness:verify`.
+    - `git diff --check` for the MF-097 files.
+  - `pnpm --filter @markflow/editor lint -- ...` was also attempted, but this package script ignores the trailing file list and failed on an unrelated inherited `mermaidDecoration.test.ts` unused `_blob` parameter; scoped ESLint for the MF-097 files passed.
+  - Reviewer accepted the MF-097 patch as scoped and agreed `passes=false` remains truthful.
+  - Final `./harness/init.sh --smoke` passed with desktop `84` tests and editor `515` passed / `3` skipped.
+- Review:
+  - Reviewer found no blocking MF-097 regression.
+  - Residual risk: live Electron playback/loading is still untested for local media files, `<track>` loading, codec behavior, file URL/CORS edge cases, and remote iframe navigation containment.
+- Next recommended feature:
+  - `MF-076` remains harness-next but still requires Microsoft Word/manual paste-matrix verification.
+  - For this path, the next concrete step is a trusted desktop manual check for `MF-097` with one local video, one local audio file, captions, and one remote iframe; only then promote it to `verified`.
+
 ### 2026-04-23T19:30:10+08:00 - MF-159 diagram SVG actions verified
 
 - Author: Codex Dispatcher with Researcher/Implementer/Reviewer subagents

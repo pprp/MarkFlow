@@ -4,13 +4,13 @@ import { EditorView } from '@codemirror/view'
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown'
 import { inlineHtmlDecorations } from '../decorations/inlineHtmlDecoration'
 
-function makeView(doc: string, cursor = doc.length) {
+function makeView(doc: string, cursor = doc.length, filePath?: string) {
   const state = EditorState.create({
     doc,
     selection: { anchor: cursor },
     extensions: [
       markdown({ base: markdownLanguage }),
-      inlineHtmlDecorations(),
+      inlineHtmlDecorations(filePath),
       EditorView.lineWrapping,
     ],
   })
@@ -137,6 +137,32 @@ describe('inlineHtmlDecorations', () => {
     expect(view.dom.querySelector('video')).toBeNull()
     expect(lineText(view, 0)).toContain('<video controls src="https://example.com/sample.mp4"')
     expect(view.dom.querySelector('audio')).not.toBeNull()
+
+    destroyView(view)
+  })
+
+  it('resolves Typora-style relative media paths for raw HTML video sources and tracks', () => {
+    const doc = [
+      '<video controls src="./media/clip.mp4" poster="../covers/poster.png" width="640"><source src="alt/movie.webm" type="video/webm"><track kind="subtitles" src="captions/en.vtt" srclang="en" label="English" default><track kind="captions" src="javascript:alert(1)" srclang="en" label="Bad"></video>',
+      '',
+      'After',
+    ].join('\n')
+    const view = makeView(doc, doc.length, '/Users/pprp/docs/notes/current.md')
+
+    const video = view.dom.querySelector('video')
+    const source = view.dom.querySelector('source')
+    const tracks = Array.from(view.dom.querySelectorAll('track'))
+
+    expect(video?.getAttribute('src')).toBe('file:///Users/pprp/docs/notes/media/clip.mp4')
+    expect(video?.getAttribute('poster')).toBe('file:///Users/pprp/docs/covers/poster.png')
+    expect(source?.getAttribute('src')).toBe('file:///Users/pprp/docs/notes/alt/movie.webm')
+    expect(source?.getAttribute('type')).toBe('video/webm')
+    expect(tracks).toHaveLength(2)
+    expect(tracks[0].getAttribute('src')).toBe('file:///Users/pprp/docs/notes/captions/en.vtt')
+    expect(tracks[0].getAttribute('kind')).toBe('subtitles')
+    expect(tracks[0].hasAttribute('default')).toBe(true)
+    expect(tracks[1].hasAttribute('src')).toBe(false)
+    expect(view.state.doc.toString()).toBe(doc)
 
     destroyView(view)
   })

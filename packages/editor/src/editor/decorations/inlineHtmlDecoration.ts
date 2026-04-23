@@ -9,6 +9,7 @@ import {
 import { syntaxTree } from '@codemirror/language'
 import { RangeSetBuilder } from '@codemirror/state'
 import { getDecorationViewportWindow } from './viewportWindow'
+import { resolveLinkHref } from './linkDecoration'
 
 // Tags allowed to pass through the sanitizer
 const ALLOWED_TAGS = new Set([
@@ -288,7 +289,16 @@ function sanitizeInlineStyle(value: string) {
   return sanitized.length > 0 ? sanitized.join('; ') : null
 }
 
-function sanitizeAttribute(tagName: string, attrName: string, attrValue: string) {
+function resolveMediaUrlAttribute(attrValue: string, filePath?: string) {
+  const sanitized = sanitizeUrl(attrValue, new Set(['http', 'https', 'file', 'blob']))
+  if (!sanitized || sanitized.startsWith('//')) {
+    return null
+  }
+
+  return resolveLinkHref(sanitized, filePath)
+}
+
+function sanitizeAttribute(tagName: string, attrName: string, attrValue: string, filePath?: string) {
   if (attrName.startsWith('on')) {
     return null
   }
@@ -308,15 +318,15 @@ function sanitizeAttribute(tagName: string, attrName: string, attrValue: string)
   }
 
   if (attrName === 'src') {
-    const protocols = tagName === 'iframe'
-      ? new Set(['http', 'https'])
-      : new Set(['http', 'https', 'file', 'blob'])
-    const sanitized = sanitizeUrl(attrValue, protocols)
+    const sanitized =
+      tagName === 'iframe'
+        ? sanitizeUrl(attrValue, new Set(['http', 'https']))
+        : resolveMediaUrlAttribute(attrValue, filePath)
     return sanitized ? { name: attrName, value: sanitized } : null
   }
 
   if (attrName === 'poster') {
-    const sanitized = sanitizeUrl(attrValue, new Set(['http', 'https', 'file', 'blob']))
+    const sanitized = resolveMediaUrlAttribute(attrValue, filePath)
     return sanitized ? { name: attrName, value: sanitized } : null
   }
 
@@ -374,7 +384,7 @@ function sanitizeAttribute(tagName: string, attrName: string, attrValue: string)
   return null
 }
 
-function sanitizeHtml(html: string): string {
+function sanitizeHtml(html: string, filePath?: string): string {
   const template = document.createElement('template')
   template.innerHTML = html
 
@@ -394,7 +404,7 @@ function sanitizeHtml(html: string): string {
       }
 
       const nextAttributes = Array.from(el.attributes)
-        .map((attr) => sanitizeAttribute(tagName, attr.name.toLowerCase(), attr.value))
+        .map((attr) => sanitizeAttribute(tagName, attr.name.toLowerCase(), attr.value, filePath))
         .filter((attr): attr is { name: string; value: string } => attr !== null)
 
       const attrNames = Array.from(el.attributes).map((a) => a.name)
@@ -424,21 +434,23 @@ function sanitizeHtml(html: string): string {
 class HtmlBlockWidget extends WidgetType {
   private readonly html: string
   private readonly isInline: boolean
+  private readonly filePath?: string
 
-  constructor(html: string, isInline: boolean) {
+  constructor(html: string, isInline: boolean, filePath?: string) {
     super()
     this.html = html
     this.isInline = isInline
+    this.filePath = filePath
   }
 
   eq(other: HtmlBlockWidget) {
-    return other.html === this.html && other.isInline === this.isInline
+    return other.html === this.html && other.isInline === this.isInline && other.filePath === this.filePath
   }
 
   toDOM() {
     const container = document.createElement(this.isInline ? 'span' : 'div')
     container.className = this.isInline ? 'mf-html-inline' : 'mf-html-block'
-    container.innerHTML = sanitizeHtml(this.html)
+    container.innerHTML = sanitizeHtml(this.html, this.filePath)
     return container
   }
 
@@ -477,7 +489,7 @@ function isCursorInsideNode(
   return cursorHead >= from && (includeEndBoundary ? cursorHead <= to : cursorHead < to)
 }
 
-function buildDecorations(view: EditorView): DecorationSet {
+function buildDecorations(view: EditorView, filePath?: string): DecorationSet {
   const builder = new RangeSetBuilder<Decoration>()
   const cursorHead = view.state.selection.main.head
   const doc = view.state.doc
@@ -508,7 +520,7 @@ function buildDecorations(view: EditorView): DecorationSet {
           addDecoration(
             from,
             to,
-            Decoration.replace({ widget: new HtmlBlockWidget(html, nodeConfig.isInline) }),
+            Decoration.replace({ widget: new HtmlBlockWidget(html, nodeConfig.isInline, filePath) }),
           )
         }
         return false
@@ -530,18 +542,18 @@ function buildDecorations(view: EditorView): DecorationSet {
   return builder.finish()
 }
 
-export function inlineHtmlDecorations() {
+export function inlineHtmlDecorations(filePath?: string) {
   return ViewPlugin.fromClass(
     class {
       decorations: DecorationSet
 
       constructor(view: EditorView) {
-        this.decorations = buildDecorations(view)
+        this.decorations = buildDecorations(view, filePath)
       }
 
       update(update: ViewUpdate) {
         if (update.docChanged || update.selectionSet || update.viewportChanged) {
-          this.decorations = buildDecorations(update.view)
+          this.decorations = buildDecorations(update.view, filePath)
         }
       }
     },

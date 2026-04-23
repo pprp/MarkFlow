@@ -382,7 +382,7 @@ function getRenderedExtensions(
     diagramDecorations(),
     yamlFrontMatterDecorations(),
     tableDecorations(),
-    inlineHtmlDecorations(),
+    inlineHtmlDecorations(filePath),
     tocDecorations(markdownMode),
   ]
 
