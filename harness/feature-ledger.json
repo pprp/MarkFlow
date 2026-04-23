@@ -1033,9 +1033,9 @@
       "category": "phase-1-functional",
       "area": "@markflow/editor",
       "priority": 3,
-      "status": "ready",
-      "passes": false,
-      "lastVerifiedAt": null,
+      "status": "verified",
+      "passes": true,
+      "lastVerifiedAt": "2026-04-23T08:07:52+0800",
       "dependsOn": [],
       "notesRef": "features/MF-079.md"
     },

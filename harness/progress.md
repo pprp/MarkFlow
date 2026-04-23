@@ -1,3 +1,46 @@
+### 2026-04-23T08:13:07+08:00 - MF-079 fenced-code duplication verified
+
+- Author: Codex Dispatcher with Researcher/Implementer/Reviewer subagents
+- Focus: strict one-feature automation cycle after a passing smoke gate; promoted one terminal-verifiable Typora parity feature.
+- Startup / baseline:
+  - Read `/Users/pprp/.codex/automations/typora-replication/memory.md`.
+  - Ran `pnpm harness:start`; it reported `152` features and selected `MF-010` as harness-next.
+  - Ran initial `./harness/init.sh --smoke`; it passed with desktop `84` tests and editor `503` passed / `3` skipped.
+  - Baseline `git status --short` was clean.
+- Research updates:
+  - Researcher used Typora Markdown Reference, Export, Images, Convert & Reformat Markdown, Typora 1.13 release notes, and the support index.
+  - No ledger entries were added or edited; reviewed official capabilities were already represented, and new feature additions would require note files outside the Researcher write scope.
+- Implemented feature work:
+  - Selected `MF-079` because `MF-010`, `MF-076`, `MF-104`, and `MF-107` remain manual/live-desktop or external-app gated in this environment, while `MF-079` had a narrow remaining code-fence verification gap.
+  - Added a regression in `packages/editor/src/editor/__tests__/MarkFlowEditor.test.tsx` that duplicates an entire fenced code block with `Shift-Alt-ArrowDown`, confirms the document contains two balanced fenced code blocks parsed as `FencedCode`, preserves the duplicated block selection, and verifies clipboard write APIs are not called.
+  - Updated `harness/features/MF-079.md` so the documented shortcut matches the current `Shift-Alt-ArrowDown` binding and removed the remaining manual-only check.
+  - Promoted only `MF-079` in `harness/feature-ledger.json` to `status=verified`, `passes=true`, `lastVerifiedAt=2026-04-23T08:07:52+0800`.
+- Changed files:
+  - `harness/feature-ledger.json`
+  - `harness/features/MF-079.md`
+  - `packages/editor/src/editor/__tests__/MarkFlowEditor.test.tsx`
+- Simplifications made:
+  - Kept the change to test coverage and feature bookkeeping because product behavior was already implemented.
+  - Did not broaden shortcut handling or start a second feature.
+- Verification:
+  - Researcher ran JSON validation and `pnpm harness:verify`; both passed.
+  - Implementer ran focused and full `MarkFlowEditor.test.tsx`, `pnpm harness:verify`, and `git diff --check`; all passed.
+  - Dispatcher asked Implementer to fix the stale shortcut text in the feature note, then Implementer reran `pnpm harness:verify` and `git diff --check`; both passed.
+  - Reviewer accepted the diff with no findings after rerunning `git diff --check`, full `MarkFlowEditor.test.tsx`, and `pnpm harness:verify`.
+  - Dispatcher reran:
+    - `pnpm --filter @markflow/editor exec vitest run src/editor/__tests__/MarkFlowEditor.test.tsx` (`58` passed / `3` skipped).
+    - `pnpm --filter @markflow/editor lint`.
+    - `pnpm --filter @markflow/editor build`, which passed with the existing Vite large-chunk warning.
+    - `pnpm harness:verify` (`152 total | verified=89 | ready=32 | planned=30 | blocked=1`; next remains `MF-010`).
+    - `git diff --check`.
+    - Final `./harness/init.sh --smoke`, which passed with desktop `84` tests and editor `504` passed / `3` skipped.
+- Review:
+  - Reviewer found the promotion truthful and scoped to `MF-079`.
+  - Residual risk: no live desktop/manual editor exercise was performed, but the prior manual-only fenced-code check is now covered by automated regression.
+- Next recommended feature:
+  - Retry `MF-010` only in an environment where live Electron acceptance can run.
+  - If desktop remains unavailable, choose another small terminal-verifiable ready feature such as `MF-083`, or a planned feature with clear automated coverage, instead of promoting manual-gated items.
+
 ### 2026-04-23T07:11:10+08:00 - MF-010 live desktop verification blocked
 
 - Author: Codex Dispatcher with Researcher/Implementer/Reviewer subagents

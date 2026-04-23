@@ -643,6 +643,63 @@ describe('MarkFlowEditor', () => {
     expect(selection.head).toBe(view.state.doc.line(5).to)
   })
 
+  it('duplicates an entire fenced code block with balanced fences without touching the clipboard', () => {
+    const content = ['intro', '```ts', 'const value = 1', '```', 'outro'].join('\n')
+    const duplicatedContent = [
+      'intro',
+      '```ts',
+      'const value = 1',
+      '```',
+      '```ts',
+      'const value = 1',
+      '```',
+      'outro',
+    ].join('\n')
+    const clipboardWrite = vi.fn()
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: {
+        write: clipboardWrite,
+        writeText: clipboardWrite,
+      },
+    })
+    const { container } = render(
+      <MarkFlowEditor content={content} viewMode="wysiwyg" onChange={vi.fn()} />,
+    )
+
+    const view = getEditorView(container)
+    view.dispatch({
+      selection: EditorSelection.range(view.state.doc.line(2).from, view.state.doc.line(4).to),
+    })
+
+    dispatchEditorShortcut(view, {
+      key: 'ArrowDown',
+      code: 'ArrowDown',
+      keyCode: 40,
+      altKey: true,
+      shiftKey: true,
+    })
+
+    expect(view.state.doc.toString()).toBe(duplicatedContent)
+    expect(clipboardWrite).not.toHaveBeenCalled()
+    expect(view.state.doc.toString().match(/^```/gm)).toHaveLength(4)
+
+    const codeBlocks: Array<[number, number]> = []
+    syntaxTree(view.state).iterate({
+      enter(node) {
+        if (node.name === 'FencedCode') {
+          codeBlocks.push([node.from, node.to])
+        }
+      },
+    })
+    expect(codeBlocks).toHaveLength(2)
+
+    const selection = view.state.selection.main
+    expect(view.state.sliceDoc(selection.from, selection.to)).toBe(['```ts', 'const value = 1', '```'].join('\n'))
+    expect(selection.anchor).toBe(view.state.doc.line(5).from)
+    expect(selection.head).toBe(view.state.doc.line(7).to)
+  })
+
   it('treats Shift-Alt-ArrowDown duplication as a single undoable history step', () => {
     const content = ['start', 'middle', 'end'].join('\n')
     const duplicatedContent = ['start', 'middle', 'middle', 'end'].join('\n')
