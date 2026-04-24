@@ -22,7 +22,7 @@
   - `pnpm --filter @markflow/editor exec vitest run src/__tests__/App.test.tsx` passed on the final current tree (`83` tests).
   - `pnpm --filter @markflow/editor exec vitest run src/export/htmlExport.test.ts` passed (`6` tests).
   - `pnpm --filter @markflow/editor exec eslint src/App.tsx src/__tests__/App.test.tsx` passed.
-  - `pnpm harness:verify` passed on the final current tree (`164 total | verified=98 | ready=26 | planned=39 | blocked=1 | regression=0`).
+  - `pnpm harness:verify` passed on the final current tree (`164 total | verified=99 | ready=25 | planned=39 | blocked=1 | regression=0`).
   - `./harness/init.sh --smoke` passed with desktop `84` tests and editor `526` passed / `3` skipped.
 - Review:
   - Reviewer was asked to confirm the closure and specifically check for unrelated ledger/progress drift.
