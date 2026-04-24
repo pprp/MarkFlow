@@ -1142,7 +1142,7 @@
     },
     {
       "id": "MF-087",
-      "title": "Flowchart, sequence, and Mermaid diagram fences render as live previews",
+      "title": "Flowchart, sequence, and Mermaid diagram fences render live previews for Gantt, Venn, and Ishikawa charts",
       "category": "phase-2-functional",
       "area": "@markflow/editor",
       "priority": 3,
@@ -1763,7 +1763,7 @@
     },
     {
       "id": "MF-132",
-      "title": "Export editor instance is editable and missing onDocumentEdit",
+      "title": "Hidden export editor is non-editable so export cannot dirty the active tab",
       "category": "bug",
       "area": "@markflow/editor",
       "priority": 3,

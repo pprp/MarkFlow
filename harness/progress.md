@@ -1,3 +1,44 @@
+### 2026-04-24T20:01:03+0800 - MF-087 advanced diagram parity verified
+
+- Author: Codex Dispatcher with Researcher/Implementer/Reviewer subagents
+- Focus: honor the Typora replication startup order, clear a startup smoke failure first, then close one already-implemented Typora diagram feature with truthful ledger evidence.
+- Startup / baseline:
+  - Read `/Users/pprp/.codex/automations/typora-replication/memory.md`.
+  - Ran `pnpm harness:start`; it reported `161` features and selected `MF-076` as harness-next.
+  - Initial `./harness/init.sh --smoke` failed once because `packages/editor/src/__tests__/App.test.tsx` timed out in `shows an outline that mirrors heading hierarchy and navigates to the active heading`.
+  - Per automation rules, new feature implementation stayed blocked until smoke was rechecked.
+  - Focused reruns showed the outline test passing in isolation and `App.test.tsx` passing as a full file; the accepted diagnosis was a non-reproducing suite flake rather than an outline-specific regression.
+- Research updates:
+  - Researcher used Typora’s official diagram docs and release notes to refine `MF-087`.
+  - Updated `harness/feature-ledger.json` so `MF-087` explicitly tracks flow, sequence, and Mermaid diagram parity for `gantt`, `venn-beta`, and `ishikawa`.
+  - Updated `harness/features/MF-087.md` to the harness-required section format and recorded the verification evidence for a verified-only closure.
+- Implemented / verified feature work:
+  - Selected `MF-087` as the one closed feature because the implementation already existed in the working tree and the required evidence could be gathered without broadening scope after smoke recovered.
+  - No product or test code changes were accepted for this closure.
+  - Dispatcher rejected an Implementer attempt to inflate an unrelated `App.test.tsx` timeout because it did not target the observed failing test.
+  - Promoted `MF-087` to `status=verified`, `passes=true`, and `lastVerifiedAt=2026-04-24T19:55:23+0800`.
+- Changed files for this cycle:
+  - `harness/feature-ledger.json`
+  - `harness/features/MF-087.md`
+  - `harness/progress.md`
+- Simplifications made:
+  - Treated the startup failure as a smoke flake until reproduced, instead of widening scope into speculative editor/test changes.
+  - Closed `MF-087` through existing implementation plus focused verification rather than touching the renderer or test harness.
+- Verification:
+  - `pnpm --filter @markflow/editor exec vitest run src/editor/__tests__/mermaidDecoration.test.ts` passed (`17` tests).
+  - `pnpm --filter @markflow/editor exec vitest run src/__tests__/App.test.tsx` passed (`80` tests).
+  - Repeated `./harness/init.sh --smoke` passed with:
+    - `packages/desktop`: `10` files / `84` tests passed.
+    - `packages/editor`: `46` files / `522` tests passed / `3` skipped.
+  - `pnpm harness:verify` passed (`161 total | verified=98 | ready=25 | planned=37 | blocked=1 | regression=0`).
+  - `git diff --check` passed.
+- Review:
+  - Reviewer accepted the metadata-only closure with residual risk limited to the earlier non-reproducing suite timeout.
+  - Residual risk: the original outline timeout cleared under all follow-up reruns, so its exact trigger remains unknown.
+- Next recommended feature:
+  - `MF-076` remains harness-next but still requires the Microsoft Word/manual paste matrix before promotion.
+  - If Word is still unavailable next run, prefer another terminal-verifiable editor feature rather than spending a second run on manual-gated paste parity.
+
 ### 2026-04-24T09:21:58+08:00 - MF-133 mac shortcut detection verified
 
 - Author: Codex Dispatcher with Researcher/Implementer/Reviewer subagents
