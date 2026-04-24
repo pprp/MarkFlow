@@ -91,6 +91,7 @@ type PrepareRenderedDocumentOptions = {
 type SerializeRenderedDocumentOptions = PrepareRenderedDocumentOptions & {
   document: Document
   headingNumberingEnabled: boolean
+  includeStyles?: boolean
   title: string
 }
 
@@ -342,6 +343,7 @@ export function serializeRenderedDocumentForExport({
   content,
   document,
   headingNumberingEnabled,
+  includeStyles = true,
   markdownMode = DEFAULT_MARKDOWN_MODE,
   renderedRoot,
   title,
@@ -352,12 +354,12 @@ export function serializeRenderedDocumentForExport({
     markdownMode,
     renderedRoot,
   })
-  const styles = collectDocumentStyleText(document)
   const metadataTags = [
     metadata.author ? `  <meta name="author" content="${escapeHtml(metadata.author)}">` : null,
     metadata.keywords ? `  <meta name="keywords" content="${escapeHtml(metadata.keywords)}">` : null,
   ].filter((tag): tag is string => tag !== null)
   const exportTitle = metadata.title ?? title
+  const styleBlock = includeStyles ? `  <style>${collectDocumentStyleText(document)}</style>\n` : ''
 
   return `<!DOCTYPE html>
 <html>
@@ -365,8 +367,7 @@ export function serializeRenderedDocumentForExport({
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
 ${metadataTags.length > 0 ? `${metadataTags.join('\n')}\n` : ''}  <title>${escapeHtml(exportTitle)}</title>
-  <style>${styles}</style>
-</head>
+${styleBlock}</head>
 <body class="mf-export-body" ${HEADING_NUMBERING_ATTRIBUTE}="${headingNumberingEnabled ? 'true' : 'false'}">
   <div class="mf-export-document">
     <div class="cm-editor">

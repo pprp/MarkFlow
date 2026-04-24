@@ -137,7 +137,7 @@ type AppToast = {
   message: string
 }
 
-type HtmlExportFormat = 'html' | 'pdf'
+type HtmlExportFormat = 'html' | 'html-without-styles' | 'pdf'
 type PandocExportAction = 'export-docx' | 'export-epub' | 'export-latex'
 type ExportFormat = HtmlExportFormat | 'docx' | 'epub' | 'latex'
 type PreviousExportMode = 'with-previous' | 'overwrite-with-previous'
@@ -149,6 +149,10 @@ type ExportTargetOptions = {
 type PreviousExportState = {
   format: ExportFormat
   targetPath: string
+}
+
+function getHtmlExportFileExtension(format: HtmlExportFormat) {
+  return format === 'pdf' ? 'pdf' : 'html'
 }
 
 type EditorImageInsertDetail = {
@@ -1528,6 +1532,7 @@ export function App() {
         content: exportContent,
         document,
         headingNumberingEnabled,
+        includeStyles: format !== 'html-without-styles',
         markdownMode,
         renderedRoot: cmContent,
         title: activeTab.filePath ? activeTab.filePath.split('/').pop() ?? 'Export' : 'Export',
@@ -1542,12 +1547,12 @@ export function App() {
         options.directTargetPath ??
         options.targetPathOverride ??
         (activeTab.filePath
-          ? activeTab.filePath.replace(/\.(md|markdown|txt)$/i, '') + '.' + format
-          : 'Untitled.' + format)
+          ? activeTab.filePath.replace(/\.(md|markdown|txt)$/i, '') + '.' + getHtmlExportFileExtension(format)
+          : 'Untitled.' + getHtmlExportFileExtension(format))
 
       let acceptedPath: string | null = null
       let didExport = false
-      if (format === 'html') {
+      if (format === 'html' || format === 'html-without-styles') {
         if (options.directTargetPath) {
           didExport = await api.exportHtmlToPath(html, targetPath)
         } else {
@@ -1589,7 +1594,11 @@ export function App() {
         ? { directTargetPath: previousExport.targetPath }
         : { targetPathOverride: previousExport.targetPath }
 
-    if (previousExport.format === 'html' || previousExport.format === 'pdf') {
+    if (
+      previousExport.format === 'html' ||
+      previousExport.format === 'html-without-styles' ||
+      previousExport.format === 'pdf'
+    ) {
       return handleExport(previousExport.format, targetOptions)
     }
 
@@ -2575,6 +2584,7 @@ export function App() {
             markdownMode={markdownMode}
             spellCheckLanguage={spellCheckState.selectedLanguage}
             viewMode="wysiwyg"
+            editable={false}
             onChange={() => {}}
             onCursorPositionChange={() => {}}
             onViewportPositionChange={() => {}}

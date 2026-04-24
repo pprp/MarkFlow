@@ -30,7 +30,7 @@ type UseDesktopBridgeOptions = {
     (action: MarkFlowCopyAction) => Promise<void>
   >
   handleCycleTabsRef: MutableRefObject<(direction: 1 | -1) => void>
-  handleExportRef: MutableRefObject<(format: 'html' | 'pdf') => Promise<boolean>>
+  handleExportRef: MutableRefObject<(format: 'html' | 'html-without-styles' | 'pdf') => Promise<boolean>>
   handleNavigateBackRef: MutableRefObject<() => Promise<boolean>>
   handleNavigateForwardRef: MutableRefObject<() => Promise<boolean>>
   handleOpenFolderPathRef: MutableRefObject<(folderPath: string) => Promise<boolean>>
@@ -304,6 +304,9 @@ export function useDesktopBridge({
           break
         case 'export-html':
           await handleExportRef.current('html')
+          break
+        case 'export-html-without-styles':
+          await handleExportRef.current('html-without-styles')
           break
         case 'export-pdf':
           await handleExportRef.current('pdf')

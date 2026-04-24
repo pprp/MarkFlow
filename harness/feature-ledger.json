@@ -1767,9 +1767,9 @@
       "category": "bug",
       "area": "@markflow/editor",
       "priority": 3,
-      "status": "ready",
-      "passes": false,
-      "lastVerifiedAt": null,
+      "status": "verified",
+      "passes": true,
+      "lastVerifiedAt": "2026-04-24T20:22:51+0800",
       "dependsOn": [
         "MF-015"
       ],
@@ -2213,6 +2213,51 @@
         "MF-075"
       ],
       "notesRef": "features/MF-161.md"
+    },
+    {
+      "id": "MF-162",
+      "title": "Outline panel supports header filtering, highlight-current, and flat/collapsible display modes",
+      "category": "phase-2-functional",
+      "area": "@markflow/editor",
+      "priority": 2,
+      "status": "planned",
+      "passes": false,
+      "lastVerifiedAt": null,
+      "dependsOn": [
+        "MF-020",
+        "MF-051"
+      ],
+      "notesRef": "features/MF-162.md"
+    },
+    {
+      "id": "MF-163",
+      "title": "Clipboard copy options support semantic HTML and Typora-style default copy behavior preferences",
+      "category": "phase-2-functional",
+      "area": "@markflow/editor",
+      "priority": 2,
+      "status": "planned",
+      "passes": false,
+      "lastVerifiedAt": null,
+      "dependsOn": [
+        "MF-075",
+        "MF-108"
+      ],
+      "notesRef": "features/MF-163.md"
+    },
+    {
+      "id": "MF-164",
+      "title": "Export menu includes built-in HTML without styles output for clean unthemed markup",
+      "category": "phase-2-functional",
+      "area": "@markflow/desktop",
+      "priority": 3,
+      "status": "verified",
+      "passes": true,
+      "lastVerifiedAt": "2026-04-24T20:15:40+0800",
+      "dependsOn": [
+        "MF-015",
+        "MF-108"
+      ],
+      "notesRef": "features/MF-164.md"
     }
   ]
 }

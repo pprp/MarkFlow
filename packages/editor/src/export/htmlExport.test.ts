@@ -124,6 +124,42 @@ describe('html export serializer', () => {
     expect(html).toContain('@page {')
   })
 
+  it('serializes HTML without bundled MarkFlow styles while preserving metadata and structure', () => {
+    const style = document.createElement('style')
+    style.textContent = '.mf-link { color: var(--mf-link-color); }'
+    document.head.append(style)
+    document.documentElement.style.setProperty('--mf-link-color', 'rgb(99, 66, 33)')
+
+    const html = serializeRenderedDocumentForExport({
+      content: [
+        '---',
+        'title: Plain Export',
+        'author: Ada Lovelace',
+        'keywords: [unstyled, export]',
+        '---',
+        '# Intro',
+        '',
+        '## Setup',
+      ].join('\n'),
+      document,
+      headingNumberingEnabled: false,
+      includeStyles: false,
+      renderedRoot: makeRenderedRoot(),
+      title: 'Fallback.md',
+    })
+
+    expect(html).toContain('<title>Plain Export</title>')
+    expect(html).toContain('<meta name="author" content="Ada Lovelace">')
+    expect(html).toContain('<meta name="keywords" content="unstyled, export">')
+    expect(html).toContain('data-mf-heading-numbering="false"')
+    expect(html).toContain('id="intro"')
+    expect(html).toContain('id="setup"')
+    expect(html).not.toContain('<style>')
+    expect(html).not.toContain('.mf-link {color: var(--mf-link-color);}')
+    expect(html).not.toContain('--mf-link-color: rgb(99, 66, 33);')
+    expect(html).not.toContain('@page {')
+  })
+
   it('uses YAML front matter title, author, and keywords as HTML export metadata', () => {
     const html = serializeRenderedDocumentForExport({
       content: [

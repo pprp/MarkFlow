@@ -3884,6 +3884,68 @@ describe('App export integration', () => {
     expect(repeatedCallArgs[1]).toBe('/docs/exportme.html')
   })
 
+  it('exports HTML without styles through the dedicated menu action', async () => {
+    const api = new MockMarkFlowAPI()
+    window.markflow = api
+
+    render(<App />)
+
+    await act(async () => {
+      api.emitFileOpened({ filePath: '/docs/exportme.md', content: '# Hello\n\nSome text' })
+    })
+
+    await act(async () => {
+      api.emitMenuAction('export-html-without-styles' as MarkFlowMenuAction)
+    })
+
+    await waitFor(() => {
+      expect(api.exportHtml).toHaveBeenCalledTimes(1)
+    }, { timeout: 2000 })
+
+    const callArgs = (api.exportHtml as ReturnType<typeof vi.fn>).mock.calls[0]
+    expect(callArgs[0]).toContain('Hello')
+    expect(callArgs[0]).toContain('Some text')
+    expect(callArgs[0]).not.toContain('<style>')
+    expect(callArgs[1]).toBe('/docs/exportme.html')
+  })
+
+  it('replays the previous HTML-without-styles export mode for overwrite-with-previous', async () => {
+    const api = new MockMarkFlowAPI()
+    const directHtmlExport = api.exportHtmlToPath as ReturnType<typeof vi.fn>
+    window.markflow = api
+
+    render(<App />)
+
+    await act(async () => {
+      api.emitFileOpened({ filePath: '/docs/exportme.md', content: '# Hello\n\nSome text' })
+    })
+
+    await act(async () => {
+      api.emitMenuAction('export-html-without-styles' as MarkFlowMenuAction)
+    })
+
+    await waitFor(() => {
+      expect(api.exportHtml).toHaveBeenCalledTimes(1)
+    }, { timeout: 2000 })
+
+    await act(async () => {
+      api.emitFileSaved({ filePath: '/docs/renamed.md' })
+    })
+    await act(async () => {
+      api.emitMenuAction('export-overwrite-with-previous' as MarkFlowMenuAction)
+    })
+
+    await waitFor(() => {
+      expect(directHtmlExport).toHaveBeenCalledTimes(1)
+    }, { timeout: 2000 })
+
+    expect(api.exportHtml).toHaveBeenCalledTimes(1)
+    const repeatedCallArgs = directHtmlExport.mock.calls[0]
+    expect(repeatedCallArgs[0]).toContain('Hello')
+    expect(repeatedCallArgs[0]).not.toContain('<style>')
+    expect(repeatedCallArgs[1]).toBe('/docs/exportme.html')
+  })
+
   it('generates HTML from a hidden editor and calls exportHtml', async () => {
     const api = new MockMarkFlowAPI()
     window.markflow = api
@@ -3907,6 +3969,63 @@ describe('App export integration', () => {
     expect(callArgs[0]).toContain('Hello')
     expect(callArgs[0]).toContain('Some text')
     expect(callArgs[1]).toBe('/docs/exportme.html')
+  })
+
+  it('renders the hidden export editor as non-editable and ignores programmatic edits while export is in flight', async () => {
+    const api = new MockMarkFlowAPI()
+    const exportDeferred = createDeferred<string | null>()
+    api.exportHtml = vi.fn(async () => exportDeferred.promise)
+    window.markflow = api
+
+    const { container } = render(<App />)
+
+    await act(async () => {
+      api.emitFileOpened({ filePath: '/docs/exportme.md', content: '# Hello\n\nSome text' })
+    })
+
+    await act(async () => {
+      api.emitMenuAction('export-html')
+    })
+
+    const exportContainer = await waitFor(() => {
+      const element = document.getElementById('mf-export-container')
+      expect(element).not.toBeNull()
+      return element as HTMLElement
+    })
+
+    const mainEditorView = getEditorView(container)
+    const initialMainDoc = mainEditorView.state.doc.toString()
+    const exportEditorView = getEditorView(exportContainer)
+
+    await waitFor(() => {
+      expect(exportEditorView.state.facet(EditorView.editable)).toBe(false)
+    })
+    expect(container.querySelector('.mf-titlebar-dirty-dot')).not.toBeInTheDocument()
+
+    await act(async () => {
+      exportEditorView.dispatch({
+        changes: {
+          from: exportEditorView.state.doc.length,
+          insert: '\nexport-only mutation',
+        },
+      })
+    })
+
+    expect(exportEditorView.state.doc.toString()).toContain('export-only mutation')
+    expect(mainEditorView.state.doc.toString()).toBe(initialMainDoc)
+    expect(container.querySelector('.mf-titlebar-dirty-dot')).not.toBeInTheDocument()
+
+    await act(async () => {
+      exportDeferred.resolve('/docs/exportme.html')
+      await exportDeferred.promise
+    })
+
+    await waitFor(() => {
+      expect(api.exportHtml).toHaveBeenCalledTimes(1)
+      expect(document.getElementById('mf-export-container')).toBeNull()
+      expect(getEditorView(container).state.doc.toString()).toBe(initialMainDoc)
+      expect(container.querySelector('.mf-titlebar-dirty-dot')).not.toBeInTheDocument()
+    }, { timeout: 2000 })
   })
 
   it('includes heading numbering counters in HTML export when the preference is enabled', async () => {

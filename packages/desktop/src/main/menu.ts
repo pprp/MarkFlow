@@ -247,6 +247,7 @@ export function createApplicationMenuTemplate({
             },
             { type: 'separator' },
             { label: 'HTML…', click: () => sendMenuAction('export-html') },
+            { label: 'HTML (without styles)...', click: () => sendMenuAction('export-html-without-styles') },
             { label: 'PDF…', click: () => sendMenuAction('export-pdf') },
             { label: 'Word (DOCX)…', click: () => sendMenuAction('export-docx') },
             { label: 'EPUB…', click: () => sendMenuAction('export-epub') },

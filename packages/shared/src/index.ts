@@ -156,6 +156,7 @@ export type MarkFlowMenuAction =
   | 'clear-formatting'
   | MarkFlowCopyAction
   | 'export-html'
+  | 'export-html-without-styles'
   | 'export-pdf'
   | 'export-docx'
   | 'export-epub'

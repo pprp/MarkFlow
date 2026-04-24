@@ -232,6 +232,12 @@ describe('createApplicationMenuTemplate', () => {
       sendMenuAction,
     })
     const exportHtmlItem = getNestedMenuItem(template, 'File', 'Export', 'HTML…')
+    const exportHtmlWithoutStylesItem = getNestedMenuItem(
+      template,
+      'File',
+      'Export',
+      'HTML (without styles)...',
+    )
     const exportPdfItem = getNestedMenuItem(template, 'File', 'Export', 'PDF…')
     const exportWithPreviousItem = getNestedMenuItem(template, 'File', 'Export', 'Export with Previous')
     const exportOverwriteWithPreviousItem = getNestedMenuItem(
@@ -242,11 +248,13 @@ describe('createApplicationMenuTemplate', () => {
     )
 
     exportHtmlItem?.click?.({} as never, {} as never, {} as never)
+    exportHtmlWithoutStylesItem?.click?.({} as never, {} as never, {} as never)
     exportPdfItem?.click?.({} as never, {} as never, {} as never)
     exportWithPreviousItem?.click?.({} as never, {} as never, {} as never)
     exportOverwriteWithPreviousItem?.click?.({} as never, {} as never, {} as never)
 
     expect(sendMenuAction.mock.calls).toContainEqual(['export-html'])
+    expect(sendMenuAction.mock.calls).toContainEqual(['export-html-without-styles'])
     expect(sendMenuAction.mock.calls).toContainEqual(['export-pdf'])
     expect(sendMenuAction.mock.calls).toContainEqual(['export-with-previous'])
     expect(sendMenuAction.mock.calls).toContainEqual(['export-overwrite-with-previous'])
