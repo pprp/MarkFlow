@@ -6082,3 +6082,48 @@ next: MF-051 - Outline panel lists all headings with live scroll-sync and click-
 - Next recommended feature:
   - `MF-076` remains harness-next but Microsoft Word/manual-matrix gated.
   - If Word is still unavailable, prefer a terminal-verifiable slice from `MF-081`, `MF-138`, `MF-154`, `MF-157`, `MF-158`, or the new `MF-160`/`MF-161` backlog.
+
+### 2026-04-24T09:14:31+08:00 - MF-133 mac platform fallback verified
+
+- Author: Codex Dispatcher with Researcher/Implementer/Reviewer subagents.
+- Focus: strict one-feature automation cycle using the existing uncommitted `MF-133` slice to close the deprecated `navigator.platform` regression without broadening scope.
+- Startup / baseline:
+  - Read `/Users/pprp/.codex/automations/typora-replication/memory.md`.
+  - Ran `pnpm harness:start`; it reported `161` features and selected `MF-076` as harness-next.
+  - Ran `./harness/init.sh --smoke`; it passed with desktop `84` tests and editor `520` tests (`3` skipped).
+  - Baseline `git status --short` already contained the `MF-133` product-code slice in `packages/editor/src/App.tsx`, `packages/editor/src/platform.ts`, `packages/editor/src/__tests__/App.test.tsx`, and `packages/editor/src/__tests__/platform.test.ts`, plus ledger title refinements for `MF-087`, `MF-096`, and `MF-143`; this run adopted that narrow slice instead of starting unrelated feature work.
+- Research updates:
+  - Cross-checked official Typora support docs for diagrams, shortcuts/advanced config, and image export behavior.
+  - Kept the ledger title corrections already present in `harness/feature-ledger.json` because they match Typora's documented scope:
+    - `MF-087` now explicitly tracks flowchart, sequence, gantt, Venn, and Ishikawa parity alongside Mermaid.
+    - `MF-096` now explicitly tracks Typora-style platform shortcut remaps plus advanced JSON keybinding support.
+    - `MF-143` now explicitly tracks image export width, font size, quality, and theme options.
+- Implemented / verified feature work:
+  - Selected `MF-133` because the current worktree already contained a self-consistent fix and passing smoke made it the safest single-feature closure.
+  - Kept the product code unchanged: `App.tsx` uses `isMacPlatform()` from `platform.ts`, and focused tests cover empty-`navigator.platform` handling plus macOS outline-history shortcuts.
+  - Corrected `harness/features/MF-133.md` so the documented fallback order matches the actual helper behavior.
+  - Kept `MF-133` at `status=verified`, `passes=true`, and refreshed `lastVerifiedAt=2026-04-24T09:09:09+08:00`.
+- Changed files for this cycle:
+  - `harness/feature-ledger.json`
+  - `harness/features/MF-133.md`
+  - `packages/editor/src/App.tsx`
+  - `packages/editor/src/platform.ts`
+  - `packages/editor/src/__tests__/App.test.tsx`
+  - `packages/editor/src/__tests__/platform.test.ts`
+- Simplifications made:
+  - Reused a single `isMacPlatform()` helper instead of scattering new platform checks through the shortcut handler.
+  - Avoided code churn during this run; only harness metadata was adjusted after fresh verification.
+  - Did not start a second feature once `MF-133` was proven and accepted.
+- Verification:
+  - Implementer reran:
+    - `pnpm --filter @markflow/editor exec vitest run src/__tests__/platform.test.ts src/__tests__/App.test.tsx` (`83` tests passed).
+    - `pnpm --filter @markflow/editor exec eslint src/platform.ts src/__tests__/platform.test.ts src/__tests__/App.test.tsx src/App.tsx`.
+    - `pnpm harness:verify` (`161 total | verified=95 | ready=28 | planned=37 | blocked=1 | regression=0`).
+    - `git diff --check -- packages/editor/src/App.tsx packages/editor/src/platform.ts packages/editor/src/__tests__/platform.test.ts packages/editor/src/__tests__/App.test.tsx harness/features/MF-133.md harness/feature-ledger.json`.
+  - Dispatcher independently reran the same focused Vitest command, scoped ESLint, `pnpm harness:verify`, and scoped `git diff --check`; all passed.
+- Review:
+  - Reviewer accepted `MF-133` as narrow, truthful, and sufficiently covered by focused unit/integration evidence.
+  - Residual risk: no fresh live cross-browser manual pass was run for every mac-only shortcut under an empty `navigator.platform`, so the remaining risk is limited to shortcut breadth outside the tested history commands.
+- Next recommended feature:
+  - `MF-076` remains harness-next but is still blocked on the Microsoft Word/manual paste matrix.
+  - If Word remains unavailable, prefer an editor-scoped terminal-verifiable slice such as `MF-087`.

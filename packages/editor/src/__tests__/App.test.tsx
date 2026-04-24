@@ -141,6 +141,44 @@ function installTestLocalStorage(initialEntries: Record<string, string> = {}) {
   return storage as Storage
 }
 
+function installNavigatorShortcutTestEnvironment(overrides: {
+  platform?: string
+  userAgent?: string
+  userAgentData?: { platform?: string }
+}) {
+  const navigatorLike = window.navigator as Navigator & {
+    userAgentData?: { platform?: string }
+  }
+  const originalDescriptors = {
+    platform: Object.getOwnPropertyDescriptor(navigatorLike, 'platform'),
+    userAgent: Object.getOwnPropertyDescriptor(navigatorLike, 'userAgent'),
+    userAgentData: Object.getOwnPropertyDescriptor(navigatorLike, 'userAgentData'),
+  }
+
+  Object.defineProperty(navigatorLike, 'platform', {
+    configurable: true,
+    value: overrides.platform,
+  })
+  Object.defineProperty(navigatorLike, 'userAgent', {
+    configurable: true,
+    value: overrides.userAgent,
+  })
+  Object.defineProperty(navigatorLike, 'userAgentData', {
+    configurable: true,
+    value: overrides.userAgentData,
+  })
+
+  return () => {
+    for (const [key, descriptor] of Object.entries(originalDescriptors)) {
+      if (descriptor) {
+        Object.defineProperty(navigatorLike, key, descriptor)
+      } else {
+        delete (navigatorLike as Navigator & Record<string, unknown>)[key]
+      }
+    }
+  }
+}
+
 function buildWindowedPayload(
   filePath: string,
   windowStartLine: number,
@@ -2165,6 +2203,85 @@ describe('App desktop integration', () => {
       expect(forwardView.state.selection.main.head).toBe(content.indexOf('# Appendix') + 6)
       expect(forwardView.scrollDOM.scrollTop).toBe(360)
     })
+  })
+
+  it('uses the macOS outline-history shortcuts when navigator.platform is empty', async () => {
+    const restoreNavigator = installNavigatorShortcutTestEnvironment({
+      platform: '',
+      userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 14_6_1) AppleWebKit/605.1.15',
+      userAgentData: { platform: '' },
+    })
+
+    try {
+      const api = new MockMarkFlowAPI()
+      window.markflow = api
+
+      const content = ['# Intro', '', '## Setup', 'Alpha', '', '# Appendix', 'Omega'].join('\n')
+      const { container } = render(<App />)
+
+      await act(async () => {
+        api.emitFileOpened({ filePath: '/tmp/history-outline-mac.md', content })
+      })
+
+      const view = getEditorView(container)
+      Object.defineProperty(view.scrollDOM, 'scrollTop', {
+        value: 24,
+        writable: true,
+        configurable: true,
+      })
+
+      act(() => {
+        view.dispatch({
+          selection: { anchor: content.indexOf('# Intro') + 2 },
+        })
+      })
+
+      fireEvent.click(await screen.findByRole('button', { name: 'Setup' }))
+
+      await waitFor(() => {
+        expect(getEditorView(container).state.selection.main.head).toBe(content.indexOf('## Setup'))
+      })
+
+      act(() => {
+        const activeView = getEditorView(container)
+        activeView.scrollDOM.scrollTop = 180
+        activeView.dispatch({
+          selection: { anchor: content.indexOf('## Setup') + 4 },
+        })
+      })
+
+      fireEvent.click(screen.getByRole('button', { name: 'Appendix' }))
+
+      await waitFor(() => {
+        expect(getEditorView(container).state.selection.main.head).toBe(content.indexOf('# Appendix'))
+      })
+
+      act(() => {
+        const activeView = getEditorView(container)
+        activeView.scrollDOM.scrollTop = 360
+        activeView.dispatch({
+          selection: { anchor: content.indexOf('# Appendix') + 6 },
+        })
+      })
+
+      fireEvent.keyDown(document, { key: '[', metaKey: true })
+
+      await waitFor(() => {
+        const backView = getEditorView(container)
+        expect(backView.state.selection.main.head).toBe(content.indexOf('## Setup') + 4)
+        expect(backView.scrollDOM.scrollTop).toBe(180)
+      })
+
+      fireEvent.keyDown(document, { key: ']', metaKey: true })
+
+      await waitFor(() => {
+        const forwardView = getEditorView(container)
+        expect(forwardView.state.selection.main.head).toBe(content.indexOf('# Appendix') + 6)
+        expect(forwardView.scrollDOM.scrollTop).toBe(360)
+      })
+    } finally {
+      restoreNavigator()
+    }
   })
 
   it('opens a go-to-line dialog with Cmd/Ctrl+L and jumps to the requested line', async () => {

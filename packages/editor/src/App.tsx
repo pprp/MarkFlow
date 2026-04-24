@@ -105,6 +105,7 @@ import {
   loadLocalContentWidthPreference,
   persistLocalContentWidthPreference,
 } from './contentWidthPreferences'
+import { isMacPlatform } from './platform'
 
 const THEME_STYLE_ELEMENT_ID = 'mf-theme-overrides'
 const EDITOR_ROOT_SELECTOR = '.cm-editor'
@@ -1301,7 +1302,7 @@ export function App() {
         return
       }
 
-      const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0
+      const isMac = isMacPlatform()
       const lowerKey = e.key.toLowerCase()
       const isCommandPaletteKey = isMac
         ? e.metaKey && e.shiftKey && lowerKey === 'p'

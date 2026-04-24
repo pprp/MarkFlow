@@ -1142,7 +1142,7 @@
     },
     {
       "id": "MF-087",
-      "title": "Typora-supported flowchart, sequence, and Mermaid diagram fences render live previews",
+      "title": "Flowchart, sequence, gantt, Venn, and Ishikawa fences render alongside Mermaid",
       "category": "phase-2-functional",
       "area": "@markflow/editor",
       "priority": 3,
@@ -1269,7 +1269,7 @@
     },
     {
       "id": "MF-096",
-      "title": "Custom keybinding editor lets users remap any palette-registered command",
+      "title": "Custom keybinding editor mirrors Typora platform shortcuts and advanced JSON remaps",
       "category": "phase-2-functional",
       "area": "@markflow/desktop",
       "priority": 3,
@@ -1781,9 +1781,9 @@
       "category": "bug",
       "area": "@markflow/editor",
       "priority": 3,
-      "status": "ready",
-      "passes": false,
-      "lastVerifiedAt": null,
+      "status": "verified",
+      "passes": true,
+      "lastVerifiedAt": "2026-04-24T09:09:09+08:00",
       "dependsOn": [],
       "notesRef": "features/MF-133.md"
     },
@@ -1926,7 +1926,7 @@
     },
     {
       "id": "MF-143",
-      "title": "Export pipeline renders the active document to a Typora-style image",
+      "title": "Export pipeline renders Typora-style images with width, font size, quality, and theme options",
       "category": "phase-2-functional",
       "area": "@markflow/desktop",
       "priority": 3,
