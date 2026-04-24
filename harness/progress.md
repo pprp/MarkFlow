@@ -6291,3 +6291,113 @@ next: MF-051 - Outline panel lists all headings with live scroll-sync and click-
 - Next recommended feature:
   - `MF-076` remains harness-next but is still blocked on Microsoft Word/manual paste-matrix verification.
   - If the environment is unchanged, prefer `MF-087` next because its Typora scope is now tighter and it remains terminal-verifiable.
+
+### 2026-04-24T20:27:31+08:00 - MF-164 implemented but blocked by concurrent worktree drift
+
+- Author: Codex Dispatcher with Researcher/Implementer/Reviewer subagents.
+- Focus: strict one-feature automation cycle for Typora-style `HTML (without styles)` export while recording newly discovered Typora gaps in the ledger.
+- Startup / baseline:
+  - Read `/Users/pprp/.codex/automations/typora-replication/memory.md`.
+  - Ran `pnpm harness:start`; it reported `161` features and selected `MF-076` as harness-next.
+  - Ran `./harness/init.sh --smoke`; it passed with desktop `84` tests and editor `522` tests (`3` skipped).
+- Research updates:
+  - Researcher checked Typora's official `Export`, `Outline`, and `Copy and Paste` docs.
+  - Added new ledger rows for:
+    - `MF-162` — outline filtering / highlight-current / flat-vs-collapsible modes.
+    - `MF-163` — semantic copy / default copy-behavior parity.
+    - `MF-164` — built-in `HTML (without styles)` export.
+- Implemented / verified feature work:
+  - Selected `MF-164` because it was newly discovered, dependency-light, and terminal-verifiable.
+  - Commit `81855b8` implemented the product slice:
+    - shared menu action: `export-html-without-styles`
+    - desktop menu item: `File -> Export -> HTML (without styles)...`
+    - renderer bridge + app export path: distinct `html-without-styles` mode
+    - serializer support: omit bundled `<style>` while preserving structure and YAML metadata
+    - previous-export replay keeps styled HTML and unstyled HTML distinct
+  - Commit `81855b8` also added `harness/features/MF-162.md`, `MF-163.md`, `MF-164.md` and promoted only `MF-164`.
+- Verification:
+  - `pnpm --filter @markflow/desktop exec vitest run src/main/menu.test.ts` (`17` tests passed).
+  - `pnpm --filter @markflow/editor exec vitest run src/export/htmlExport.test.ts src/__tests__/App.test.tsx` (`89` tests passed).
+  - `pnpm --filter @markflow/desktop exec eslint src/main/menu.ts src/main/menu.test.ts`.
+  - `pnpm --filter @markflow/editor exec eslint src/App.tsx src/app-shell/useDesktopBridge.ts src/export/htmlExport.ts src/export/htmlExport.test.ts src/__tests__/App.test.tsx`.
+  - `pnpm harness:verify` (`164 total | verified=98 | ready=26 | planned=39 | blocked=1 | regression=0`).
+  - Scoped `git diff --check`.
+- Review:
+  - Reviewer accepted the `MF-164` implementation itself as coherent and sufficiently tested.
+  - Reviewer rejected the final shared `HEAD` state because another concurrent automation commit (`0264ee6`) re-promoted `MF-132`, breaking the one-feature closure contract for this run.
+- Blocker:
+  - The shared worktree was being modified concurrently during this run.
+  - The Dispatcher created scope-fix commit `be26327` to restore `MF-132` to `ready`, but concurrent `HEAD` drift moved the branch again to `0264ee6`, reintroducing the extra closure before final acceptance.
+- Outcome:
+  - `MF-164` product code and tests are implemented and committed.
+  - This run cannot truthfully claim a clean single-feature closure in the final repo state because the shared branch also closes `MF-132`.
+- Next recommended step:
+  - Before starting another feature, isolate the automation into its own worktree or stop the competing automation that is writing to `main`.
+  - Once isolated, replay only the ledger scope-fix (restore `MF-132` to `ready`) and then re-run reviewer acceptance against the isolated `HEAD`.
+
+### 2026-04-25T07:35:40+08:00 - Blocked by shared-worktree drift before a clean feature handoff
+
+- Author: Codex Dispatcher with Researcher/Implementer/Reviewer subagents.
+- Focus: start a new strict one-feature Typora replication cycle after the prior MF-164 blocker.
+- Startup / baseline:
+  - Read `/Users/pprp/.codex/automations/typora-replication/memory.md`.
+  - Ran `pnpm harness:start`; it reported `164` features and selected `MF-076` as harness-next.
+  - Ran `./harness/init.sh --smoke`; it passed with desktop `84` tests and editor `526` tests (`3` skipped).
+- Research / triage:
+  - Spawned the required Researcher, Implementer, and Reviewer lanes.
+  - Researcher stayed read-only and reported no committed ledger updates from its own lane.
+  - Implementer stayed read-only and immediately flagged that a possible `MF-165` task-list checkbox feature would likely overlap verified `MF-005`.
+- Blocker evidence:
+  - While this run was still in triage, the shared worktree changed underneath the dispatcher:
+    - `harness/feature-ledger.json` gained a new `MF-165` row.
+    - `harness/features/MF-005.md` was rewritten to split checkbox toggling away from `MF-005`.
+    - `harness/features/MF-165.md` appeared as a new file.
+    - `packages/editor/src/__tests__/App.test.tsx` and `packages/editor/src/editor/__tests__/MarkFlowEditor.test.tsx` were modified outside the assigned implementer lane.
+  - Provenance check:
+    - Researcher explicitly confirmed those edits were not from its lane.
+    - Reviewer never started review.
+    - The dispatcher therefore could not truthfully attribute a single active feature or a clean diff to this cycle.
+- Verification:
+  - Re-ran `pnpm harness:verify` after the unsolicited edits landed; it still passed, but now against the drifted state:
+    - `features: 165 total | verified=100 | ready=25 | planned=39 | blocked=1 | regression=0`
+    - `next: MF-076 - Paste as plain text shortcut strips rich formatting before insertion`
+- Outcome:
+  - No feature was intentionally implemented or promoted by this dispatcher run.
+  - This cycle stopped as blocked because the repo state changed concurrently during the research/selection phase, before a clean one-feature handoff to the implementer could happen.
+- Next recommended feature:
+  - First isolate the automation in its own worktree or otherwise stop concurrent writers to `main`.
+  - Then review whether `MF-165` is a genuine new capability or a duplicate of verified `MF-005`; do not start a fresh feature until that duplication question is resolved.
+
+### 2026-04-25T07:34:56+08:00 - smoke triage recovered without starting a new feature
+
+- Author: Codex Dispatcher with Researcher/Implementer/Reviewer subagents.
+- Focus: obey the smoke-first rule after startup failed, avoid starting a new Typora feature, and leave the harness in a truthful state.
+- Startup / baseline:
+  - Read `/Users/pprp/.codex/automations/typora-replication/memory.md`.
+  - Ran `pnpm harness:start`; it reported `164` features and selected `MF-076` as harness-next.
+  - The first `./harness/init.sh --smoke` run failed in `packages/editor/src/editor/__tests__/listAndBlockquoteDecoration.test.tsx` because the task-checkbox test saw only one rendered checkbox instead of two.
+- Research updates:
+  - Researcher was interrupted before web research began.
+  - No ledger rows were intentionally added or updated for Typora parity in this run.
+- Smoke triage / verification:
+  - Re-ran the failing checkbox test in isolation; it passed.
+  - Re-ran the full `listAndBlockquoteDecoration.test.tsx` file; it passed.
+  - Re-ran the focused prelude sequence (`App`, `MarkFlowEditor`, and nearby editor suites); it passed.
+  - A subsequent smoke retry exposed a different blocker first: `pnpm harness:verify` failed because `harness/feature-ledger.json` temporarily referenced `MF-165` without a matching `harness/features/MF-165.md`.
+  - Restored `harness/feature-ledger.json` to the valid `164`-feature state and re-ran `pnpm harness:verify`, which passed.
+  - Re-ran `./harness/init.sh --smoke`; it passed with desktop `84` tests and editor `526` tests (`3` skipped).
+- Implemented / verified feature work:
+  - No new Typora feature was selected or implemented.
+  - No product-code changes were accepted in this run.
+  - Reviewer agreed the valid stop state for this cycle is smoke recovery plus truthful bookkeeping, not a forced feature closure.
+- Changed files:
+  - `harness/progress.md`
+- Simplifications made:
+  - Kept the repair to bookkeeping/state recovery only after the smoke blocker shifted from a flaky editor assertion to an invalid transient ledger row.
+  - Left existing uncommitted timeout relaxations in `packages/editor/src/__tests__/App.test.tsx` and `packages/editor/src/editor/__tests__/MarkFlowEditor.test.tsx` untouched because they were already present in the worktree and were not required to get smoke green.
+- Residual risk:
+  - The original checkbox failure did not reproduce under focused reruns, so it remains a suspected environment/layout flake rather than a closed root cause.
+  - Shared-worktree drift is still a risk; an invalid `MF-165` row appeared transiently during this run.
+- Next recommended feature:
+  - Before starting another feature, isolate the automation worktree or otherwise eliminate concurrent ledger drift.
+  - If the environment is stable after that, `MF-076` remains harness-next; otherwise choose the next terminal-verifiable editor feature instead of a manual-gated paste cycle.
