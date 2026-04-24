@@ -1,3 +1,49 @@
+### 2026-04-24T09:21:58+08:00 - MF-133 mac shortcut detection verified
+
+- Author: Codex Dispatcher with Researcher/Implementer/Reviewer subagents
+- Focus: strict one-feature automation cycle for Typora-aligned macOS shortcut detection, while keeping startup smoke truthful.
+- Startup / baseline:
+  - Read `/Users/pprp/.codex/automations/typora-replication/memory.md`.
+  - Ran `pnpm harness:start`; it reported `161` features and selected `MF-076` as harness-next.
+  - Initial `./harness/init.sh --smoke` failed once because `packages/editor/src/editor/__tests__/MarkFlowEditor.test.tsx` hit a one-off 900s split-preview budget miss.
+  - Prioritized smoke triage before any feature work: the failing split-preview test passed in isolation, passed alongside `App.test.tsx`, full editor rerun passed (`46` files, `519` tests, `3` skipped), and repeated `./harness/init.sh --smoke` passed without code changes to the split-preview path.
+  - Baseline `git status --short` already contained inherited `MF-133` work in `packages/editor/src/App.tsx`, `packages/editor/src/platform.ts`, `packages/editor/src/__tests__/platform.test.ts`, `harness/features/MF-133.md`, and the `MF-133` row inside `harness/feature-ledger.json`; this run adopted that slice as the single feature closure.
+- Research updates:
+  - Researcher used Typora’s official diagram docs and Typora 1.13 release notes.
+  - Refined existing `MF-087` in `harness/feature-ledger.json` so the title explicitly tracks flowchart, sequence, gantt, Venn, and Ishikawa coverage alongside Mermaid.
+  - Preserved existing uncommitted title refinements for `MF-096` and `MF-143`; no new feature entries were added.
+- Implemented / verified feature work:
+  - Selected `MF-133` because it was already partially implemented in the working tree and could be closed in one bounded run after smoke recovered.
+  - Verified the already-landed `packages/editor/src/App.tsx` / `packages/editor/src/platform.ts` macOS detection slice instead of widening scope to a second feature.
+  - Confirmed the existing `packages/editor/src/__tests__/platform.test.ts` coverage now proves `userAgentData` precedence, empty-platform macOS fallback, Windows staying on Ctrl shortcuts, and rejecting mobile user agents when platform fields are empty.
+  - Confirmed the existing `packages/editor/src/__tests__/App.test.tsx` regression proves `Meta+[` and `Meta+]` outline-history navigation still works when `navigator.platform` is empty but the browser identifies macOS through the user agent.
+  - Reviewer initially rejected the first cut because the fallback order could misclassify mobile user agents and the note/ledger verification timestamps did not match; Dispatcher fixed both issues locally and reran the scoped verification.
+  - `MF-133` remains `status=verified`, `passes=true`, with `lastVerifiedAt=2026-04-24T09:21:58+08:00`.
+- Changed files for this cycle:
+  - `harness/feature-ledger.json`
+  - `harness/features/MF-133.md`
+  - `harness/progress.md`
+- Simplifications made:
+  - Reused the existing outline-history test shape instead of introducing a new shortcut harness.
+  - Kept the platform helper narrow: `userAgentData.platform` first, populated legacy `navigator.platform` second, desktop-only user-agent fallback last.
+  - Did not modify the split-preview performance test because the startup smoke failure did not reproduce under focused or repeated full-suite verification.
+- Verification:
+  - Researcher ran `jq empty harness/feature-ledger.json`, `pnpm harness:verify`, and `git diff --check -- harness/feature-ledger.json`.
+  - Dispatcher focused checks passed:
+    - `pnpm --filter @markflow/editor exec vitest run src/__tests__/platform.test.ts src/__tests__/App.test.tsx` (`83` tests passed after the mobile-UA regression was added).
+    - `pnpm --filter @markflow/editor exec eslint src/platform.ts src/__tests__/platform.test.ts src/__tests__/App.test.tsx src/App.tsx`.
+    - `pnpm harness:verify` (`161 total | verified=95 | ready=28 | planned=37 | blocked=1 | regression=0`).
+    - `git diff --check -- packages/editor/src/App.tsx packages/editor/src/platform.ts packages/editor/src/__tests__/platform.test.ts packages/editor/src/__tests__/App.test.tsx harness/features/MF-133.md harness/feature-ledger.json`.
+  - Final `./harness/init.sh --smoke` passed with:
+    - `packages/desktop`: `10` files / `84` tests passed.
+    - `packages/editor`: `46` files / `521` tests passed / `3` skipped.
+- Review:
+  - Reviewer first requested changes for mobile-user-agent misclassification risk and mismatched verification timestamps.
+  - Reviewer re-check accepted the repaired `MF-133` diff; residual risk is limited to manual cross-browser coverage for the broader set of mac-only shortcuts beyond the covered outline-history path.
+- Next recommended feature:
+  - `MF-076` remains harness-next but still requires the Microsoft Word/manual paste matrix before promotion.
+  - If Word is still unavailable, pick the next terminal-verifiable ready feature rather than starting another manual-gated closure.
+
 ### 2026-04-23T21:14:39+08:00 - MF-077 clear-formatting verification closed
 
 - Author: Codex Dispatcher with Researcher/Implementer/Reviewer subagents

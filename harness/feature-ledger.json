@@ -1783,7 +1783,7 @@
       "priority": 3,
       "status": "verified",
       "passes": true,
-      "lastVerifiedAt": "2026-04-24T09:09:09+08:00",
+      "lastVerifiedAt": "2026-04-24T09:21:58+08:00",
       "dependsOn": [],
       "notesRef": "features/MF-133.md"
     },
