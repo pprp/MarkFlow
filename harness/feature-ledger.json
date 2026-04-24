@@ -1142,7 +1142,7 @@
     },
     {
       "id": "MF-087",
-      "title": "Flowchart, sequence, gantt, Venn, and Ishikawa fences render alongside Mermaid",
+      "title": "Flowchart, sequence, and Mermaid diagram fences render as live previews",
       "category": "phase-2-functional",
       "area": "@markflow/editor",
       "priority": 3,
@@ -1255,13 +1255,13 @@
     },
     {
       "id": "MF-095",
-      "title": "Document statistics panel surfaces words, characters, reading time, and per-selection counts",
+      "title": "Document statistics panel surfaces words, lines, characters, reading time, and per-selection counts",
       "category": "phase-2-functional",
       "area": "@markflow/editor",
       "priority": 3,
-      "status": "ready",
-      "passes": false,
-      "lastVerifiedAt": null,
+      "status": "verified",
+      "passes": true,
+      "lastVerifiedAt": "2026-04-24T10:40:16+08:00",
       "dependsOn": [
         "MF-027"
       ],

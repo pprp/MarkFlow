@@ -6173,3 +6173,48 @@ next: MF-051 - Outline panel lists all headings with live scroll-sync and click-
 - Next recommended feature:
   - `MF-076` remains harness-next but is still blocked on the Microsoft Word/manual paste matrix.
   - If Word remains unavailable, prefer an editor-scoped terminal-verifiable slice such as `MF-087`.
+
+### 2026-04-24T10:58:25+08:00 - MF-095 statistics panel verified
+
+- Author: Codex Dispatcher with Researcher/Implementer/Reviewer subagents.
+- Focus: strict one-feature automation cycle for Typora-aligned document statistics, keeping the run to a single editor-scoped closure.
+- Startup / baseline:
+  - Read `/Users/pprp/.codex/automations/typora-replication/memory.md`.
+  - Ran `pnpm harness:start`; it reported `161` features and selected `MF-076` as harness-next.
+  - Ran `./harness/init.sh --smoke`; it passed with desktop `84` tests and editor `521` tests (`3` skipped).
+  - Baseline `git status --short` was clean before research started.
+- Research updates:
+  - Researcher checked Typora’s official diagram and word-count docs.
+  - Refined `harness/feature-ledger.json` titles only:
+    - `MF-087` now tracks `flow`, `sequence`, and general Mermaid live-preview support instead of over-specifying every Mermaid subtype.
+    - `MF-095` now truthfully includes `lines`, matching Typora’s documented statistics surface.
+  - No new feature rows were added.
+- Implemented / verified feature work:
+  - Selected `MF-095` because the title correction exposed a real UI gap that fit in one bounded run.
+  - Updated `packages/editor/src/app-shell/AppStatusBar.tsx` so the statistics popover now renders a `Lines` row for both the document and the active selection.
+  - Expanded `packages/editor/src/__tests__/App.test.tsx` to cover the document-side `Lines` and `Characters (no spaces)` rows, selection-side `Characters` and `Reading time`, and the selection-plus-exclude-code path where character/reading-time counts change while lines stay raw-text based.
+  - Updated `harness/features/MF-095.md` and promoted the `MF-095` row in `harness/feature-ledger.json` to `status=verified`, `passes=true`, `lastVerifiedAt=2026-04-24T10:40:16+08:00`.
+- Changed files:
+  - `harness/feature-ledger.json`
+  - `harness/features/MF-095.md`
+  - `packages/editor/src/__tests__/App.test.tsx`
+  - `packages/editor/src/app-shell/AppStatusBar.tsx`
+- Simplifications made:
+  - Kept the product change to a single new statistics row instead of expanding the statistics architecture.
+  - Addressed the reviewer rejection with test-only follow-up rather than broadening product code.
+  - Left `MF-087` as metadata-only research collateral; no second feature implementation started.
+- Verification:
+  - Researcher ran `jq empty harness/feature-ledger.json` and `node ./scripts/harness/verify.mjs`.
+  - Implementer ran red-green loops for the missing panel assertions, then passed:
+    - `pnpm --filter @markflow/editor exec vitest run src/editor/__tests__/wordCount.test.ts src/__tests__/App.test.tsx` (`111` tests passed).
+    - `pnpm --filter @markflow/editor exec eslint src/app-shell/AppStatusBar.tsx src/editor/__tests__/wordCount.test.ts src/__tests__/App.test.tsx`.
+    - `pnpm harness:verify` (`161 total | verified=96 | ready=27 | planned=37 | blocked=1 | regression=0`).
+    - Scoped `git diff --check`.
+  - Reviewer rejected the first promotion because the note/ledger claims outran the asserted panel behaviors, then accepted after the coverage expansion.
+  - Dispatcher independently reran the same focused Vitest command, scoped ESLint, `pnpm harness:verify`, scoped `git diff --check`, and final `./harness/init.sh --smoke`, which passed with desktop `84` tests and editor `522` tests (`3` skipped).
+- Review:
+  - Final Reviewer verdict: accepted with no findings.
+  - Residual risk: no fresh live Typora parity spot-check was run, and an attempted local browser sanity check was blocked because the sandbox would not allow Vite to bind to localhost.
+- Next recommended feature:
+  - `MF-076` remains harness-next but is still blocked on Microsoft Word/manual paste-matrix verification.
+  - If the environment is unchanged, prefer `MF-087` next because its Typora scope is now tighter and it remains terminal-verifiable.

@@ -1993,7 +1993,9 @@ describe('App desktop integration', () => {
       name: 'Exclude fenced code blocks from counts',
     })
     const wordsRow = getStatisticsRow(panel, 'Words')
+    const linesRow = getStatisticsRow(panel, 'Lines')
     const charactersRow = getStatisticsRow(panel, 'Characters')
+    const charactersNoSpacesRow = getStatisticsRow(panel, 'Characters (no spaces)')
     const readingTimeRow = getStatisticsRow(panel, 'Reading time')
 
     expect(summaryButton).toHaveTextContent(`${excludedStats.words.toLocaleString()} words`)
@@ -2002,8 +2004,14 @@ describe('App desktop integration', () => {
     expect(within(wordsRow).getAllByRole('cell').map((cell) => cell.textContent?.trim())).toEqual([
       excludedStats.words.toLocaleString(),
     ])
+    expect(within(linesRow).getAllByRole('cell').map((cell) => cell.textContent?.trim())).toEqual([
+      excludedStats.lines.toLocaleString(),
+    ])
     expect(within(charactersRow).getAllByRole('cell').map((cell) => cell.textContent?.trim())).toEqual([
       excludedStats.chars.toLocaleString(),
+    ])
+    expect(within(charactersNoSpacesRow).getAllByRole('cell').map((cell) => cell.textContent?.trim())).toEqual([
+      excludedStats.charsNoSpaces.toLocaleString(),
     ])
     expect(within(readingTimeRow).getAllByRole('cell').map((cell) => cell.textContent?.trim())).toEqual([
       `${excludedStats.readingMinutes} min`,
@@ -2017,8 +2025,14 @@ describe('App desktop integration', () => {
       expect(within(wordsRow).getAllByRole('cell').map((cell) => cell.textContent?.trim())).toEqual([
         includedStats.words.toLocaleString(),
       ])
+      expect(within(linesRow).getAllByRole('cell').map((cell) => cell.textContent?.trim())).toEqual([
+        includedStats.lines.toLocaleString(),
+      ])
       expect(within(charactersRow).getAllByRole('cell').map((cell) => cell.textContent?.trim())).toEqual([
         includedStats.chars.toLocaleString(),
+      ])
+      expect(within(charactersNoSpacesRow).getAllByRole('cell').map((cell) => cell.textContent?.trim())).toEqual([
+        includedStats.charsNoSpaces.toLocaleString(),
       ])
     })
   })
@@ -2058,17 +2072,103 @@ describe('App desktop integration', () => {
 
     const panel = await screen.findByRole('dialog', { name: 'Document statistics' })
     const wordsRow = getStatisticsRow(panel, 'Words')
+    const linesRow = getStatisticsRow(panel, 'Lines')
+    const charactersRow = getStatisticsRow(panel, 'Characters')
     const paragraphsRow = getStatisticsRow(panel, 'Paragraphs')
+    const readingTimeRow = getStatisticsRow(panel, 'Reading time')
+    const expectedSelectionLines = selectionText.split('\n').length
 
     expect(within(panel).getByRole('columnheader', { name: 'Selection' })).toBeInTheDocument()
     expect(within(wordsRow).getAllByRole('cell').map((cell) => cell.textContent?.trim())).toEqual([
       expectedStats.words.toLocaleString(),
       expectedStats.selectionWords.toLocaleString(),
     ])
+    expect(within(linesRow).getAllByRole('cell').map((cell) => cell.textContent?.trim())).toEqual([
+      expectedStats.lines.toLocaleString(),
+      expectedSelectionLines.toLocaleString(),
+    ])
+    expect(within(charactersRow).getAllByRole('cell').map((cell) => cell.textContent?.trim())).toEqual([
+      expectedStats.chars.toLocaleString(),
+      expectedStats.selectionChars.toLocaleString(),
+    ])
     expect(within(paragraphsRow).getAllByRole('cell').map((cell) => cell.textContent?.trim())).toEqual([
       expectedStats.paragraphs.toLocaleString(),
       expectedStats.selectionParagraphs.toLocaleString(),
     ])
+    expect(within(readingTimeRow).getAllByRole('cell').map((cell) => cell.textContent?.trim())).toEqual([
+      `${expectedStats.readingMinutes} min`,
+      `${expectedStats.selectionReadingMinutes} min`,
+    ])
+  })
+
+  it('updates selection statistics when fenced-code exclusion is toggled', async () => {
+    const api = new MockMarkFlowAPI()
+    window.markflow = api
+
+    const codeWords = Array(205).fill('token').join(' ')
+    const selectionText = ['Alpha beta', '', '```ts', codeWords, '```', '', 'Gamma delta'].join('\n')
+    const content = ['# Intro', '', selectionText, '', 'Tail text'].join('\n')
+    const excludedStats = computeStats(content, selectionText, { excludeFencedCode: true })
+    const includedStats = computeStats(content, selectionText, { excludeFencedCode: false })
+    const { container } = render(<App />)
+
+    await act(async () => {
+      api.emitFileOpened({ filePath: '/tmp/selection-fenced-stats.md', content })
+    })
+
+    const view = getEditorView(container)
+    const selectionStart = content.indexOf(selectionText)
+    const selectionEnd = selectionStart + selectionText.length
+
+    act(() => {
+      view.dispatch({
+        selection: { anchor: selectionStart, head: selectionEnd },
+      })
+    })
+
+    const summaryButton = await screen.findByRole('button', { name: /document statistics/i })
+    fireEvent.click(summaryButton)
+
+    const panel = await screen.findByRole('dialog', { name: 'Document statistics' })
+    const exclusionToggle = within(panel).getByRole('checkbox', {
+      name: 'Exclude fenced code blocks from counts',
+    })
+    const linesRow = getStatisticsRow(panel, 'Lines')
+    const charactersRow = getStatisticsRow(panel, 'Characters')
+    const readingTimeRow = getStatisticsRow(panel, 'Reading time')
+    const expectedSelectionLines = selectionText.split('\n').length
+
+    expect(within(panel).getByRole('columnheader', { name: 'Selection' })).toBeInTheDocument()
+    expect(within(linesRow).getAllByRole('cell').map((cell) => cell.textContent?.trim())).toEqual([
+      excludedStats.lines.toLocaleString(),
+      expectedSelectionLines.toLocaleString(),
+    ])
+    expect(within(charactersRow).getAllByRole('cell').map((cell) => cell.textContent?.trim())).toEqual([
+      excludedStats.chars.toLocaleString(),
+      excludedStats.selectionChars.toLocaleString(),
+    ])
+    expect(within(readingTimeRow).getAllByRole('cell').map((cell) => cell.textContent?.trim())).toEqual([
+      `${excludedStats.readingMinutes} min`,
+      `${excludedStats.selectionReadingMinutes} min`,
+    ])
+
+    fireEvent.click(exclusionToggle)
+
+    await waitFor(() => {
+      expect(loadLocalStatisticsPreferences().excludeFencedCode).toBe(false)
+      expect(within(linesRow).getAllByRole('cell').map((cell) => cell.textContent?.trim())).toEqual([
+        includedStats.lines.toLocaleString(),
+        expectedSelectionLines.toLocaleString(),
+      ])
+      expect(within(charactersRow).getAllByRole('cell').map((cell) => cell.textContent?.trim())).toEqual([
+        includedStats.chars.toLocaleString(),
+        includedStats.selectionChars.toLocaleString(),
+      ])
+      expect(within(readingTimeRow).getAllByRole('cell').map((cell) => cell.textContent?.trim())).toEqual([
+        `${includedStats.readingMinutes} min`,
+        `${includedStats.selectionReadingMinutes} min`,
+      ])
+    })
   })
 
   it('shows an outline that mirrors heading hierarchy and navigates to the active heading', async () => {

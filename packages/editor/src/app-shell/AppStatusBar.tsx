@@ -94,11 +94,17 @@ export function AppStatusBar({
     [deferredContent, deferredSelectionText, statisticsPreferences.excludeFencedCode],
   )
   const hasSelectionStats = deferredSelectionText.length > 0
+  const selectionLineCount = hasSelectionStats ? deferredSelectionText.split('\n').length : 0
   const statisticsRows = [
     {
       label: 'Words',
       documentValue: docStats.words.toLocaleString(),
       selectionValue: docStats.selectionWords.toLocaleString(),
+    },
+    {
+      label: 'Lines',
+      documentValue: docStats.lines.toLocaleString(),
+      selectionValue: selectionLineCount.toLocaleString(),
     },
     {
       label: 'Characters',
