@@ -1,3 +1,36 @@
+### 2026-04-24T20:22:51+0800 - MF-132 hidden export editor verified
+
+- Author: Codex Dispatcher with Researcher/Implementer/Reviewer subagents
+- Focus: keep the cycle to one existing Typora-gap feature and close the hidden export-editor editability bug without widening scope.
+- Research updates:
+  - No new ledger rows were accepted by this dispatcher pass.
+  - Research stayed narrowed to the already-tracked `MF-132` export-isolation gap after the smoke blocker reproduced inside `App` export coverage.
+- Implemented / verified feature work:
+  - Accepted the existing export-related worktree slice for `MF-132` and completed the missing product hook by rendering the hidden export `MarkFlowEditor` with `editable={false}`.
+  - Kept the acceptance criteria narrow: the export-only editor must stay non-editable, programmatic edits to that hidden editor must not dirty the active tab, and normal HTML export must still complete.
+  - Promoted `MF-132` to `status=verified`, `passes=true`, and `lastVerifiedAt=2026-04-24T20:22:51+0800`.
+- Changed files for this cycle:
+  - `packages/editor/src/App.tsx`
+  - `packages/editor/src/__tests__/App.test.tsx`
+  - `harness/feature-ledger.json`
+  - `harness/features/MF-132.md`
+  - `harness/progress.md`
+- Simplifications made:
+  - Fixed the product behavior with a single `editable={false}` prop instead of adding export-specific dirty-state bookkeeping.
+  - Reused the existing export integration harness instead of introducing a separate test scaffold.
+- Verification:
+  - `pnpm --filter @markflow/editor exec vitest run src/__tests__/App.test.tsx` passed on the final current tree (`83` tests).
+  - `pnpm --filter @markflow/editor exec vitest run src/export/htmlExport.test.ts` passed (`6` tests).
+  - `pnpm --filter @markflow/editor exec eslint src/App.tsx src/__tests__/App.test.tsx` passed.
+  - `pnpm harness:verify` passed on the final current tree (`164 total | verified=98 | ready=26 | planned=39 | blocked=1 | regression=0`).
+  - `./harness/init.sh --smoke` passed with desktop `84` tests and editor `526` passed / `3` skipped.
+- Review:
+  - Reviewer was asked to confirm the closure and specifically check for unrelated ledger/progress drift.
+  - Residual risk: a concurrent shared-worktree commit landed separate HTML export work (`MF-164`) during this run, so this entry only documents the `MF-132` closure and not that parallel feature line.
+- Next recommended feature:
+  - `MF-076` remains harness-next but still needs the Microsoft Word/manual paste matrix before promotion.
+  - If Word is still unavailable next run, prefer another terminal-verifiable editor feature instead of spending another cycle on a manual-gated paste closure.
+
 ### 2026-04-24T20:10:57+08:00 - MF-087 advanced diagram parity verified
 
 - Author: Codex Dispatcher with Researcher/Implementer/Reviewer subagents
