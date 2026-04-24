@@ -6401,3 +6401,30 @@ next: MF-051 - Outline panel lists all headings with live scroll-sync and click-
 - Next recommended feature:
   - Before starting another feature, isolate the automation worktree or otherwise eliminate concurrent ledger drift.
   - If the environment is stable after that, `MF-076` remains harness-next; otherwise choose the next terminal-verifiable editor feature instead of a manual-gated paste cycle.
+
+### 2026-04-25T07:40:17+08:00 - MF-165 review attempt blocked by concurrent branch churn
+
+- Author: Codex Dispatcher with Researcher/Implementer/Reviewer subagents.
+- Focus: continue the strict one-feature Typora-replication cycle after clean startup, using the newly discovered task-list checkbox parity candidate only if it survived review as a truthful single-feature closure.
+- Startup / baseline:
+  - Read `/Users/pprp/.codex/automations/typora-replication/memory.md`.
+  - Ran `pnpm harness:start`; it reported `164` features and selected `MF-076` as harness-next.
+  - Ran `./harness/init.sh --smoke`; it passed with desktop `84` tests and editor `526` tests (`3` skipped).
+- Research / selection:
+  - Researcher used Typora's `Markdown Reference` and `Task List` docs and proposed a new `MF-165` for interactive task-list checkbox toggling, with `MF-005` narrowed to ordered/unordered lists plus blockquotes.
+  - Implementer triage agreed `MF-165` was the highest-priority dependency-light candidate once the research delta appeared, so the dispatcher chose it over older manual-gated ready items.
+- Investigation / verification:
+  - Implementer confirmed the underlying behavior already exists in `packages/editor/src/editor/decorations/listDecoration.ts` and is covered by `packages/editor/src/editor/__tests__/listAndBlockquoteDecoration.test.tsx`.
+  - Local reruns during this dispatcher pass both succeeded:
+    - `pnpm --filter @markflow/editor exec vitest run src/editor/__tests__/listAndBlockquoteDecoration.test.tsx` (`16` tests passed)
+    - `pnpm harness:verify`
+- Blocker:
+  - Before the reviewer could accept the closure, the shared branch changed again underneath the dispatcher.
+  - The transient `MF-165` ledger row and `harness/features/MF-165.md` note that had been present during implementation/review preparation no longer existed in the final repo state, and `git log` advanced to external commit `d901445` while this run was still active.
+  - Reviewer therefore rejected `MF-165` as a truthful closure in the final branch state: the artifact set did not survive to review, and the split between `MF-005` and `MF-165` remained unresolved on the surviving tree.
+- Outcome:
+  - No Typora feature was completed or promoted by this dispatcher run.
+  - Final repo truth remains the restored `164`-feature harness state, with `pnpm harness:verify` passing and unrelated dirty editor test files still present.
+- Next recommended feature:
+  - First isolate the automation in its own worktree or stop concurrent writers to `main`.
+  - Only after isolation, decide whether interactive task-list toggling belongs in a distinct `MF-165` or should remain inside verified `MF-005`; do not start another feature before that duplication question is resolved.
