@@ -7,7 +7,7 @@ import { EditorView } from '@codemirror/view'
 import * as React from 'react'
 import { act } from 'react'
 import * as path from 'path'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { App, RECOVERY_CHECKPOINT_SYNC_DELAY_MS } from '../App'
 import { headingFoldExtension } from '../editor/extensions/headingFold'
 import {
@@ -3554,6 +3554,9 @@ describe('App command palette integration', () => {
     fireEvent.keyDown(document, { key: 'f', ctrlKey: true, shiftKey: true })
 
     const searchInput = await screen.findByRole('textbox', { name: 'Search query' })
+    await waitFor(() => {
+      expect(searchInput).toBeEnabled()
+    })
     fireEvent.click(screen.getByRole('button', { name: 'Match case' }))
     fireEvent.click(screen.getByRole('button', { name: 'Whole word' }))
     fireEvent.click(screen.getByRole('button', { name: 'Regular expression' }))
@@ -3710,7 +3713,13 @@ describe('App command palette integration', () => {
 
 
 describe('App export integration', () => {
+  beforeEach(() => {
+    vi.useRealTimers()
+  })
+
   afterEach(() => {
+    vi.useRealTimers()
+    vi.restoreAllMocks()
     delete window.markflow
   })
 

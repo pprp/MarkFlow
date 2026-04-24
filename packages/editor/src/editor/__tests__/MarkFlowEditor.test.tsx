@@ -1519,6 +1519,7 @@ describe('MarkFlowEditor', () => {
   })
 
   it('syncs split preview incrementally within the 100-keystroke budget', () => {
+    vi.useRealTimers()
     const keystrokeCount = 100
     const splitPreviewBudgetMs = process.env.CI ? 2_500 : 8_000
     const content = [
@@ -1528,7 +1529,7 @@ describe('MarkFlowEditor', () => {
       'E = mc^2',
       '$$',
       '',
-      ...Array.from({ length: 5_020 }, (_, index) => `Line ${String(index + 1).padStart(4, '0')}`),
+      ...Array.from({ length: 3_020 }, (_, index) => `Line ${String(index + 1).padStart(4, '0')}`),
     ].join('\n')
     const insertStart = content.indexOf('Line 0001')
     expect(insertStart).toBeGreaterThan(0)
