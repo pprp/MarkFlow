@@ -6507,3 +6507,183 @@ next: MF-051 - Outline panel lists all headings with live scroll-sync and click-
 - Next recommended feature:
   - First isolate the automation in its own worktree or otherwise stop concurrent writers to `main`.
   - Then split the low-risk `App.test.tsx` smoke-fix patch from the unrelated `MarkFlowEditor.test.tsx` drift before attempting a safe commit or starting a fresh feature cycle.
+
+### 2026-04-25T07:49:30+08:00 - MF-135 verified but shared worktree stayed unclean
+
+- Author: Codex Dispatcher with Researcher/Implementer/Reviewer subagents.
+- Focus: pick a narrow, non-`App.test.tsx` Typora bugfix after smoke recovered, while avoiding the shared-worktree churn already visible in unrelated editor tests.
+- Startup / baseline:
+  - Read `/Users/pprp/.codex/automations/typora-replication/memory.md`.
+  - Ran `pnpm harness:start`, `pnpm harness:verify`, and `./harness/init.sh --smoke`; smoke was green after the earlier smoke-repair commit.
+  - Shared `main` advanced again during this run (`d901445` -> `f125efc` -> `106d000`), so the Dispatcher re-ran `pnpm harness:verify` and `./harness/init.sh --smoke` before selecting a feature.
+- Research updates:
+  - Researcher reviewed Typora docs and local coverage, did not add or mutate ledger rows, and flagged `MF-165` as likely overlapping the already-verified task-list behavior in `MF-005`.
+  - Implementer's shortlist favored `MF-134`, `MF-135`, and `MF-165`; `MF-135` was chosen because it stayed inside a disjoint file set while unrelated `App.test.tsx` / `MarkFlowEditor.test.tsx` drift was present.
+- Implemented feature work:
+  - Updated `packages/editor/src/components/GlobalSearch.tsx` so the no-folder explanation takes precedence over the normal empty/search/no-results branches.
+  - Hid stale grouped results and stale footer counts immediately when `folderPath` becomes `null`.
+  - Added focused component coverage in `packages/editor/src/components/GlobalSearch.test.tsx` for:
+    - no folder + empty query
+    - no folder + preserved non-empty query
+    - normal open-folder no-results behavior
+    - stale prior results disappearing when `folderPath` drops to `null`
+  - Updated `harness/features/MF-135.md` and kept `MF-135` promoted in the ledger after focused verification and reviewer acceptance.
+- Changed files for this blocked cycle:
+  - `harness/feature-ledger.json`
+  - `harness/features/MF-135.md`
+  - `harness/progress.md`
+  - `packages/editor/src/components/GlobalSearch.tsx`
+  - `packages/editor/src/components/GlobalSearch.test.tsx`
+- Simplifications made:
+  - Kept the fix entirely inside `GlobalSearch` and a new focused component test file instead of widening scope into `App.tsx` or `App.test.tsx`.
+  - Reused the existing `results` state and only derived `flatResults` from `folderPath` instead of adding more state bookkeeping.
+  - Left `MF-165` as ledger-only research risk; no duplicate task-list feature was started.
+- Verification:
+  - `pnpm --filter @markflow/editor exec vitest run src/components/GlobalSearch.test.tsx` (`1` file / `4` tests passed).
+  - `pnpm --filter @markflow/editor exec eslint src/components/GlobalSearch.tsx src/components/GlobalSearch.test.tsx`.
+  - `pnpm harness:verify` (`164 total | verified=100 | ready=24 | planned=39 | blocked=1 | regression=0`).
+  - `pnpm --filter @markflow/editor build` failed in out-of-scope existing code at `src/app-shell/useDesktopBridge.ts(308,14)` with `TS2678` around `"export-html-without-styles"`.
+  - Final `./harness/init.sh --smoke` failed after new concurrent dirty outline-panel changes appeared in the shared worktree:
+    - dirty files: `packages/editor/src/App.tsx`, `packages/editor/src/components/VaultSidebar.test.tsx`, `packages/editor/src/outlinePanelPreferences.ts`, `packages/editor/src/outlinePanelState.ts`
+    - failing assertions: `packages/editor/src/__tests__/App.test.tsx` outline collapse persistence expectations still expected the old `{ "collapsed": ... }` storage shape instead of the new shape that also includes `displayMode`
+- Review:
+  - Reviewer accepted the MF-135 product/test slice and advised keeping the ledger promotion; the only finding was that `harness/features/MF-135.md` briefly said `3` tests when `GlobalSearch.test.tsx` actually contained `4`.
+  - Dispatcher accepted that review verdict and restored `MF-135` to `status=verified`, `passes=true`, `lastVerifiedAt=2026-04-25T07:46:00+0800`, while still recording that the shared worktree was not clean enough to commit.
+- Outcome:
+  - `MF-135` product and focused test changes exist in the worktree and are locally green in isolation.
+  - `MF-135` is verified in the ledger for this run, but the final shared worktree remained smoke-red for unrelated reasons.
+  - No commit was made in this run.
+- Next recommended feature:
+  - First isolate the automation in its own worktree or stop concurrent writers to `main`.
+  - Then either finish or discard the unrelated outline-panel drift, rerun `pnpm harness:verify` and `./harness/init.sh --smoke`, and only then decide how to commit the already-verified MF-135 slice.
+
+### 2026-04-25T13:33:52+08:00 - MF-162 implemented and moved to ready
+
+- Author: Codex Dispatcher with Researcher/Implementer/Reviewer subagents.
+- Focus: close one bounded Typora outline-parity slice without widening into unrelated editor work.
+- Startup / baseline:
+  - Read `/Users/pprp/.codex/automations/typora-replication/memory.md` (missing at start of run).
+  - Ran `pnpm harness:start`; it reported `164` features and selected `MF-076` as harness-next.
+  - Ran `./harness/init.sh --smoke`; it passed with desktop `84` tests and editor `526` tests (`3` skipped).
+- Research updates:
+  - No new ledger rows were accepted in the surviving repo state.
+  - Dispatcher used Typora's official Outline doc (`https://support.typora.io/Outline/`) to confirm the current gap: MarkFlow already had active-heading sync, while header filtering/search plus flat vs collapsible outline modes were still missing.
+- Implemented feature work:
+  - Selected `MF-162` because it was newly researched, editor-scoped, and terminal-verifiable.
+  - Added outline filtering/search plus flat vs collapsible outline modes in both the standalone outline panel and the bundle sidebar.
+  - Persisted the selected outline display mode locally and auto-expanded collapsed ancestor branches when the active heading moved underneath them.
+  - Accepted concurrent test additions in `App.test.tsx` and `VaultSidebar.test.tsx` after reading and integrating them; no unrelated product scope was added.
+  - Updated `harness/features/MF-162.md` and promoted only `MF-162` from `planned` to `ready` while keeping `passes=false` and `lastVerifiedAt=null`.
+- Scope-fix / shared-worktree control:
+  - The shared worktree again introduced unrelated ledger drift during this run.
+  - Dispatcher restored unrelated `MF-063` and `MF-138` ledger state changes back to their pre-run values so the final ledger truth only reflects the active `MF-162` slice.
+- Changed files for this cycle:
+  - `harness/feature-ledger.json`
+  - `harness/features/MF-162.md`
+  - `harness/progress.md`
+  - `packages/editor/src/App.tsx`
+  - `packages/editor/src/__tests__/App.test.tsx`
+  - `packages/editor/src/components/VaultSidebar.tsx`
+  - `packages/editor/src/components/VaultSidebar.test.tsx`
+  - `packages/editor/src/components/VaultSidebar.css`
+  - `packages/editor/src/outlinePanelPreferences.ts`
+  - `packages/editor/src/outlinePanelState.ts`
+  - `packages/editor/src/styles/global.css`
+- Simplifications made:
+  - Reused the existing active-heading sync instead of inventing a second highlight system.
+  - Kept filtering in flat mode when a query is present, avoiding extra tree-state complexity inside filtered results.
+  - Reused local outline preferences storage instead of adding a new settings surface.
+- Verification:
+  - `pnpm --filter @markflow/editor exec vitest run src/__tests__/App.test.tsx src/components/VaultSidebar.test.tsx` (`91` tests passed).
+  - `pnpm --filter @markflow/editor exec vitest run src/editor/__tests__/outline.test.ts` (`5` tests passed).
+  - `pnpm --filter @markflow/editor exec eslint src/App.tsx src/components/VaultSidebar.tsx src/components/VaultSidebar.test.tsx src/outlinePanelPreferences.ts src/outlinePanelState.ts src/__tests__/App.test.tsx`.
+  - `pnpm harness:verify` passed on the final accepted ledger state (`164 total | verified=99 | ready=26 | planned=38 | blocked=1 | regression=0`).
+  - Scoped `git diff --check` passed for the accepted MF-162 files.
+  - `pnpm --filter @markflow/editor exec tsc --noEmit` and `pnpm --filter @markflow/editor build` still fail in unrelated existing code at `packages/editor/src/app-shell/useDesktopBridge.ts` (`TS2678` around `"export-html-without-styles"`).
+- Review:
+  - Reviewer accepted the MF-162 slice with no blocking findings.
+  - Reviewer agreed that `status=ready`, `passes=false`, and `lastVerifiedAt=null` remain the only truthful ledger state until the manual long-document outline check is completed.
+- Outcome:
+  - `MF-162` is implemented and ready for manual verification.
+  - No commit was made in this run because the shared worktree still contains unrelated dirty files from concurrent automation activity.
+- Next recommended feature:
+  - First complete the manual long-document outline verification for `MF-162` in a trusted desktop session and promote it only after that passes.
+  - If the shared `useDesktopBridge.ts` type drift is still present next run, fix that repo-wide blocker before attempting another editor build-gated feature.
+
+### 2026-04-25T14:00:46+08:00 - Smoke rerun cleared outline failure; no feature closure
+
+- Author: Codex Dispatcher with Researcher/Implementer/Reviewer subagents.
+- Focus: honor the smoke-first rule after the initial outline-panel failure and avoid starting a new Typora feature while the shared worktree was already drifting.
+- Startup / baseline:
+  - Read `/Users/pprp/.codex/automations/typora-replication/memory.md`.
+  - Ran `pnpm harness:start`; it reported `164` features and selected `MF-076` as harness-next.
+  - Initial `./harness/init.sh --smoke` failed in `packages/editor/src/__tests__/App.test.tsx` on `App desktop integration > keeps the outline in sync when headings are renamed or reordered`.
+- Research updates:
+  - Researcher checked Typora's official Outline, Search, File Management, and What's New docs.
+  - No new ledger row was warranted and no ledger edit was accepted from this run.
+  - The current dirty outline work is already represented by `MF-162`, with `MF-020` and `MF-051` covering the pre-existing outline hierarchy and live-sync behavior.
+- Smoke triage / verification:
+  - Implementer made no code changes because the reported outline failure was not reproducible on the current tree.
+  - `pnpm --filter @markflow/editor exec vitest run src/__tests__/App.test.tsx -t "keeps the outline in sync when headings are renamed or reordered"` passed (`1` passed / `84` skipped).
+  - `pnpm --filter @markflow/editor exec vitest run src/__tests__/App.test.tsx` passed (`85` passed).
+  - Dispatcher reran `pnpm harness:verify`; it passed on the current shared-worktree ledger state (`164 total | verified=99 | ready=26 | planned=38 | blocked=1 | regression=0`).
+  - Dispatcher reran `./harness/init.sh --smoke`; it passed on the current tree:
+    - `packages/desktop`: `10` files / `84` tests passed.
+    - `packages/editor`: `47` files / `534` tests passed / `3` skipped.
+  - The original outline failure did not recur during the rerun.
+- Review:
+  - Reviewer found no blocking findings and agreed this should be recorded as a smoke-only outcome, not as a code-level fix.
+  - An intermediate reviewer note about a later `Mod+/` timeout was superseded by the dispatcher's final same-tree smoke rerun, which passed.
+- Outcome:
+  - No product code changes were accepted in this run.
+  - No feature was closed in this run.
+  - No commit was made, even though the final smoke rerun passed, because the shared worktree still contains concurrent uncommitted `MF-162` source/ledger drift that this smoke-only pass did not author or verify end to end.
+- Next recommended feature:
+  - First isolate or reconcile the in-progress `MF-162` dirty slice (`App.tsx`, `VaultSidebar*`, `outlinePanelPreferences.ts`, `outlinePanelState.ts`, and the concurrent ledger/progress drift).
+  - Then decide whether to complete and truthfully verify `MF-162` or discard that slice before starting a new feature cycle.
+
+### 2026-04-25T15:49:47+08:00 - MF-162 stabilized, reviewed, and left ready pending live verification
+
+- Author: Codex Dispatcher with Researcher/Implementer/Reviewer subagents.
+- Focus: finish one Typora replication loop around the existing outline-controls slice, but only promote it as far as current evidence allows.
+- Startup / baseline:
+  - Read `/Users/pprp/.codex/automations/typora-replication/memory.md` (still empty at run start).
+  - Ran `pnpm harness:start`; it reported `164` features and selected `MF-076` as harness-next.
+  - Ran `./harness/init.sh --smoke`; it passed with desktop `84` tests and editor `534` tests (`3` skipped).
+- Research updates:
+  - Researcher reviewed Typora outline/export docs and only the surviving repo-state ledger change was accepted: `MF-162` stays promoted from `planned` to `ready` in `harness/feature-ledger.json`.
+  - No new feature rows were added.
+  - Dispatcher rejected the Researcher’s conflicting narrative about `MF-138` and trusted the actual surviving ledger diff instead.
+- Implemented / accepted feature work:
+  - Locked the active feature to `MF-162` because the shared worktree already contained a coherent single-feature slice in:
+    - `packages/editor/src/App.tsx`
+    - `packages/editor/src/__tests__/App.test.tsx`
+    - `packages/editor/src/components/VaultSidebar.tsx`
+    - `packages/editor/src/components/VaultSidebar.test.tsx`
+    - `packages/editor/src/components/VaultSidebar.css`
+    - `packages/editor/src/outlinePanelPreferences.ts`
+    - `packages/editor/src/outlinePanelState.ts`
+    - `packages/editor/src/styles/global.css`
+    - `harness/features/MF-162.md`
+  - Implementer made no further product edits because the existing slice already covered outline filtering, flat/collapsible modes, persisted display mode, and collapsed-ancestor auto-expansion.
+  - Accepted the slice only at `status=ready`, `passes=false`, `lastVerifiedAt=null`.
+- Simplifications made:
+  - Reused the existing outline and active-heading flow instead of widening scope into new settings or new desktop-specific behavior.
+  - Kept the run scoped to verification/truthfulness instead of inventing additional UI polish after the tests were already green.
+- Verification:
+  - `pnpm --filter @markflow/editor exec vitest run src/__tests__/App.test.tsx src/components/VaultSidebar.test.tsx` passed.
+  - `pnpm --filter @markflow/editor exec vitest run src/editor/__tests__/outline.test.ts` passed.
+  - `pnpm --filter @markflow/editor exec eslint src/App.tsx src/components/VaultSidebar.tsx src/components/VaultSidebar.test.tsx src/__tests__/App.test.tsx src/outlinePanelPreferences.ts src/outlinePanelState.ts` passed.
+  - `git diff --check -- packages/editor/src/App.tsx packages/editor/src/__tests__/App.test.tsx packages/editor/src/components/VaultSidebar.tsx packages/editor/src/components/VaultSidebar.test.tsx packages/editor/src/components/VaultSidebar.css packages/editor/src/outlinePanelPreferences.ts packages/editor/src/outlinePanelState.ts packages/editor/src/styles/global.css harness/features/MF-162.md harness/feature-ledger.json` passed.
+  - `pnpm harness:verify` passed on the final ledger state (`164 total | verified=99 | ready=26 | planned=38 | blocked=1 | regression=0`).
+  - Attempted live/manual follow-up through the local web editor, but `vite` could not bind either `::1:5173` or `127.0.0.1:4173` in this sandbox (`EPERM`), so no trustworthy interactive outline-scroll verification was possible in this run.
+- Review:
+  - Reviewer accepted the slice and found no blocking regression or overreach.
+  - Reviewer agreed that leaving `MF-162` at `ready` / `passes=false` is the only truthful ledger state until the long-document live check is completed.
+- Outcome:
+  - No new Typora feature row was added.
+  - `MF-162` is the actual implemented feature for this run, but it was not promoted to `verified`.
+  - The run closed as a manual-verification blocker, not a false-positive feature completion.
+- Next recommended feature:
+  - Complete the live long-document outline check for `MF-162` in a trusted desktop session and only then promote it to `verified`.
+  - After that, return to the highest-value unpassed feature that does not depend on desktop/live verification.

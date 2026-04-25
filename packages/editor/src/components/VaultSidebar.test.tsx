@@ -42,6 +42,20 @@ function renderSidebar() {
           lineNumber: 1,
           text: 'Introduction',
         },
+        {
+          anchor: 'setup',
+          from: 6,
+          level: 2,
+          lineNumber: 3,
+          text: 'Setup',
+        },
+        {
+          anchor: 'deep-dive',
+          from: 12,
+          level: 3,
+          lineNumber: 5,
+          text: 'Deep Dive',
+        },
       ]}
       activeOutlineAnchor="introduction"
       onRecentSelect={onRecentSelect}
@@ -98,6 +112,78 @@ describe('VaultSidebar', () => {
       }),
     )
     expect(onOutlineSelect).toHaveBeenCalledWith(0)
+  })
+
+  it('filters outline headings and keeps click-to-jump working', () => {
+    const { onOutlineSelect } = renderSidebar()
+
+    fireEvent.change(screen.getByRole('textbox', { name: 'Filter outline headings' }), {
+      target: { value: 'deep' },
+    })
+
+    expect(screen.getByRole('button', { name: 'Deep Dive' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Introduction' })).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Deep Dive' }))
+
+    expect(onOutlineSelect).toHaveBeenCalledWith(12)
+  })
+
+  it('renders collapsible outline mode with branch toggles for nested headings', () => {
+    render(
+      <VaultSidebar
+        folderPath="/Users/pprp/Notes"
+        files={['/Users/pprp/Notes/README.md']}
+        activeFile="/Users/pprp/Notes/README.md"
+        onFileOpen={vi.fn()}
+        onFileRename={vi.fn()}
+        onFileDelete={vi.fn()}
+        onOpenFolder={vi.fn()}
+        outlineDisplayMode="collapsible"
+        outlineItems={[
+          {
+            anchor: 'introduction',
+            from: 0,
+            level: 1,
+            lineNumber: 1,
+            text: 'Introduction',
+          },
+          {
+            anchor: 'setup',
+            from: 12,
+            level: 2,
+            lineNumber: 3,
+            text: 'Setup',
+          },
+          {
+            anchor: 'deep-dive',
+            from: 24,
+            level: 3,
+            lineNumber: 5,
+            text: 'Deep Dive',
+          },
+          {
+            anchor: 'appendix',
+            from: 40,
+            level: 1,
+            lineNumber: 7,
+            text: 'Appendix',
+          },
+        ]}
+      />,
+    )
+
+    expect(screen.getByRole('button', { name: 'Collapse Introduction' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Collapse Setup' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Deep Dive' })).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Collapse Setup' }))
+
+    expect(screen.queryByRole('button', { name: 'Deep Dive' })).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Expand Setup' }))
+
+    expect(screen.getByRole('button', { name: 'Deep Dive' })).toBeInTheDocument()
   })
 
   it('renders workspace name in header and avoids hero/badges when a folder is open', () => {

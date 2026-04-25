@@ -1,6 +1,8 @@
 import type { MarkFlowQuickOpenItem } from '@markflow/shared'
 import type { OutlineHeading } from '../editor/outline'
-import { useMemo, useRef, useState } from 'react'
+import { type ChangeEvent, useMemo, useRef, useState } from 'react'
+import type { OutlineDisplayMode } from '../outlinePanelPreferences'
+import { buildOutlineTree, filterOutlineHeadings } from '../outlinePanelState'
 import './VaultSidebar.css'
 
 export interface VaultSidebarProps {
@@ -14,7 +16,13 @@ export interface VaultSidebarProps {
   onOpenFolder: () => void
   onOutlineSelect?: (position: number) => void
   onRecentSelect?: (item: MarkFlowQuickOpenItem) => void
+  onOutlineFilterChange?: (event: ChangeEvent<HTMLInputElement>) => void
+  onOutlineDisplayModeChange?: (mode: OutlineDisplayMode) => void
+  onToggleOutlineAnchorCollapsed?: (anchor: string) => void
+  collapsedOutlineAnchors?: ReadonlySet<string>
   outlineCollapsed?: boolean
+  outlineDisplayMode?: OutlineDisplayMode
+  outlineFilterQuery?: string
   outlineItems?: readonly OutlineHeading[]
   recentItems?: readonly MarkFlowQuickOpenItem[]
 }
@@ -63,13 +71,25 @@ export function VaultSidebar({
   onOpenFolder,
   onOutlineSelect,
   onRecentSelect,
+  onOutlineFilterChange,
+  onOutlineDisplayModeChange,
+  onToggleOutlineAnchorCollapsed,
+  collapsedOutlineAnchors = new Set<string>(),
   outlineCollapsed = false,
+  outlineDisplayMode = 'flat',
+  outlineFilterQuery = '',
   outlineItems = [],
   recentItems = [],
 }: VaultSidebarProps) {
   const [renamingFile, setRenamingFile] = useState<string | null>(null)
   const [renameValue, setRenameValue] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
+  const [localOutlineFilterQuery, setLocalOutlineFilterQuery] = useState(outlineFilterQuery)
+  const [localOutlineDisplayMode, setLocalOutlineDisplayMode] =
+    useState<OutlineDisplayMode>(outlineDisplayMode)
+  const [localCollapsedOutlineAnchors, setLocalCollapsedOutlineAnchors] = useState<Set<string>>(
+    () => new Set(),
+  )
   const renameInputRef = useRef<HTMLInputElement>(null)
 
   function startRename(filePath: string) {
@@ -110,6 +130,97 @@ export function VaultSidebar({
   }, [files, normalizedSearchQuery])
 
   const visibleRecentItems = recentItems.slice(0, 6)
+  const effectiveOutlineFilterQuery =
+    onOutlineFilterChange == null ? localOutlineFilterQuery : outlineFilterQuery
+  const effectiveCollapsedOutlineAnchors =
+    onToggleOutlineAnchorCollapsed == null ? localCollapsedOutlineAnchors : collapsedOutlineAnchors
+  const filteredOutlineItems = useMemo(
+    () => filterOutlineHeadings(outlineItems, effectiveOutlineFilterQuery),
+    [effectiveOutlineFilterQuery, outlineItems],
+  )
+  const effectiveOutlineDisplayMode: OutlineDisplayMode =
+    effectiveOutlineFilterQuery.trim().length > 0
+      ? 'flat'
+      : onOutlineDisplayModeChange == null
+        ? localOutlineDisplayMode
+        : outlineDisplayMode
+  const outlineTree = useMemo(
+    () => buildOutlineTree(filteredOutlineItems),
+    [filteredOutlineItems],
+  )
+  const handleOutlineFilterInputChange = (event: ChangeEvent<HTMLInputElement>) => {
+    if (onOutlineFilterChange) {
+      onOutlineFilterChange(event)
+      return
+    }
+
+    setLocalOutlineFilterQuery(event.target.value)
+  }
+  const handleOutlineDisplayModeChange = (nextMode: OutlineDisplayMode) => {
+    if (onOutlineDisplayModeChange) {
+      onOutlineDisplayModeChange(nextMode)
+      return
+    }
+
+    setLocalOutlineDisplayMode(nextMode)
+    setLocalCollapsedOutlineAnchors(new Set())
+  }
+  const handleToggleOutlineAnchorCollapsed = (anchor: string) => {
+    if (onToggleOutlineAnchorCollapsed) {
+      onToggleOutlineAnchorCollapsed(anchor)
+      return
+    }
+
+    setLocalCollapsedOutlineAnchors((current) => {
+      const next = new Set(current)
+      if (next.has(anchor)) {
+        next.delete(anchor)
+      } else {
+        next.add(anchor)
+      }
+      return next
+    })
+  }
+  const renderOutlineTree = (nodes: ReturnType<typeof buildOutlineTree>) =>
+    nodes.map((node) => {
+      const hasChildren = node.children.length > 0
+      const isCollapsed = effectiveCollapsedOutlineAnchors.has(node.heading.anchor)
+      const isActive = node.heading.anchor === activeOutlineAnchor
+
+      return (
+        <div
+          key={`${node.heading.anchor}:${node.heading.from}`}
+          className="mf-vault-outline-node"
+        >
+          <div className="mf-vault-outline-row">
+            {hasChildren ? (
+              <button
+                type="button"
+                className="mf-outline-tree-toggle"
+                onClick={() => handleToggleOutlineAnchorCollapsed(node.heading.anchor)}
+                aria-label={`${isCollapsed ? 'Expand' : 'Collapse'} ${node.heading.text}`}
+                aria-expanded={!isCollapsed}
+              >
+                <span aria-hidden="true">{isCollapsed ? '▸' : '▾'}</span>
+              </button>
+            ) : (
+              <span className="mf-outline-tree-spacer" aria-hidden="true" />
+            )}
+            <button
+              type="button"
+              className={`mf-vault-nav-item mf-vault-outline-item${isActive ? ' mf-vault-nav-item-active' : ''}`}
+              aria-label={node.heading.text}
+              aria-current={isActive ? 'true' : undefined}
+              style={{ paddingLeft: `${10 + (node.heading.level - 1) * 12}px` }}
+              onClick={() => onOutlineSelect?.(node.heading.from)}
+            >
+              <span className="mf-vault-nav-item-copy">{node.heading.text}</span>
+            </button>
+          </div>
+          {!isCollapsed && node.children.length > 0 ? renderOutlineTree(node.children) : null}
+        </div>
+      )
+    })
 
   return (
     <div className="mf-vault-sidebar">
@@ -316,27 +427,71 @@ export function VaultSidebar({
           <section className="mf-vault-section">
             <div className="mf-vault-section-header">
               <span>Outline</span>
+              <div className="mf-outline-mode-toggle" role="group" aria-label="Outline display mode">
+                <button
+                  type="button"
+                  className={`mf-outline-mode-button${effectiveOutlineDisplayMode === 'flat' ? ' mf-outline-mode-button-active' : ''}`}
+                  onClick={() => handleOutlineDisplayModeChange('flat')}
+                  aria-label="Flat outline mode"
+                  aria-pressed={effectiveOutlineDisplayMode === 'flat'}
+                >
+                  Flat
+                </button>
+                <button
+                  type="button"
+                  className={`mf-outline-mode-button${effectiveOutlineDisplayMode === 'collapsible' ? ' mf-outline-mode-button-active' : ''}`}
+                  onClick={() => handleOutlineDisplayModeChange('collapsible')}
+                  aria-label="Collapsible outline mode"
+                  aria-pressed={effectiveOutlineDisplayMode === 'collapsible'}
+                >
+                  Collapsible
+                </button>
+              </div>
             </div>
             {!outlineCollapsed ? (
-              <nav className="mf-vault-outline-list" aria-label="Outline">
-                {outlineItems.map((heading) => {
-                  const isActive = heading.anchor === activeOutlineAnchor
+              <>
+                <label className="mf-outline-search">
+                  <span className="mf-outline-search-icon" aria-hidden="true">
+                    <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
+                      <circle cx="5.5" cy="5.5" r="3.5" stroke="currentColor" strokeWidth="1.1" />
+                      <path d="M8.5 8.5L11 11" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" />
+                    </svg>
+                  </span>
+                  <input
+                    type="text"
+                    className="mf-outline-search-input"
+                    value={effectiveOutlineFilterQuery}
+                    onChange={handleOutlineFilterInputChange}
+                    placeholder="Filter headings…"
+                    aria-label="Filter outline headings"
+                  />
+                </label>
+                <nav className="mf-vault-outline-list" aria-label="Outline">
+                  {filteredOutlineItems.length === 0 ? (
+                    <div className="mf-outline-empty">No matching headings</div>
+                  ) : effectiveOutlineDisplayMode === 'collapsible' ? (
+                    renderOutlineTree(outlineTree)
+                  ) : (
+                    filteredOutlineItems.map((heading) => {
+                      const isActive = heading.anchor === activeOutlineAnchor
 
-                  return (
-                    <button
-                      key={`${heading.anchor}:${heading.from}`}
-                      type="button"
-                      className={`mf-vault-nav-item mf-vault-outline-item${isActive ? ' mf-vault-nav-item-active' : ''}`}
-                      aria-label={heading.text}
-                      aria-current={isActive ? 'true' : undefined}
-                      style={{ paddingLeft: `${10 + (heading.level - 1) * 12}px` }}
-                      onClick={() => onOutlineSelect?.(heading.from)}
-                    >
-                      <span className="mf-vault-nav-item-copy">{heading.text}</span>
-                    </button>
-                  )
-                })}
-              </nav>
+                      return (
+                        <button
+                          key={`${heading.anchor}:${heading.from}`}
+                          type="button"
+                          className={`mf-vault-nav-item mf-vault-outline-item${isActive ? ' mf-vault-nav-item-active' : ''}`}
+                          aria-label={heading.text}
+                          aria-current={isActive ? 'true' : undefined}
+                          style={{ paddingLeft: `${10 + (heading.level - 1) * 12}px` }}
+                          onClick={() => onOutlineSelect?.(heading.from)}
+                        >
+                          <span className="mf-vault-nav-item-copy">{heading.text}</span>
+                        </button>
+                      )
+                    })
+                  )}
+                </nav>
+              </>
             ) : null}
           </section>
         ) : null}

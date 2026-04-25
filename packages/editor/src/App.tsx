@@ -78,8 +78,12 @@ import {
 } from './sourceLineNumbers'
 import {
   loadLocalOutlinePanelCollapsedPreference,
+  loadLocalOutlinePanelDisplayModePreference,
+  persistLocalOutlinePanelDisplayModePreference,
   persistLocalOutlinePanelCollapsedPreference,
+  type OutlineDisplayMode,
 } from './outlinePanelPreferences'
+import { buildOutlineTree, filterOutlineHeadings, findOutlineAncestorAnchors } from './outlinePanelState'
 import {
   type MarkFlowStatisticsPreferences,
   loadLocalStatisticsPreferences,
@@ -369,6 +373,9 @@ export function App() {
   const [documentSearchMatchCount, setDocumentSearchMatchCount] = useState<number | null>(null)
   const [documentSearchFocusTrigger, setDocumentSearchFocusTrigger] = useState(0)
   const [outlineCollapsed, setOutlineCollapsed] = useState(loadLocalOutlinePanelCollapsedPreference)
+  const [outlineDisplayMode, setOutlineDisplayMode] = useState(loadLocalOutlinePanelDisplayModePreference)
+  const [outlineFilterQuery, setOutlineFilterQuery] = useState('')
+  const [collapsedOutlineAnchors, setCollapsedOutlineAnchors] = useState<Set<string>>(() => new Set())
   const [isExporting, setIsExporting] = useState(false)
   const [quickOpenItems, setQuickOpenItems] = useState<MarkFlowQuickOpenItem[]>([])
   const [tabs, setTabs] = useState<DocumentTabState[]>(() => [createDocumentTab(null, INITIAL_CONTENT)])
@@ -409,6 +416,9 @@ export function App() {
   useEffect(() => {
     persistLocalOutlinePanelCollapsedPreference(outlineCollapsed)
   }, [outlineCollapsed])
+  useEffect(() => {
+    persistLocalOutlinePanelDisplayModePreference(outlineDisplayMode)
+  }, [outlineDisplayMode])
   const editorShellRef = useRef<HTMLDivElement | null>(null)
   const documentSearchWorkerRef = useRef<Worker | null>(null)
   const documentSearchRequestIdRef = useRef(0)
@@ -2040,6 +2050,16 @@ export function App() {
   })
 
   const outlineHeadings = activeTab?.largeFile ? [] : activeTab?.symbolTable.headings ?? []
+  const filteredOutlineHeadings = useMemo(
+    () => filterOutlineHeadings(outlineHeadings, outlineFilterQuery),
+    [outlineHeadings, outlineFilterQuery],
+  )
+  const effectiveOutlineDisplayMode: OutlineDisplayMode =
+    outlineFilterQuery.trim().length > 0 ? 'flat' : outlineDisplayMode
+  const outlineTree = useMemo(
+    () => buildOutlineTree(filteredOutlineHeadings),
+    [filteredOutlineHeadings],
+  )
 
   const activeOutlineAnchor = useMemo(
     () => {
@@ -2056,6 +2076,76 @@ export function App() {
     },
     [activeTab, activeOutlineAnchorSource, outlineHeadings],
   )
+
+  useEffect(() => {
+    const visibleAnchors = new Set(outlineHeadings.map((heading) => heading.anchor))
+    setCollapsedOutlineAnchors((current) => {
+      const next = new Set(Array.from(current).filter((anchor) => visibleAnchors.has(anchor)))
+      if (next.size === current.size && Array.from(next).every((anchor) => current.has(anchor))) {
+        return current
+      }
+      return next
+    })
+  }, [outlineHeadings])
+
+  useEffect(() => {
+    if (effectiveOutlineDisplayMode !== 'collapsible' || activeOutlineAnchor == null) {
+      return
+    }
+
+    const stack: Array<(typeof outlineHeadings)[number]> = []
+    let ancestorAnchors: string[] = []
+
+    for (const heading of outlineHeadings) {
+      while (stack.length > 0 && stack.at(-1)!.level >= heading.level) {
+        stack.pop()
+      }
+
+      if (heading.anchor === activeOutlineAnchor) {
+        ancestorAnchors = stack.map((ancestor) => ancestor.anchor)
+        break
+      }
+
+      stack.push(heading)
+    }
+
+    if (ancestorAnchors.length === 0) {
+      return
+    }
+
+    setCollapsedOutlineAnchors((current) => {
+      if (!ancestorAnchors.some((anchor) => current.has(anchor))) {
+        return current
+      }
+
+      const next = new Set(current)
+      for (const ancestorAnchor of ancestorAnchors) {
+        next.delete(ancestorAnchor)
+      }
+      return next
+    })
+  }, [activeOutlineAnchor, effectiveOutlineDisplayMode, outlineHeadings])
+  useEffect(() => {
+    if (!activeOutlineAnchor) {
+      return
+    }
+
+    const ancestorAnchors = findOutlineAncestorAnchors(outlineHeadings, activeOutlineAnchor)
+    if (ancestorAnchors.length === 0) {
+      return
+    }
+
+    setCollapsedOutlineAnchors((current) => {
+      const next = new Set(current)
+      let changed = false
+      for (const anchor of ancestorAnchors) {
+        if (next.delete(anchor)) {
+          changed = true
+        }
+      }
+      return changed ? next : current
+    })
+  }, [activeOutlineAnchor, outlineHeadings])
 
   useEffect(() => {
     setActiveOutlineAnchorSource('cursor')
@@ -2154,6 +2244,24 @@ export function App() {
       return metrics
     })
   }, [])
+  const handleOutlineFilterChange = useCallback((event: ChangeEvent<HTMLInputElement>) => {
+    setOutlineFilterQuery(event.target.value)
+  }, [])
+  const handleOutlineDisplayModeChange = useCallback((nextMode: OutlineDisplayMode) => {
+    setOutlineDisplayMode(nextMode)
+    setCollapsedOutlineAnchors(new Set())
+  }, [])
+  const handleToggleCollapsedOutlineAnchor = useCallback((anchor: string) => {
+    setCollapsedOutlineAnchors((current) => {
+      const next = new Set(current)
+      if (next.has(anchor)) {
+        next.delete(anchor)
+      } else {
+        next.add(anchor)
+      }
+      return next
+    })
+  }, [])
 
   const activeDocumentName = activeTab ? getTabLabel(activeTab, loadingFile) : 'Untitled'
   const largeFileNotice = activeTab?.largeFile
@@ -2190,6 +2298,46 @@ export function App() {
   }, [])
   const shouldShowOutlineToggle = !isImmersiveMode && !showSidebar && outlineHeadings.length > 0
   const shouldShowStandaloneOutline = shouldShowOutlineToggle && !showSidebar && !outlineCollapsed
+  const renderStandaloneOutlineTree = (nodes: ReturnType<typeof buildOutlineTree>) =>
+    nodes.map((node) => {
+      const hasChildren = node.children.length > 0
+      const isCollapsed = collapsedOutlineAnchors.has(node.heading.anchor)
+      const isActive = node.heading.anchor === activeOutlineAnchor
+
+      return (
+        <div
+          key={`${node.heading.anchor}:${node.heading.from}`}
+          className="mf-outline-tree-node"
+        >
+          <div className="mf-outline-tree-row">
+            {hasChildren ? (
+              <button
+                type="button"
+                className="mf-outline-tree-toggle"
+                onClick={() => handleToggleCollapsedOutlineAnchor(node.heading.anchor)}
+                aria-label={`${isCollapsed ? 'Expand' : 'Collapse'} ${node.heading.text}`}
+                aria-expanded={!isCollapsed}
+              >
+                <span aria-hidden="true">{isCollapsed ? '▸' : '▾'}</span>
+              </button>
+            ) : (
+              <span className="mf-outline-tree-spacer" aria-hidden="true" />
+            )}
+            <button
+              type="button"
+              className={`mf-outline-item${isActive ? ' mf-outline-item-active' : ''}`}
+              {...{ [HEADING_NUMBERING_OUTLINE_LEVEL_ATTRIBUTE]: String(node.heading.level) }}
+              style={{ paddingLeft: `${12 + (node.heading.level - 1) * 14}px` }}
+              aria-current={isActive ? 'true' : undefined}
+              onClick={() => handleOutlineNavigate(node.heading.from)}
+            >
+              <span className="mf-outline-item-text">{node.heading.text}</span>
+            </button>
+          </div>
+          {!isCollapsed && node.children.length > 0 ? renderStandaloneOutlineTree(node.children) : null}
+        </div>
+      )
+    })
 
   const BASE_FONT_SIZE = 15
   const appStyle = {
@@ -2391,6 +2539,12 @@ export function App() {
               onRecentSelect={handleQuickOpenSelect}
               onOutlineSelect={handleOutlineNavigate}
               outlineCollapsed={outlineCollapsed}
+              outlineDisplayMode={effectiveOutlineDisplayMode}
+              outlineFilterQuery={outlineFilterQuery}
+              collapsedOutlineAnchors={collapsedOutlineAnchors}
+              onOutlineDisplayModeChange={handleOutlineDisplayModeChange}
+              onOutlineFilterChange={handleOutlineFilterChange}
+              onToggleOutlineAnchorCollapsed={handleToggleCollapsedOutlineAnchor}
             />
           </div>
         ) : null}
@@ -2490,25 +2644,69 @@ export function App() {
             <aside className="mf-outline-panel">
               <div className="mf-outline-header">
                 <span className="mf-outline-header-label">Outline</span>
+                <div className="mf-outline-mode-toggle" role="group" aria-label="Outline display mode">
+                  <button
+                    type="button"
+                    className={`mf-outline-mode-button${effectiveOutlineDisplayMode === 'flat' ? ' mf-outline-mode-button-active' : ''}`}
+                    onClick={() => handleOutlineDisplayModeChange('flat')}
+                    aria-label="Flat outline mode"
+                    aria-pressed={effectiveOutlineDisplayMode === 'flat'}
+                  >
+                    Flat
+                  </button>
+                  <button
+                    type="button"
+                    className={`mf-outline-mode-button${effectiveOutlineDisplayMode === 'collapsible' ? ' mf-outline-mode-button-active' : ''}`}
+                    onClick={() => handleOutlineDisplayModeChange('collapsible')}
+                    aria-label="Collapsible outline mode"
+                    aria-pressed={effectiveOutlineDisplayMode === 'collapsible'}
+                  >
+                    Collapsible
+                  </button>
+                </div>
+              </div>
+              <div className="mf-outline-controls">
+                <label className="mf-outline-search">
+                  <span className="mf-outline-search-icon" aria-hidden="true">
+                    <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
+                      <circle cx="5.5" cy="5.5" r="3.5" stroke="currentColor" strokeWidth="1.1" />
+                      <path d="M8.5 8.5L11 11" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" />
+                    </svg>
+                  </span>
+                  <input
+                    type="text"
+                    className="mf-outline-search-input"
+                    value={outlineFilterQuery}
+                    onChange={handleOutlineFilterChange}
+                    placeholder="Filter headings…"
+                    aria-label="Filter outline headings"
+                  />
+                </label>
               </div>
               <nav className="mf-outline-nav" aria-label="Outline">
-                {outlineHeadings.map((heading) => {
-                  const isActive = heading.anchor === activeOutlineAnchor
+                {filteredOutlineHeadings.length === 0 ? (
+                  <div className="mf-outline-empty">No matching headings</div>
+                ) : effectiveOutlineDisplayMode === 'collapsible' ? (
+                  renderStandaloneOutlineTree(outlineTree)
+                ) : (
+                  filteredOutlineHeadings.map((heading) => {
+                    const isActive = heading.anchor === activeOutlineAnchor
 
-                  return (
-                    <button
-                      key={`${heading.anchor}:${heading.from}`}
-                      type="button"
-                      className={`mf-outline-item${isActive ? ' mf-outline-item-active' : ''}`}
-                      {...{ [HEADING_NUMBERING_OUTLINE_LEVEL_ATTRIBUTE]: String(heading.level) }}
-                      style={{ paddingLeft: `${12 + (heading.level - 1) * 14}px` }}
-                      aria-current={isActive ? 'true' : undefined}
-                      onClick={() => handleOutlineNavigate(heading.from)}
-                    >
-                      <span className="mf-outline-item-text">{heading.text}</span>
-                    </button>
-                  )
-                })}
+                    return (
+                      <button
+                        key={`${heading.anchor}:${heading.from}`}
+                        type="button"
+                        className={`mf-outline-item${isActive ? ' mf-outline-item-active' : ''}`}
+                        {...{ [HEADING_NUMBERING_OUTLINE_LEVEL_ATTRIBUTE]: String(heading.level) }}
+                        style={{ paddingLeft: `${12 + (heading.level - 1) * 14}px` }}
+                        aria-current={isActive ? 'true' : undefined}
+                        onClick={() => handleOutlineNavigate(heading.from)}
+                      >
+                        <span className="mf-outline-item-text">{heading.text}</span>
+                      </button>
+                    )
+                  })
+                )}
               </nav>
             </aside>
           ) : null}

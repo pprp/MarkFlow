@@ -935,7 +935,8 @@ body {
 .mf-outline-header {
   display: flex;
   align-items: center;
-  justify-content: flex-start;
+  justify-content: space-between;
+  gap: 8px;
   padding: 11px 14px 9px;
   font-size: 11px;
   font-weight: 500;
@@ -950,12 +951,129 @@ body {
   white-space: nowrap;
 }
 
+.mf-outline-controls {
+  padding: 0 10px 8px;
+}
+
+.mf-outline-search {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 8px;
+  border-radius: var(--mf-radius-sm);
+  border: 1px solid var(--mf-border-light);
+  background: var(--mf-fill-secondary);
+  color: var(--mf-fg-muted);
+}
+
+.mf-outline-search:focus-within {
+  border-color: color-mix(in srgb, var(--mf-accent) 40%, transparent);
+  box-shadow: 0 0 0 2px var(--mf-accent-subtle);
+  background: var(--mf-bg-elevated);
+}
+
+.mf-outline-search-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.mf-outline-search-input {
+  width: 100%;
+  border: none;
+  background: transparent;
+  color: var(--mf-fg);
+  font: inherit;
+  font-size: 12px;
+  outline: none;
+}
+
+.mf-outline-search-input::placeholder {
+  color: var(--mf-fg-muted);
+}
+
+.mf-outline-mode-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  border-radius: 999px;
+  background: var(--mf-fill-secondary);
+}
+
+.mf-outline-mode-button {
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--mf-fg-muted);
+  font: inherit;
+  font-size: 10px;
+  line-height: 1;
+  padding: 4px 8px;
+  cursor: pointer;
+  transition: background var(--mf-transition-fast), color var(--mf-transition-fast);
+}
+
+.mf-outline-mode-button:hover {
+  color: var(--mf-fg);
+}
+
+.mf-outline-mode-button-active {
+  background: var(--mf-bg-elevated);
+  color: var(--mf-accent);
+}
+
 .mf-outline-nav {
   display: flex;
   flex-direction: column;
   gap: 1px;
   padding: 2px 6px 16px;
   overflow: auto;
+}
+
+.mf-outline-tree-node {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.mf-outline-tree-row {
+  display: flex;
+  align-items: stretch;
+  gap: 4px;
+}
+
+.mf-outline-tree-row .mf-outline-item {
+  flex: 1;
+  min-width: 0;
+}
+
+.mf-outline-tree-toggle,
+.mf-outline-tree-spacer {
+  width: 18px;
+  flex: 0 0 18px;
+}
+
+.mf-outline-tree-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: var(--mf-radius-xs);
+  background: transparent;
+  color: var(--mf-fg-muted);
+  cursor: pointer;
+  transition: background var(--mf-transition-fast), color var(--mf-transition-fast);
+}
+
+.mf-outline-tree-toggle:hover {
+  background: var(--mf-fill);
+  color: var(--mf-fg);
+}
+
+.mf-outline-tree-spacer {
+  display: inline-block;
 }
 
 .mf-outline-item {
@@ -998,6 +1116,13 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.mf-outline-empty {
+  padding: 12px 8px;
+  color: var(--mf-fg-muted);
+  font-size: 12px;
+  text-align: center;
 }
 
 /* Hide right outline panel at narrow widths — sidebar shows it instead */

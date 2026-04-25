@@ -270,6 +270,27 @@
   gap: 1px;
 }
 
+.mf-vault-section .mf-outline-search {
+  margin: 0 10px 6px;
+}
+
+.mf-vault-outline-node {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.mf-vault-outline-row {
+  display: flex;
+  align-items: stretch;
+  gap: 4px;
+}
+
+.mf-vault-outline-row .mf-vault-outline-item {
+  flex: 1;
+  min-width: 0;
+}
+
 .mf-vault-nav-item,
 .mf-vault-open-btn {
   -webkit-app-region: no-drag;
@@ -346,6 +367,23 @@
 
 /* ── Outline toggle button ─────────────────────────────────── */
 /* ── Outline items ─────────────────────────────────────────── */
+.mf-vault-outline-node {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.mf-vault-outline-row {
+  display: flex;
+  align-items: stretch;
+  gap: 4px;
+}
+
+.mf-vault-outline-row .mf-vault-outline-item {
+  flex: 1;
+  min-width: 0;
+}
+
 .mf-vault-outline-item {
   padding-top: 4px;
   padding-bottom: 4px;

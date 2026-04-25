@@ -1848,7 +1848,7 @@
       "category": "phase-2-functional",
       "area": "@markflow/desktop",
       "priority": 3,
-      "status": "planned",
+      "status": "ready",
       "passes": false,
       "lastVerifiedAt": null,
       "dependsOn": [
@@ -2220,7 +2220,7 @@
       "category": "phase-2-functional",
       "area": "@markflow/editor",
       "priority": 2,
-      "status": "planned",
+      "status": "ready",
       "passes": false,
       "lastVerifiedAt": null,
       "dependsOn": [
@@ -2258,6 +2258,21 @@
         "MF-108"
       ],
       "notesRef": "features/MF-164.md"
+    },
+    {
+      "id": "MF-165",
+      "title": "HTML/PDF export preserves Typora-style outline options, including HTML outline panel and PDF document outline",
+      "category": "phase-2-functional",
+      "area": "@markflow/desktop",
+      "priority": 3,
+      "status": "ready",
+      "passes": false,
+      "lastVerifiedAt": null,
+      "dependsOn": [
+        "MF-015",
+        "MF-162"
+      ],
+      "notesRef": "features/MF-165.md"
     }
   ]
 }

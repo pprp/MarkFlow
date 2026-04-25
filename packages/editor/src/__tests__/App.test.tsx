@@ -27,6 +27,7 @@ import {
 } from '../sourceLineNumbers'
 import {
   OUTLINE_PANEL_STORAGE_KEY,
+  persistLocalOutlinePanelDisplayModePreference,
   persistLocalOutlinePanelCollapsedPreference,
 } from '../outlinePanelPreferences'
 import {
@@ -564,6 +565,7 @@ describe('App desktop integration', () => {
     persistLocalHeadingNumberingPreference(false)
     persistLocalSourceLineNumbersPreference(true)
     persistLocalOutlinePanelCollapsedPreference(false)
+    persistLocalOutlinePanelDisplayModePreference('flat')
     persistLocalStatisticsPreferences({ excludeFencedCode: true })
     if (typeof window.localStorage?.removeItem === 'function') {
       window.localStorage.removeItem(OUTLINE_PANEL_STORAGE_KEY)
@@ -2236,6 +2238,70 @@ describe('App desktop integration', () => {
     posAtCoordsSpy.mockRestore()
   })
 
+  it('filters the standalone outline and keeps click-to-jump navigation working', async () => {
+    const api = new MockMarkFlowAPI()
+    window.markflow = api
+
+    const content = ['# Intro', '', '## Setup', '', '### Deep Dive', '', '# Appendix'].join('\n')
+    const { container } = render(<App />)
+
+    await act(async () => {
+      api.emitFileOpened({ filePath: '/tmp/outline-filter.md', content })
+    })
+
+    const filterInput = await screen.findByRole('textbox', { name: 'Filter outline headings' })
+    fireEvent.change(filterInput, { target: { value: 'appendix' } })
+
+    expect(screen.getByRole('button', { name: 'Appendix' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Intro' })).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Appendix' }))
+
+    await waitFor(() => {
+      expect(getEditorView(container).state.selection.main.head).toBe(content.indexOf('# Appendix'))
+    })
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Appendix' })).toHaveAttribute('aria-current', 'true')
+    })
+  })
+
+  it('persists collapsible outline mode and keeps the active heading visible after selection changes', async () => {
+    const api = new MockMarkFlowAPI()
+    window.markflow = api
+    const localStorage = installTestLocalStorage()
+
+    const content = ['# Intro', '', '## Setup', '', '### Deep Dive', '', '# Appendix'].join('\n')
+    const { container } = render(<App />)
+
+    await act(async () => {
+      api.emitFileOpened({ filePath: '/tmp/outline-mode.md', content })
+    })
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Collapsible outline mode' }))
+
+    await waitFor(() => {
+      expect(localStorage.getItem(OUTLINE_PANEL_STORAGE_KEY)).toBe(
+        JSON.stringify({ collapsed: false, displayMode: 'collapsible' }),
+      )
+      expect(screen.getByRole('button', { name: 'Collapse Setup' })).toBeInTheDocument()
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Collapse Setup' }))
+    expect(screen.queryByRole('button', { name: 'Deep Dive' })).not.toBeInTheDocument()
+
+    act(() => {
+      getEditorView(container).dispatch({
+        selection: { anchor: content.indexOf('### Deep Dive') },
+      })
+    })
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Deep Dive' })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Deep Dive' })).toHaveAttribute('aria-current', 'true')
+    })
+  })
+
   it('restores caret and scroll when navigating back and forward through outline history', async () => {
     const api = new MockMarkFlowAPI()
     window.markflow = api
@@ -2739,7 +2805,9 @@ describe('App desktop integration', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Collapse outline' }))
 
     await waitFor(() => {
-      expect(localStorage.getItem(OUTLINE_PANEL_STORAGE_KEY)).toBe(JSON.stringify({ collapsed: true }))
+      expect(localStorage.getItem(OUTLINE_PANEL_STORAGE_KEY)).toBe(
+        JSON.stringify({ collapsed: true, displayMode: 'flat' }),
+      )
       expect(screen.getByRole('button', { name: 'Expand outline' })).toBeInTheDocument()
       expect(screen.queryByRole('navigation', { name: 'Outline' })).not.toBeInTheDocument()
     })
@@ -2786,7 +2854,9 @@ describe('App desktop integration', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Expand outline' }))
 
     await waitFor(() => {
-      expect(localStorage.getItem(OUTLINE_PANEL_STORAGE_KEY)).toBe(JSON.stringify({ collapsed: false }))
+      expect(localStorage.getItem(OUTLINE_PANEL_STORAGE_KEY)).toBe(
+        JSON.stringify({ collapsed: false, displayMode: 'flat' }),
+      )
       expect(screen.getByRole('button', { name: 'Collapse outline' })).toBeInTheDocument()
       expect(screen.getByRole('navigation', { name: 'Outline' })).toBeInTheDocument()
     })
