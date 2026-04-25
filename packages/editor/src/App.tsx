@@ -113,6 +113,7 @@ import { isMacPlatform } from './platform'
 
 const THEME_STYLE_ELEMENT_ID = 'mf-theme-overrides'
 const EDITOR_ROOT_SELECTOR = '.cm-editor'
+const DOCUMENT_SEARCH_WORKER_FALLBACK_DELAY_MS = 100
 export const RECOVERY_CHECKPOINT_SYNC_DELAY_MS = 750
 
 type DocumentSearchWorkerRequest = {
@@ -999,11 +1000,26 @@ export function App() {
       }
     }
 
+    const setFallbackCount = () => {
+      if (documentSearchRequestIdRef.current !== requestId) {
+        return
+      }
+
+      startTransition(() => {
+        setDocumentSearchMatchCount(countFuzzySearchMatches(content, documentSearchQuery))
+      })
+    }
+    const fallbackTimeoutId = window.setTimeout(
+      setFallbackCount,
+      DOCUMENT_SEARCH_WORKER_FALLBACK_DELAY_MS,
+    )
+
     const handleMessage = (event: MessageEvent<DocumentSearchWorkerResponse>) => {
       if (event.data.requestId !== requestId) {
         return
       }
 
+      window.clearTimeout(fallbackTimeoutId)
       startTransition(() => {
         setDocumentSearchMatchCount(event.data.count)
       })
@@ -1017,6 +1033,7 @@ export function App() {
     } satisfies DocumentSearchWorkerRequest)
 
     return () => {
+      window.clearTimeout(fallbackTimeoutId)
       worker.removeEventListener('message', handleMessage)
     }
   }, [activeTab, documentSearchQuery, isDocumentSearchOpen])
@@ -1224,10 +1241,12 @@ export function App() {
       const closedIndex = findTabIndex(currentTabs, tabId)
       const nextTabs = currentTabs.filter((currentTab) => currentTab.id !== tabId)
       const fallbackTab = nextTabs[Math.min(closedIndex, Math.max(nextTabs.length - 1, 0))] ?? null
+      const replacementTab = nextTabs.length === 0 ? createDocumentTab(null, '') : null
+      const resolvedTabs = nextTabs.length > 0 ? nextTabs : [replacementTab]
 
       setClosedTabs((currentClosedTabs) => [{ closedIndex, tab: closedTab }, ...currentClosedTabs].slice(0, 20))
-      replaceTabs(nextTabs.length > 0 ? nextTabs : [createDocumentTab(null, '')])
-      replaceActiveTabId(nextTabs.length > 0 ? fallbackTab?.id ?? null : null)
+      replaceTabs(resolvedTabs)
+      replaceActiveTabId(nextTabs.length > 0 ? fallbackTab?.id ?? null : replacementTab?.id ?? null)
       clearEditorNavigationRequest()
       closeGoToLine()
       return true

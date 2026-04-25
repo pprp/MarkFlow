@@ -989,7 +989,7 @@
     },
     {
       "id": "MF-076",
-      "title": "Paste as plain text shortcut strips rich formatting before insertion",
+      "title": "Paste as Plain Text / Markdown Source bypasses HTML smart paste and inserts clipboard text",
       "category": "phase-2-functional",
       "area": "@markflow/editor",
       "priority": 2,
@@ -1793,9 +1793,9 @@
       "category": "bug",
       "area": "@markflow/editor",
       "priority": 3,
-      "status": "ready",
-      "passes": false,
-      "lastVerifiedAt": null,
+      "status": "verified",
+      "passes": true,
+      "lastVerifiedAt": "2026-04-25T19:38:41+0800",
       "dependsOn": [
         "MF-088"
       ],
@@ -1809,7 +1809,7 @@
       "priority": 3,
       "status": "verified",
       "passes": true,
-      "lastVerifiedAt": "2026-04-25T15:47:25+0800",
+      "lastVerifiedAt": "2026-04-25T16:02:05+0800",
       "dependsOn": [
         "MF-045"
       ],
@@ -2273,6 +2273,21 @@
         "MF-162"
       ],
       "notesRef": "features/MF-165.md"
+    },
+    {
+      "id": "MF-166",
+      "title": "Paragraph alert command converts selected paragraphs into GitHub-style callouts",
+      "category": "phase-2-functional",
+      "area": "@markflow/editor",
+      "priority": 3,
+      "status": "planned",
+      "passes": false,
+      "lastVerifiedAt": null,
+      "dependsOn": [
+        "MF-034",
+        "MF-065"
+      ],
+      "notesRef": "features/MF-166.md"
     }
   ]
 }

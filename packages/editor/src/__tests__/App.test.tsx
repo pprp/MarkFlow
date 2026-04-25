@@ -6,6 +6,7 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { EditorView } from '@codemirror/view'
 import * as React from 'react'
 import { act } from 'react'
+import { flushSync } from 'react-dom'
 import * as path from 'path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { App, RECOVERY_CHECKPOINT_SYNC_DELAY_MS } from '../App'
@@ -875,6 +876,55 @@ describe('App desktop integration', () => {
     })
 
     expect(getEditorView(container).state.doc.toString()).toBe('# Reopen')
+  })
+
+  it('keeps the replacement untitled tab active when closing the last tab', async () => {
+    const api = new MockMarkFlowAPI()
+    api.saveFileAs = vi.fn(async () => ({ success: true, filePath: '/tmp/replacement.md' }))
+    window.markflow = api
+
+    const { container } = render(<App />)
+
+    await act(async () => {
+      api.emitFileOpened({ filePath: '/tmp/solo.md', content: '# Solo' })
+    })
+
+    await waitFor(() => {
+      expect(expectActiveDocumentName('solo.md')).toBeInTheDocument()
+      expect(container.querySelector('.mf-tabstrip')).not.toBeInTheDocument()
+    })
+
+    let immediateDocumentName = ''
+    let immediateHasTabstrip = false
+    let immediateEditorContent = ''
+
+    act(() => {
+      flushSync(() => {
+        api.emitMenuAction('close-tab')
+      })
+
+      immediateDocumentName =
+        container.querySelector<HTMLElement>('.mf-titlebar-document-name')?.textContent ?? ''
+      immediateHasTabstrip = container.querySelector('.mf-tabstrip') != null
+      immediateEditorContent = getEditorView(container).state.doc.toString()
+    })
+
+    expect(immediateDocumentName).toMatch(/Starter Document|Untitled/)
+    expect(immediateHasTabstrip).toBe(false)
+    expect(immediateEditorContent).toBe('')
+
+    await act(async () => {
+      api.emitMenuAction('save-file-as')
+      await Promise.resolve()
+    })
+
+    await waitFor(() => {
+      expect(api.saveFileAs).toHaveBeenCalledWith('', expect.any(String))
+    })
+    expect(expectActiveDocumentName('replacement.md')).toBeInTheDocument()
+    expect(container.querySelector('.mf-tabstrip')).not.toBeInTheDocument()
+    expect(getEditorView(container).state.doc.toString()).toBe('')
+    expect(container.querySelector('.mf-titlebar-dirty-dot')).not.toBeInTheDocument()
   })
 
   it('shows a dirty-close prompt and respects cancel, save, and discard choices', async () => {
@@ -2299,6 +2349,166 @@ describe('App desktop integration', () => {
     await waitFor(() => {
       expect(screen.getByRole('button', { name: 'Deep Dive' })).toBeInTheDocument()
       expect(screen.getByRole('button', { name: 'Deep Dive' })).toHaveAttribute('aria-current', 'true')
+    })
+  })
+
+  it('supports filtering, collapsible mode, click-to-jump, and ancestor auto-expansion from the sidebar outline', async () => {
+    const api = new MockMarkFlowAPI()
+    api.setStartupState({
+      document: null,
+      folderPath: '/docs',
+      windowSession: null,
+    })
+    api.getVaultFiles = vi.fn(async () => ['/docs/alpha.md'])
+    window.markflow = api
+
+    const content = ['# Intro', '', '## Setup', '', '### Deep Dive', '', '# Appendix'].join('\n')
+    const { container } = render(<App />)
+
+    const getSidebar = () => {
+      const element = container.querySelector('.mf-sidebar')
+      expect(element).not.toBeNull()
+      return element as HTMLElement
+    }
+
+    await waitFor(() => {
+      expect(getSidebar()).toBeInTheDocument()
+    })
+
+    await act(async () => {
+      api.emitFileOpened({ filePath: '/docs/alpha.md', content })
+    })
+
+    await waitFor(() => {
+      expect(within(getSidebar()).getByRole('button', { name: 'Setup' })).toBeInTheDocument()
+    })
+
+    const filterInput = within(getSidebar()).getByRole('textbox', {
+      name: 'Filter outline headings',
+    })
+    fireEvent.change(filterInput, { target: { value: 'deep' } })
+
+    expect(within(getSidebar()).getByRole('button', { name: 'Deep Dive' })).toBeInTheDocument()
+    expect(within(getSidebar()).queryByRole('button', { name: 'Intro' })).not.toBeInTheDocument()
+
+    fireEvent.click(within(getSidebar()).getByRole('button', { name: 'Deep Dive' }))
+
+    await waitFor(() => {
+      expect(getEditorView(container).state.selection.main.head).toBe(content.indexOf('### Deep Dive'))
+    })
+
+    await waitFor(() => {
+      expect(within(getSidebar()).getByRole('button', { name: 'Deep Dive' })).toHaveAttribute(
+        'aria-current',
+        'true',
+      )
+    })
+
+    fireEvent.change(filterInput, { target: { value: '' } })
+    fireEvent.click(within(getSidebar()).getByRole('button', { name: 'Collapsible outline mode' }))
+
+    await waitFor(() => {
+      expect(within(getSidebar()).getByRole('button', { name: 'Collapse Setup' })).toBeInTheDocument()
+    })
+
+    fireEvent.click(within(getSidebar()).getByRole('button', { name: 'Collapse Setup' }))
+    expect(within(getSidebar()).queryByRole('button', { name: 'Deep Dive' })).not.toBeInTheDocument()
+
+    act(() => {
+      getEditorView(container).dispatch({
+        selection: { anchor: content.indexOf('# Intro') },
+      })
+    })
+
+    act(() => {
+      getEditorView(container).dispatch({
+        selection: { anchor: content.indexOf('### Deep Dive') },
+      })
+    })
+
+    await waitFor(() => {
+      expect(within(getSidebar()).getByRole('button', { name: 'Deep Dive' })).toBeInTheDocument()
+      expect(within(getSidebar()).getByRole('button', { name: 'Deep Dive' })).toHaveAttribute(
+        'aria-current',
+        'true',
+      )
+    })
+  })
+
+  it('does not leak collapsed sidebar outline branches across documents that reuse the same anchors', async () => {
+    const api = new MockMarkFlowAPI()
+    api.setStartupState({
+      document: null,
+      folderPath: '/docs',
+      windowSession: null,
+    })
+    api.getVaultFiles = vi.fn(async () => ['/docs/alpha.md', '/docs/beta.md'])
+    window.markflow = api
+
+    const alphaContent = ['# Intro', '', '## Setup', '', '### Deep Dive', '', 'Alpha body'].join('\n')
+    const betaContent = ['# Intro', '', '## Setup', '', '### Deep Dive', '', 'Beta body'].join('\n')
+    const { container } = render(<App />)
+
+    const getSidebar = () => {
+      const element = container.querySelector('.mf-sidebar')
+      expect(element).not.toBeNull()
+      return element as HTMLElement
+    }
+
+    await waitFor(() => {
+      expect(getSidebar()).toBeInTheDocument()
+    })
+
+    await act(async () => {
+      api.emitFileOpened({ filePath: '/docs/alpha.md', content: alphaContent })
+    })
+
+    await waitFor(() => {
+      expect(expectActiveDocumentName('alpha.md')).toBeInTheDocument()
+      expect(within(getSidebar()).getByRole('button', { name: 'Setup' })).toBeInTheDocument()
+    })
+
+    await act(async () => {
+      api.emitFileOpened({ filePath: '/docs/beta.md', content: betaContent })
+    })
+
+    await waitFor(() => {
+      expect(screen.getByRole('tab', { name: 'beta.md' })).toHaveAttribute('aria-selected', 'true')
+      expect(within(getSidebar()).getByRole('button', { name: 'Setup' })).toBeInTheDocument()
+    })
+
+    act(() => {
+      getEditorView(container).dispatch({
+        selection: { anchor: betaContent.indexOf('# Intro') },
+      })
+    })
+
+    await waitFor(() => {
+      expect(within(getSidebar()).getByRole('button', { name: 'Intro' })).toHaveAttribute('aria-current', 'true')
+    })
+
+    fireEvent.click(screen.getByRole('tab', { name: 'alpha.md' }))
+
+    await waitFor(() => {
+      expect(screen.getByRole('tab', { name: 'alpha.md' })).toHaveAttribute('aria-selected', 'true')
+      expect(within(getSidebar()).getByRole('button', { name: 'Setup' })).toBeInTheDocument()
+    })
+
+    fireEvent.click(within(getSidebar()).getByRole('button', { name: 'Collapsible outline mode' }))
+
+    await waitFor(() => {
+      expect(within(getSidebar()).getByRole('button', { name: 'Collapse Setup' })).toBeInTheDocument()
+    })
+
+    fireEvent.click(within(getSidebar()).getByRole('button', { name: 'Collapse Setup' }))
+    expect(within(getSidebar()).queryByRole('button', { name: 'Deep Dive' })).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('tab', { name: 'beta.md' }))
+
+    await waitFor(() => {
+      expect(screen.getByRole('tab', { name: 'beta.md' })).toHaveAttribute('aria-selected', 'true')
+      expect(within(getSidebar()).getByRole('button', { name: 'Intro' })).toHaveAttribute('aria-current', 'true')
+      expect(within(getSidebar()).getByRole('button', { name: 'Deep Dive' })).toBeInTheDocument()
     })
   })
 
@@ -3753,6 +3963,52 @@ describe('App command palette integration', () => {
     await waitFor(() => {
       expect(document.activeElement).toBe(input)
     })
+  })
+
+  it('falls back to main-thread document-search counts when the worker does not answer', async () => {
+    const originalWorkerDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'Worker')
+    class SilentWorker {
+      addEventListener = vi.fn()
+      removeEventListener = vi.fn()
+      postMessage = vi.fn()
+      terminate = vi.fn()
+    }
+    Object.defineProperty(globalThis, 'Worker', {
+      configurable: true,
+      value: SilentWorker,
+    })
+
+    try {
+      const api = new MockMarkFlowAPI()
+      const content = ['MarkFlow', 'meta flow', 'microfilm'].join('\n')
+      api.setStartupState({
+        document: {
+          filePath: '/tmp/searchable.md',
+          content,
+        },
+        folderPath: null,
+        windowSession: null,
+      })
+      window.markflow = api
+
+      render(<App />)
+
+      fireEvent.keyDown(document, { key: 'f', ctrlKey: true })
+
+      const input = await screen.findByRole('textbox', { name: 'Search document' })
+      fireEvent.change(input, { target: { value: 'mf' } })
+
+      expect(screen.getByText('Searching...')).toBeInTheDocument()
+      await waitFor(() => {
+        expect(screen.getByText('3 matches')).toBeInTheDocument()
+      })
+    } finally {
+      if (originalWorkerDescriptor) {
+        Object.defineProperty(globalThis, 'Worker', originalWorkerDescriptor)
+      } else {
+        delete (globalThis as typeof globalThis & { Worker?: typeof Worker }).Worker
+      }
+    }
   })
 
   it('does not render a false zero document-search count while async counting is pending', async () => {

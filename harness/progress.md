@@ -6775,3 +6775,242 @@ next: MF-051 - Outline panel lists all headings with live scroll-sync and click-
 - Next recommended feature:
   - First isolate or split the unrelated dirty worktree slice so the next automation run can commit cleanly.
   - Then revisit `MF-076` only if the required manual paste matrix is available; otherwise pick the next terminal-verifiable ready feature that does not depend on desktop/live validation.
+
+### 2026-04-25T16:04:19+0800 - MF-162 verification rerun superseded by concurrent land
+
+- Author: Codex Dispatcher with Researcher/Implementer/Reviewer subagents.
+- Focus: start one MF-162 outline-parity closure while refreshing Typora research without widening into a second product slice.
+- Startup / baseline:
+  - `/Users/pprp/.codex/automations/typora-replication/memory.md` did not exist at start, so this run created it at handoff time instead of reading prior notes.
+  - Ran `pnpm harness:start`; it reported `164` features and selected `MF-076` as harness-next.
+  - Ran initial `./harness/init.sh --smoke`; it passed with desktop `84` tests and editor `534` tests (`3` skipped).
+- Research updates:
+  - Researcher used Typora's official Outline, Quick Start, Export, and 1.6 release-note docs.
+  - Researcher confirmed `MF-162` already matches Typora's outline-filter / current-header / flat-vs-collapsible capability bundle.
+  - Researcher also identified Typora's separate export-outline behavior; by final validation, concurrent commit `e11744c` had already landed the new `MF-165` ledger row and `harness/features/MF-165.md`, so no extra dispatcher-owned ledger edit remained to apply.
+- Implemented / accepted feature work:
+  - Locked the active feature to `MF-162`.
+  - While this run was collecting evidence, concurrent commit `b31112f` landed the MF-162 product/test/note slice on `main` (`App.tsx`, outline state/preferences, sidebar UI/tests, `MF-162.md`, and ledger state).
+  - Dispatcher therefore did not duplicate the MF-162 patch locally; instead it accepted the landed implementation and re-ran verification against the new HEAD state.
+- Changed files for this cycle:
+  - No new dispatcher-owned product files remained after the concurrent land.
+  - Concurrent landed commits observed during this run:
+    - `b31112f` — MF-162 outline controls parity while awaiting live verification
+    - `e11744c` — MF-135 clarification plus the new MF-165 research artifacts
+  - The shared worktree still contains unrelated dirty MF-136/lightbox files from another in-flight slice and was left untouched by this dispatcher.
+- Simplifications made:
+  - Did not recreate the already-landed MF-162/MF-135 changes in a second local patch.
+  - Treated the run as a verification/record cycle once the active feature was already present on `main`.
+- Verification:
+  - Early focused verification on the pre-land MF-162 slice passed:
+    - `pnpm --filter @markflow/editor exec vitest run src/__tests__/App.test.tsx src/components/VaultSidebar.test.tsx` (`91` tests passed).
+    - `pnpm --filter @markflow/editor exec vitest run src/editor/__tests__/outline.test.ts` (`5` tests passed).
+    - `pnpm --filter @markflow/editor exec eslint src/App.tsx src/components/VaultSidebar.tsx src/components/VaultSidebar.test.tsx src/outlinePanelPreferences.ts src/outlinePanelState.ts src/__tests__/App.test.tsx`.
+    - scoped `git diff --check`.
+  - After concurrent land, final verification on current `main` passed:
+    - `pnpm harness:verify` (`165 total | verified=101 | ready=26 | planned=37 | blocked=1 | regression=0`).
+    - `./harness/init.sh --smoke` with:
+      - `packages/desktop`: `10` files / `84` tests passed.
+      - `packages/editor`: `47` files / `537` tests passed / `3` skipped.
+- Review:
+  - Reviewer's read-only readiness pass found no blocking MF-162 regression, but requested explicit evidence around sidebar integration and document-switch behavior.
+  - The final landed `main` state now includes App-level sidebar-outline integration tests and the cross-document collapsed-branch regression, so Dispatcher accepted the feature state as truthful.
+  - Reviewer did not return a second final verdict in time; Dispatcher performed the final read-only acceptance pass.
+- Outcome:
+  - No new local commit was made in this run.
+  - `MF-162` is the actual active feature for this cycle, but it remains `status=ready`, `passes=false`, `lastVerifiedAt=null` because the required live long-document manual outline check is still outstanding.
+  - `MF-165` is now present on `main` as a newly tracked Typora gap for export-outline parity.
+- Next recommended feature:
+  - First isolate or commit the unrelated dirty MF-136/lightbox slice in a separate clean cycle so future runs can commit safely.
+  - Then complete the live long-document manual verification for `MF-162`; only after that return to the highest-value terminal-verifiable ready feature such as `MF-076` if the manual paste matrix is available.
+
+### 2026-04-25T16:08:50+0800 - MF-135 global-search empty state verified
+
+- Author: Codex Dispatcher with Researcher/Implementer/Reviewer subagents.
+- Focus: finish one bounded Typora replication loop without touching the inherited outline/App drift already present in the shared worktree.
+- Startup / baseline:
+  - Read `/Users/pprp/.codex/automations/typora-replication/memory.md`; it was still missing at dispatcher start.
+  - Ran `pnpm harness:start`; it reported `164` features and selected `MF-076` as harness-next.
+  - Ran `./harness/init.sh --smoke`; it passed with desktop `84` tests and editor `534` tests (`3` skipped).
+- Research updates:
+  - Researcher used Typora's official Copy-and-Paste and Shortcut Keys docs.
+  - No new feature row was added.
+  - Accepted one ledger refinement only: `MF-076` title now matches Typora's documented `Paste as Plain Text / Markdown Source` terminology so the backlog does not duplicate that capability later.
+  - Dispatcher removed a concurrent invalid `MF-166` row before final handoff because it duplicated the already-tracked `MF-138` export-with-previous capability and broke `scripts/harness/verify.mjs` by storing inline `notes` metadata.
+- Implemented / accepted feature work:
+  - Locked the active feature to `MF-135` because it was already represented by an isolated `GlobalSearch` slice and could be closed with terminal-only verification.
+  - Accepted the existing `GlobalSearch` behavior as-is: when no vault folder is open, the dialog keeps showing `Open a folder to search across files` even if a non-empty query or stale results were present earlier.
+  - No new product-code edits were needed in this assignment; only the `MF-135` ledger timestamp and note wording were refreshed to match the passing verification rerun.
+- Changed files for this cycle:
+  - `harness/feature-ledger.json`
+  - `harness/features/MF-135.md`
+  - `harness/progress.md`
+- Simplifications made:
+  - Reused the already-present `GlobalSearch` implementation and focused component tests instead of reopening unrelated `App` or outline files.
+  - Kept the research delta to a title refinement on `MF-076` rather than creating a duplicate paste feature row.
+- Verification:
+  - `pnpm --filter @markflow/editor exec vitest run src/components/GlobalSearch.test.tsx` passed (`1` file / `4` tests).
+  - `pnpm --filter @markflow/editor exec eslint src/components/GlobalSearch.tsx src/components/GlobalSearch.test.tsx` passed.
+  - `pnpm harness:verify` passed on the final ledger state (`165 total | verified=101 | ready=26 | planned=37 | blocked=1 | regression=0`).
+- Review:
+  - Reviewer accepted `MF-135` itself as truthful, with no false promotion on the feature row or note.
+  - Reviewer flagged unrelated shared-worktree drift in `packages/editor/src/__tests__/App.test.tsx` and older `MF-162` progress text; those files were left out of this feature's accepted scope.
+  - Dispatcher kept the `MF-076` title refinement because it belongs to the Researcher stage of this same run.
+- Outcome:
+  - `MF-135` is verified with focused automated evidence.
+  - No commit was made in this run because the shared worktree still contains unrelated dirty files outside the accepted `MF-135` slice.
+- Next recommended feature:
+  - `MF-076` remains harness-next, but only promote it after the trusted desktop paste matrix is completed.
+  - If that manual matrix is still unavailable next run, pick the next terminal-verifiable ready feature that does not depend on live desktop validation.
+
+### 2026-04-25T16:10:18+0800 - MF-162 sidebar regression proof strengthened after review
+
+- Author: Codex Dispatcher with Researcher/Implementer/Reviewer subagents.
+- Focus: finish the in-flight MF-162 verification lane truthfully after concurrent land on `main` and after the reviewer found a remaining coverage gap.
+- Research updates:
+  - No additional ledger change was accepted in this follow-up append.
+  - The active Typora gap context from the earlier dispatcher phase still stands: `MF-162` covers outline filtering / active-heading / flat-vs-collapsible parity, and `MF-165` remains the adjacent export-outline backlog item already landed on `main`.
+- Implemented / accepted feature work:
+  - Kept the active feature on `MF-162`.
+  - Accepted the Implementer follow-up in `packages/editor/src/__tests__/App.test.tsx` only:
+    - one App-level sidebar integration regression for filter + click-to-jump + collapsible mode + ancestor auto-expansion
+    - one stronger cross-document regression that pins the second document on a top-level heading before switching away, so nested visibility cannot be falsely restored by auto-expansion
+  - No App/sidebar product-code change was needed; the stronger regression passed against the already-landed MF-162 implementation.
+- Changed files for this follow-up append:
+  - `packages/editor/src/__tests__/App.test.tsx`
+  - `harness/progress.md`
+- Verification:
+  - `pnpm --filter @markflow/editor exec vitest run src/__tests__/App.test.tsx` passed (`87` tests).
+  - `pnpm --filter @markflow/editor exec eslint src/App.tsx src/__tests__/App.test.tsx` passed.
+  - `pnpm harness:verify` passed (`165 total | verified=101 | ready=26 | planned=37 | blocked=1 | regression=0`).
+  - Final `./harness/init.sh --smoke` passed with:
+    - `packages/desktop`: `10` files / `84` tests passed.
+    - `packages/editor`: `47` files / `537` tests passed / `3` skipped.
+- Review:
+  - Reviewer initially found one medium issue: the first cross-document test could still pass because active-heading auto-expansion might hide collapse-state leakage.
+  - After the strengthened App-level regression pinned the second document on `# Intro`, the blocking review concern was resolved without widening scope.
+- Outcome:
+  - `MF-162` still correctly remains `status=ready`, `passes=false`, `lastVerifiedAt=null` because the required live long-document manual verification is still outstanding.
+  - No commit was made in this follow-up because the shared worktree still contains unrelated dirty files in `harness/feature-ledger.json` and `harness/features/MF-135.md`.
+- Next recommended feature:
+  - First isolate or commit the unrelated ledger / MF-135 note drift in a clean cycle.
+  - Then complete the live long-document manual verification for `MF-162`; after that, return to the next clean ready feature.
+
+### 2026-04-25T19:38:41+0800 - MF-134 last-tab active state verified
+
+- Author: Codex Dispatcher with Researcher/Implementer/Reviewer subagents.
+- Focus: close one small editor-shell bug without widening into the already-dirty outline, global-search, or export slices.
+- Startup / baseline:
+  - Read `/Users/pprp/.codex/automations/typora-replication/memory.md`.
+  - Ran `pnpm harness:start`; it reported `165` features and selected `MF-076` as harness-next.
+  - Ran `./harness/init.sh --smoke`; it passed with desktop `84` tests and editor `537` tests (`3` skipped).
+- Research updates:
+  - Researcher checked Typora export docs and proposed a new `MF-166` row for Export with Previous parity.
+  - Dispatcher rejected that row because the capability is already tracked inside `MF-138`; no new ledger entry was accepted from research this run.
+- Implemented / accepted feature work:
+  - Selected `MF-134` because it was the cleanest low-risk feature in the current dirty tree and stayed inside `App.tsx` plus one focused regression.
+  - Accepted the `App.tsx` fix that creates the replacement blank tab once and immediately reuses its id for `replaceActiveTabId(...)` when the last tab closes.
+  - Strengthened `packages/editor/src/__tests__/App.test.tsx` so it captures the immediate post-close render inside the close flow and proves the replacement untitled editor is already active with empty content.
+  - Promoted `MF-134` to `status=verified`, `passes=true`, and `lastVerifiedAt=2026-04-25T19:38:41+0800`.
+- Changed files for this cycle:
+  - `packages/editor/src/App.tsx`
+  - `packages/editor/src/__tests__/App.test.tsx`
+  - `harness/feature-ledger.json`
+  - `harness/features/MF-134.md`
+  - `harness/progress.md`
+- Simplifications made:
+  - Reused the existing close-tab flow instead of adding another repair effect or tab bootstrap path.
+  - Kept the regression inside `App.test.tsx` rather than introducing new harness code or helper abstractions.
+- Verification:
+  - `pnpm --filter @markflow/editor exec vitest run src/__tests__/App.test.tsx -t "keeps the replacement untitled tab active when closing the last tab"` passed.
+  - `pnpm --filter @markflow/editor exec vitest run src/__tests__/App.test.tsx` passed (`88` tests).
+  - `pnpm --filter @markflow/editor exec eslint src/App.tsx src/__tests__/App.test.tsx` passed.
+  - `pnpm harness:verify` passed (`165 total | verified=102 | ready=25 | planned=37 | blocked=1 | regression=0` expected after promotion).
+- Review:
+  - Reviewer returned an initial baseline warning about `App`/outline drift but did not deliver a final verdict in time.
+  - Dispatcher performed the final read-only review and found no blocking overreach in the accepted `MF-134` slice.
+  - Residual risk is low and limited to neighboring tab-session behaviors already covered by the broader `App.test.tsx` suite.
+- Outcome:
+  - `MF-134` is now verified with focused automated evidence.
+  - Next recommended feature remains: avoid manual-gated `MF-076` unless the trusted desktop paste matrix is available; otherwise pick another terminal-verifiable ready feature outside the dirty `App`/outline area.
+
+### 2026-04-25T19:43:27+0800 - MF-134 committed after ledger repair
+
+- Author: Codex Dispatcher with Researcher/Implementer/Reviewer subagents.
+- Focus: complete the current automation run after startup smoke exposed a transient emoji-autocomplete timeout and reviewer found ledger drift.
+- Startup / baseline:
+  - Read `/Users/pprp/.codex/automations/typora-replication/memory.md`.
+  - Ran `pnpm harness:start`; it reported `165` features and selected `MF-076` as harness-next.
+  - First `./harness/init.sh --smoke` failed once on `emojiAutocomplete.test.ts` timing out in the Unicode-glyph acceptance case.
+  - Focused reruns of the emoji test and the `MarkFlowEditor` + emoji sequence passed, then a second full `./harness/init.sh --smoke` passed with desktop `84` tests and editor `538` tests (`3` skipped), so no smoke-repair code change was justified.
+- Research updates:
+  - Researcher refined `MF-087`, but Reviewer correctly noted the expanded title overclaimed packet / kanban / architecture chart parity while the verified sidecar only covers flow, sequence, Gantt, Venn, and Ishikawa. Dispatcher reverted `MF-087` to the evidence-covered verified title.
+  - Accepted a new planned backlog row `MF-166` for Typora 1.10 Paragraph -> Alert conversion, with sidecar `harness/features/MF-166.md`, after converting the invalid inline `notes` row into the harness-required `notesRef` shape.
+- Implemented / accepted feature work:
+  - Accepted the existing `MF-134` fix: when closing the last tab, `App.tsx` creates one replacement blank tab and immediately sets that tab id active instead of setting `activeTabId` to `null`.
+  - Kept the focused App regression that proves the replacement untitled document is active, empty, editor-backed, and saveable immediately after the close flow.
+  - `MF-134` remains promoted to `status=verified`, `passes=true`, and `lastVerifiedAt=2026-04-25T19:38:41+0800`.
+- Changed files for this cycle:
+  - `packages/editor/src/App.tsx`
+  - `packages/editor/src/__tests__/App.test.tsx`
+  - `harness/feature-ledger.json`
+  - `harness/features/MF-134.md`
+  - `harness/features/MF-135.md`
+  - `harness/features/MF-166.md`
+  - `harness/progress.md`
+- Verification:
+  - `pnpm --filter @markflow/editor exec vitest run src/editor/__tests__/emojiAutocomplete.test.ts -t "accepts a completion by inserting the Unicode glyph instead of the shortcode" --reporter verbose` passed.
+  - `pnpm --filter @markflow/editor exec vitest run src/editor/__tests__/MarkFlowEditor.test.tsx src/editor/__tests__/emojiAutocomplete.test.ts --reporter verbose` passed (`64` tests, `3` skipped).
+  - Final `./harness/init.sh --smoke` passed.
+  - `pnpm --filter @markflow/editor exec vitest run src/__tests__/App.test.tsx -t "keeps the replacement untitled tab active when closing the last tab"` passed.
+  - `pnpm --filter @markflow/editor exec eslint src/App.tsx src/__tests__/App.test.tsx` passed.
+  - `pnpm harness:verify` passed (`166 total | verified=102 | ready=25 | planned=38 | blocked=1 | regression=0`).
+- Review:
+  - Reviewer accepted the `MF-134` implementation and regression.
+  - Reviewer's two ledger blockers were resolved by removing the `MF-087` overclaim and converting `MF-166` to sidecar-backed metadata.
+- Outcome:
+  - `MF-134` is the single verified feature closed by this run.
+  - `MF-166` is now tracked as planned research backlog.
+  - Next recommended feature remains `MF-076`, but it should not be promoted until the trusted Word / webpage / VS Code paste matrix is available.
+
+### 2026-04-25T19:45:11+0800 - MF-134 closed and smoke search fallback added
+
+- Author: Codex Dispatcher with Researcher/Implementer/Reviewer subagents.
+- Focus: complete one automation loop after startup smoke exposed an App command-palette/document-search timing failure.
+- Startup / baseline:
+  - Read `/Users/pprp/.codex/automations/typora-replication/memory.md`.
+  - Ran `pnpm harness:start`; it reported `165` features and selected `MF-076` as harness-next.
+  - Initial `./harness/init.sh --smoke` failed in `packages/editor/src/__tests__/App.test.tsx`:
+    - `pushes wikilink and global-search destinations onto navigation history across files` timed out.
+    - `fuzzy-search opens on Mod-F...` did not observe `3 matches`.
+  - Focused reruns of both failing tests and the full `App.test.tsx` suite passed, indicating a worker/timing-sensitive smoke failure rather than a deterministic assertion failure.
+- Research updates:
+  - Researcher added planned backlog item `MF-166` for Typora 1.10 Paragraph -> Alert conversion.
+  - Dispatcher kept it as `status=planned`, `passes=false`, `lastVerifiedAt=null`, with sidecar notes in `harness/features/MF-166.md`.
+- Implemented / accepted feature work:
+  - Closed `MF-134`: `handleCloseTab` now creates one replacement blank tab and immediately sets that tab id active when the last tab closes.
+  - Added the focused last-tab regression that proves the replacement untitled document is active, empty, editor-backed, and saveable immediately after close.
+  - Added a smoke-stability fallback for document-search counts: if the search worker stalls, App computes the count with the existing main-thread fuzzy counter after a short delay, while preserving stale-request cleanup.
+  - Added a silent-worker regression for the fallback path.
+- Changed files for this cycle:
+  - `packages/editor/src/App.tsx`
+  - `packages/editor/src/__tests__/App.test.tsx`
+  - `harness/feature-ledger.json`
+  - `harness/features/MF-134.md`
+  - `harness/features/MF-135.md`
+  - `harness/features/MF-166.md`
+  - `harness/progress.md`
+- Verification:
+  - `pnpm --filter @markflow/editor exec vitest run src/__tests__/App.test.tsx -t "falls back to main-thread document-search counts|fuzzy-search opens on Mod-F|pushes wikilink and global-search destinations|keeps the replacement untitled tab active" --reporter=verbose` passed (`4` tests).
+  - `pnpm --filter @markflow/editor exec vitest run src/__tests__/App.test.tsx` passed (`89` tests).
+  - `pnpm --filter @markflow/editor exec eslint src/App.tsx src/__tests__/App.test.tsx` passed.
+  - `./harness/init.sh --smoke` passed: desktop `84` tests, editor `539` passed / `3` skipped.
+  - `pnpm harness:verify` passed (`166 total | verified=102 | ready=25 | planned=38 | blocked=1 | regression=0`).
+  - `git diff --check` passed.
+- Review:
+  - Reviewer accepted `MF-134`, the document-search worker fallback, and ledger truth.
+  - Residual risk: near-large documents may briefly use main-thread search counting if the worker is slower than the fallback delay.
+- Outcome:
+  - `MF-134` is the single verified feature closed by this run.
+  - `MF-166` is now tracked as planned research backlog.
+  - Next recommended feature remains `MF-076`, but it should not be promoted until the trusted Word / webpage / VS Code paste matrix is available; otherwise choose another terminal-verifiable ready item.
