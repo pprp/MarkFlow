@@ -6557,6 +6557,46 @@ next: MF-051 - Outline panel lists all headings with live scroll-sync and click-
   - First isolate the automation in its own worktree or stop concurrent writers to `main`.
   - Then either finish or discard the unrelated outline-panel drift, rerun `pnpm harness:verify` and `./harness/init.sh --smoke`, and only then decide how to commit the already-verified MF-135 slice.
 
+### 2026-04-25T15:58:02+08:00 - MF-135 verification committed for the null-folder global search state
+
+- Author: Codex Dispatcher with Researcher/Implementer/Reviewer subagents.
+- Focus: close one already-implemented, fully automatable Typora-gap bugfix while keeping unrelated shared-worktree drift out of scope.
+- Startup / baseline:
+  - Read `/Users/pprp/.codex/automations/typora-replication/memory.md`.
+  - Ran `pnpm harness:start`.
+  - Ran `./harness/init.sh --smoke`; it passed on the current worktree before any new dispatcher edits in this cycle.
+- Research updates:
+  - Researcher re-checked Typora export docs and confirmed the existing `MF-138` export-profile row already sits at the correct `ready` state in the current tree, so no new diff was needed for that reclassification in this cycle.
+  - The current tree already contained an `MF-165` ledger row without the required note file, so Dispatcher added `harness/features/MF-165.md` to make the research entry verifiable by the harness.
+- Implemented / verified feature work:
+  - Selected `MF-135` because its product fix and focused regression test already existed in a disjoint file set and could be closed without touching the unrelated link-decoration or app-shell drift visible in the shared worktree.
+  - Kept the product change narrow in `packages/editor/src/components/GlobalSearch.tsx`: the no-folder explanation now takes precedence over search/no-results branches, and stale grouped results/counts disappear when `folderPath` becomes `null`.
+  - Promoted `MF-135` to `status=verified`, `passes=true`, and `lastVerifiedAt=2026-04-25T15:47:25+0800`.
+- Changed files for this cycle:
+  - `harness/feature-ledger.json`
+  - `harness/features/MF-135.md`
+  - `harness/features/MF-165.md`
+  - `packages/editor/src/components/GlobalSearch.tsx`
+  - `packages/editor/src/components/GlobalSearch.test.tsx`
+- Simplifications made:
+  - Reused the existing `GlobalSearch` state and result grouping instead of introducing new state or widening the fix into `App.tsx`.
+  - Treated the startup smoke pass as supporting evidence only; the closure rests on the focused component regression plus harness verification.
+  - Completed the missing `MF-165` note file instead of widening this run into export implementation work.
+- Verification:
+  - `./harness/init.sh --smoke` passed at startup on the same worktree.
+  - `pnpm --filter @markflow/editor exec vitest run src/components/GlobalSearch.test.tsx` passed (`1` file / `4` tests).
+  - `pnpm --filter @markflow/editor exec eslint src/components/GlobalSearch.tsx src/components/GlobalSearch.test.tsx` passed.
+  - `pnpm harness:verify` passed (`165 total | verified=100 | ready=27 | planned=37 | blocked=1 | regression=0`).
+  - `git diff --check -- harness/feature-ledger.json harness/features/MF-135.md harness/features/MF-165.md packages/editor/src/components/GlobalSearch.tsx packages/editor/src/components/GlobalSearch.test.tsx` passed.
+- Review:
+  - Reviewer accepted the `MF-135` closure and flagged only one residual coordination risk: do not accidentally sweep the unrelated `MF-076` title edit from `harness/feature-ledger.json` into this cycle’s staged slice.
+- Remaining risks:
+  - The shared worktree still contains unrelated edits in `packages/editor/src/__tests__/App.test.tsx`, `packages/editor/src/editor/decorations/linkDecoration.ts`, `packages/editor/src/editor/__tests__/linkDecoration.test.tsx`, and the `MF-076` title drift inside `harness/feature-ledger.json`.
+  - Any commit from this tree must stage the accepted `MF-135` / `MF-165` bookkeeping slice explicitly.
+- Next recommended feature:
+  - `MF-076` remains harness-next, but only promote it once a trusted desktop session can run the full Microsoft Word/webpage/VS Code paste matrix.
+  - If that manual environment is still unavailable, pick the next terminal-verifiable ready editor feature rather than spending another cycle on a manual-gated export/paste closure.
+
 ### 2026-04-25T13:33:52+08:00 - MF-162 implemented and moved to ready
 
 - Author: Codex Dispatcher with Researcher/Implementer/Reviewer subagents.

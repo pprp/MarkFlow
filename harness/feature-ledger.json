@@ -1807,9 +1807,9 @@
       "category": "bug",
       "area": "@markflow/editor",
       "priority": 3,
-      "status": "ready",
-      "passes": false,
-      "lastVerifiedAt": null,
+      "status": "verified",
+      "passes": true,
+      "lastVerifiedAt": "2026-04-25T15:47:25+0800",
       "dependsOn": [
         "MF-045"
       ],

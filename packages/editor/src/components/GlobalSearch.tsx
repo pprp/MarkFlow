@@ -34,6 +34,8 @@ const SEARCH_OPTION_TOGGLES: Array<{
   { key: 'regexp', label: 'Regular expression', glyph: '.*' },
 ]
 
+const NO_FOLDER_MESSAGE = 'Open a folder to search across files'
+
 function basename(filePath: string): string {
   return filePath.split(/[\\/]/).at(-1) ?? filePath
 }
@@ -133,7 +135,9 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({
 
   if (!isOpen) return null
 
-  const flatResults = results
+  const hasFolder = folderPath != null
+  const hasQuery = query.trim().length > 0
+  const flatResults = hasFolder ? results : []
   const grouped = groupResultsByFile(flatResults)
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -170,9 +174,9 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({
       cardClassName="mf-global-search-card"
       bodyClassName="mf-global-search-body"
       footer={
-        results.length > 0 ? (
+        flatResults.length > 0 ? (
           <span className="mf-global-search-status">
-            {results.length} result{results.length !== 1 ? 's' : ''} in {grouped.size} file{grouped.size !== 1 ? 's' : ''}
+            {flatResults.length} result{flatResults.length !== 1 ? 's' : ''} in {grouped.size} file{grouped.size !== 1 ? 's' : ''}
           </span>
         ) : (
           <>
@@ -228,15 +232,16 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({
       </div>
 
       <div className="mf-global-search-results">
-        {!query.trim() && (
-          <div className="mf-global-search-empty">
-            {folderPath ? 'Type to search across all files' : 'No folder open'}
-          </div>
+        {!hasFolder && (
+          <div className="mf-global-search-empty">{NO_FOLDER_MESSAGE}</div>
         )}
-        {query.trim() && isSearching && (
+        {hasFolder && !hasQuery && (
+          <div className="mf-global-search-empty">Type to search across all files</div>
+        )}
+        {hasFolder && hasQuery && isSearching && (
           <div className="mf-global-search-empty">Searching…</div>
         )}
-        {query.trim() && !isSearching && results.length === 0 && (
+        {hasFolder && hasQuery && !isSearching && flatResults.length === 0 && (
           <div className="mf-global-search-empty">No results found</div>
         )}
         {Array.from(grouped.entries()).map(([filePath, fileResults]) => (
