@@ -6727,3 +6727,49 @@ next: MF-051 - Outline panel lists all headings with live scroll-sync and click-
 - Next recommended feature:
   - Complete the live long-document outline check for `MF-162` in a trusted desktop session and only then promote it to `verified`.
   - After that, return to the highest-value unpassed feature that does not depend on desktop/live verification.
+
+### 2026-04-25T15:58:57+0800 - MF-136 lightbox close behavior verified
+
+- Author: Codex Dispatcher with Researcher/Implementer/Reviewer subagents.
+- Focus: close one narrow, disjoint Typora image-behavior feature without touching the inherited `App` / `GlobalSearch` worktree slice.
+- Startup / baseline:
+  - Read `/Users/pprp/.codex/automations/typora-replication/memory.md` and `harness/agent-team.md`.
+  - Ran `pnpm harness:start`; it reported `164` features and selected `MF-076` as harness-next.
+  - Ran `./harness/init.sh --smoke`; it passed with desktop `84` tests and editor `534` tests (`3` skipped).
+- Research updates:
+  - Researcher used Typora's official docs and returned `NO_CHANGE`: the tab/reopen behavior it checked is already covered by `MF-088`.
+  - No new ledger rows were added and no existing row wording was accepted from Researcher in this run.
+- Implemented / accepted feature work:
+  - Selected `MF-136` because `MF-076` is still manual-gated, `MF-091` / `MF-100` overlap dirtier `App`-adjacent files, and `MF-136` stayed inside a small image-decoration slice.
+  - Added a focused regression in `packages/editor/src/editor/__tests__/linkDecoration.test.tsx` that first went red because outside clicks did not dismiss the existing lightbox.
+  - Accepted the smallest product fix in `packages/editor/src/editor/decorations/linkDecoration.ts`: reuse a tracked cleanup hook for the singleton lightbox and close it on outside `pointerdown` while removing the global listeners during teardown.
+  - Updated `harness/features/MF-136.md` and promoted `MF-136` to `status=verified`, `passes=true`, `lastVerifiedAt=2026-04-25T15:55:30+0800`.
+- Changed files for this cycle:
+  - `harness/feature-ledger.json`
+  - `harness/features/MF-136.md`
+  - `harness/progress.md`
+  - `packages/editor/src/editor/__tests__/linkDecoration.test.tsx`
+  - `packages/editor/src/editor/decorations/linkDecoration.ts`
+- Simplifications made:
+  - Kept the feature inside the existing rendered-image widget and lightbox path instead of adding a new overlay component.
+  - Avoided CSS churn entirely; the accepted fix is listener/cleanup behavior plus focused DOM coverage only.
+  - Left inherited `MF-135` / `GlobalSearch` / `App.test.tsx` worktree drift untouched.
+- Verification:
+  - RED check: `pnpm --filter @markflow/editor exec vitest run src/editor/__tests__/linkDecoration.test.tsx` initially failed because the new MF-136 test expected outside clicks to close `.mf-lightbox`, but the lightbox remained mounted.
+  - GREEN checks passed:
+    - `pnpm --filter @markflow/editor exec vitest run src/editor/__tests__/linkDecoration.test.tsx` (`1` file / `10` tests passed).
+    - `pnpm --filter @markflow/editor exec eslint src/editor/decorations/linkDecoration.ts src/editor/__tests__/linkDecoration.test.tsx`.
+    - `pnpm harness:verify` (`165 total | verified=101 | ready=26 | planned=37 | blocked=1 | regression=0`).
+    - Final `./harness/init.sh --smoke` passed with:
+      - `packages/desktop`: `10` files / `84` tests passed.
+      - `packages/editor`: `47` files / `537` tests passed / `3` skipped.
+- Review:
+  - Implementer returned `DONE_WITH_CONCERNS` only because shared harness drift briefly made `MF-165` look incomplete mid-run; by the time the Dispatcher re-ran `pnpm harness:verify`, the ledger/note set was consistent again.
+  - Reviewer was dispatched but did not return a usable verdict in time; Dispatcher performed the final read-only acceptance pass instead and found no MF-136-specific regression, overreach, or verification gap.
+  - Residual risk is limited to optional visual polish for drag feel; the required open/drag/close/non-mutating behavior is now covered in automation.
+- Outcome:
+  - `MF-136` is now verified in the ledger with focused product code and test coverage.
+  - No commit was made in this run because the shared worktree still contains unrelated dirty files in `harness/features/MF-135.md`, `packages/editor/src/__tests__/App.test.tsx`, `packages/editor/src/components/GlobalSearch.tsx`, `packages/editor/src/components/GlobalSearch.test.tsx`, and the new `harness/features/MF-165.md`.
+- Next recommended feature:
+  - First isolate or split the unrelated dirty worktree slice so the next automation run can commit cleanly.
+  - Then revisit `MF-076` only if the required manual paste matrix is available; otherwise pick the next terminal-verifiable ready feature that does not depend on desktop/live validation.

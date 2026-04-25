@@ -1821,9 +1821,9 @@
       "category": "phase-2-functional",
       "area": "@markflow/editor",
       "priority": 3,
-      "status": "ready",
-      "passes": false,
-      "lastVerifiedAt": null,
+      "status": "verified",
+      "passes": true,
+      "lastVerifiedAt": "2026-04-25T15:55:30+0800",
       "dependsOn": [],
       "notesRef": "features/MF-136.md"
     },

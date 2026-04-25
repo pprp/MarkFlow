@@ -11,11 +11,11 @@ import { RangeSetBuilder, RangeSet, Text } from '@codemirror/state'
 import { getDecorationViewportWindow } from './viewportWindow'
 
 let activeLightbox: HTMLElement | null = null
+let activeLightboxCleanup: (() => void) | null = null
 
 function openImageLightbox(src: string, alt: string) {
-  if (activeLightbox) {
-    activeLightbox.remove()
-    activeLightbox = null
+  if (activeLightboxCleanup) {
+    activeLightboxCleanup()
   }
 
   const overlay = document.createElement('div')
@@ -65,14 +65,26 @@ function openImageLightbox(src: string, alt: string) {
   const close = () => {
     overlay.remove()
     if (activeLightbox === overlay) activeLightbox = null
+    if (activeLightboxCleanup === close) activeLightboxCleanup = null
     document.removeEventListener('keydown', onKeyDown)
+    document.removeEventListener('pointerdown', onPointerDown)
   }
 
   const onKeyDown = (e: KeyboardEvent) => {
     if (e.key === 'Escape') close()
   }
+  const onPointerDown = (e: PointerEvent) => {
+    const target = e.target
+    if (target instanceof Node && overlay.contains(target)) {
+      return
+    }
+
+    close()
+  }
   closeBtn.addEventListener('click', close)
   document.addEventListener('keydown', onKeyDown)
+  document.addEventListener('pointerdown', onPointerDown)
+  activeLightboxCleanup = close
 }
 
 const IMAGE_WIDGET_ROOT_MARGIN = '256px 0px'

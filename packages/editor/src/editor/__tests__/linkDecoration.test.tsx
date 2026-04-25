@@ -226,6 +226,62 @@ describe('link decorations', () => {
     destroyView(view)
   })
 
+  it('opens a draggable lightbox on image double-click and closes it without mutating the document', () => {
+    vi.stubGlobal('IntersectionObserver', undefined)
+    ensurePointerEventSupport()
+
+    const doc = ['Intro', '', '![Diagram](./fixtures/diagram.png)', 'After'].join('\n')
+    const view = makeView(doc, 0, '/Users/pprp/docs/note.md')
+    const image = view.dom.querySelector('img.mf-image-widget') as HTMLImageElement
+
+    expect(image).not.toBeNull()
+
+    fireEvent.doubleClick(image)
+
+    const overlay = document.body.querySelector('.mf-lightbox') as HTMLElement
+    const lightboxImage = overlay.querySelector('.mf-lightbox-img') as HTMLImageElement
+    const titleBar = overlay.querySelector('.mf-lightbox-titlebar') as HTMLElement
+    let capturedPointerId: number | null = null
+
+    titleBar.setPointerCapture = vi.fn((pointerId: number) => {
+      capturedPointerId = pointerId
+    })
+    titleBar.releasePointerCapture = vi.fn((pointerId: number) => {
+      if (capturedPointerId === pointerId) {
+        capturedPointerId = null
+      }
+    })
+    titleBar.hasPointerCapture = vi.fn((pointerId: number) => capturedPointerId === pointerId)
+
+    expect(overlay).not.toBeNull()
+    expect(lightboxImage.src).toBe('file:///Users/pprp/docs/fixtures/diagram.png')
+    expect(view.state.doc.toString()).toBe(doc)
+
+    mockRect(overlay, { left: 100, top: 40, width: 320, height: 240 })
+
+    fireEvent.pointerDown(titleBar, { pointerId: 7, button: 0, clientX: 160, clientY: 80 })
+    fireEvent.pointerMove(titleBar, { pointerId: 7, clientX: 260, clientY: 180 })
+    fireEvent.pointerUp(titleBar, { pointerId: 7, clientX: 260, clientY: 180 })
+
+    expect(overlay.style.left).toBe('200px')
+    expect(overlay.style.top).toBe('140px')
+
+    fireEvent.keyDown(document, { key: 'Escape' })
+
+    expect(document.body.querySelector('.mf-lightbox')).toBeNull()
+    expect(view.state.doc.toString()).toBe(doc)
+
+    fireEvent.doubleClick(image)
+    expect(document.body.querySelector('.mf-lightbox')).not.toBeNull()
+
+    fireEvent.pointerDown(document.body, { pointerId: 9, clientX: 8, clientY: 8 })
+
+    expect(document.body.querySelector('.mf-lightbox')).toBeNull()
+    expect(view.state.doc.toString()).toBe(doc)
+
+    destroyView(view)
+  })
+
   it('resolves local image sources while preserving already-addressable URLs', () => {
     expect(resolveImageSource('./assets/diagram.png', '/Users/pprp/docs/note.md')).toBe(
       'file:///Users/pprp/docs/assets/diagram.png',
