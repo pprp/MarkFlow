@@ -6765,11 +6765,13 @@ next: MF-051 - Outline panel lists all headings with live scroll-sync and click-
       - `packages/editor`: `47` files / `537` tests passed / `3` skipped.
 - Review:
   - Implementer returned `DONE_WITH_CONCERNS` only because shared harness drift briefly made `MF-165` look incomplete mid-run; by the time the Dispatcher re-ran `pnpm harness:verify`, the ledger/note set was consistent again.
-  - Reviewer was dispatched but did not return a usable verdict in time; Dispatcher performed the final read-only acceptance pass instead and found no MF-136-specific regression, overreach, or verification gap.
+  - Reviewer eventually returned `NO FINDINGS` on the scoped code/test slice and agreed the only remaining truthfulness concern was the note's former manual-verification wording.
+  - Dispatcher resolved that caveat by updating `harness/features/MF-136.md` so the manual step is explicitly optional parity-only rather than a blocker to verified promotion.
   - Residual risk is limited to optional visual polish for drag feel; the required open/drag/close/non-mutating behavior is now covered in automation.
 - Outcome:
   - `MF-136` is now verified in the ledger with focused product code and test coverage.
-  - No commit was made in this run because the shared worktree still contains unrelated dirty files in `harness/features/MF-135.md`, `packages/editor/src/__tests__/App.test.tsx`, `packages/editor/src/components/GlobalSearch.tsx`, `packages/editor/src/components/GlobalSearch.test.tsx`, and the new `harness/features/MF-165.md`.
+  - Committed the accepted MF-136 slice as `0526f89` (`Prevent image lightboxes from lingering after outside clicks`).
+  - The shared worktree still contains unrelated dirty files in `harness/feature-ledger.json`, `harness/features/MF-135.md`, and `packages/editor/src/__tests__/App.test.tsx`, so the repo is not fully clean after the commit.
 - Next recommended feature:
   - First isolate or split the unrelated dirty worktree slice so the next automation run can commit cleanly.
   - Then revisit `MF-076` only if the required manual paste matrix is available; otherwise pick the next terminal-verifiable ready feature that does not depend on desktop/live validation.
