@@ -335,6 +335,15 @@ export function useCommandPaletteActions({
         run: () => editorRef.current?.executeCommand('insert-math-block') ?? false,
       },
       {
+        id: 'paragraph.alert-note',
+        label: 'Alert Note',
+        category: 'Paragraph',
+        description: 'Wrap selected paragraphs in a GitHub NOTE callout',
+        keywords: ['callout', 'alert', 'github note', 'blockquote'],
+        focusEditorAfterRun: true,
+        run: () => editorRef.current?.executeCommand('insert-alert-note') ?? false,
+      },
+      {
         id: 'image.upload-selected',
         label: 'Upload Selected Image',
         category: 'Insert',

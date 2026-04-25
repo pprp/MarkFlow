@@ -379,6 +379,9 @@ export function useDesktopBridge({
         case 'insert-math':
           editorRef.current?.executeCommand('insert-math-block')
           break
+        case 'insert-alert-note':
+          editorRef.current?.executeCommand('insert-alert-note')
+          break
         case 'insert-blockquote':
           editorRef.current?.executeCommand('insert-blockquote')
           break

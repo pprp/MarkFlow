@@ -6863,6 +6863,60 @@ next: MF-051 - Outline panel lists all headings with live scroll-sync and click-
   - `MF-076` remains harness-next, but only promote it after the trusted desktop paste matrix is completed.
   - If that manual matrix is still unavailable next run, pick the next terminal-verifiable ready feature that does not depend on live desktop validation.
 
+### 2026-04-25T20:00:00+0800 - MF-166 paragraph alert command verified
+
+- Author: Codex Dispatcher with Researcher/Implementer/Reviewer subagents.
+- Focus: complete one Typora parity loop after a green smoke gate.
+- Startup / baseline:
+  - Read `/Users/pprp/.codex/automations/typora-replication/memory.md`.
+  - Ran `pnpm harness:start`; it reported `165` features and selected `MF-076` as harness-next.
+  - Ran `./harness/init.sh --smoke`; it passed before feature work.
+- Research updates:
+  - Researcher used Typora's official 1.10 release notes and Markdown Reference.
+  - Added `MF-166` for Typora's Paragraph -> Alert command that converts selected paragraphs into GitHub-style callout blocks.
+- Implemented / accepted feature work:
+  - Added a NOTE alert command that wraps selected full lines as `> [!NOTE]` plus quoted body lines.
+  - Routed the command through the editor handle, desktop menu bridge, Electron Insert menu, and command palette.
+  - Added editor command coverage for single paragraph, multi-line selection, and one-step undo.
+  - Added renderer bridge and desktop menu routing coverage.
+  - Fixed two verification blockers found during full editor checks: a nullable last-tab replacement path in `App.tsx` and an unused mermaid test blob callback.
+- Changed files for this cycle:
+  - `harness/feature-ledger.json`
+  - `harness/features/MF-166.md`
+  - `packages/shared/src/index.ts`
+  - `packages/desktop/src/main/menu.ts`
+  - `packages/desktop/src/main/menu.test.ts`
+  - `packages/editor/src/App.tsx`
+  - `packages/editor/src/__tests__/App.test.tsx`
+  - `packages/editor/src/app-shell/useCommandPaletteActions.ts`
+  - `packages/editor/src/app-shell/useDesktopBridge.ts`
+  - `packages/editor/src/editor/MarkFlowEditor.tsx`
+  - `packages/editor/src/editor/extensions/smartInput.ts`
+  - `packages/editor/src/editor/__tests__/smartInput.test.ts`
+  - `packages/editor/src/editor/__tests__/mermaidDecoration.test.ts`
+- Simplifications made:
+  - Implemented only the NOTE alert command exposed by the current UI path instead of adding a full alert-type picker.
+  - Reused existing command, menu bridge, and command palette plumbing.
+  - Kept callout rendering unchanged because authored GitHub callouts were already decorated.
+- Verification:
+  - `pnpm --filter @markflow/editor exec vitest run src/editor/__tests__/smartInput.test.ts src/__tests__/App.test.tsx src/editor/__tests__/mermaidDecoration.test.ts` passed (`165` tests).
+  - `pnpm --filter @markflow/desktop exec vitest run src/main/menu.test.ts` passed (`18` tests).
+  - `pnpm --filter @markflow/editor lint` passed.
+  - `pnpm --filter @markflow/editor build` passed with the existing Vite large-chunk warning.
+  - `pnpm harness:verify` passed (`166 total | verified=103 | ready=25 | planned=37 | blocked=1 | regression=0`).
+  - `git diff --check` passed.
+  - Final `./harness/init.sh --smoke` passed with:
+    - `packages/desktop`: `10` files / `85` tests passed.
+    - `packages/editor`: `47` files / `543` tests passed / `3` skipped.
+- Review:
+  - Reviewer accepted `MF-166` with no blocking findings.
+  - Residual risk: manual desktop render parity for the menu/palette path was not exercised; automated source transformation, bridge, menu, undo, lint, build, and smoke coverage are green.
+- Outcome:
+  - `MF-166` is verified in the ledger with `lastVerifiedAt=2026-04-25T19:52:10+0800`.
+- Next recommended feature:
+  - `MF-076` remains harness-next, but it still needs the trusted desktop paste matrix.
+  - If the paste matrix is unavailable, choose the next terminal-verifiable ready feature instead of promoting a manual-gated row.
+
 ### 2026-04-25T16:10:18+0800 - MF-162 sidebar regression proof strengthened after review
 
 - Author: Codex Dispatcher with Researcher/Implementer/Reviewer subagents.

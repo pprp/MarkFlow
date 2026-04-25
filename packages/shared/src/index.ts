@@ -182,6 +182,7 @@ export type MarkFlowMenuAction =
   | 'insert-hr'
   | 'insert-code-block'
   | 'insert-math'
+  | 'insert-alert-note'
   | 'insert-blockquote'
   | 'insert-task-list'
 

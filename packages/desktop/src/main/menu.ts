@@ -311,6 +311,7 @@ export function createApplicationMenuTemplate({
         { type: 'separator' },
         { label: 'Code Block', click: () => sendMenuAction('insert-code-block') },
         { label: 'Math Block', click: () => sendMenuAction('insert-math') },
+        { label: 'Alert Note', click: () => sendMenuAction('insert-alert-note') },
         { label: 'Blockquote', click: () => sendMenuAction('insert-blockquote') },
         { label: 'Task List', click: () => sendMenuAction('insert-task-list') },
       ],

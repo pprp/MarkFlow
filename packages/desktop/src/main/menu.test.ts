@@ -226,6 +226,18 @@ describe('createApplicationMenuTemplate', () => {
     expect(sendMenuAction).toHaveBeenCalledWith('clear-formatting')
   })
 
+  it('routes alert note insertion through the renderer menu bridge', () => {
+    const sendMenuAction = vi.fn()
+    const template = createMenuTemplate({
+      sendMenuAction,
+    })
+    const alertNoteItem = getMenuItem(template, 'Insert', 'Alert Note')
+
+    alertNoteItem?.click?.({} as never, {} as never, {} as never)
+
+    expect(sendMenuAction).toHaveBeenCalledWith('insert-alert-note')
+  })
+
   it('routes File export menu items through the renderer menu bridge', () => {
     const sendMenuAction = vi.fn()
     const template = createMenuTemplate({

@@ -1241,12 +1241,16 @@ export function App() {
       const closedIndex = findTabIndex(currentTabs, tabId)
       const nextTabs = currentTabs.filter((currentTab) => currentTab.id !== tabId)
       const fallbackTab = nextTabs[Math.min(closedIndex, Math.max(nextTabs.length - 1, 0))] ?? null
-      const replacementTab = nextTabs.length === 0 ? createDocumentTab(null, '') : null
-      const resolvedTabs = nextTabs.length > 0 ? nextTabs : [replacementTab]
 
       setClosedTabs((currentClosedTabs) => [{ closedIndex, tab: closedTab }, ...currentClosedTabs].slice(0, 20))
-      replaceTabs(resolvedTabs)
-      replaceActiveTabId(nextTabs.length > 0 ? fallbackTab?.id ?? null : replacementTab?.id ?? null)
+      if (nextTabs.length === 0) {
+        const replacementTab = createDocumentTab(null, '')
+        replaceTabs([replacementTab])
+        replaceActiveTabId(replacementTab.id)
+      } else {
+        replaceTabs(nextTabs)
+        replaceActiveTabId(fallbackTab?.id ?? null)
+      }
       clearEditorNavigationRequest()
       closeGoToLine()
       return true

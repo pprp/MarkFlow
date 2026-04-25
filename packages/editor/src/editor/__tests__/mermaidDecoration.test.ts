@@ -241,7 +241,10 @@ describe('diagramDecorations', () => {
   it('downloads the generated SVG without changing markdown source', async () => {
     const doc = '```sequence\nAlice->Bob: Ping\n```'
     const clickedLinks: HTMLAnchorElement[] = []
-    const createObjectURL = vi.fn((_blob: Blob) => 'blob:markflow-diagram')
+    const createObjectURL = vi.fn((blob: Blob) => {
+      expect(blob).toBeInstanceOf(Blob)
+      return 'blob:markflow-diagram'
+    })
     const revokeObjectURL = vi.fn()
     Object.defineProperty(URL, 'createObjectURL', {
       configurable: true,

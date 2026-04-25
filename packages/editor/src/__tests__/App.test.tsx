@@ -3098,6 +3098,36 @@ describe('App desktop integration', () => {
     })
   })
 
+  it('routes alert note through the menu bridge into the selected editor paragraphs', async () => {
+    const api = new MockMarkFlowAPI()
+    window.markflow = api
+
+    const content = ['Intro', '', 'First paragraph', 'Second paragraph', '', 'Outro'].join('\n')
+    const { container } = render(<App />)
+
+    await act(async () => {
+      api.emitFileOpened({ filePath: '/tmp/alert-note.md', content })
+    })
+
+    const view = getEditorView(container)
+    const from = content.indexOf('First')
+    const to = content.indexOf('Second') + 'Second paragraph'.length
+
+    act(() => {
+      view.dispatch({ selection: EditorSelection.range(from, to) })
+    })
+
+    await act(async () => {
+      api.emitMenuAction('insert-alert-note')
+    })
+
+    await waitFor(() => {
+      expect(view.state.doc.toString()).toBe(
+        ['Intro', '', '> [!NOTE]', '> First paragraph', '> Second paragraph', '', 'Outro'].join('\n'),
+      )
+    })
+  })
+
   it('routes pandoc export menu actions (docx, epub, latex) through the desktop bridge', async () => {
     const api = new MockMarkFlowAPI()
     window.markflow = api
@@ -4006,7 +4036,7 @@ describe('App command palette integration', () => {
       if (originalWorkerDescriptor) {
         Object.defineProperty(globalThis, 'Worker', originalWorkerDescriptor)
       } else {
-        delete (globalThis as typeof globalThis & { Worker?: typeof Worker }).Worker
+        Reflect.deleteProperty(globalThis, 'Worker')
       }
     }
   })

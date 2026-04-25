@@ -36,6 +36,8 @@ interface SmartInputOptions {
   isWysiwygMode?: () => boolean
 }
 
+export type GitHubAlertKind = 'NOTE' | 'TIP' | 'IMPORTANT' | 'WARNING' | 'CAUTION'
+
 export const PARAGRAPH_INSERT_SHORTCUTS = {
   table: {
     key: 'Ctrl-t',
@@ -434,6 +436,26 @@ export function insertMathBlockScaffold(view: EditorView, options?: SmartInputOp
     text: [`${indent}$$`, indent, `${indent}$$`].join('\n'),
     selectionOffset: indent.length * 2 + 3,
   }))
+}
+
+export function applyGitHubAlert(view: EditorView, kind: GitHubAlertKind = 'NOTE'): boolean {
+  const { state } = view
+  const selection = state.selection.main
+  const lastSelectedPosition = selection.empty ? selection.head : Math.max(selection.from, selection.to - 1)
+  const firstLine = state.doc.lineAt(selection.from)
+  const lastLine = state.doc.lineAt(lastSelectedPosition)
+  const selectedLines = state.doc.sliceString(firstLine.from, lastLine.to).split('\n')
+  const replacement = [
+    `> [!${kind}]`,
+    ...selectedLines.map((line) => (line.length > 0 ? `> ${line}` : '>')),
+  ].join('\n')
+
+  view.dispatch({
+    changes: { from: firstLine.from, to: lastLine.to, insert: replacement },
+    selection: { anchor: firstLine.from, head: firstLine.from + replacement.length },
+    scrollIntoView: true,
+  })
+  return true
 }
 
 function duplicateLineOrSelection(view: EditorView): boolean {

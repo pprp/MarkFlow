@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest'
+import { history, undo } from '@codemirror/commands'
 import {
   applyBold,
+  applyGitHubAlert,
   applyItalic,
   applyUnderline,
   applyLink,
@@ -355,6 +357,64 @@ describe('smartInput — paragraph block insertion shortcuts', () => {
       view.destroy()
     },
   )
+})
+
+describe('smartInput — GitHub alert callouts', () => {
+  it('wraps the selected paragraph in a GitHub NOTE callout', () => {
+    const doc = ['Intro', '', 'Selected paragraph', '', 'Outro'].join('\n')
+    const view = makeView(doc, doc.indexOf('Selected'))
+    const from = doc.indexOf('Selected')
+    const to = from + 'Selected paragraph'.length
+
+    view.dispatch({ selection: { anchor: from, head: to } })
+
+    expect(applyGitHubAlert(view, 'NOTE')).toBe(true)
+    expect(view.state.doc.toString()).toBe(
+      ['Intro', '', '> [!NOTE]', '> Selected paragraph', '', 'Outro'].join('\n'),
+    )
+
+    view.destroy()
+  })
+
+  it('wraps selected paragraph lines in a GitHub NOTE callout', () => {
+    const doc = ['Intro', '', 'First paragraph', 'Second paragraph', '', 'Outro'].join('\n')
+    const view = makeView(doc, doc.indexOf('First'))
+    const from = doc.indexOf('First')
+    const to = doc.indexOf('Second') + 'Second paragraph'.length
+
+    view.dispatch({ selection: { anchor: from, head: to } })
+
+    expect(applyGitHubAlert(view, 'NOTE')).toBe(true)
+    expect(view.state.doc.toString()).toBe(
+      ['Intro', '', '> [!NOTE]', '> First paragraph', '> Second paragraph', '', 'Outro'].join('\n'),
+    )
+
+    view.destroy()
+  })
+
+  it('restores alert conversion source text with one undo step', () => {
+    const doc = ['First paragraph', '', 'Second paragraph'].join('\n')
+    const state = EditorState.create({
+      doc,
+      extensions: [history(), markdown({ base: markdownLanguage }), smartInput()],
+    })
+    const parent = document.createElement('div')
+    document.body.appendChild(parent)
+    const view = new EditorView({ state, parent })
+
+    view.dispatch({
+      selection: { anchor: 0, head: doc.length },
+    })
+
+    expect(applyGitHubAlert(view, 'NOTE')).toBe(true)
+    expect(view.state.doc.toString()).toBe(
+      ['> [!NOTE]', '> First paragraph', '>', '> Second paragraph'].join('\n'),
+    )
+    expect(undo(view)).toBe(true)
+    expect(view.state.doc.toString()).toBe(doc)
+
+    view.destroy()
+  })
 })
 
 describe('smartInput — paragraph line breaks', () => {

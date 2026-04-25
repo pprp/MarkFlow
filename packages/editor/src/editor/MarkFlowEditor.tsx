@@ -54,6 +54,7 @@ import { inlineHtmlDecorations } from './decorations/inlineHtmlDecoration'
 import { smartInput } from './extensions/smartInput'
 import {
   applyBold,
+  applyGitHubAlert,
   applyItalic,
   applyLink,
   applyUnderline,
@@ -152,6 +153,7 @@ export type MarkFlowEditorCommand =
   | 'insert-math-block'
   | 'insert-image'
   | 'insert-hr'
+  | 'insert-alert-note'
   | 'insert-blockquote'
   | 'insert-task-list'
   | 'edit-bold'
@@ -1464,6 +1466,8 @@ export const MarkFlowEditor = forwardRef<MarkFlowEditorHandle, MarkFlowEditorPro
             return insertCodeFenceScaffold(view, smartInputOptions)
           case 'insert-math-block':
             return insertMathBlockScaffold(view, smartInputOptions)
+          case 'insert-alert-note':
+            return applyGitHubAlert(view, 'NOTE')
           case 'edit-bold':
             return applyBold(view)
           case 'edit-italic':

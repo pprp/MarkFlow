@@ -2280,9 +2280,9 @@
       "category": "phase-2-functional",
       "area": "@markflow/editor",
       "priority": 3,
-      "status": "planned",
-      "passes": false,
-      "lastVerifiedAt": null,
+      "status": "verified",
+      "passes": true,
+      "lastVerifiedAt": "2026-04-25T19:52:10+0800",
       "dependsOn": [
         "MF-034",
         "MF-065"
