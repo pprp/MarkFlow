@@ -1,3 +1,22 @@
+### 2026-04-25T20:07:39+0800 - MF-087 mermaid beta-fence normalization bug fixed
+
+- Author: GitHub Copilot session
+- Focus: Bug review session — discovered and fixed a real normalization bug in mermaidDecoration.ts for standalone beta fence languages.
+- Bug found:
+  - `normalizeDiagramSource` was passing `packet-beta`, `kanban`, `architecture-beta`, `radar-beta`, and `treemap-beta` sources through unchanged. This omitted the diagram type header line that Mermaid `render()` requires, causing silent render failures for those fence types.
+  - Root cause: The new fence language support was added but only the `mermaid` passthrough pattern was applied instead of prepending the type name.
+- Fix applied:
+  - `normalizeDiagramSource` now prepends `${lang}\n` for the five beta fence types when the source doesn't already start with the type name.
+  - Added two new unit tests: one verifying prefix is prepended when missing, one verifying it's not doubled when already present.
+- Secondary fix:
+  - Split 11-diagram combined test into two separate tests (6+5) to work around JSDOM viewport limitation — CodeMirror only calls `toDOM()` on ~6 diagram widgets in JSDOM's fake layout.
+- Defensive improvements:
+  - `useDesktopBridge.ts`: added try-catch around `handleMenuAction`, wrapped startup IIFE in try-catch, changed `Promise.all` → `Promise.allSettled` for collapsed-ranges loading in two places, added `.catch()` handlers to `getWindowState` and `getThemeState`.
+- Harness state: 166 total | verified=103 | ready=25 | planned=37 | blocked=1 | regression=0
+- Changed files: `mermaidDecoration.ts`, `mermaidDecoration.test.ts`, `useDesktopBridge.ts`, `feature-ledger.json`, `MF-087.md`
+- Tests: 549 editor (546+3 skip) + 85 desktop — all passing
+- Next recommended: MF-076 or any ready feature from `pnpm harness:next`
+
 ### 2026-04-24T20:22:51+0800 - MF-132 hidden export editor verified
 
 - Author: Codex Dispatcher with Researcher/Implementer/Reviewer subagents
