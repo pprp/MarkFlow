@@ -10,10 +10,27 @@ import { syntaxTree } from '@codemirror/language'
 import { RangeSetBuilder } from '@codemirror/state'
 import { getDecorationViewportWindow } from './viewportWindow'
 
-type DiagramLanguage = 'mermaid' | 'sequence' | 'flow'
+type DiagramLanguage =
+  | 'mermaid'
+  | 'sequence'
+  | 'flow'
+  | 'packet-beta'
+  | 'kanban'
+  | 'architecture-beta'
+  | 'radar-beta'
+  | 'treemap-beta'
 type IdleHandle = ReturnType<typeof globalThis.setTimeout> | number
 
-const DIAGRAM_FENCE_LANGUAGES = ['mermaid', 'sequence', 'flow'] as const
+const DIAGRAM_FENCE_LANGUAGES = [
+  'mermaid',
+  'sequence',
+  'flow',
+  'packet-beta',
+  'kanban',
+  'architecture-beta',
+  'radar-beta',
+  'treemap-beta',
+] as const
 const FLOW_DIRECTION_HINTS = new Set(['left', 'right', 'up', 'down'])
 const SVG_MIME_TYPE = 'image/svg+xml'
 
@@ -180,6 +197,16 @@ export function normalizeDiagramSource(lang: DiagramLanguage, source: string) {
   switch (lang) {
     case 'mermaid':
       return source
+    case 'packet-beta':
+    case 'kanban':
+    case 'architecture-beta':
+    case 'radar-beta':
+    case 'treemap-beta': {
+      // When the fence language is the diagram subtype directly (e.g. ```packet-beta),
+      // the source won't include the type name as the first line. Mermaid requires it.
+      const trimmedSource = source.trimStart()
+      return trimmedSource.startsWith(lang) ? source : `${lang}\n${source}`
+    }
     case 'sequence': {
       const trimmedSource = source.trim()
       if (!trimmedSource) {
@@ -198,7 +225,8 @@ export function normalizeDiagramSource(lang: DiagramLanguage, source: string) {
 }
 
 function formatDiagramError(lang: DiagramLanguage, error: unknown) {
-  const label = lang === 'mermaid' ? 'Mermaid' : lang === 'sequence' ? 'sequence diagram' : 'flowchart'
+  const label =
+    lang === 'sequence' ? 'sequence diagram' : lang === 'flow' ? 'flowchart' : 'Mermaid diagram'
   if (error instanceof Error && error.message.trim()) {
     return `Unable to render ${label}: ${error.message.trim()}`
   }

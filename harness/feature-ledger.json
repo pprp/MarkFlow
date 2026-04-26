@@ -1142,13 +1142,13 @@
     },
     {
       "id": "MF-087",
-      "title": "Flowchart, sequence, and Mermaid diagram fences render live previews for Gantt, Venn, and Ishikawa charts",
+      "title": "Flowchart, sequence, and Mermaid 11 diagram fences render live previews for Gantt, packet, kanban, architecture, radar, treemap, Venn, and Ishikawa charts",
       "category": "phase-2-functional",
       "area": "@markflow/editor",
       "priority": 3,
       "status": "verified",
       "passes": true,
-      "lastVerifiedAt": "2026-04-24T20:00:59+08:00",
+      "lastVerifiedAt": "2026-04-25T20:07:39+08:00",
       "dependsOn": [
         "MF-023"
       ],

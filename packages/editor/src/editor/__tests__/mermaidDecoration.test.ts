@@ -186,6 +186,78 @@ describe('diagramDecorations', () => {
     )
   })
 
+  it('renders Mermaid packet-beta, kanban, architecture-beta, radar-beta, and treemap-beta fences', async () => {
+    const doc = [
+      '```mermaid',
+      'packet-beta',
+      '  title Packet',
+      '  0-15: "Source Port"',
+      '  16-31: "Destination Port"',
+      '```',
+      '',
+      '```mermaid',
+      'kanban',
+      '  Todo',
+      '    [Write tests]',
+      '  Done',
+      '    [Ship parity]',
+      '```',
+      '',
+      '```mermaid',
+      'architecture-beta',
+      '  group app(cloud)[Application]',
+      '  service editor(server)[Editor] in app',
+      '  service mermaid(database)[Mermaid] in app',
+      '  editor:R -- L:mermaid',
+      '```',
+      '',
+      '```mermaid',
+      'radar-beta',
+      '  title Feature Parity',
+      '  axis Diagrams, Export, Editing',
+      '  curve MarkFlow{90,75,85}',
+      '```',
+      '',
+      '```mermaid',
+      'treemap-beta',
+      '  title Diagram Coverage',
+      '  diagrams',
+      '    gantt: 1',
+      '    venn: 1',
+      '```',
+    ].join('\n')
+
+    makeView(doc)
+
+    await waitFor(() => {
+      expect(renderMock).toHaveBeenCalledTimes(5)
+    })
+
+    const renderedSources = renderMock.mock.calls.map(([, source]) => source as string)
+    expect(renderedSources).toContain(
+      ['packet-beta', '  title Packet', '  0-15: "Source Port"', '  16-31: "Destination Port"'].join('\n'),
+    )
+    expect(renderedSources).toContain(
+      ['kanban', '  Todo', '    [Write tests]', '  Done', '    [Ship parity]'].join('\n'),
+    )
+    expect(renderedSources).toContain(
+      [
+        'architecture-beta',
+        '  group app(cloud)[Application]',
+        '  service editor(server)[Editor] in app',
+        '  service mermaid(database)[Mermaid] in app',
+        '  editor:R -- L:mermaid',
+      ].join('\n'),
+    )
+    expect(renderedSources).toContain(
+      ['radar-beta', '  title Feature Parity', '  axis Diagrams, Export, Editing', '  curve MarkFlow{90,75,85}'].join(
+        '\n',
+      ),
+    )
+    expect(renderedSources).toContain(
+      ['treemap-beta', '  title Diagram Coverage', '  diagrams', '    gantt: 1', '    venn: 1'].join('\n'),
+    )
+  })
   it('shows a block-local render error without breaking sibling diagrams', async () => {
     const doc = [
       '```mermaid',
@@ -376,7 +448,30 @@ describe('buildDiagramDecorations', () => {
 })
 
 describe('normalizeDiagramSource', () => {
-  it('passes Mermaid Venn and Ishikawa-compatible sources through unchanged', () => {
+  it('passes Mermaid 11 chart sources through unchanged', () => {
+    const packetSource = [
+      'packet-beta',
+      '  title Packet',
+      '  0-15: "Source Port"',
+      '  16-31: "Destination Port"',
+    ].join('\n')
+    const kanbanSource = ['kanban', '  Todo', '    [Write tests]', '  Done', '    [Ship parity]'].join('\n')
+    const architectureSource = [
+      'architecture-beta',
+      '  group app(cloud)[Application]',
+      '  service editor(server)[Editor] in app',
+      '  service mermaid(database)[Mermaid] in app',
+      '  editor:R -- L:mermaid',
+    ].join('\n')
+    const radarSource = [
+      'radar-beta',
+      '  title Feature Parity',
+      '  axis Diagrams, Export, Editing',
+      '  curve MarkFlow{90,75,85}',
+    ].join('\n')
+    const treemapSource = ['treemap-beta', '  title Diagram Coverage', '  diagrams', '    gantt: 1', '    venn: 1'].join(
+      '\n',
+    )
     const vennSource = [
       'venn-beta',
       '  set A ["Backend"]:12',
@@ -392,12 +487,44 @@ describe('normalizeDiagramSource', () => {
       '    Missing checklist',
     ].join('\n')
 
+    expect(normalizeDiagramSource('mermaid', packetSource)).toBe(packetSource)
+    expect(normalizeDiagramSource('mermaid', kanbanSource)).toBe(kanbanSource)
+    expect(normalizeDiagramSource('mermaid', architectureSource)).toBe(architectureSource)
+    expect(normalizeDiagramSource('mermaid', radarSource)).toBe(radarSource)
+    expect(normalizeDiagramSource('mermaid', treemapSource)).toBe(treemapSource)
     expect(normalizeDiagramSource('mermaid', vennSource)).toBe(vennSource)
     expect(normalizeDiagramSource('mermaid', ishikawaSource)).toBe(ishikawaSource)
   })
 
   it('prefixes raw sequence fences with Mermaid sequenceDiagram', () => {
     expect(normalizeDiagramSource('sequence', 'Alice->Bob: Hi')).toBe('sequenceDiagram\nAlice->Bob: Hi')
+  })
+
+  it('prepends the diagram type for standalone beta fence languages missing their type prefix', () => {
+    expect(normalizeDiagramSource('packet-beta', '  title Packet\n  0-15: "Source Port"')).toBe(
+      'packet-beta\n  title Packet\n  0-15: "Source Port"',
+    )
+    expect(normalizeDiagramSource('kanban', '  Todo\n    [Write tests]')).toBe(
+      'kanban\n  Todo\n    [Write tests]',
+    )
+    expect(normalizeDiagramSource('architecture-beta', '  group app(cloud)[Application]')).toBe(
+      'architecture-beta\n  group app(cloud)[Application]',
+    )
+    expect(normalizeDiagramSource('radar-beta', '  title Feature Parity')).toBe(
+      'radar-beta\n  title Feature Parity',
+    )
+    expect(normalizeDiagramSource('treemap-beta', '  title Diagram Coverage')).toBe(
+      'treemap-beta\n  title Diagram Coverage',
+    )
+  })
+
+  it('passes standalone beta fence sources through unchanged when they already include the type prefix', () => {
+    expect(normalizeDiagramSource('packet-beta', 'packet-beta\n  title Packet')).toBe(
+      'packet-beta\n  title Packet',
+    )
+    expect(normalizeDiagramSource('kanban', 'kanban\n  Todo\n    [Write tests]')).toBe(
+      'kanban\n  Todo\n    [Write tests]',
+    )
   })
 
   it('converts flowchart fences into Mermaid flowcharts', () => {

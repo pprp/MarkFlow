@@ -238,11 +238,12 @@ export function useDesktopBridge({
       replaceTabs(nextTabs)
       replaceActiveTabId(nextActiveId ?? activeTabIdRef.current ?? nextTabs[0]?.id ?? null)
 
-      await Promise.all(fileLoads.map(({ filePath, tabId }) => loadCollapsedRangesForTab(api, tabId, filePath)))
+      await Promise.allSettled(fileLoads.map(({ filePath, tabId }) => loadCollapsedRangesForTab(api, tabId, filePath)))
     }
 
     const handleMenuAction = async ({ action, path }: MarkFlowMenuActionPayload) => {
-      switch (action) {
+      try {
+        switch (action) {
         case 'new-file':
           await api.newFile()
           break
@@ -389,6 +390,9 @@ export function useDesktopBridge({
           editorRef.current?.executeCommand('insert-task-list')
           break
       }
+      } catch (error) {
+        console.error('[MarkFlow] Menu action failed:', action, error)
+      }
     }
 
     const unsubscribeFileOpened = api.onFileOpened((payload) => {
@@ -422,66 +426,70 @@ export function useDesktopBridge({
     const unsubscribeThemeUpdated = api.onThemeUpdated(applyThemeState)
 
     void (async () => {
-      let persistedDocuments: MarkFlowFilePayload[] = []
-      const startupState = await (api as MarkFlowStartupAPI).getStartupState()
-      if (startupState.windowSession?.documents.length) {
-        const nextTabs = startupState.windowSession.documents.map((document) =>
-          createDocumentTab(document.filePath, document.content, document.largeFile ?? null),
+      try {
+        let persistedDocuments: MarkFlowFilePayload[] = []
+        const startupState = await (api as MarkFlowStartupAPI).getStartupState()
+        if (startupState.windowSession?.documents.length) {
+          const nextTabs = startupState.windowSession.documents.map((document) =>
+            createDocumentTab(document.filePath, document.content, document.largeFile ?? null),
+          )
+          const nextActiveTab =
+            nextTabs.find((tab) => tab.filePath === startupState.windowSession?.activeFilePath) ??
+            nextTabs[0] ??
+            null
+
+          replaceTabs(nextTabs)
+          replaceActiveTabId(nextActiveTab?.id ?? null)
+          persistedDocuments = startupState.windowSession.documents
+          await Promise.allSettled(
+            nextTabs.map((tab) =>
+              tab.largeFile ? Promise.resolve() : loadCollapsedRangesForTab(api, tab.id, tab.filePath),
+            ),
+          )
+        } else if (startupState.document) {
+          persistedDocuments = [startupState.document]
+          await applyOpenedDocument(startupState.document)
+        }
+
+        if (startupState.folderPath) {
+          setVaultPath(startupState.folderPath)
+          setShowSidebar(true)
+          const files = await api.getVaultFiles(startupState.folderPath)
+          setVaultFiles(files ?? [])
+        }
+
+        const recoveryCheckpoint = await api.getRecoveryCheckpoint()
+        if (!recoveryCheckpoint) {
+          return
+        }
+
+        const activeRecoveryDocument =
+          recoveryCheckpoint.documents.find((document) => document.tabId === recoveryCheckpoint.activeTabId) ??
+          recoveryCheckpoint.documents[0]
+        const recoveredName =
+          recoveryCheckpoint.documents.length === 1
+            ? activeRecoveryDocument?.filePath?.split(/[\\/]/).at(-1) ?? 'untitled document'
+            : `${recoveryCheckpoint.documents.length} documents`
+        const shouldRecover = window.confirm(
+          `Recover the auto-saved changes for ${recoveredName} from ${new Date(recoveryCheckpoint.savedAt).toLocaleString()}?`,
         )
-        const nextActiveTab =
-          nextTabs.find((tab) => tab.filePath === startupState.windowSession?.activeFilePath) ??
-          nextTabs[0] ??
-          null
 
-        replaceTabs(nextTabs)
-        replaceActiveTabId(nextActiveTab?.id ?? null)
-        persistedDocuments = startupState.windowSession.documents
-        await Promise.all(
-          nextTabs.map((tab) =>
-            tab.largeFile ? Promise.resolve() : loadCollapsedRangesForTab(api, tab.id, tab.filePath),
-          ),
-        )
-      } else if (startupState.document) {
-        persistedDocuments = [startupState.document]
-        await applyOpenedDocument(startupState.document)
+        if (!shouldRecover) {
+          await api.discardRecoveryCheckpoint()
+          return
+        }
+
+        await applyRecoveredDocuments(recoveryCheckpoint, persistedDocuments)
+      } catch (error) {
+        console.error('[MarkFlow] Startup initialization failed:', error)
       }
-
-      if (startupState.folderPath) {
-        setVaultPath(startupState.folderPath)
-        setShowSidebar(true)
-        const files = await api.getVaultFiles(startupState.folderPath)
-        setVaultFiles(files ?? [])
-      }
-
-      const recoveryCheckpoint = await api.getRecoveryCheckpoint()
-      if (!recoveryCheckpoint) {
-        return
-      }
-
-      const activeRecoveryDocument =
-        recoveryCheckpoint.documents.find((document) => document.tabId === recoveryCheckpoint.activeTabId) ??
-        recoveryCheckpoint.documents[0]
-      const recoveredName =
-        recoveryCheckpoint.documents.length === 1
-          ? activeRecoveryDocument?.filePath?.split(/[\\/]/).at(-1) ?? 'untitled document'
-          : `${recoveryCheckpoint.documents.length} documents`
-      const shouldRecover = window.confirm(
-        `Recover the auto-saved changes for ${recoveredName} from ${new Date(recoveryCheckpoint.savedAt).toLocaleString()}?`,
-      )
-
-      if (!shouldRecover) {
-        await api.discardRecoveryCheckpoint()
-        return
-      }
-
-      await applyRecoveredDocuments(recoveryCheckpoint, persistedDocuments)
     })()
     void api.getWindowState().then((nextWindowState) => {
       setWindowState(nextWindowState)
-    })
+    }).catch((error: unknown) => { console.error('[MarkFlow] Failed to load window state:', error) })
     void api.getThemeState().then((nextThemeState) => {
       applyThemeState(nextThemeState)
-    })
+    }).catch((error: unknown) => { console.error('[MarkFlow] Failed to load theme state:', error) })
 
     return () => {
       unsubscribeFileOpened()
