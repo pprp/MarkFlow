@@ -7087,3 +7087,30 @@ next: MF-051 - Outline panel lists all headings with live scroll-sync and click-
   - `MF-134` is the single verified feature closed by this run.
   - `MF-166` is now tracked as planned research backlog.
   - Next recommended feature remains `MF-076`, but it should not be promoted until the trusted Word / webpage / VS Code paste matrix is available; otherwise choose another terminal-verifiable ready item.
+
+### 2026-04-28T09:28:17+0800 - Full verification pass and arm64 DMG rebuild
+
+- Author: Codex.
+- Focus: run a detailed repo verification pass, investigate any failures, and rebuild the macOS DMG artifact.
+- Baseline:
+  - `pnpm harness:start` passed on `main` and reported `166` features: `103` verified, `25` ready, `37` planned, `1` blocked, `0` regression.
+  - The working tree was clean before verification.
+- Findings:
+  - No reproducible test, lint, typecheck, harness, or DMG verification failure surfaced during this pass.
+  - The editor test suite still emits the known Node/Vitest jsdom warning: ``--localstorage-file` was provided without a valid path`; repo logs already show the same warning in prior sessions, and it did not fail the suite.
+  - Electron Builder warned that desktop package `description` and `author` fields are missing and skipped macOS signing because `identity: null` is configured.
+- Changed files for this cycle:
+  - `harness/progress.md`
+- Verification:
+  - `./harness/init.sh --smoke` passed: desktop `85` tests, editor `546` passed / `3` skipped.
+  - `pnpm lint` passed across shared, desktop, and editor.
+  - `pnpm build` passed across shared, desktop, and editor; Vite emitted the existing large-chunk warning.
+  - `pnpm harness:verify` passed: `166 total | verified=103 | ready=25 | planned=37 | blocked=1 | regression=0`.
+  - `git diff --check` passed.
+  - `pnpm --filter @markflow/desktop exec electron-builder --config electron-builder.yml --mac dmg` produced `dist-desktop/MarkFlow-0.4.0-arm64.dmg`.
+  - `hdiutil verify dist-desktop/MarkFlow-0.4.0-arm64.dmg` passed with CRC32 `$52AF52FE`.
+  - Mounted the DMG read-only and confirmed it contains `MarkFlow.app`, an Applications symlink, and `CFBundleIdentifier=com.markflow.app` / `CFBundleShortVersionString=0.4.0`.
+  - SHA-256: `080869f5999959b0bbe2c80eec6351ccc30b1e861bd5a4ee07d5e758caec8093`.
+- Outcome:
+  - No source fixes were required.
+  - The rebuilt target DMG is available at `dist-desktop/MarkFlow-0.4.0-arm64.dmg`.
