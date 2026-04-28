@@ -7114,3 +7114,36 @@ next: MF-051 - Outline panel lists all headings with live scroll-sync and click-
 - Outcome:
   - No source fixes were required.
   - The rebuilt target DMG is available at `dist-desktop/MarkFlow-0.4.0-arm64.dmg`.
+
+### 2026-04-28T10:14:32+0800 - MF-162 verification refreshed, live check still blocked
+
+- Author: Codex Dispatcher with Researcher/Implementer/Reviewer subagents.
+- Focus: run the Typora replication loop after a clean smoke gate, refresh Typora research, and complete at most one feature cycle.
+- Startup / baseline:
+  - Read `/Users/pprp/.codex/automations/typora-replication/memory.md`.
+  - Ran `pnpm harness:start`; it reported `166` features and selected `MF-076`.
+  - Ran `./harness/init.sh --smoke`; it passed with desktop `85` tests and editor `546` passed / `3` skipped.
+  - Committed the prior clean DMG rebuild handoff as `5bd3a4b`.
+- Research updates:
+  - Researcher corrected `MF-137` to match Typora's documented Pandoc import set: DOCX, LaTeX/TeX, RST, Org, Wiki, Textile, OPML, and EPUB.
+  - Dispatcher also synced `harness/features/MF-137.md` so the sidecar H1 matches the ledger title.
+- Implemented / accepted feature work:
+  - Implementer selected `MF-162` because the higher-priority ready items remain manual/live-desktop gated.
+  - No product code changed; this run refreshed the automated verification evidence for the existing outline filtering / active-heading / flat-vs-collapsible implementation.
+  - `MF-162` remains `status=ready`, `passes=false`, and `lastVerifiedAt=null` because the required live long-document scroll/filter/mode check could not be completed in this terminal environment.
+- Changed files for this cycle:
+  - `harness/feature-ledger.json`
+  - `harness/features/MF-137.md`
+  - `harness/features/MF-162.md`
+  - `harness/progress.md`
+- Verification:
+  - Startup `./harness/init.sh --smoke` passed.
+  - Implementer/Reviewer reran the MF-162 App/VaultSidebar tests, outline tests, scoped editor ESLint, and editor build successfully.
+  - `pnpm harness:verify` passed: `166 total | verified=103 | ready=25 | planned=37 | blocked=1 | regression=0`.
+  - `git diff --check -- harness/feature-ledger.json harness/features/MF-137.md harness/features/MF-162.md harness/progress.md` passed.
+- Review:
+  - Reviewer accepted the run state with no blockers and confirmed no unverified feature was promoted.
+  - Residual risk: `MF-162` still needs trusted live desktop/browser verification against a long document before promotion.
+- Outcome:
+  - No feature was promoted this run; the cycle stopped on the documented live-verification blocker.
+  - Next recommended feature remains `MF-076` only if the full Word/webpage/VS Code paste matrix is available; otherwise continue with a terminal-verifiable ready feature.

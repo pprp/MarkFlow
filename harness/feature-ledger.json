@@ -1829,7 +1829,7 @@
     },
     {
       "id": "MF-137",
-      "title": "Pandoc import converts DOCX, RTF, EPUB, OPML, and other supported formats into editable markdown",
+      "title": "Pandoc import converts DOCX, LaTeX/TeX, RST, Org, Wiki, Textile, OPML, and EPUB into editable markdown",
       "category": "phase-2-functional",
       "area": "@markflow/desktop",
       "priority": 3,
