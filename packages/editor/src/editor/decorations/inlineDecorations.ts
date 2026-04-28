@@ -88,6 +88,20 @@ function isCursorInsideInlineSpan(cursorHead: number, from: number, to: number) 
   return cursorHead >= from && cursorHead < to
 }
 
+function isValidSuperscriptRange(view: EditorView, from: number, to: number) {
+  const before = from > 0 ? view.state.doc.sliceString(from - 1, from) : ''
+  const after = to < view.state.doc.length ? view.state.doc.sliceString(to, to + 1) : ''
+
+  return before !== '[' && before !== '^' && after !== ']' && after !== '^'
+}
+
+function isValidSubscriptRange(view: EditorView, from: number, to: number) {
+  const before = from > 0 ? view.state.doc.sliceString(from - 1, from) : ''
+  const after = to < view.state.doc.length ? view.state.doc.sliceString(to, to + 1) : ''
+
+  return before !== '~' && after !== '~'
+}
+
 function expandDirtyRangesToWholeLines(
   view: EditorView,
   windowFrom: number,
@@ -291,6 +305,9 @@ function buildDecorations(view: EditorView, scanRanges?: ReadonlyArray<DirtyRegi
         while ((match = superscriptPattern.exec(segmentText)) !== null) {
           const from = segment.from + match.index
           const to = from + match[0].length
+          if (!isValidSuperscriptRange(view, from, to)) {
+            continue
+          }
           const cursorInside = isCursorInsideInlineSpan(cursorHead, from, to)
           if (cursorInside) {
             continue
@@ -310,6 +327,9 @@ function buildDecorations(view: EditorView, scanRanges?: ReadonlyArray<DirtyRegi
         while ((match = subscriptPattern.exec(segmentText)) !== null) {
           const from = segment.from + match.index
           const to = from + match[0].length
+          if (!isValidSubscriptRange(view, from, to)) {
+            continue
+          }
           const cursorInside = isCursorInsideInlineSpan(cursorHead, from, to)
           if (cursorInside) {
             continue

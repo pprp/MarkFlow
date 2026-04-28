@@ -1531,12 +1531,10 @@
       "category": "phase-1-functional",
       "area": "@markflow/editor",
       "priority": 3,
-      "status": "planned",
-      "passes": false,
-      "lastVerifiedAt": null,
-      "dependsOn": [
-        "MF-037"
-      ],
+      "status": "verified",
+      "passes": true,
+      "lastVerifiedAt": "2026-04-28T11:12:48+0800",
+      "dependsOn": [],
       "notesRef": "features/MF-115.md"
     },
     {
@@ -1844,7 +1842,7 @@
     },
     {
       "id": "MF-138",
-      "title": "Export profiles support previous targets, Markdown convert/reformat items, custom commands, themes, and YAML-aware publishing options",
+      "title": "Export profiles support previous targets, Markdown convert/reformat items, extended Pandoc formats, custom commands, themes, and YAML-aware publishing options",
       "category": "phase-2-functional",
       "area": "@markflow/desktop",
       "priority": 3,
@@ -2261,7 +2259,7 @@
     },
     {
       "id": "MF-165",
-      "title": "HTML/PDF export preserves Typora-style outline options, including HTML outline panel and PDF document outline",
+      "title": "HTML/PDF/EPUB export preserves Typora-style outline options, including HTML outline panel, PDF document outline, and EPUB chapter levels",
       "category": "phase-2-functional",
       "area": "@markflow/desktop",
       "priority": 3,

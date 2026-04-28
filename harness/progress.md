@@ -7147,3 +7147,41 @@ next: MF-051 - Outline panel lists all headings with live scroll-sync and click-
 - Outcome:
   - No feature was promoted this run; the cycle stopped on the documented live-verification blocker.
   - Next recommended feature remains `MF-076` only if the full Word/webpage/VS Code paste matrix is available; otherwise continue with a terminal-verifiable ready feature.
+
+### 2026-04-28T11:16:32+0800 - MF-115 superscript/subscript inline rendering verified
+
+- Author: Codex Dispatcher with Researcher/Implementer/Reviewer subagents.
+- Focus: run the Typora replication loop after a clean smoke gate, refresh Typora export metadata, and close one terminal-verifiable feature.
+- Startup / baseline:
+  - Read `/Users/pprp/.codex/automations/typora-replication/memory.md`.
+  - Ran `pnpm harness:start`; it reported `166` features and selected `MF-076`.
+  - Ran `./harness/init.sh --smoke`; it passed with desktop `85` tests and editor `546` passed / `3` skipped.
+  - Worktree was clean after startup, so there was no baseline commit to make before feature work.
+- Research updates:
+  - Researcher refined `MF-138` to explicitly include extended Pandoc export formats.
+  - Researcher refined `MF-165` to include EPUB outline/chapter-level parity alongside HTML/PDF outline options.
+  - No new feature rows were added; both refined rows remain `ready`, `passes=false`, and `lastVerifiedAt=null`.
+- Implemented / accepted feature work:
+  - Implementer selected `MF-115` because higher-priority ready items remain manual-gated and `MF-115` was terminal-verifiable.
+  - `packages/editor/src/editor/decorations/inlineDecorations.ts` now rejects single-marker superscript/subscript matches that are actually footnote references or strikethrough delimiters.
+  - `packages/editor/src/editor/__tests__/inlineDecorations.test.tsx` covers `^sup^`, `~sub~`, caret reveal, footnote collision, and coexistence with bold/italic decorations.
+  - Promoted `MF-115` to `status=verified`, `passes=true`, and `lastVerifiedAt=2026-04-28T11:12:48+0800`.
+- Changed files for this cycle:
+  - `harness/feature-ledger.json`
+  - `harness/features/MF-115.md`
+  - `packages/editor/src/editor/decorations/inlineDecorations.ts`
+  - `packages/editor/src/editor/__tests__/inlineDecorations.test.tsx`
+- Verification:
+  - Startup `./harness/init.sh --smoke` passed.
+  - Implementer captured a red focused superscript/subscript test before the fix, then reran the focused and full inline decoration tests successfully.
+  - `pnpm --filter @markflow/editor exec vitest run` passed: `47` files, `551` passed / `3` skipped.
+  - `pnpm --filter @markflow/editor lint` passed.
+  - `pnpm --filter @markflow/editor build` passed with the existing Vite large-chunk warning.
+  - Dispatcher `pnpm harness:verify` passed: `166 total | verified=104 | ready=25 | planned=36 | blocked=1 | regression=0`.
+  - `git diff --check` passed.
+- Review:
+  - Reviewer accepted the `MF-115` promotion with no blockers.
+  - Residual risk: live desktop WYSIWYG was not exercised; coverage is through jsdom editor rendering tests, and future nesting/punctuation cases may need more edge-case tests.
+- Outcome:
+  - One feature was completed and reviewed this run: `MF-115`.
+  - Next recommended feature remains `MF-076` only if the full Word/webpage/VS Code paste matrix is available; otherwise continue with another terminal-verifiable ready/planned feature.

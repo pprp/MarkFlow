@@ -220,3 +220,66 @@ describe('wysiwygDecorations — highlights', () => {
     destroyView(view)
   })
 })
+
+describe('wysiwygDecorations — superscript and subscript', () => {
+  it('hides superscript delimiters and applies inline styling away from the caret', () => {
+    const doc = 'Use x^2^ in prose'
+    const view = makeView(doc)
+
+    expect(view.dom.querySelector('.mf-superscript')?.textContent).toBe('2')
+    expect(lineText(view, 0)).toBe('Use x2 in prose')
+    expect(view.state.doc.toString()).toBe(doc)
+
+    destroyView(view)
+  })
+
+  it('hides subscript delimiters and applies inline styling away from the caret', () => {
+    const doc = 'Use H~2~O in prose'
+    const view = makeView(doc)
+
+    expect(view.dom.querySelector('.mf-subscript')?.textContent).toBe('2')
+    expect(lineText(view, 0)).toBe('Use H2O in prose')
+    expect(view.state.doc.toString()).toBe(doc)
+
+    destroyView(view)
+  })
+
+  it('reveals raw superscript markdown when the caret enters the span', () => {
+    const doc = 'Use x^2^ in prose'
+    const view = makeView(doc)
+
+    view.dispatch({ selection: { anchor: doc.indexOf('2') } })
+
+    expect(view.dom.querySelector('.mf-superscript')).toBeNull()
+    expect(lineText(view, 0)).toContain('x^2^')
+    expect(view.state.doc.toString()).toBe(doc)
+
+    destroyView(view)
+  })
+
+  it('keeps footnote references from being consumed as superscript spans', () => {
+    const doc = 'This has a footnote[^1] and another[^2].'
+    const view = makeView(doc)
+
+    expect(view.dom.querySelector('.mf-superscript')).toBeNull()
+    expect(lineText(view, 0)).toContain('[^1]')
+    expect(lineText(view, 0)).toContain('[^2]')
+    expect(view.state.doc.toString()).toBe(doc)
+
+    destroyView(view)
+  })
+
+  it('co-exists with bold and italic spans', () => {
+    const doc = '**bold** x^2^ and *italic* H~2~O'
+    const view = makeView(doc)
+
+    expect(view.dom.querySelector('.mf-bold')?.textContent).toBe('bold')
+    expect(view.dom.querySelector('.mf-superscript')?.textContent).toBe('2')
+    expect(view.dom.querySelector('.mf-italic')?.textContent).toBe('italic')
+    expect(view.dom.querySelector('.mf-subscript')?.textContent).toBe('2')
+    expect(lineText(view, 0)).toBe('bold x2 and italic H2O')
+    expect(view.state.doc.toString()).toBe(doc)
+
+    destroyView(view)
+  })
+})
