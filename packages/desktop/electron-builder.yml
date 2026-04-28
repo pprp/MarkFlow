@@ -14,6 +14,7 @@ extraResources:
     to: cli
 extraMetadata:
   main: dist/main/index.js
+afterPack: ../../scripts/build/adHocSignMacApp.mjs
 fileAssociations:
   - ext: md
     name: Markdown Document
@@ -29,8 +30,9 @@ fileAssociations:
 mac:
   category: public.app-category.productivity
   # Sign with Developer ID if CSC_LINK + CSC_KEY_PASSWORD env vars are set.
-  # If not set, electron-builder skips signing (ad-hoc only — users must run
-  # `xattr -cr MarkFlow.app` to bypass Gatekeeper on unsigned builds).
+  # If not set, the afterPack hook applies an ad-hoc signature so local builds
+  # have a valid bundle signature. Users may still need `xattr -cr MarkFlow.app`
+  # to bypass Gatekeeper quarantine on downloaded unsigned builds.
   identity: null   # set to "Developer ID Application: Your Name (TEAMID)" when signing
   hardenedRuntime: true
   gatekeeperAssess: false

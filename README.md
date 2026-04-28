@@ -85,6 +85,24 @@ pnpm test
 pnpm build
 ```
 
+### macOS Desktop Packaging
+
+macOS builds must always leave `MarkFlow.app` with a valid bundle signature. When
+Developer ID signing and notarization are not configured, the Electron Builder
+`afterPack` hook applies an ad-hoc signature so Apple Silicon Macs do not see a
+broken bundle signature as "MarkFlow is damaged and can't be opened."
+
+Unsigned ad-hoc builds are still not notarized. If a downloaded local build is
+blocked by Gatekeeper quarantine, remove the quarantine attribute after installing:
+
+```bash
+xattr -dr com.apple.quarantine /Applications/MarkFlow.app
+open /Applications/MarkFlow.app
+```
+
+For public distribution, use Apple Developer ID signing plus notarization instead
+of relying on the ad-hoc fallback.
+
 ---
 
 ## Roadmap
